@@ -2,12 +2,21 @@
 
 This note describes the current auction simulator and CLI surface.
 
-The simulator now follows the current auction direction:
+The simulator now follows the current launch direction:
 
-- one auction mechanism for valid names
+- one auction mechanism for every valid name
+- no semantic reserved-word list
 - no brand/person/generic classes
-- length-based opening floors for shorter names
+- no short-name wave
 - a valid bonded opening bid starts the auction clock
+
+The TypeScript identifiers still contain some older `reserved` names in a few
+internal places. Treat those as legacy implementation names, not product or
+launch vocabulary.
+
+The simulator still contains a legacy scheduled-catalog compatibility state for
+compatibility fixtures. That should not be presented as the current launch UX:
+in the user-started model, no auction exists until the opening bid confirms.
 
 ## CLI Commands
 
@@ -49,6 +58,7 @@ The simulator models:
 - minimum increment rules
 - stronger soft-close increment rules
 - soft-close extension
+- legacy scheduled-catalog compatibility
 - bidder budget constraints in market scenarios
 - settlement into a winning bidder when a valid auction clears
 
@@ -58,19 +68,16 @@ It is still a simulator, not the final launch engine.
 
 The default policy has one auction group:
 
-- `launch_name`: the implementation id for the single name-auction system
+- `launch_name`: the public auction group for valid names
 
-The serialized policy also publishes length-floor examples so demos can show
-how shorter names have higher fixed floors while using the same public auction mechanics. The default
-timing and floors are placeholders, intentionally useful for tests and demos,
-not final launch constants.
+The default timing and floors are placeholders. They are intentionally useful
+for tests and demos, not final launch constants.
 
 ## What Still Needs Work
 
 Before launch, the simulator direction still needs to be connected to:
 
 - auction-opening UX
-- final length-floor policy enforcement
-- final auction windows and extension caps
+- final auction windows, soft-close response windows, and increment rules
 - final settlement duration
 - batching / footprint analysis for auction openings and bids

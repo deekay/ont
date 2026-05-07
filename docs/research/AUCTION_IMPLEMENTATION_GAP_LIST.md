@@ -56,7 +56,8 @@ What we do **not** yet have:
   rule
 - a full website/operator flow that carries bidders from live auction state all
   the way through broadcast and post-win management
-- enforcement of length-based opening floors in the final launch path
+- final parameter choices for short-name floors, windows, increments, and
+  maturity duration
 
 ## Gap Categories
 
@@ -73,7 +74,7 @@ We now have:
 
 What is still missing is the second half:
 
-- final chain rules that give that transaction meaning in the name-auction
+- final chain rules that give that transaction meaning in the launch auction
   engine
 - final rebid and replacement semantics against prior auction state
 - final settlement consequences once those bid transactions land on chain
@@ -107,7 +108,7 @@ entries:
 - same-bidder replacement when the later bid spends the earlier bid bond
 - accepted-bid bond / release summaries
 - early-vs-allowed spend classification for observed bid bond outpoints
-- settled / soft-close / ready-to-open phase coverage
+- settled / soft-close / eligible / legacy scheduled-catalog close phase
 - settled-winner ownership materialization for names that do not already exist
   in the registry state
 
@@ -128,6 +129,8 @@ Still open:
 
 - whether the current loser-release / winner-lock timing is the right final
   rule set
+- whether the legacy scheduled-catalog compatibility path should be removed
+  entirely or kept only for compatibility tests
 - whether transfers before maturity are allowed and under what constraints
 - whether any explicit post-win settlement or acknowledgement step is still
   desirable despite the current winner-owned-name materialization path
@@ -138,10 +141,10 @@ The website can now:
 
 - inspect simulator-backed auction states
 - inspect a chain-derived experimental `AUCTION_BID` feed
-- download a bid package
+- prepare browser-side bid packages and unsigned Sparrow PSBTs from live or
+  opening auction state
 
-The CLI can now go one step further and build/sign a bid transaction from that
-package.
+The CLI remains the deeper protocol/debug surface.
 
 It cannot yet:
 
@@ -164,9 +167,10 @@ The next implementation order that still feels sane is:
 2. keep the experimental bid artifact / transaction builder stable long enough
    to learn from it
 3. deepen auction state transitions from those bid transactions
-4. enforce the length-based opening floors
-5. only then wire the website past "download package" into a more active bidder
+4. wire the website into a more active bidder
    flow
+5. add bidder-standing, rebid, and settlement follow-through once the live
+   state model is stable
 
 That keeps the work staged and reviewable instead of jumping straight from
 simulator states to a large implicit protocol.

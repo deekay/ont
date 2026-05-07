@@ -88,12 +88,12 @@ export function describeProfileBundle(payload: ProfileBundlePayload): string {
   const entries = listProfileBundleEntries(payload);
 
   if (entries.length === 0) {
-    return "Destination bundle";
+    return "Key/value bundle";
   }
 
   const keys = entries.slice(0, 3).map((entry) => entry.key);
   const suffix = entries.length > 3 ? ` +${entries.length - 3} more` : "";
-  return `Destination bundle · ${keys.join(", ")}${suffix}`;
+  return `Key/value bundle · ${keys.join(", ")}${suffix}`;
 }
 
 export function listProfileBundleEntries(payload: ProfileBundlePayload): Array<{ key: string; value: string }> {
@@ -133,7 +133,7 @@ function normalizeDraftEntries(entries: readonly ProfileBundleEntry[]): ProfileB
     }
 
     if (key === null || value === null) {
-      throw new Error(`Destination entry ${index + 1} needs both a label and a destination.`);
+      throw new Error(`Key/value bundle entry ${index + 1} needs both a key and a value.`);
     }
 
     normalized.push({ key, value });

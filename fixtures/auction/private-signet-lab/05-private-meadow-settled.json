@@ -1,9 +1,9 @@
 {
-  "title": "Private demo auction · harbor (settled)",
+  "title": "Private demo auction · meadow (settled)",
   "description": "Private signet auction fixture kept around so the curated auction lab still shows a fully settled auction lifecycle.",
   "currentBlockHeight": 4600,
   "scenario": {
-    "name": "harbor",
+    "name": "meadow",
     "auctionClassId": "launch_name",
     "unlockBlock": 110,
     "bidAttempts": [

@@ -16,10 +16,11 @@ Related notes:
 These are the things we currently mean as real design choices, even if they are
 still technically provisional:
 
-- valid names should be allocated by auction
-- shorter names should use higher length-based opening floors
-- ONT should not use semantic allocation classes
-- ONT should start names through bonded public auctions
+- launch-eligible names should be allocated by auction
+- ONT should not use a semantic reserved-word list
+- ONT should not use a pre-launch reservation system
+- very short names should use the same auction rule, with scarcity handled by
+  objective floors and increments rather than a separate wave
 - auctions should have soft close rather than hard-end sniping
 - bids that extend an auction during soft close should face a stronger minimum
   increment than ordinary mid-auction bids
@@ -40,11 +41,14 @@ These are still temporary and should not be treated as frozen:
 - exact opening-bond floors
 - exact winner settlement duration
 - exact auction window length
+- whether to remove the legacy scheduled-catalog compatibility path entirely or
+  keep it only as compatibility coverage
 - exact absolute increment floor
 - exact percentage increment floor
 - exact soft-close increment strength
-- exact soft-close extension cap
-- final length-based floor curve
+- exact soft-close response window
+- whether short-name floors should be steeper than the current placeholder
+  curve
 
 These numbers are currently there so we can:
 

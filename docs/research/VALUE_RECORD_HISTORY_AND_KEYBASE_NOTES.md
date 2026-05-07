@@ -7,7 +7,7 @@ This note answers a narrower question than the Bitcoin ownership protocol:
 
 Today the answer is only partially yes.
 
-ONT destination records are now signed by the current owner key, scoped to the
+ONT value records are now signed by the current owner key, scoped to the
 current ownership interval, and linked to their predecessor. That proves that a
 record was authorized by the current owner key, lets a resolver reject stale or
 skipped sequences, and gives clients an inspectable update chain for the
@@ -68,7 +68,7 @@ If a timestamp or root is anchored externally:
 
 - it can prove a record or root existed before the anchor time
 - it still does not replace the need for a signed predecessor chain
-- anchoring every destination update would violate the goal of keeping routine
+- anchoring every value update would violate the goal of keeping routine
   mutable data off Bitcoin
 
 So the recommended rule is:
@@ -96,10 +96,10 @@ owner key. Good candidates are the canonical acquisition, auction-settlement, or
 transfer event id that created the current owner state.
 
 That matters because `name + ownerPubkey` is not enough. If a name transfers
-away and later returns to the same key, an old destination record from the previous
+away and later returns to the same key, an old value record from the previous
 ownership interval should not become current again.
 
-`previousRecordHash` should be `null` for the first destination record in an
+`previousRecordHash` should be `null` for the first value record in an
 ownership interval. For every later record, it should point to the canonical
 hash of the previous value-record statement.
 
@@ -159,7 +159,7 @@ Client-side multi-resolver publish still works cleanly.
 
 The current prototype now has a first practical slice of that idea in the CLI:
 
-- one signed destination record can be published to several resolvers
+- one signed value record can be published to several resolvers
 - value-history responses can be compared across several resolvers to spot
   missing or lagging history
 - the website can do the same only against a deployment-configured resolver
@@ -223,16 +223,16 @@ root over the value-record heads and append receipts it has accepted.
 
 Possible transparency objects:
 
-- resolver-signed append receipt for each accepted destination record
+- resolver-signed append receipt for each accepted value record
 - periodic Merkle root over `(name, ownershipRef, sequence, recordHash)`
 - optional gossip of resolver roots between clients and resolvers
 - optional external anchoring of resolver roots
 
 External anchoring should be treated carefully. A low-frequency root commitment
 can improve fork detection, but it should not become mandatory for routine
-destination updates. The default design goal remains:
+value updates. The default design goal remains:
 
-> ownership events belong on Bitcoin; routine mutable destination updates do not.
+> ownership events belong on Bitcoin; routine mutable value updates do not.
 
 ## Recommended Implementation Sequence
 

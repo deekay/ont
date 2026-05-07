@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import {
   calculateLaunchAuctionMinimumIncrementBidSats,
   createDefaultLaunchAuctionPolicy,
-  getDefaultLaunchAuctionClassIdForName,
   parseLaunchAuctionPolicy,
   parseLaunchAuctionScenario,
   serializeLaunchAuctionPolicy,
@@ -24,6 +23,10 @@ describe("auction policy", () => {
   it("calculates the greater of the absolute and percentage minimum increment", () => {
     const policy = createDefaultLaunchAuctionPolicy();
 
+    expect(policy.auction.minimumIncrementAbsoluteSats).toBe(1_000n);
+    expect(policy.auction.minimumIncrementBasisPoints).toBe(500);
+    expect(policy.auction.softCloseMinimumIncrementAbsoluteSats).toBe(1_000n);
+    expect(policy.auction.softCloseMinimumIncrementBasisPoints).toBe(1_000);
     expect(
       calculateLaunchAuctionMinimumIncrementBidSats({
         currentBidSats: 1_000_000_000n,
@@ -35,7 +38,20 @@ describe("auction policy", () => {
         currentBidSats: 10_000_000n,
         policy
       })
-    ).toBe(11_000_000n);
+    ).toBe(10_500_000n);
+    expect(
+      calculateLaunchAuctionMinimumIncrementBidSats({
+        currentBidSats: 10_000n,
+        policy
+      })
+    ).toBe(11_000n);
+    expect(
+      calculateLaunchAuctionMinimumIncrementBidSats({
+        currentBidSats: 10_000n,
+        policy,
+        useSoftCloseIncrement: true
+      })
+    ).toBe(11_000n);
     expect(
       calculateLaunchAuctionMinimumIncrementBidSats({
         currentBidSats: 1_100_000_000n,
@@ -47,7 +63,7 @@ describe("auction policy", () => {
 });
 
 describe("simulateLaunchAuction", () => {
-  it("uses the length-based opening floor when it exceeds the global auction floor", () => {
+  it("uses the neutral length floor when it exceeds the launch auction floor", () => {
     const policy = createDefaultLaunchAuctionPolicy();
     const result = simulateLaunchAuction({
       policy,
@@ -69,39 +85,6 @@ describe("simulateLaunchAuction", () => {
     expect(result.openingMinimumBidSats).toBe(195_312n);
     expect(result.winner?.amountSats).toBe(25_000_000n);
     expect(result.settlementLockBlocks).toBe(policy.auctionClasses.launch_name.lockBlocks);
-  });
-
-  it("puts short names in the public auction flow with a higher length floor", () => {
-    const policy = createDefaultLaunchAuctionPolicy();
-    const result = simulateLaunchAuction({
-      policy,
-      scenario: {
-        name: "cove",
-        auctionClassId: getDefaultLaunchAuctionClassIdForName("cove"),
-        unlockBlock: 880_000,
-        bidAttempts: [
-          {
-            bidderId: "underfloor",
-            blockHeight: 880_010,
-            amountSats: 12_499_999n
-          },
-          {
-            bidderId: "opener",
-            blockHeight: 880_020,
-            amountSats: 12_500_000n
-          }
-        ]
-      }
-    });
-
-    expect(result.auctionClassId).toBe("launch_name");
-    expect(result.classLabel).toBe("Name auction");
-    expect(result.openingMinimumBidSats).toBe(12_500_000n);
-    expect(result.bidOutcomes.map((outcome) => outcome.reason)).toEqual([
-      "below_opening_minimum",
-      "opening_bid"
-    ]);
-    expect(result.winner?.bidderId).toBe("opener");
   });
 
   it("rejects bids before opening, rejects low increments, and extends on soft close", () => {

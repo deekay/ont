@@ -146,6 +146,16 @@ function text(x, y, value, font = "F1", size = 9, color = colors.ink) {
   return `BT /${font} ${size} Tf ${rgb(color)} rg ${x.toFixed(2)} ${y.toFixed(2)} Td (${escapePdf(value)}) Tj ET\n`;
 }
 
+function textRight(xRight, y, value, font = "F1", size = 9, color = colors.ink) {
+  const kind = font === "F3" ? "serif" : "sans";
+  return text(xRight - approximateWidth(value, size, kind), y, value, font, size, color);
+}
+
+function textCentered(xCenter, y, value, font = "F1", size = 9, color = colors.ink) {
+  const kind = font === "F3" ? "serif" : "sans";
+  return text(xCenter - approximateWidth(value, size, kind) / 2, y, value, font, size, color);
+}
+
 function textBlock({ x, y, width, value, size = 8.6, lineHeight = 11, font = "F1", color = colors.muted }) {
   let ops = "";
   let cursor = y;
@@ -223,42 +233,64 @@ function btcAmount(x, y, amount, size = 7.6, color = colors.ink) {
   return ops;
 }
 
+function decimalAmount(xDecimal, y, amount, size = 7.2, color = colors.ink) {
+  const value = String(amount);
+  const [whole, fraction] = value.split(".");
+  let ops = "";
+  if (fraction === undefined) {
+    ops += textRight(xDecimal - 0.4, y, whole, "F2", size, color);
+    return ops;
+  }
+  ops += textRight(xDecimal - 0.4, y, whole, "F2", size, color);
+  ops += text(xDecimal, y, ".", "F2", size, color);
+  ops += text(xDecimal + 2.6, y, fraction, "F2", size, color);
+  return ops;
+}
+
 function renderHeader() {
   let ops = "";
   ops += rect(0, 0, page.width, page.height, colors.paper);
   ops += rect(24, 24, page.width - 48, page.height - 48, colors.sheet, [0.89, 0.80, 0.67], 0.9);
   ops += rect(24, 454, page.width - 48, 134, [0.97, 0.90, 0.79]);
-  ops += text(48, 552, "OPEN NAME TAGS", "F2", 7.4, colors.clay);
-  ops += text(48, 525, "Open Name Tags (ONT)", "F3", 27, colors.ink);
-  ops += text(48, 501, "Names you can actually own", "F3", 16.2, colors.ink);
+  ops += text(48, 532, "Open Name Tags", "F3", 27, colors.ink);
+  ops += text(48, 506, "Names you can actually own", "F3", 16.2, colors.ink);
   ops += textBlock({
     x: 48,
-    y: 481,
-    width: 500,
-    value: "Bitcoin anchors ownership. Owner-signed off-chain records keep destinations updateable. Bonds create cost without rent; public auctions price scarce names.",
-    size: 8.6,
-    lineHeight: 10.5,
+    y: 484,
+    width: 486,
+    value: "ONTs are names you can own, verify, and update. Bitcoin anchors ownership; owner-signed off-chain records keep destinations updateable; bonded auctions price scarce names without rent or third-party payments.",
+    size: 9.0,
+    lineHeight: 11.1,
     color: colors.muted
   }).ops;
 
-  const thesisX = 584;
+  const panelX = 582;
+  const panelY = 459;
+  const panelWidth = 138;
+  const panelHeight = 104;
+  ops += line(558, 466, 558, 552, [0.76, 0.50, 0.34], 0.9);
+  ops += rect(panelX, panelY, panelWidth, panelHeight, [0.99, 0.948, 0.865], [0.86, 0.75, 0.62], 0.55);
+  ops += text(panelX + 14, panelY + panelHeight - 18, "CORE MODEL", "F2", 6.4, colors.clay);
+  ops += line(panelX + 14, panelY + panelHeight - 30, panelX + panelWidth - 14, panelY + panelHeight - 30, [0.86, 0.75, 0.62], 0.45);
+
   const thesis = [
     ["01", "Ownership", "on Bitcoin"],
     ["02", "Records", "off-chain"],
     ["03", "Bonds", "not rent"]
   ];
-  const cardWidth = 132;
-  const cardHeight = 29;
-  const cardGap = 8;
-  const numberX = thesisX + 12;
-  const labelX = thesisX + 44;
-  let cardTop = 570;
+  const cardWidth = panelWidth - 28;
+  const cardHeight = 18;
+  const cardGap = 3.6;
+  const thesisX = panelX + 14;
+  const numberX = thesisX + 11;
+  const labelX = thesisX + 43;
+  let cardTop = panelY + panelHeight - 35;
   for (const [number, title, detail] of thesis) {
     const cardY = cardTop - cardHeight;
-    ops += rect(thesisX, cardY, cardWidth, cardHeight, [0.995, 0.958, 0.892], [0.88, 0.77, 0.64], 0.65);
-    ops += text(numberX, cardY + 11.4, number, "F2", 7.1, colors.copper);
-    ops += text(labelX, cardY + 15.2, title, "F2", 7.4, colors.ink);
-    ops += text(labelX, cardY + 6.1, detail, "F1", 6.5, colors.clay);
+    ops += line(thesisX, cardY + cardHeight, thesisX + cardWidth, cardY + cardHeight, [0.86, 0.75, 0.62], 0.45);
+    ops += text(numberX, cardY + 6.4, number, "F2", 6.3, colors.copper);
+    ops += text(labelX, cardY + 9.5, title, "F2", 6.8, colors.ink);
+    ops += text(labelX, cardY + 2.2, detail, "F1", 5.8, colors.clay);
     cardTop -= cardHeight + cardGap;
   }
   return ops;
@@ -266,196 +298,196 @@ function renderHeader() {
 
 function renderAliceFlow() {
   const x = 48;
-  const y = 296;
-  const height = 108;
+  const y = 300;
+  const height = 96;
   const width = 212;
   const gap = 30;
   let ops = "";
-  ops += text(x, 440, "HOW ONE NAME RESOLVES", "F2", 7.0, colors.clay);
-  ops += text(x, 420, "Alice Example", "F3", 17.5, colors.ink);
-  ops += line(x, 410, 744, 410, colors.faint, 0.8);
+  ops += text(x, 436, "HOW ONE NAME RESOLVES", "F2", 7.0, colors.clay);
+  ops += text(x, 413, "Alice Example", "F3", 18.0, colors.ink);
+  ops += line(x, 402, 744, 402, colors.faint, 0.8);
   const cards = [
     {
       x,
       title: "Bitcoin anchor",
-      meta: "alice",
-      body: ["owner key: 8f3c...12ab", "bond: ₿6,250,000 (0.0625 BTC)"]
+      meta: "alice owner record",
+      body: ["owner key: 8f3c...12ab", "bond: self-custodied bitcoin"]
     },
     {
       x: x + width + gap,
       title: "Signed off-chain bundle",
-      meta: "current destinations",
+      meta: "alice destinations",
       body: ["bitcoin: bc1qxy...0wlh", "lightning: lno1q...9sa", "email: alice@example.com", "website: alice.example"]
     },
     {
       x: x + (width + gap) * 2,
       title: "Client",
-      meta: "resolve and verify",
+      meta: "resolve alice",
       body: ["checks Bitcoin ownership", "verifies owner signature", "uses website: alice.example"]
     }
   ];
 
   for (const [index, item] of cards.entries()) {
     ops += card(item.x, y, width, height, index === 1 ? [0.995, 0.965, 0.915] : colors.sheet, [0.87, 0.78, 0.67]);
-    ops += text(item.x + 15, y + height - 25, item.title, "F3", 14.0, colors.ink);
-    ops += text(item.x + 15, y + height - 42, item.meta, "F2", 7.1, colors.clay);
-    let bodyY = y + height - 60;
+    ops += text(item.x + 15, y + height - 24, item.title, "F3", 13.8, colors.ink);
+    ops += text(item.x + 15, y + height - 40, item.meta, "F2", 7.3, colors.clay);
+    let bodyY = y + height - 57;
     for (const row of item.body) {
-      ops += text(item.x + 15, bodyY, row, "F4", 7.25, colors.muted);
-      bodyY -= 10.2;
+      ops += text(item.x + 15, bodyY, row, "F4", 7.45, colors.muted);
+      bodyY -= 9.7;
     }
     if (index < cards.length - 1) {
       const arrowY = y + height / 2;
       const startX = item.x + width + 7;
       const endX = item.x + width + gap - 7;
-      ops += line(startX, arrowY, endX, arrowY, colors.copper, 1.0);
-      ops += text(endX - 3, arrowY - 3, ">", "F2", 7.5, colors.copper);
+      ops += line(startX, arrowY, endX, arrowY, colors.copper, 1.35);
+      ops += text(endX - 3.5, arrowY - 3.8, ">", "F2", 9.6, colors.copper);
     }
   }
 
-  ops += rect(x, 264, 696, 20, [0.16, 0.135, 0.105]);
-  ops += text(x + 14, 271.5, "Bitcoin answers who owns alice. The signed bundle answers where it points.", "F2", 7.8, colors.white);
+  ops += rect(x, 250, 696, 36, [0.16, 0.135, 0.105]);
+  ops += textCentered(
+    396,
+    263.5,
+    "Bitcoin answers who owns alice. The signed off-chain bundle answers where it points.",
+    "F2",
+    11.4,
+    colors.white
+  );
   return ops;
 }
 
 function renderBondCard() {
   const x = 48;
-  const y = 50;
+  const y = 88;
   const width = 330;
-  const height = 196;
+  const height = 150;
   let ops = "";
   ops += card(x, y, width, height, colors.sheet, [0.88, 0.80, 0.70]);
-  ops += text(x + 18, y + height - 26, "Bonds, Not Rent", "F3", 17.0, colors.ink);
-  ops += text(x + 18, y + height - 43, "ALLOCATION COST", "F2", 6.7, colors.clay);
+  ops += text(x + 18, y + height - 27, "ALLOCATION COST", "F2", 6.7, colors.clay);
+  ops += text(x + 18, y + height - 49, "Bonded Bitcoin", "F3", 17.0, colors.ink);
   ops += textBlock({
     x: x + 18,
-    y: y + height - 65,
-    width: 126,
-    value: "A bond creates real cost without paying a third party to allocate scarcity.",
-    size: 9.4,
-    lineHeight: 11.8,
+    y: y + height - 75,
+    width: 134,
+    value: "A bond creates real cost without paying a third party.",
+    size: 9.2,
+    lineHeight: 11.4,
     font: "F3",
     color: colors.ink
   }).ops;
   ops += textBlock({
     x: x + 18,
-    y: y + 73,
-    width: 128,
-    value: "The bitcoin remains yours in self-custody. The cost is liquidity, time, and opportunity cost.",
-    size: 7.3,
-    lineHeight: 9.0,
+    y: y + 50,
+    width: 132,
+    value: "No payment to ONT or a registry. No burn. No annual rent. Bitcoin remains self-custodied.",
+    size: 6.9,
+    lineHeight: 8.4,
+    color: colors.muted
+  }).ops;
+  ops += textBlock({
+    x: x + 18,
+    y: y + 18,
+    width: 132,
+    value: "Bonds mature after 1-3 years; pre-maturity transfers use buyer replacement bonds.",
+    size: 6.5,
+    lineHeight: 7.5,
     color: colors.muted
   }).ops;
 
-  ops += line(x + 154, y + 20, x + 154, y + height - 24, [0.90, 0.82, 0.72], 0.65);
+  ops += line(x + 158, y + 26, x + 158, y + height - 66, [0.90, 0.82, 0.72], 0.65);
 
-  const tableX = x + 170;
-  const tableY = y + 23;
+  const tableX = x + 174;
   const tableWidth = 140;
-  const rowH = 17.2;
+  const rowH = 10.6;
   const rows = [
-    ["1", "public", "1"],
-    ["2", "public", "0.5"],
-    ["3", "public", "0.25"],
-    ["4", "public", "0.125"],
-    ["5", "public", "0.0625"],
-    ["6", "public", "0.03125"],
-    ["12+", "public", "0.0005 floor"]
+    ["1", "1", "$100k"],
+    ["2", "0.5", "$50k"],
+    ["3", "0.25", "$25k"],
+    ["4", "0.125", "$12.5k"],
+    ["5", "0.0625", "$6.25k"],
+    ["6", "0.03125", "$3.13k"],
+    ["...", "...", "..."],
+    ["12+", "0.0005", "$50"]
   ];
 
-  ops += text(tableX, y + height - 29, "Example opening floors", "F2", 7.6, colors.clay);
-  ops += text(tableX, y + height - 43, "Illustrative; not final.", "F1", 6.7, colors.muted);
-  ops += rect(tableX, tableY + 121, tableWidth, 18, [0.965, 0.90, 0.80]);
-  ops += text(tableX + 8, tableY + 128, "Len", "F2", 6.5, colors.clay);
-  ops += text(tableX + 39, tableY + 128, "Path", "F2", 6.5, colors.clay);
-  ops += text(tableX + 84, tableY + 128, "Floor", "F2", 6.5, colors.clay);
+  ops += text(tableX, y + height - 27, "Example opening floors", "F2", 7.6, colors.clay);
+  ops += text(tableX, y + height - 41, "Illustrative; USD assumes", "F1", 6.4, colors.muted);
+  ops += btcMark(tableX + 82, y + height - 42.1, 6.0, colors.muted);
+  ops += text(tableX + 91, y + height - 41, "1 = $100k.", "F1", 6.4, colors.muted);
+  const headerY = y + 94;
+  ops += rect(tableX, headerY, tableWidth, 15.8, [0.965, 0.90, 0.80]);
+  ops += text(tableX + 7, headerY + 6.0, "Len", "F2", 6.1, colors.clay);
+  ops += text(tableX + 48, headerY + 6.0, "Bond", "F2", 6.1, colors.clay);
+  ops += btcMark(tableX + 70, headerY + 4.9, 6.2, colors.clay);
+  ops += text(tableX + 105, headerY + 6.0, "USD", "F2", 6.1, colors.clay);
 
-  let rowY = tableY + 111;
+  const bondRight = tableX + 88;
+  const usdRight = tableX + 132;
+  let rowY = headerY - 10;
   for (const row of rows) {
-    ops += text(tableX + 9, rowY, row[0], "F2", 7.2, colors.ink);
-    ops += text(tableX + 39, rowY, row[1], "F1", 6.8, colors.muted);
-    ops += btcAmount(tableX + 84, rowY, row[2], 7.15, colors.ink);
-    ops += line(tableX + 7, rowY - 5.2, tableX + tableWidth - 7, rowY - 5.2, [0.92, 0.86, 0.78], 0.4);
+    const isEllipsis = row[0] === "...";
+    const rowColor = isEllipsis ? colors.muted : colors.ink;
+    ops += text(tableX + 9, rowY, row[0], "F2", 6.8, rowColor);
+    ops += textRight(bondRight, rowY, row[1], "F2", 6.7, rowColor);
+    ops += textRight(usdRight, rowY, row[2], "F1", 6.4, colors.muted);
+    ops += line(tableX + 7, rowY - 4.4, tableX + tableWidth - 7, rowY - 4.4, [0.92, 0.86, 0.78], 0.4);
     rowY -= rowH;
   }
   return ops;
 }
 
-function renderLaunchCards() {
-  const x = 400;
-  const y = 158;
+function renderAuctionCard() {
+  const x = 404;
+  const y = 88;
   const width = 344;
-  const height = 88;
+  const height = 150;
   let ops = "";
   ops += card(x, y, width, height, colors.sheet, [0.88, 0.80, 0.70]);
-  ops += text(x + 16, y + height - 24, "Name Auctions", "F3", 16.0, colors.ink);
-  ops += text(x + 16, y + height - 40, "PUBLIC BONDED AUCTIONS", "F2", 6.5, colors.clay);
+  ops += text(x + 18, y + height - 27, "NAME ALLOCATION", "F2", 6.7, colors.clay);
+  ops += text(x + 18, y + height - 49, "Public Auctions", "F3", 17.0, colors.ink);
   ops += textBlock({
-    x: x + 16,
-    y: y + height - 59,
-    width: 162,
-    value: "Any valid name can be opened by auction. One bidder can win at the floor; competing bidders discover the final bond.",
-    size: 7.35,
-    lineHeight: 9.2,
+    x: x + 18,
+    y: y + height - 76,
+    width: 155,
+    value: "After launch, anyone can open a public auction for any valid name. Auctions settle with ordinary Bitcoin transactions; destination records stay off-chain.",
+    size: 7.9,
+    lineHeight: 9.8,
     color: colors.muted
   }).ops;
 
+  ops += line(x + 188, y + 42, x + 188, y + height - 66, [0.90, 0.82, 0.72], 0.65);
   const auctionItems = [
     "public auction window",
-    "bids discover final bond",
-    "winner settles ownership"
+    "opening floor",
+    "competing bids raise the bond",
+    "winner settles owner key"
   ];
   ops += bulletList({
-    x: x + 198,
-    y: y + height - 50,
-    width: 126,
+    x: x + 210,
+    y: y + height - 78,
+    width: 116,
     items: auctionItems,
-    size: 6.9,
-    lineHeight: 8.6,
-    itemGap: 3.0
+    size: 7.1,
+    lineHeight: 8.9,
+    itemGap: 3.1,
+    bulletColor: colors.muted
   }).ops;
   return ops;
 }
 
-function renderLengthFloorCard() {
-  const x = 400;
-  const y = 50;
-  const width = 344;
-  const height = 94;
+function renderClosingQuote() {
   let ops = "";
-  ops += card(x, y, width, height, [0.995, 0.958, 0.895], [0.86, 0.72, 0.60]);
-  ops += text(x + 16, y + height - 24, "Length Floors", "F3", 16.0, colors.ink);
-  ops += text(x + 16, y + height - 40, "FIXED BY NAME LENGTH", "F2", 6.5, colors.clay);
-  ops += bulletList({
-    x: x + 16,
-    y: y + height - 61,
-    width: 152,
-    items: [
-      "public auction mechanics",
-      "objective length curve",
-      "expensive early sweeps"
-    ],
-    size: 6.9,
-    lineHeight: 8.6,
-    itemGap: 3.0
-  }).ops;
-  ops += line(x + 186, y + 20, x + 186, y + height - 20, [0.88, 0.76, 0.64], 0.6);
-  ops += textBlock({
-    x: x + 204,
-    y: y + height - 32,
-    width: 120,
-    value: "Length floors make early bulk capture expensive while keeping allocation simple.",
-    size: 6.75,
-    lineHeight: 8.2,
-    color: colors.muted
-  }).ops;
+  ops += line(48, 79, 744, 79, [0.88, 0.80, 0.70], 0.6);
+  ops += textCentered(396, 61, "If more than one participant cares about a name,", "F3", 11.5, colors.ink);
+  ops += textCentered(396, 47, "the auction discovers that.", "F3", 11.5, colors.ink);
   return ops;
 }
 
 function renderFooter() {
   let ops = "";
-  ops += text(48, 34, "opennametags.org", "F2", 6.8, colors.clay);
-  ops += text(650, 34, "prototype brief", "F1", 6.6, colors.muted);
+  ops += text(48, 34, "opennametags.org", "F2", 8.2, colors.clay);
+  ops += textRight(744, 34, "protocol brief / April 2026", "F1", 7.2, colors.muted);
   return ops;
 }
 
@@ -463,8 +495,8 @@ let stream = "";
 stream += renderHeader();
 stream += renderAliceFlow();
 stream += renderBondCard();
-stream += renderLaunchCards();
-stream += renderLengthFloorCard();
+stream += renderAuctionCard();
+stream += renderClosingQuote();
 stream += renderFooter();
 
 const pdf = new PdfDocument();

@@ -212,14 +212,14 @@ describe("experimental auction derivation", () => {
     });
   });
 
-  it("keeps ready-to-open entries available for an opening bid", () => {
+  it("keeps unopened eligible entries available for an opening bid", () => {
     const policy = createDefaultLaunchAuctionPolicy();
     const catalogEntry = createExperimentalLaunchAuctionCatalogEntry(
       {
-        auctionId: "02-ready-to-open-cove",
-        title: "Ready to open · cove",
-        description: "Prototype entry after the configured opening height but before a valid opening bid.",
-        name: "cove",
+        auctionId: "02-eligible-to-open-luna",
+        title: "Eligible to open · luna",
+        description: "Prototype entry after the configured eligibility height but before a valid opening bid.",
+        name: "luna",
         auctionClassId: "launch_name",
         unlockBlock: 880_000
       },

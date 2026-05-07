@@ -7,7 +7,7 @@ import { parseLaunchAuctionScenario } from "./auction-sim.js";
 const policy = createDefaultLaunchAuctionPolicy();
 
 describe("simulateLaunchAuctionStateAtBlock", () => {
-  it("reports not-openable before the opening-bid window", () => {
+  it("reports pre-eligibility before the opening-bid window", () => {
     const state = simulateLaunchAuctionStateAtBlock({
       policy,
       currentBlockHeight: 839_990,
@@ -26,18 +26,18 @@ describe("simulateLaunchAuctionStateAtBlock", () => {
     expect(state.currentRequiredMinimumBidSats?.toString()).toBe("3125000");
   });
 
-  it("reports ready to open when only underfloor bids are visible", () => {
+  it("reports eligible to open when only underfloor bids are visible", () => {
     const state = simulateLaunchAuctionStateAtBlock({
       policy,
       currentBlockHeight: 880_030,
       scenario: parseLaunchAuctionScenario({
-        name: "cedar",
+        name: "luna",
         auctionClassId: "launch_name",
         unlockBlock: 880_000,
         bidAttempts: [
-          { bidderId: "speculator_a", blockHeight: 880_015, amountSats: "5000000" },
-          { bidderId: "speculator_b", blockHeight: 880_020, amountSats: "5500000" },
-          { bidderId: "speculator_c", blockHeight: 880_030, amountSats: "6249999" }
+          { bidderId: "speculator_a", blockHeight: 880_015, amountSats: "10000000" },
+          { bidderId: "speculator_b", blockHeight: 880_020, amountSats: "11000000" },
+          { bidderId: "speculator_c", blockHeight: 880_030, amountSats: "12499999" }
         ]
       })
     });
@@ -45,28 +45,28 @@ describe("simulateLaunchAuctionStateAtBlock", () => {
     expect(state.phase).toBe("awaiting_opening_bid");
     expect(state.acceptedBidCount).toBe(0);
     expect(state.rejectedBidCount).toBe(3);
-    expect(state.currentRequiredMinimumBidSats?.toString()).toBe("6250000");
+    expect(state.currentRequiredMinimumBidSats?.toString()).toBe("12500000");
   });
 
-  it("keeps ready-to-open names available for an opening bid", () => {
+  it("keeps unopened eligible names available for an opening bid", () => {
     const state = simulateLaunchAuctionStateAtBlock({
       policy,
       currentBlockHeight: 884_321,
       scenario: parseLaunchAuctionScenario({
-        name: "cedar",
+        name: "luna",
         auctionClassId: "launch_name",
         unlockBlock: 880_000,
         bidAttempts: [
-          { bidderId: "speculator_a", blockHeight: 880_015, amountSats: "5000000" },
-          { bidderId: "speculator_b", blockHeight: 880_020, amountSats: "5500000" },
-          { bidderId: "speculator_c", blockHeight: 880_030, amountSats: "6249999" }
+          { bidderId: "speculator_a", blockHeight: 880_015, amountSats: "10000000" },
+          { bidderId: "speculator_b", blockHeight: 880_020, amountSats: "11000000" },
+          { bidderId: "speculator_c", blockHeight: 880_030, amountSats: "12499999" }
         ]
       })
     });
 
     expect(state.phase).toBe("awaiting_opening_bid");
-    expect(state.baseMinimumBidSats).toBe(6_250_000n);
-    expect(state.currentRequiredMinimumBidSats?.toString()).toBe("6250000");
+    expect(state.baseMinimumBidSats).toBe(12_500_000n);
+    expect(state.currentRequiredMinimumBidSats?.toString()).toBe("12500000");
     expect(state.acceptedBidCount).toBe(0);
     expect(state.rejectedBidCount).toBe(3);
   });

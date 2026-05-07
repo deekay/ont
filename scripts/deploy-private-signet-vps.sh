@@ -182,6 +182,12 @@ su -s /bin/bash "$APP_USER" -c "cd '$APP_ROOT' && npm ci --no-audit --no-fund"
 
 if [[ -f /etc/bitcoin-private-signet.conf ]]; then
   install -m 755 "${APP_ROOT}/scripts/private-signet-auto-mine.sh" "$AUTO_MINE_BIN"
+  install -m 755 "${APP_ROOT}/scripts/private-signet-mine.sh" "/usr/local/bin/${APP_PREFIX}-private-signet-mine"
+  install -m 755 "${APP_ROOT}/scripts/private-signet-fund.sh" "/usr/local/bin/${APP_PREFIX}-private-signet-fund"
+  if [[ "${APP_PREFIX}" != "ont" ]]; then
+    install -m 755 "${APP_ROOT}/scripts/private-signet-mine.sh" /usr/local/bin/ont-private-signet-mine
+    install -m 755 "${APP_ROOT}/scripts/private-signet-fund.sh" /usr/local/bin/ont-private-signet-fund
+  fi
   install -m 755 "${APP_ROOT}/scripts/install-private-signet-electrum.sh" /usr/local/bin/install-private-signet-electrum
 cat >"$AUTO_MINE_ENV" <<'ENVFILE'
 ONT_PRIVATE_SIGNET_AUTO_MINE_INTERVAL_SECONDS=30
@@ -214,7 +220,7 @@ SERVICE
   systemctl daemon-reload
   systemctl enable --now "$AUTO_MINE_SERVICE"
   systemctl restart "$AUTO_MINE_SERVICE"
-  ONT_PRIVATE_SIGNET_ELECTRUM_PORT="${ELECTRUM_PORT}" /usr/local/bin/install-private-signet-electrum
+  ONT_PRIVATE_SIGNET_ELECTRUM_PORT="${ELECTRUM_PORT}" ONT_PRIVATE_SIGNET_ELECTRS_USER="${APP_USER}" /usr/local/bin/install-private-signet-electrum
 
   if [[ -f "$PRIVATE_ENV" ]]; then
     upsert_env "$PRIVATE_ENV" ONT_EXPERIMENTAL_AUCTION_FIXTURE_DIR "${APP_ROOT}/fixtures/auction/private-signet-lab"

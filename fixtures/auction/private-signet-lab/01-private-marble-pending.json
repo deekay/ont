@@ -1,6 +1,6 @@
 {
   "title": "Private demo auction · marble (pending)",
-  "description": "Private signet prototype entry with a near-term opening height. Used to keep the hosted auction lab grounded near the private demo chain height.",
+  "description": "Private signet prototype entry with a near-term eligibility height. Used to keep the hosted auction lab grounded near the private demo chain height.",
   "currentBlockHeight": 128,
   "scenario": {
     "name": "marble",

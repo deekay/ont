@@ -1,6 +1,6 @@
 {
-  "title": "Private phase fixture · ready to open",
-  "description": "Dedicated private signet fixture left without a valid opening bid so the live experimental feed can show the ready-to-open prototype state.",
+  "title": "Private phase fixture · eligible to open",
+  "description": "Dedicated private signet fixture left without a valid opening bid so the live experimental feed can show the eligible-to-open prototype state.",
   "currentBlockHeight": 176,
   "scenario": {
     "name": "phaseawaiting",

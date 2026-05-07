@@ -2,6 +2,7 @@ export * from "./bond.js";
 export * from "./auction-bid-package.js";
 export * from "./bytes.js";
 export * from "./constants.js";
+export * from "./crypto.js";
 export * from "./events.js";
 export * from "./names.js";
 export * from "./transfer-package.js";

@@ -2,6 +2,29 @@
 
 This document describes the current shape of the Open Name Tags prototype as it exists in this repository.
 
+## Layer Model
+
+Current prototype work is easiest to reason about as five layers:
+
+1. **Private signet / future Bitcoin deployment:** the chain that carries ONT
+   ownership events and auction bid transactions.
+2. **Indexer / resolver:** server-side indexing and read APIs. This layer
+   watches the chain, reconstructs ownership and auctions, and stores signed
+   off-chain destination records for availability.
+3. **Client-side helper website:** browser-side transaction prep. This layer
+   should assemble unsigned PSBTs and recovery artifacts locally where possible,
+   while using the resolver only to read current state and UTXO facts.
+4. **User-facing website:** the public product narrative and guided flows. This
+   can reuse layer-3 helpers, but should stay simpler than the protocol helper
+   surface.
+5. **Wallets and clients:** Sparrow today, and eventually native wallet/client
+   integrations that can make ONT feel less like a separate web tool.
+
+The current web app mixes layers 3 and 4 in one deployment, but the design
+direction is to keep the boundary clear: resolver/indexer work is server-side;
+PSBT assembly and user custody checks should move toward browser-side helper
+code; signing remains in the wallet.
+
 ## Mental Model
 
 The system has two layers:
@@ -25,6 +48,11 @@ It is responsible for:
 - helping users move between search, auction, and transfer flows
 
 It is **not** the signing authority.
+
+The helper parts of the website should stay as static/browser-side as practical.
+They may call the resolver for current chain state, auction state, and UTXO
+lookup, but they should not require a bespoke server endpoint to construct
+ordinary unsigned PSBTs when the shared protocol packages can run in the browser.
 
 ### Wallet
 
@@ -68,7 +96,7 @@ The read API and convenience backend:
 
 It owns the current indexed snapshot and optional database-backed persistence.
 
-## Off-Chain Value Distribution In v1
+## Off-Chain Destination Distribution In v1
 
 There is an important distinction between:
 
@@ -88,12 +116,12 @@ This is an intentional v1 boundary, not the intended end state.
 There is also a history boundary in the current prototype:
 
 - current destination records are signed, sequence-numbered, and predecessor-linked
-- the resolver stores value history by current ownership interval
+- the resolver stores destination history by current ownership interval
 - each record points to the previous destination-record hash, or `null` for the first
   record in that ownership interval
 - timestamps are signed metadata, not the canonical ordering rule
 
-That lets a resolver show not only "the current value is `bar`," but also
+That lets a resolver show not only "the current destination is `bar`," but also
 "this owner-signed chain changed from `foo` to `bar` in this order."
 
 ### Why this is acceptable for v1
@@ -114,7 +142,7 @@ Today that means:
 
 - the user signs one destination record locally
 - the CLI can publish the same signed record to multiple resolvers
-- the CLI can compare current value history visibility across multiple resolvers
+- the CLI can compare current destination history visibility across multiple resolvers
 - the website can do the same only when the deployment explicitly configures a
   resolver allowlist
 - each resolver still verifies ownership, ownership interval, predecessor hash, and
@@ -129,6 +157,30 @@ This keeps the security boundary clean:
 - resolvers provide convenience and availability, not ultimate authority
 
 Resolver federation or relay-based distribution may still make sense later, but they are explicitly outside the v1 scope.
+
+### Resolver discovery posture
+
+Resolver discovery should start off-chain. Resolver endpoints are operational
+metadata: they can move, disappear, rotate keys, or need revocation. Putting
+endpoint announcements directly on Bitcoin would make mutable service discovery
+permanent and may accidentally imply protocol endorsement.
+
+The preferred direction is:
+
+- ship a small default resolver set for bootstrap
+- support deployment-configured resolver allowlists
+- allow DNS seeds, manual resolver URLs, or resolver-to-resolver peer gossip later
+- score discovered resolvers against Bitcoin-derived ownership ground truth
+- compare signed destination-record chain heads across multiple resolvers when freshness matters
+
+On-chain resolver announcements may still be useful later for anchoring a
+long-lived resolver identity key, but they should be optional and should not be
+treated as trust. The endpoint metadata signed by that identity can remain
+off-chain and mutable.
+
+The important boundary is: Bitcoin is the source of ownership truth, not the
+source of resolver availability truth. Discovery finds candidates; verification
+and scoring decide whether a resolver is useful.
 
 ## Known v1 Tradeoffs
 
@@ -267,8 +319,9 @@ For high-value use, the stronger path should stay local-first:
 - sign in Sparrow
 
 That keeps high-value preparation closer to the Ian Coleman model: transparent
-and runnable without trusting a live hosted JavaScript bundle. Any higher-trust
-path should be auction-first.
+and runnable without trusting a live hosted JavaScript bundle. The old
+direct-allocation browser path is retired; any higher-trust path should now be
+auction-first.
 
 ## What Still Needs Improvement
 

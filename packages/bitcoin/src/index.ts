@@ -62,6 +62,13 @@ export interface BitcoinRpcRawTransactionInfo {
   readonly in_active_chain?: boolean;
 }
 
+export interface BitcoinRpcUnspentTransactionOutput {
+  readonly valueSats: bigint;
+  readonly confirmations: number;
+  readonly bestblock?: string;
+  readonly address?: string;
+}
+
 export interface BitcoinRpcMempoolInfo {
   readonly loaded: boolean;
   readonly size: number;
@@ -556,6 +563,20 @@ export async function getBitcoinRpcRawTransactionInfo(
   return parseBitcoinRpcRawTransactionInfo(result);
 }
 
+export async function getBitcoinRpcUnspentTransactionOutput(
+  rpc: BitcoinRpcConfig,
+  txid: string,
+  vout: number,
+  includeMempool = true
+): Promise<BitcoinRpcUnspentTransactionOutput | null> {
+  const result = await callBitcoinRpc<unknown>(rpc, "gettxout", [txid, vout, includeMempool]);
+  if (result === null) {
+    return null;
+  }
+
+  return parseBitcoinRpcUnspentTransactionOutput(result);
+}
+
 export async function getBitcoinRpcMempoolInfo(
   rpc: BitcoinRpcConfig
 ): Promise<BitcoinRpcMempoolInfo> {
@@ -1001,6 +1022,25 @@ function parseBitcoinRpcRawTransactionInfo(input: unknown): BitcoinRpcRawTransac
   };
 }
 
+function parseBitcoinRpcUnspentTransactionOutput(input: unknown): BitcoinRpcUnspentTransactionOutput {
+  if (!isRecord(input)) {
+    throw new Error("rpc gettxout result must be an object");
+  }
+
+  const value = getRequiredNumber(input, "value");
+  const confirmations = getRequiredInteger(input, "confirmations");
+  const bestblock = getOptionalString(input, "bestblock");
+  const scriptPubKey = getRequiredRecord(input, "scriptPubKey");
+  const address = getOptionalString(scriptPubKey, "address");
+
+  return {
+    valueSats: btcToSats(value),
+    confirmations,
+    ...(bestblock === undefined ? {} : { bestblock }),
+    ...(address === undefined ? {} : { address })
+  };
+}
+
 function parseBitcoinRpcMempoolInfo(input: unknown): BitcoinRpcMempoolInfo {
   if (!isRecord(input)) {
     throw new Error("rpc mempool info must be an object");
@@ -1082,7 +1122,7 @@ function parseBitcoinTransactionOutputFixture(input: unknown): BitcoinTransactio
     typeof valueSats !== "string" &&
     (typeof valueSats !== "number" || !Number.isInteger(valueSats))
   ) {
-    throw new Error("transaction output fixture amount must be an integer-like string or integer");
+    throw new Error("transaction output fixture valueSats must be an integer-like string or integer");
   }
 
   if (dataHex !== undefined && typeof dataHex !== "string") {

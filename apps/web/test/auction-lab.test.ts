@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   createExperimentalAuctionFeedBidPackage,
+  createLaunchAuctionOpeningBidPackage,
   createLaunchAuctionLabBidPackage,
-  createOpeningAuctionBidPackage,
   loadLaunchAuctionLab
 } from "../src/auction-lab.js";
 
@@ -22,9 +22,6 @@ describe("loadLaunchAuctionLab", () => {
     expect(payload.cases[0]?.state.currentRequiredMinimumBidSats).toBe("12500000");
     expect(payload.cases[3]?.state.currentLeaderBidderId).toBe("speculator_d");
     expect(payload.cases.map((entry) => entry.state.phase)).not.toContain("pending_unlock");
-
-    const names = payload.cases.map((entry) => entry.state.normalizedName);
-    expect(new Set(names).size).toBe(names.length);
   });
 
   it("can derive a shared auction bid package from a website-facing case", async () => {
@@ -42,13 +39,49 @@ describe("loadLaunchAuctionLab", () => {
     expect(pkg.previewRequiredMinimumBidSats).toBe("1331000000");
   });
 
-  it("can derive a bid package from resolver-derived observed auction state", () => {
+  it("uses a deterministic auction lot for direct name openings", () => {
+    const first = createLaunchAuctionOpeningBidPackage({
+      name: "satoshi",
+      currentBlockHeight: 790,
+      bidderId: "operator_a",
+      ownerPubkey: "11".repeat(32),
+      bidAmountSats: "1562500"
+    });
+    const second = createLaunchAuctionOpeningBidPackage({
+      name: "Satoshi",
+      currentBlockHeight: 792,
+      bidderId: "operator_b",
+      ownerPubkey: "22".repeat(32),
+      bidAmountSats: "1562500"
+    });
+
+    expect(first.auctionId).toBe("opening-satoshi");
+    expect(first.unlockBlock).toBe(0);
+    expect(second.auctionLotCommitment).toBe(first.auctionLotCommitment);
+  });
+
+  it("uses the release height as the deterministic lot for reopened names", () => {
+    const pkg = createLaunchAuctionOpeningBidPackage({
+      name: "satoshi",
+      currentBlockHeight: 905,
+      bidderId: "operator_a",
+      ownerPubkey: "11".repeat(32),
+      bidAmountSats: "1562500",
+      unlockBlock: 900
+    });
+
+    expect(pkg.auctionId).toBe("reopen-satoshi-after-900");
+    expect(pkg.unlockBlock).toBe(900);
+    expect(pkg.phase).toBe("awaiting_opening_bid");
+  });
+
+  it("can derive a bid package from resolver-derived live auction state", () => {
     const pkg = createExperimentalAuctionFeedBidPackage({
       auction: {
         auctionId: "private-meadow",
         normalizedName: "meadow",
         auctionClassId: "launch_name",
-        classLabel: "Name auction",
+        classLabel: "Public auction",
         currentBlockHeight: 123456,
         phase: "soft_close",
         unlockBlock: 123440,
@@ -72,25 +105,6 @@ describe("loadLaunchAuctionLab", () => {
     expect(pkg.previewRequiredMinimumBidSats).toBe("330000000");
   });
 
-  it("can derive an opening bid package for a searched name", () => {
-    const pkg = createOpeningAuctionBidPackage({
-      name: "moneyball",
-      currentBlockHeight: 785,
-      bidderId: "operator_moneyball",
-      ownerPubkey: "33".repeat(32),
-      bidAmountSats: "390625"
-    });
-
-    expect(pkg.auctionId).toBe("opening-moneyball");
-    expect(pkg.name).toBe("moneyball");
-    expect(pkg.phase).toBe("awaiting_opening_bid");
-    expect(pkg.currentBlockHeight).toBe(785);
-    expect(pkg.unlockBlock).toBe(785);
-    expect(pkg.previewStatus).toBe("currently_valid");
-    expect(pkg.previewRequiredMinimumBidSats).toBe("390625");
-    expect(pkg.wouldBecomeLeader).toBe(true);
-  });
-
   it("refuses resolver-derived bid packages after settlement", () => {
     expect(() =>
       createExperimentalAuctionFeedBidPackage({
@@ -98,7 +112,7 @@ describe("loadLaunchAuctionLab", () => {
           auctionId: "private-meadow",
           normalizedName: "meadow",
           auctionClassId: "launch_name",
-          classLabel: "Name auction",
+          classLabel: "Public auction",
           currentBlockHeight: 123470,
           phase: "settled",
           unlockBlock: 123440,
@@ -117,10 +131,10 @@ describe("loadLaunchAuctionLab", () => {
     ).toThrow(/already settled/i);
   });
 
-  it("keeps not-openable timing states out of the public lab payload", async () => {
+  it("keeps pre-eligibility states out of the public lab payload", async () => {
     const payload = await loadLaunchAuctionLab();
 
-    expect(payload.cases.map((entry) => entry.id)).not.toContain("01-not-openable-marble");
+    expect(payload.cases.map((entry) => entry.id)).not.toContain("01-pre-eligibility-marble");
     expect(payload.cases.map((entry) => entry.state.phase)).not.toContain("pending_unlock");
   });
 });

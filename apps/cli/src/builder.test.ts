@@ -37,7 +37,7 @@ function createAuctionBidPackageFixture() {
     auctionId: "04-soft-close-marble",
     name: "marble",
     auctionClassId: "launch_name",
-    classLabel: "Name auction",
+    classLabel: "Public auction",
     currentBlockHeight: 844_360,
     phase: "soft_close",
     unlockBlock: 840_000,
@@ -114,6 +114,8 @@ describe("buildAuctionBidArtifacts", () => {
     expect(payload.bidAmountSats).toBe(1_340_000_000n);
     expect(payload.settlementLockBlocks).toBe(525_600);
     expect(payload.bondVout).toBe(0);
+    expect(payload.name).toBe("marble");
+    expect(payload.unlockBlock).toBe(840_000);
     expect(decodeOntPayload(Buffer.from(artifacts.payloadHex, "hex"))).toEqual({
       type: OntEventType.AuctionBid,
       payload

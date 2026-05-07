@@ -259,7 +259,7 @@ function applyAuctionBid(
   return {
     validationStatus: "applied",
     reason: "auction_bid_recorded",
-    affectedName: null
+    affectedName: event.payload.name ?? null
   };
 }
 

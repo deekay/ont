@@ -49,7 +49,7 @@ Current position:
 - `AUCTION_BID` exists as a real experimental transaction type
 - chain-derived experimental auction state exists
 - a settled winner can materialize directly into a live owned name
-- universal auctions are now the allocation direction
+- universal auctions are now the lead launch direction
 
 Questions:
 
@@ -71,7 +71,7 @@ Current position:
 
 - universal auctions are the lead launch architecture
 - the old semantic reserved-list problem is intentionally removed
-- auction bids, transfers, and off-chain destination records are all visible in the
+- auction bids, transfers, and off-chain value records are all visible in the
   prototype
 
 Questions:
@@ -106,10 +106,11 @@ and system-design judgment than Bitcoin-native protocol review.
 
 These are the positions we should present as our current working answers:
 
-- universal auctions are the allocation model
-- shorter names stay in the public auction system with higher length-based opening floors
-- allocation starts with bonded public auctions
+- universal auctions are the lead launch model
+- no reserved-word list or pre-launch reservation system is part of the launch
   plan
+- very short names are handled by the same auction rule, with parameter review
+  focused on whether the length-based floors are strong enough
 - auction numbers are still placeholders, but the mechanism family is the real
   design choice
 

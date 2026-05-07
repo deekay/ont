@@ -1,6 +1,7 @@
 import {
   computeAuctionBidStateCommitment,
-  computeAuctionLotCommitment
+  computeAuctionLotCommitment,
+  normalizeName
 } from "@ont/protocol";
 
 import {
@@ -84,6 +85,8 @@ export interface ExperimentalLaunchAuctionBidObservation {
   readonly blockHeight: number;
   readonly txIndex: number;
   readonly vout: number;
+  readonly normalizedName?: string;
+  readonly unlockBlock?: number;
   readonly bondVout: number;
   readonly bidderCommitment: string;
   readonly ownerPubkey?: string;
@@ -226,6 +229,17 @@ export interface SerializedExperimentalLaunchAuctionState {
   readonly rejectedBidCount: number;
   readonly totalObservedBidCount: number;
   readonly visibleBidOutcomes: ReadonlyArray<SerializedExperimentalLaunchAuctionBidOutcome>;
+}
+
+export function getExperimentalLaunchAuctionId(input: {
+  readonly name: string;
+  readonly unlockBlock: number;
+}): string {
+  const normalizedName = normalizeName(input.name);
+
+  return input.unlockBlock > 0
+    ? `reopen-${normalizedName}-after-${input.unlockBlock}`
+    : `opening-${normalizedName}`;
 }
 
 export function createExperimentalLaunchAuctionCatalogEntry(
@@ -838,9 +852,9 @@ export function formatExperimentalLaunchAuctionPhaseLabel(
 ): string {
   switch (phase) {
     case "pending_unlock":
-      return "Not openable yet";
+      return "Pre-eligibility";
     case "awaiting_opening_bid":
-      return "Ready to open";
+      return "Eligible to open";
     case "live_bidding":
       return "Live bidding";
     case "soft_close":

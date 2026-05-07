@@ -51,6 +51,13 @@ A known open question in the current design: off-chain destination records (Ligh
 
 These are ideas for addressing that without introducing a central registry or a new trust layer.
 
+Current recommendation: keep resolver discovery off-chain for v1. Resolver
+endpoints are mutable operational metadata, while Bitcoin should remain the
+ownership truth layer. Discovery should find candidate resolvers; scoring and
+signature verification should decide whether they are useful. On-chain resolver
+identity may be worth revisiting later, but it should not be required for the
+first serious resolver profile.
+
 ### DNS Seeds + Hardcoded Defaults (Bitcoin-Style Bootstrap)
 
 - **The Idea:** Ship the client with a small set of hardcoded resolver endpoints and 2-3 DNS seed domains (e.g., `seed.ont.example`) that return lists of known resolver IPs. Anyone can operate a seed domain.
@@ -65,29 +72,31 @@ These are ideas for addressing that without introducing a central registry or a 
 
 ### On-Chain Resolver Announcements
 
-- **The Idea:** Resolvers that want to be permanently discoverable post a small OP_RETURN announcement: their endpoint URL and a signing pubkey. This is anchored to Bitcoin — any client syncing from the launch height will find all announced resolvers without relying on any seed operator.
-- **Benefit:** Discovery becomes derivable from chain data. The announcement is a permanent pointer, not a trust claim. Clients evaluate announced resolvers using completeness scoring.
-- **Trade-off:** Adds a new on-chain event type or repurposes the `RawAppDefined` value type. Not part of core name ownership state. Would need careful scoping to avoid protocol creep.
+- **The Idea:** A resolver operator may eventually anchor a long-lived resolver identity key on Bitcoin. That identity can sign current endpoint metadata off-chain.
+- **Benefit:** Serious operators can make their resolver identity discoverable from chain history without making any resolver trusted by default.
+- **Trade-off:** Resolver endpoints are mutable, fragile operational metadata. Putting endpoint URLs directly on-chain creates permanent stale pointers, consumes blockspace for non-ownership state, invites spam, and may confuse users into thinking "announced on Bitcoin" means "endorsed by ONT."
+- **Current leaning:** Do not use on-chain resolver announcements for v1 endpoint discovery. Consider optional identity anchoring later only if off-chain discovery and resolver scoring prove insufficient.
 
 ### Resolver Gossip
 
 - **The Idea:** When a client connects to a resolver, that resolver returns a list of other resolvers it knows about — similar to Bitcoin's `addr` message. No central registry needed. Could be as simple as a convention: `GET /peers` returns a list of endpoints.
 - **Benefit:** The resolver network becomes self-propagating over time without any coordination mechanism.
+- **Caveat:** Gossip is discovery, not trust. A malicious resolver can recommend bad peers, so clients still need to score discovered resolvers against chain-derived ownership state and compare signed destination-record chains across more than one source.
 
 ### Destination Record Transport Options
 
 Off-chain destination records have an additional DA challenge: unlike ownership state, they are mutable and not derivable from chain. A few approaches worth considering:
 
-- **Owner self-hosts, resolver caches:** The owner publishes their signed destination record at a URL they control and registers a fetch hint with the resolver. The resolver caches for performance, but the canonical copy stays under owner control. If a resolver disappears, the record survives at the owner's URL.
+- **Owner self-hosts, resolver caches:** The owner publishes their signed destination record at a URL they control and registers a "fetch hint" with the resolver. The resolver caches for performance, but the canonical copy stays under owner control. If a resolver disappears, the record survives at the owner's URL.
 - **History-aware destination chains:** Destination records now use a per-name append-only chain with a signed predecessor hash, scoped to the current ownership interval. This is the Keybase-sigchain lesson that most directly applies to ONT.
-- **Multi-resolver replication:** Since destination records are small and Schnorr-signed, any resolver can store and serve them for any name. Clients query multiple resolvers and compare the latest valid chain head. Completeness scoring extends naturally to destination record coverage.
+- **Multi-resolver replication:** Since destination records are small and Schnorr-signed, any resolver can store and serve them for any name. Clients query multiple resolvers and compare the latest valid chain head. Completeness scoring extends naturally to destination-record coverage.
 - **Resolver transparency roots:** A future resolver can periodically sign a Merkle root over accepted destination-record heads and append receipts. This helps clients detect rollback, withholding, or forked resolver views without putting every mutable destination update on Bitcoin.
-- **Nostr as optional destination record transport:** Destination records are already Schnorr-signed. A Nostr event kind for ONT records is a natural fit — Nostr relays are designed for signed mutable data. This keeps Nostr optional (not required for ownership verification) while giving owners a decentralized publication layer they don't have to self-host. Consistent with Decision #2 as long as Nostr is never required.
+- **Nostr as optional destination-record transport:** Destination records are already Schnorr-signed. A Nostr event kind for ONT records is a natural fit because Nostr relays are designed for signed mutable data. This keeps Nostr optional (not required for ownership verification) while giving owners a decentralized publication layer they don't have to self-host. Consistent with Decision #2 as long as Nostr is never required.
 
 See [VALUE_RECORD_HISTORY_AND_KEYBASE_NOTES.md](./VALUE_RECORD_HISTORY_AND_KEYBASE_NOTES.md) for the current implementation notes and remaining transparency questions.
 
 ## 6. First-Class Identity (No Suffixes)
 
 ### Global Flattening
-- **The Idea:** Formalizing the no-suffix rule where names like `alice` are protocol-level primitives.
+- **The Idea:** Formalizing the "No-Suffix" rule where names like `alice` are protocol-level primitives.
 - **Challenge:** Handling potential collisions or the desire for TLD-like grouping in the future without re-introducing hierarchy.

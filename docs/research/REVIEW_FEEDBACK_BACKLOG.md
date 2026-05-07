@@ -97,10 +97,11 @@ This is currently the most serious challenge to the fairness story.
 
 The current working direction is now simpler:
 
-- use one auction allocation rule for every valid name
-- keep shorter names in the public auction system with higher objective opening
-  floors
-- keep private allocation paths out of the design
+- use one auction allocation rule for every launch-eligible name
+- remove semantic reserved lists and pre-launch reservation systems from the
+  launch design
+- handle very short names through the same auction rule, with parameter review
+  focused on whether the length-based opening floors are aggressive enough
 - let markets reveal which names have real demand instead of asking ONT to
   classify names ahead of time
 
@@ -250,19 +251,19 @@ This is the main candidate answer to "respect blockspace more aggressively befor
 
 ### Current Status
 
-Open. Footprint review should focus first on auction openings, auction bids, transfers, and owner-signed destination publication.
+Open. The current launch direction no longer depends on the retired direct-allocation batching work. Footprint review should focus first on auction openings, auction bids, transfers, and owner-signed value publication.
 
 ## 12. Auction Dynamics
 
 ### Concern
 
-The current allocation direction uses auctions for every valid name.
+The current launch direction uses auctions for every launch-eligible name.
 Reviewers are now explicitly asking whether:
 
 - auction windows are long enough
 - opening floors are high enough
 - settlement locks are too long given quantum concerns
-- the length-based floor curve puts enough pressure on scarce short strings
+- very short names need stronger floors or other objective parameter treatment
 
 ### Why It Matters
 

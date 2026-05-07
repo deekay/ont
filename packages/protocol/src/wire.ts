@@ -1,16 +1,19 @@
 import { bytesToHex, hexToBytes } from "./bytes.js";
 import { OntEventType, PROTOCOL_MAGIC, PROTOCOL_VERSION } from "./constants.js";
+import { bytesToUtf8, concatBytes, utf8ToBytes } from "./crypto.js";
 import {
+  AUCTION_BID_FLAG_INCLUDES_NAME,
   createAuctionBidPayload,
   createTransferPayload,
   type AuctionBidEventPayload,
   type TransferEventPayload
 } from "./events.js";
 
-const MAGIC_BYTES = Buffer.from(PROTOCOL_MAGIC, "utf8");
+const MAGIC_BYTES = utf8ToBytes(PROTOCOL_MAGIC);
 
 export const TRANSFER_BODY_LENGTH = 32 + 32 + 1 + 1 + 64;
-export const AUCTION_BID_PAYLOAD_LENGTH = 3 + 1 + 1 + 1 + 1 + 4 + 8 + 32 + 16 + 32 + 16;
+export const AUCTION_BID_FIXED_PAYLOAD_LENGTH = 3 + 1 + 1 + 1 + 1 + 4 + 8 + 32 + 16 + 32 + 16;
+export const AUCTION_BID_NAMED_PAYLOAD_OVERHEAD = 4 + 1;
 
 export type DecodedOntPayload =
   | { readonly type: OntEventType.Transfer; readonly payload: TransferEventPayload }
@@ -19,7 +22,7 @@ export type DecodedOntPayload =
 export function encodeAuctionBidPayload(payload: AuctionBidEventPayload): Uint8Array {
   const normalized = createAuctionBidPayload(payload);
 
-  return joinBytes(
+  const fixedPayload = joinBytes(
     MAGIC_BYTES,
     Uint8Array.of(
       PROTOCOL_VERSION,
@@ -34,13 +37,30 @@ export function encodeAuctionBidPayload(payload: AuctionBidEventPayload): Uint8A
     hexToBytes(normalized.auctionCommitment),
     hexToBytes(normalized.bidderCommitment)
   );
+  const nameBytes = utf8ToBytes(normalized.name);
+
+  return joinBytes(
+    fixedPayload,
+    uint32ToBytes(normalized.unlockBlock),
+    Uint8Array.of(nameBytes.length),
+    nameBytes
+  );
 }
 
 export function decodeAuctionBidPayload(payload: Uint8Array): AuctionBidEventPayload {
-  assertHeader(payload, OntEventType.AuctionBid, AUCTION_BID_PAYLOAD_LENGTH);
+  assertHeader(payload, OntEventType.AuctionBid);
 
-  return createAuctionBidPayload({
-    flags: payload[5] ?? 0,
+  if (payload.length < AUCTION_BID_FIXED_PAYLOAD_LENGTH + AUCTION_BID_NAMED_PAYLOAD_OVERHEAD) {
+    throw new Error("auction bid payload must include name context");
+  }
+
+  const flags = payload[5] ?? 0;
+  if ((flags & AUCTION_BID_FLAG_INCLUDES_NAME) === 0) {
+    throw new Error("auction bid payload must include name context");
+  }
+
+  const base = {
+    flags,
     bondVout: payload[6] ?? 0,
     settlementLockBlocks: uint32FromBytes(payload.slice(7, 11)),
     bidAmountSats: uint64BytesToBigInt(payload.slice(11, 19)),
@@ -48,6 +68,26 @@ export function decodeAuctionBidPayload(payload: Uint8Array): AuctionBidEventPay
     auctionLotCommitment: bytesToHex(payload.slice(51, 67)),
     auctionCommitment: bytesToHex(payload.slice(67, 99)),
     bidderCommitment: bytesToHex(payload.slice(99, 115))
+  };
+
+  const unlockBlockOffset = AUCTION_BID_FIXED_PAYLOAD_LENGTH;
+  const nameLengthOffset = unlockBlockOffset + 4;
+  const nameLength = payload[nameLengthOffset] ?? 0;
+  const nameStart = nameLengthOffset + 1;
+  const nameEnd = nameStart + nameLength;
+
+  if (nameLength === 0) {
+    throw new Error("named auction bid payload name is empty");
+  }
+
+  if (payload.length !== nameEnd) {
+    throw new Error("named auction bid payload has inconsistent name length");
+  }
+
+  return createAuctionBidPayload({
+    ...base,
+    unlockBlock: uint32FromBytes(payload.slice(unlockBlockOffset, nameLengthOffset)),
+    name: bytesToUtf8(payload.slice(nameStart, nameEnd))
   });
 }
 
@@ -128,7 +168,7 @@ function assertOntPrefix(payload: Uint8Array): void {
     throw new Error("payload is too short");
   }
 
-  const magic = Buffer.from(payload.slice(0, 3)).toString("utf8");
+  const magic = bytesToUtf8(payload.slice(0, 3));
   if (magic !== PROTOCOL_MAGIC) {
     throw new Error("payload does not start with the ONT magic bytes");
   }
@@ -195,15 +235,4 @@ function uint32FromBytes(bytes: Uint8Array): number {
   );
 }
 
-function joinBytes(...parts: Uint8Array[]): Uint8Array {
-  const totalLength = parts.reduce((sum, part) => sum + part.length, 0);
-  const combined = new Uint8Array(totalLength);
-  let offset = 0;
-
-  for (const part of parts) {
-    combined.set(part, offset);
-    offset += part.length;
-  }
-
-  return combined;
-}
+const joinBytes = concatBytes;

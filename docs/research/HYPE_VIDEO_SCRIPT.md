@@ -22,15 +22,15 @@ Most naming systems make you pay a third party. ONT uses a bond instead. You loc
 
 Here is how it works.
 
-To acquire a name, you participate in an auction and lock bitcoin as a bond. The name goes through a settlement period, during which the bond stays parked. Once settlement completes, the bond is yours to unlock. The name remains yours.
+To acquire a name, you participate in an auction and bond bitcoin you still own. The name goes through settlement, then the winning bond remains in its maturity period. After maturity, the bond can move without breaking ownership. The name remains yours.
 
-What the name points to can change. A payment address first; other owner-signed key/destination records later if clients support them. Those records live off-chain and are signed by the current owner. The mutable pointer stays lightweight. The ownership record is what stays permanent.
+What the name points to can change. A payment address first; other owner-signed destination records later if clients support them. Those records live off-chain and are signed by the current owner. The mutable pointer stays lightweight. The ownership record is what stays permanent.
 
 This matters even more as software starts acting on your behalf. Let the model infer what you want. Do not let the model guess who gets paid. When software routes a payment without a human inspecting every character, the final destination should not rest on a probabilistic guess. ONT gives human-readable payment handles cryptographically grounded ownership.
 
 Other naming systems charge rent or depend on organizations that can change terms, remove access, or govern the namespace for their own interests. ONT is meant to be different: no token, no founder allocation, no whitelist, no protocol-level sale of names. Just a public namespace open under the same rules for everyone.
 
-The first proof point is simple: pay the right person in words you control. Broader key/value uses can come later. The payment problem alone is already real.
+The first proof point is simple: pay the right person in words you control. Broader destination uses can come later. The payment problem alone is already real.
 
 ONT is currently live on a private signet: a controlled Bitcoin test environment where anyone can inspect the idea, search names, review auctions, and verify the ownership history for themselves.
 

@@ -16,7 +16,7 @@ Instead of an ONT-run "Resolution CDN," the protocol can use Nostr relays as the
 Instead of an ONT-run "Marketplace Database," name owners can list their names for sale on Nostr.
 - **The Concept:** A seller broadcasts a **Nostr Event (e.g., Kind 30009)** containing:
     1. The name and its current Bond UTXO status.
-    2. The ask price as a bitcoin amount.
+    2. The ask price in ₿ terms.
     3. A **PSBT Skeleton** (the seller's signed input to move the bond).
 - **The Workflow:** A buyer sees the listing, adds their payment inputs to the PSBT, signs it, and broadcasts the final transaction to the Bitcoin network.
 - **The Benefit:** **Zero-Server Commerce.** The trade is peer-to-peer and atomic. No "Marketplace Fee" is required unless hardcoded into the PSBT.

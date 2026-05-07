@@ -1,145 +1,134 @@
 %PDF-1.4
 1 0 obj
-<< /Length 10234 >>
+<< /Length 9464 >>
 stream
 q 0.965 0.925 0.855 rg 0.00 0.00 792.00 612.00 re f Q
 q 1.000 0.988 0.955 rg 0.890 0.800 0.670 RG 0.9 w 24.00 24.00 744.00 564.00 re B Q
 q 0.970 0.900 0.790 rg 24.00 454.00 744.00 134.00 re f Q
-BT /F2 7.4 Tf 0.490 0.200 0.100 rg 48.00 552.00 Td (OPEN NAME TAGS) Tj ET
-BT /F3 27 Tf 0.120 0.105 0.090 rg 48.00 525.00 Td (Open Name Tags \(ONT\)) Tj ET
-BT /F3 16.2 Tf 0.120 0.105 0.090 rg 48.00 501.00 Td (Names you can actually own) Tj ET
-BT /F1 8.6 Tf 0.360 0.320 0.270 rg 48.00 481.00 Td (Bitcoin anchors ownership. Owner-signed off-chain records keep destinations updateable. Bonds create cost without rent; public) Tj ET
-BT /F1 8.6 Tf 0.360 0.320 0.270 rg 48.00 470.50 Td (auctions price scarce names.) Tj ET
-q 0.995 0.958 0.892 rg 0.880 0.770 0.640 RG 0.65 w 584.00 541.00 132.00 29.00 re B Q
-BT /F2 7.1 Tf 0.720 0.380 0.190 rg 596.00 552.40 Td (01) Tj ET
-BT /F2 7.4 Tf 0.120 0.105 0.090 rg 628.00 556.20 Td (Ownership) Tj ET
-BT /F1 6.5 Tf 0.490 0.200 0.100 rg 628.00 547.10 Td (on Bitcoin) Tj ET
-q 0.995 0.958 0.892 rg 0.880 0.770 0.640 RG 0.65 w 584.00 504.00 132.00 29.00 re B Q
-BT /F2 7.1 Tf 0.720 0.380 0.190 rg 596.00 515.40 Td (02) Tj ET
-BT /F2 7.4 Tf 0.120 0.105 0.090 rg 628.00 519.20 Td (Records) Tj ET
-BT /F1 6.5 Tf 0.490 0.200 0.100 rg 628.00 510.10 Td (off-chain) Tj ET
-q 0.995 0.958 0.892 rg 0.880 0.770 0.640 RG 0.65 w 584.00 467.00 132.00 29.00 re B Q
-BT /F2 7.1 Tf 0.720 0.380 0.190 rg 596.00 478.40 Td (03) Tj ET
-BT /F2 7.4 Tf 0.120 0.105 0.090 rg 628.00 482.20 Td (Bonds) Tj ET
-BT /F1 6.5 Tf 0.490 0.200 0.100 rg 628.00 473.10 Td (not rent) Tj ET
-BT /F2 7 Tf 0.490 0.200 0.100 rg 48.00 440.00 Td (HOW ONE NAME RESOLVES) Tj ET
-BT /F3 17.5 Tf 0.120 0.105 0.090 rg 48.00 420.00 Td (Alice Example) Tj ET
-q 0.910 0.840 0.740 RG 0.8 w 48.00 410.00 m 744.00 410.00 l S Q
-q 1.000 0.988 0.955 rg 0.870 0.780 0.670 RG 0.75 w 48.00 296.00 212.00 108.00 re B Q
-BT /F3 14 Tf 0.120 0.105 0.090 rg 63.00 379.00 Td (Bitcoin anchor) Tj ET
-BT /F2 7.1 Tf 0.490 0.200 0.100 rg 63.00 362.00 Td (alice) Tj ET
-BT /F4 7.25 Tf 0.360 0.320 0.270 rg 63.00 344.00 Td (owner key: 8f3c...12ab) Tj ET
-BT /F4 7.25 Tf 0.360 0.320 0.270 rg 63.00 333.80 Td (bond: ₿6,250,000 \(0.0625 BTC\)) Tj ET
-q 0.720 0.380 0.190 RG 1 w 267.00 350.00 m 283.00 350.00 l S Q
-BT /F2 7.5 Tf 0.720 0.380 0.190 rg 280.00 347.00 Td (>) Tj ET
-q 0.995 0.965 0.915 rg 0.870 0.780 0.670 RG 0.75 w 290.00 296.00 212.00 108.00 re B Q
-BT /F3 14 Tf 0.120 0.105 0.090 rg 305.00 379.00 Td (Signed off-chain bundle) Tj ET
-BT /F2 7.1 Tf 0.490 0.200 0.100 rg 305.00 362.00 Td (current destinations) Tj ET
-BT /F4 7.25 Tf 0.360 0.320 0.270 rg 305.00 344.00 Td (bitcoin: bc1qxy...0wlh) Tj ET
-BT /F4 7.25 Tf 0.360 0.320 0.270 rg 305.00 333.80 Td (lightning: lno1q...9sa) Tj ET
-BT /F4 7.25 Tf 0.360 0.320 0.270 rg 305.00 323.60 Td (email: alice@example.com) Tj ET
-BT /F4 7.25 Tf 0.360 0.320 0.270 rg 305.00 313.40 Td (website: alice.example) Tj ET
-q 0.720 0.380 0.190 RG 1 w 509.00 350.00 m 525.00 350.00 l S Q
-BT /F2 7.5 Tf 0.720 0.380 0.190 rg 522.00 347.00 Td (>) Tj ET
-q 1.000 0.988 0.955 rg 0.870 0.780 0.670 RG 0.75 w 532.00 296.00 212.00 108.00 re B Q
-BT /F3 14 Tf 0.120 0.105 0.090 rg 547.00 379.00 Td (Client) Tj ET
-BT /F2 7.1 Tf 0.490 0.200 0.100 rg 547.00 362.00 Td (resolve and verify) Tj ET
-BT /F4 7.25 Tf 0.360 0.320 0.270 rg 547.00 344.00 Td (checks Bitcoin ownership) Tj ET
-BT /F4 7.25 Tf 0.360 0.320 0.270 rg 547.00 333.80 Td (verifies owner signature) Tj ET
-BT /F4 7.25 Tf 0.360 0.320 0.270 rg 547.00 323.60 Td (uses website: alice.example) Tj ET
-q 0.160 0.135 0.105 rg 48.00 264.00 696.00 20.00 re f Q
-BT /F2 7.8 Tf 1.000 0.982 0.940 rg 62.00 271.50 Td (Bitcoin answers who owns alice. The signed bundle answers where it points.) Tj ET
-q 1.000 0.988 0.955 rg 0.880 0.800 0.700 RG 0.75 w 48.00 50.00 330.00 196.00 re B Q
-BT /F3 17 Tf 0.120 0.105 0.090 rg 66.00 220.00 Td (Bonds, Not Rent) Tj ET
-BT /F2 6.7 Tf 0.490 0.200 0.100 rg 66.00 203.00 Td (ALLOCATION COST) Tj ET
-BT /F3 9.4 Tf 0.120 0.105 0.090 rg 66.00 181.00 Td (A bond creates real cost) Tj ET
-BT /F3 9.4 Tf 0.120 0.105 0.090 rg 66.00 169.20 Td (without paying a third party) Tj ET
-BT /F3 9.4 Tf 0.120 0.105 0.090 rg 66.00 157.40 Td (to allocate scarcity.) Tj ET
-BT /F1 7.3 Tf 0.360 0.320 0.270 rg 66.00 123.00 Td (The bitcoin remains yours in) Tj ET
-BT /F1 7.3 Tf 0.360 0.320 0.270 rg 66.00 114.00 Td (self-custody. The cost is liquidity, time,) Tj ET
-BT /F1 7.3 Tf 0.360 0.320 0.270 rg 66.00 105.00 Td (and opportunity cost.) Tj ET
-q 0.900 0.820 0.720 RG 0.65 w 202.00 70.00 m 202.00 222.00 l S Q
-BT /F2 7.6 Tf 0.490 0.200 0.100 rg 218.00 217.00 Td (Example opening floors) Tj ET
-BT /F1 6.7 Tf 0.360 0.320 0.270 rg 218.00 203.00 Td (Illustrative; not final.) Tj ET
-q 0.965 0.900 0.800 rg 218.00 194.00 140.00 18.00 re f Q
-BT /F2 6.5 Tf 0.490 0.200 0.100 rg 226.00 201.00 Td (Len) Tj ET
-BT /F2 6.5 Tf 0.490 0.200 0.100 rg 257.00 201.00 Td (Path) Tj ET
-BT /F2 6.5 Tf 0.490 0.200 0.100 rg 302.00 201.00 Td (Floor) Tj ET
-BT /F2 7.2 Tf 0.120 0.105 0.090 rg 227.00 184.00 Td (1) Tj ET
-BT /F1 6.8 Tf 0.360 0.320 0.270 rg 257.00 184.00 Td (public) Tj ET
-BT /F2 8.950000000000001 Tf 0.120 0.105 0.090 rg 302.45 183.80 Td (B) Tj ET
-q 0.120 0.105 0.090 RG 0.85 w 303.79 181.56 m 303.79 192.03 l S Q
-q 0.120 0.105 0.090 RG 0.85 w 305.04 181.56 m 305.04 192.03 l S Q
-BT /F2 7.15 Tf 0.120 0.105 0.090 rg 316.44 184.00 Td (1) Tj ET
-q 0.920 0.860 0.780 RG 0.4 w 225.00 178.80 m 351.00 178.80 l S Q
-BT /F2 7.2 Tf 0.120 0.105 0.090 rg 227.00 166.80 Td (2) Tj ET
-BT /F1 6.8 Tf 0.360 0.320 0.270 rg 257.00 166.80 Td (public) Tj ET
-BT /F2 8.950000000000001 Tf 0.120 0.105 0.090 rg 302.45 166.60 Td (B) Tj ET
-q 0.120 0.105 0.090 RG 0.85 w 303.79 164.36 m 303.79 174.83 l S Q
-q 0.120 0.105 0.090 RG 0.85 w 305.04 164.36 m 305.04 174.83 l S Q
-BT /F2 7.15 Tf 0.120 0.105 0.090 rg 316.44 166.80 Td (0.5) Tj ET
-q 0.920 0.860 0.780 RG 0.4 w 225.00 161.60 m 351.00 161.60 l S Q
-BT /F2 7.2 Tf 0.120 0.105 0.090 rg 227.00 149.60 Td (3) Tj ET
-BT /F1 6.8 Tf 0.360 0.320 0.270 rg 257.00 149.60 Td (public) Tj ET
-BT /F2 8.950000000000001 Tf 0.120 0.105 0.090 rg 302.45 149.40 Td (B) Tj ET
-q 0.120 0.105 0.090 RG 0.85 w 303.79 147.16 m 303.79 157.63 l S Q
-q 0.120 0.105 0.090 RG 0.85 w 305.04 147.16 m 305.04 157.63 l S Q
-BT /F2 7.15 Tf 0.120 0.105 0.090 rg 316.44 149.60 Td (0.25) Tj ET
-q 0.920 0.860 0.780 RG 0.4 w 225.00 144.40 m 351.00 144.40 l S Q
-BT /F2 7.2 Tf 0.120 0.105 0.090 rg 227.00 132.40 Td (4) Tj ET
-BT /F1 6.8 Tf 0.360 0.320 0.270 rg 257.00 132.40 Td (public) Tj ET
-BT /F2 8.950000000000001 Tf 0.120 0.105 0.090 rg 302.45 132.20 Td (B) Tj ET
-q 0.120 0.105 0.090 RG 0.85 w 303.79 129.96 m 303.79 140.43 l S Q
-q 0.120 0.105 0.090 RG 0.85 w 305.04 129.96 m 305.04 140.43 l S Q
-BT /F2 7.15 Tf 0.120 0.105 0.090 rg 316.44 132.40 Td (0.125) Tj ET
-q 0.920 0.860 0.780 RG 0.4 w 225.00 127.20 m 351.00 127.20 l S Q
-BT /F2 7.2 Tf 0.120 0.105 0.090 rg 227.00 115.20 Td (5) Tj ET
-BT /F1 6.8 Tf 0.360 0.320 0.270 rg 257.00 115.20 Td (public) Tj ET
-BT /F2 8.950000000000001 Tf 0.120 0.105 0.090 rg 302.45 115.00 Td (B) Tj ET
-q 0.120 0.105 0.090 RG 0.85 w 303.79 112.76 m 303.79 123.23 l S Q
-q 0.120 0.105 0.090 RG 0.85 w 305.04 112.76 m 305.04 123.23 l S Q
-BT /F2 7.15 Tf 0.120 0.105 0.090 rg 316.44 115.20 Td (0.0625) Tj ET
-q 0.920 0.860 0.780 RG 0.4 w 225.00 110.00 m 351.00 110.00 l S Q
-BT /F2 7.2 Tf 0.120 0.105 0.090 rg 227.00 98.00 Td (6) Tj ET
-BT /F1 6.8 Tf 0.360 0.320 0.270 rg 257.00 98.00 Td (public) Tj ET
-BT /F2 8.950000000000001 Tf 0.120 0.105 0.090 rg 302.45 97.80 Td (B) Tj ET
-q 0.120 0.105 0.090 RG 0.85 w 303.79 95.56 m 303.79 106.03 l S Q
-q 0.120 0.105 0.090 RG 0.85 w 305.04 95.56 m 305.04 106.03 l S Q
-BT /F2 7.15 Tf 0.120 0.105 0.090 rg 316.44 98.00 Td (0.03125) Tj ET
-q 0.920 0.860 0.780 RG 0.4 w 225.00 92.80 m 351.00 92.80 l S Q
-BT /F2 7.2 Tf 0.120 0.105 0.090 rg 227.00 80.80 Td (12+) Tj ET
-BT /F1 6.8 Tf 0.360 0.320 0.270 rg 257.00 80.80 Td (public) Tj ET
-BT /F2 8.950000000000001 Tf 0.120 0.105 0.090 rg 302.45 80.60 Td (B) Tj ET
-q 0.120 0.105 0.090 RG 0.85 w 303.79 78.36 m 303.79 88.83 l S Q
-q 0.120 0.105 0.090 RG 0.85 w 305.04 78.36 m 305.04 88.83 l S Q
-BT /F2 7.15 Tf 0.120 0.105 0.090 rg 316.44 80.80 Td (0.0005 floor) Tj ET
-q 0.920 0.860 0.780 RG 0.4 w 225.00 75.60 m 351.00 75.60 l S Q
-q 1.000 0.988 0.955 rg 0.880 0.800 0.700 RG 0.75 w 400.00 158.00 344.00 88.00 re B Q
-BT /F3 16 Tf 0.120 0.105 0.090 rg 416.00 222.00 Td (Name Auctions) Tj ET
-BT /F2 6.5 Tf 0.490 0.200 0.100 rg 416.00 206.00 Td (PUBLIC BONDED AUCTIONS) Tj ET
-BT /F1 7.35 Tf 0.360 0.320 0.270 rg 416.00 187.00 Td (Any valid name can be opened by auction. One bidder) Tj ET
-BT /F1 7.35 Tf 0.360 0.320 0.270 rg 416.00 177.80 Td (can win at the floor; competing bidders discover) Tj ET
-BT /F1 7.35 Tf 0.360 0.320 0.270 rg 416.00 168.60 Td (the final bond.) Tj ET
-q 0.720 0.380 0.190 rg 598.00 197.86 2.62 2.62 re f Q
-BT /F1 6.9 Tf 0.360 0.320 0.270 rg 611.00 196.00 Td (public auction window) Tj ET
-q 0.720 0.380 0.190 rg 598.00 186.26 2.62 2.62 re f Q
-BT /F1 6.9 Tf 0.360 0.320 0.270 rg 611.00 184.40 Td (bids discover final bond) Tj ET
-q 0.720 0.380 0.190 rg 598.00 174.66 2.62 2.62 re f Q
-BT /F1 6.9 Tf 0.360 0.320 0.270 rg 611.00 172.80 Td (winner settles ownership) Tj ET
-q 0.995 0.958 0.895 rg 0.860 0.720 0.600 RG 0.75 w 400.00 50.00 344.00 94.00 re B Q
-BT /F3 16 Tf 0.120 0.105 0.090 rg 416.00 120.00 Td (Length Floors) Tj ET
-BT /F2 6.5 Tf 0.490 0.200 0.100 rg 416.00 104.00 Td (FIXED BY NAME LENGTH) Tj ET
-q 0.720 0.380 0.190 rg 416.00 84.86 2.62 2.62 re f Q
-BT /F1 6.9 Tf 0.360 0.320 0.270 rg 429.00 83.00 Td (public auction mechanics) Tj ET
-q 0.720 0.380 0.190 rg 416.00 73.26 2.62 2.62 re f Q
-BT /F1 6.9 Tf 0.360 0.320 0.270 rg 429.00 71.40 Td (objective length curve) Tj ET
-q 0.720 0.380 0.190 rg 416.00 61.66 2.62 2.62 re f Q
-BT /F1 6.9 Tf 0.360 0.320 0.270 rg 429.00 59.80 Td (expensive early sweeps) Tj ET
-q 0.880 0.760 0.640 RG 0.6 w 586.00 70.00 m 586.00 124.00 l S Q
-BT /F1 6.75 Tf 0.360 0.320 0.270 rg 604.00 112.00 Td (Length floors make early bulk capture) Tj ET
-BT /F1 6.75 Tf 0.360 0.320 0.270 rg 604.00 103.80 Td (expensive while keeping allocation simple.) Tj ET
-BT /F2 6.8 Tf 0.490 0.200 0.100 rg 48.00 34.00 Td (opennametags.org) Tj ET
-BT /F1 6.6 Tf 0.360 0.320 0.270 rg 650.00 34.00 Td (prototype brief) Tj ET
+BT /F3 27 Tf 0.120 0.105 0.090 rg 48.00 532.00 Td (Open Name Tags) Tj ET
+BT /F3 16.2 Tf 0.120 0.105 0.090 rg 48.00 506.00 Td (Names you can actually own) Tj ET
+BT /F1 9 Tf 0.360 0.320 0.270 rg 48.00 484.00 Td (ONTs are names you can own, verify, and update. Bitcoin anchors ownership; owner-signed off-chain records keep) Tj ET
+BT /F1 9 Tf 0.360 0.320 0.270 rg 48.00 472.90 Td (destinations updateable; bonded auctions price scarce names without rent or third-party payments.) Tj ET
+q 0.760 0.500 0.340 RG 0.9 w 558.00 466.00 m 558.00 552.00 l S Q
+q 0.990 0.948 0.865 rg 0.860 0.750 0.620 RG 0.55 w 582.00 459.00 138.00 104.00 re B Q
+BT /F2 6.4 Tf 0.490 0.200 0.100 rg 596.00 545.00 Td (CORE MODEL) Tj ET
+q 0.860 0.750 0.620 RG 0.45 w 596.00 533.00 m 706.00 533.00 l S Q
+q 0.860 0.750 0.620 RG 0.45 w 596.00 528.00 m 706.00 528.00 l S Q
+BT /F2 6.3 Tf 0.720 0.380 0.190 rg 607.00 516.40 Td (01) Tj ET
+BT /F2 6.8 Tf 0.120 0.105 0.090 rg 639.00 519.50 Td (Ownership) Tj ET
+BT /F1 5.8 Tf 0.490 0.200 0.100 rg 639.00 512.20 Td (on Bitcoin) Tj ET
+q 0.860 0.750 0.620 RG 0.45 w 596.00 506.40 m 706.00 506.40 l S Q
+BT /F2 6.3 Tf 0.720 0.380 0.190 rg 607.00 494.80 Td (02) Tj ET
+BT /F2 6.8 Tf 0.120 0.105 0.090 rg 639.00 497.90 Td (Records) Tj ET
+BT /F1 5.8 Tf 0.490 0.200 0.100 rg 639.00 490.60 Td (off-chain) Tj ET
+q 0.860 0.750 0.620 RG 0.45 w 596.00 484.80 m 706.00 484.80 l S Q
+BT /F2 6.3 Tf 0.720 0.380 0.190 rg 607.00 473.20 Td (03) Tj ET
+BT /F2 6.8 Tf 0.120 0.105 0.090 rg 639.00 476.30 Td (Bonds) Tj ET
+BT /F1 5.8 Tf 0.490 0.200 0.100 rg 639.00 469.00 Td (not rent) Tj ET
+BT /F2 7 Tf 0.490 0.200 0.100 rg 48.00 436.00 Td (HOW ONE NAME RESOLVES) Tj ET
+BT /F3 18 Tf 0.120 0.105 0.090 rg 48.00 413.00 Td (Alice Example) Tj ET
+q 0.910 0.840 0.740 RG 0.8 w 48.00 402.00 m 744.00 402.00 l S Q
+q 1.000 0.988 0.955 rg 0.870 0.780 0.670 RG 0.75 w 48.00 300.00 212.00 96.00 re B Q
+BT /F3 13.8 Tf 0.120 0.105 0.090 rg 63.00 372.00 Td (Bitcoin anchor) Tj ET
+BT /F2 7.3 Tf 0.490 0.200 0.100 rg 63.00 356.00 Td (alice owner record) Tj ET
+BT /F4 7.45 Tf 0.360 0.320 0.270 rg 63.00 339.00 Td (owner key: 8f3c...12ab) Tj ET
+BT /F4 7.45 Tf 0.360 0.320 0.270 rg 63.00 329.30 Td (bond: self-custodied bitcoin) Tj ET
+q 0.720 0.380 0.190 RG 1.35 w 267.00 348.00 m 283.00 348.00 l S Q
+BT /F2 9.6 Tf 0.720 0.380 0.190 rg 279.50 344.20 Td (>) Tj ET
+q 0.995 0.965 0.915 rg 0.870 0.780 0.670 RG 0.75 w 290.00 300.00 212.00 96.00 re B Q
+BT /F3 13.8 Tf 0.120 0.105 0.090 rg 305.00 372.00 Td (Signed off-chain bundle) Tj ET
+BT /F2 7.3 Tf 0.490 0.200 0.100 rg 305.00 356.00 Td (alice destinations) Tj ET
+BT /F4 7.45 Tf 0.360 0.320 0.270 rg 305.00 339.00 Td (bitcoin: bc1qxy...0wlh) Tj ET
+BT /F4 7.45 Tf 0.360 0.320 0.270 rg 305.00 329.30 Td (lightning: lno1q...9sa) Tj ET
+BT /F4 7.45 Tf 0.360 0.320 0.270 rg 305.00 319.60 Td (email: alice@example.com) Tj ET
+BT /F4 7.45 Tf 0.360 0.320 0.270 rg 305.00 309.90 Td (website: alice.example) Tj ET
+q 0.720 0.380 0.190 RG 1.35 w 509.00 348.00 m 525.00 348.00 l S Q
+BT /F2 9.6 Tf 0.720 0.380 0.190 rg 521.50 344.20 Td (>) Tj ET
+q 1.000 0.988 0.955 rg 0.870 0.780 0.670 RG 0.75 w 532.00 300.00 212.00 96.00 re B Q
+BT /F3 13.8 Tf 0.120 0.105 0.090 rg 547.00 372.00 Td (Client) Tj ET
+BT /F2 7.3 Tf 0.490 0.200 0.100 rg 547.00 356.00 Td (resolve alice) Tj ET
+BT /F4 7.45 Tf 0.360 0.320 0.270 rg 547.00 339.00 Td (checks Bitcoin ownership) Tj ET
+BT /F4 7.45 Tf 0.360 0.320 0.270 rg 547.00 329.30 Td (verifies owner signature) Tj ET
+BT /F4 7.45 Tf 0.360 0.320 0.270 rg 547.00 319.60 Td (uses website: alice.example) Tj ET
+q 0.160 0.135 0.105 rg 48.00 250.00 696.00 36.00 re f Q
+BT /F2 11.4 Tf 1.000 0.982 0.940 rg 185.56 263.50 Td (Bitcoin answers who owns alice. The signed off-chain bundle answers where it points.) Tj ET
+q 1.000 0.988 0.955 rg 0.880 0.800 0.700 RG 0.75 w 48.00 88.00 330.00 150.00 re B Q
+BT /F2 6.7 Tf 0.490 0.200 0.100 rg 66.00 211.00 Td (ALLOCATION COST) Tj ET
+BT /F3 17 Tf 0.120 0.105 0.090 rg 66.00 189.00 Td (Bonded Bitcoin) Tj ET
+BT /F3 9.2 Tf 0.120 0.105 0.090 rg 66.00 163.00 Td (A bond creates real cost) Tj ET
+BT /F3 9.2 Tf 0.120 0.105 0.090 rg 66.00 151.60 Td (without paying a third party.) Tj ET
+BT /F1 6.9 Tf 0.360 0.320 0.270 rg 66.00 138.00 Td (No payment to ONT or a registry. No burn.) Tj ET
+BT /F1 6.9 Tf 0.360 0.320 0.270 rg 66.00 129.60 Td (No annual rent. Bitcoin remains) Tj ET
+BT /F1 6.9 Tf 0.360 0.320 0.270 rg 66.00 121.20 Td (self-custodied.) Tj ET
+BT /F1 6.5 Tf 0.360 0.320 0.270 rg 66.00 106.00 Td (Bonds mature after 1-3 years; pre-maturity) Tj ET
+BT /F1 6.5 Tf 0.360 0.320 0.270 rg 66.00 98.50 Td (transfers use buyer replacement bonds.) Tj ET
+q 0.900 0.820 0.720 RG 0.65 w 206.00 114.00 m 206.00 172.00 l S Q
+BT /F2 7.6 Tf 0.490 0.200 0.100 rg 222.00 211.00 Td (Example opening floors) Tj ET
+BT /F1 6.4 Tf 0.360 0.320 0.270 rg 222.00 197.00 Td (Illustrative; USD assumes) Tj ET
+BT /F2 6 Tf 0.360 0.320 0.270 rg 304.30 195.90 Td (B) Tj ET
+q 0.360 0.320 0.270 RG 0.85 w 305.20 194.40 m 305.20 201.42 l S Q
+q 0.360 0.320 0.270 RG 0.85 w 306.04 194.40 m 306.04 201.42 l S Q
+BT /F1 6.4 Tf 0.360 0.320 0.270 rg 313.00 197.00 Td (1 = $100k.) Tj ET
+q 0.965 0.900 0.800 rg 222.00 182.00 140.00 15.80 re f Q
+BT /F2 6.1 Tf 0.490 0.200 0.100 rg 229.00 188.00 Td (Len) Tj ET
+BT /F2 6.1 Tf 0.490 0.200 0.100 rg 270.00 188.00 Td (Bond) Tj ET
+BT /F2 6.2 Tf 0.490 0.200 0.100 rg 292.31 186.90 Td (B) Tj ET
+q 0.490 0.200 0.100 RG 0.85 w 293.24 185.35 m 293.24 192.60 l S Q
+q 0.490 0.200 0.100 RG 0.85 w 294.11 185.35 m 294.11 192.60 l S Q
+BT /F2 6.1 Tf 0.490 0.200 0.100 rg 327.00 188.00 Td (USD) Tj ET
+BT /F2 6.8 Tf 0.120 0.105 0.090 rg 231.00 172.00 Td (1) Tj ET
+BT /F2 6.7 Tf 0.120 0.105 0.090 rg 306.45 172.00 Td (1) Tj ET
+BT /F1 6.4 Tf 0.360 0.320 0.270 rg 337.68 172.00 Td ($100k) Tj ET
+q 0.920 0.860 0.780 RG 0.4 w 229.00 167.60 m 355.00 167.60 l S Q
+BT /F2 6.8 Tf 0.120 0.105 0.090 rg 231.00 161.40 Td (2) Tj ET
+BT /F2 6.7 Tf 0.120 0.105 0.090 rg 301.29 161.40 Td (0.5) Tj ET
+BT /F1 6.4 Tf 0.360 0.320 0.270 rg 341.07 161.40 Td ($50k) Tj ET
+q 0.920 0.860 0.780 RG 0.4 w 229.00 157.00 m 355.00 157.00 l S Q
+BT /F2 6.8 Tf 0.120 0.105 0.090 rg 231.00 150.80 Td (3) Tj ET
+BT /F2 6.7 Tf 0.120 0.105 0.090 rg 297.74 150.80 Td (0.25) Tj ET
+BT /F1 6.4 Tf 0.360 0.320 0.270 rg 341.07 150.80 Td ($25k) Tj ET
+q 0.920 0.860 0.780 RG 0.4 w 229.00 146.40 m 355.00 146.40 l S Q
+BT /F2 6.8 Tf 0.120 0.105 0.090 rg 231.00 140.20 Td (4) Tj ET
+BT /F2 6.7 Tf 0.120 0.105 0.090 rg 294.19 140.20 Td (0.125) Tj ET
+BT /F1 6.4 Tf 0.360 0.320 0.270 rg 336.14 140.20 Td ($12.5k) Tj ET
+q 0.920 0.860 0.780 RG 0.4 w 229.00 135.80 m 355.00 135.80 l S Q
+BT /F2 6.8 Tf 0.120 0.105 0.090 rg 231.00 129.60 Td (5) Tj ET
+BT /F2 6.7 Tf 0.120 0.105 0.090 rg 290.64 129.60 Td (0.0625) Tj ET
+BT /F1 6.4 Tf 0.360 0.320 0.270 rg 336.14 129.60 Td ($6.25k) Tj ET
+q 0.920 0.860 0.780 RG 0.4 w 229.00 125.20 m 355.00 125.20 l S Q
+BT /F2 6.8 Tf 0.120 0.105 0.090 rg 231.00 119.00 Td (6) Tj ET
+BT /F2 6.7 Tf 0.120 0.105 0.090 rg 287.09 119.00 Td (0.03125) Tj ET
+BT /F1 6.4 Tf 0.360 0.320 0.270 rg 336.14 119.00 Td ($3.13k) Tj ET
+q 0.920 0.860 0.780 RG 0.4 w 229.00 114.60 m 355.00 114.60 l S Q
+BT /F2 6.8 Tf 0.360 0.320 0.270 rg 231.00 108.40 Td (...) Tj ET
+BT /F2 6.7 Tf 0.360 0.320 0.270 rg 305.18 108.40 Td (...) Tj ET
+BT /F1 6.4 Tf 0.360 0.320 0.270 rg 349.39 108.40 Td (...) Tj ET
+q 0.920 0.860 0.780 RG 0.4 w 229.00 104.00 m 355.00 104.00 l S Q
+BT /F2 6.8 Tf 0.120 0.105 0.090 rg 231.00 97.80 Td (12+) Tj ET
+BT /F2 6.7 Tf 0.120 0.105 0.090 rg 290.64 97.80 Td (0.0005) Tj ET
+BT /F1 6.4 Tf 0.360 0.320 0.270 rg 344.14 97.80 Td ($50) Tj ET
+q 0.920 0.860 0.780 RG 0.4 w 229.00 93.40 m 355.00 93.40 l S Q
+q 1.000 0.988 0.955 rg 0.880 0.800 0.700 RG 0.75 w 404.00 88.00 344.00 150.00 re B Q
+BT /F2 6.7 Tf 0.490 0.200 0.100 rg 422.00 211.00 Td (NAME ALLOCATION) Tj ET
+BT /F3 17 Tf 0.120 0.105 0.090 rg 422.00 189.00 Td (Public Auctions) Tj ET
+BT /F1 7.9 Tf 0.360 0.320 0.270 rg 422.00 162.00 Td (After launch, anyone can open a public auction) Tj ET
+BT /F1 7.9 Tf 0.360 0.320 0.270 rg 422.00 152.20 Td (for any valid name. Auctions settle with) Tj ET
+BT /F1 7.9 Tf 0.360 0.320 0.270 rg 422.00 142.40 Td (ordinary Bitcoin transactions; destination) Tj ET
+BT /F1 7.9 Tf 0.360 0.320 0.270 rg 422.00 132.60 Td (records stay off-chain.) Tj ET
+q 0.900 0.820 0.720 RG 0.65 w 592.00 130.00 m 592.00 172.00 l S Q
+q 0.360 0.320 0.270 rg 614.00 161.92 2.70 2.70 re f Q
+BT /F1 7.1 Tf 0.360 0.320 0.270 rg 627.00 160.00 Td (public auction window) Tj ET
+q 0.360 0.320 0.270 rg 614.00 149.92 2.70 2.70 re f Q
+BT /F1 7.1 Tf 0.360 0.320 0.270 rg 627.00 148.00 Td (opening floor) Tj ET
+q 0.360 0.320 0.270 rg 614.00 137.92 2.70 2.70 re f Q
+BT /F1 7.1 Tf 0.360 0.320 0.270 rg 627.00 136.00 Td (competing bids raise the bond) Tj ET
+q 0.360 0.320 0.270 rg 614.00 125.92 2.70 2.70 re f Q
+BT /F1 7.1 Tf 0.360 0.320 0.270 rg 627.00 124.00 Td (winner settles owner key) Tj ET
+q 0.880 0.800 0.700 RG 0.6 w 48.00 79.00 m 744.00 79.00 l S Q
+BT /F3 11.5 Tf 0.120 0.105 0.090 rg 269.10 61.00 Td (If more than one participant cares about a name,) Tj ET
+BT /F3 11.5 Tf 0.120 0.105 0.090 rg 326.83 47.00 Td (the auction discovers that.) Tj ET
+BT /F2 8.2 Tf 0.490 0.200 0.100 rg 48.00 34.00 Td (opennametags.org) Tj ET
+BT /F1 7.2 Tf 0.360 0.320 0.270 rg 661.27 34.00 Td (protocol brief / April 2026) Tj ET
 
 endstream
 endobj
@@ -168,15 +157,15 @@ xref
 0 9
 0000000000 65535 f 
 0000000009 00000 n 
-0000010296 00000 n 
-0000010366 00000 n 
-0000010441 00000 n 
-0000010512 00000 n 
-0000010580 00000 n 
-0000010736 00000 n 
-0000010793 00000 n 
+0000009525 00000 n 
+0000009595 00000 n 
+0000009670 00000 n 
+0000009741 00000 n 
+0000009809 00000 n 
+0000009965 00000 n 
+0000010022 00000 n 
 trailer
 << /Size 9 /Root 8 0 R >>
 startxref
-10842
+10071
 %%EOF

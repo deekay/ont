@@ -1,30 +1,54 @@
-# Public Auction Allocation Model
+# Universal Auction Launch Model
 
-This is the current allocation direction for ONT:
+This is the current lead launch direction for ONT.
 
-> every valid ONT name is allocated by public bonded auction.
+It replaces the earlier two-lane model of:
 
-This is a working allocation model, not a final protocol freeze. It is now the
-source-of-truth framing for public docs and website copy.
+- ordinary names
+- reserved names
+
+with one allocation rule:
+
+> every valid ONT name can be opened by public bonded auction.
+
+This is a working launch model, not a final protocol freeze. It is now the
+source-of-truth framing for launch docs and website copy.
 
 ## Core Decision
 
-The allocation model should be:
+ONT should not maintain a semantic reserved-name list.
 
-- public bonded auctions
-- length-based opening floors for shorter names
+The launch model should be:
 
-The long-tail experience is handled by the fact that most names will not attract
-serious competing bids.
+- public bonded auctions for every valid name
+- no ordinary direct-allocation lane
+- no reserved-name lane
+- no pre-launch reservation system
+- no editorial list of brands, public figures, companies, or generic words
+- no short-name wave
 
-## Why This Is Neutral
+The ordinary-long-tail problem is handled by the fact that most names will not
+attract serious competing bids.
+
+## Why This Is Cleaner
+
+The earlier reserved-list path solved a real problem, but it created a bigger
+one:
+
+- which names are important enough to reserve?
+- who decides?
+- how do we defend boundary cases?
+- how do we avoid insider or editorial favoritism?
+- how do we keep the list current without governance creep?
+
+Universal auctions avoid that entire category of judgment.
 
 The rule becomes:
 
 > if a name matters to more than one participant, the auction discovers that.
 
-That is simpler, more neutral, and easier to explain than asking ONT to decide
-which names deserve special treatment.
+That is simpler, more neutral, and easier to explain than asking ONT to
+pre-compute global salience.
 
 ## Basic Flow
 
@@ -45,28 +69,19 @@ The user-facing version can still feel simple:
 > Start an auction. If nobody else bids during the window, you win at your opening
 > bid. If others care, the auction discovers the price.
 
-## Length-Based Opening Floors
+## Short Names
 
-Every valid name should use the public auction system.
+Short names use the same auction model as every other valid name.
 
-The objective bond curve gives shorter names higher fixed opening floors.
+That is the cleaner rule:
 
-This is an objective structural rule:
+- no special short-name launch phase
+- no discretionary release calendar
+- no separate access window for insiders or early users
+- opening-bond floors may still vary by objective length curve
 
-- shorter strings: higher opening floors
-- longer strings: quickly fall toward the global floor
-
-Why:
-
-- very short names are structurally scarce
-- the floor is easy to verify
-- early bulk capture of scarce names becomes materially expensive
-- no private party gets delayed or preferred access
-- `coke` and `pepsi` follow the same market rule; only the objective length
-  floor differs
-
-The exact floor curve remains tunable. The principle is that length can set an
-auditable opening floor without creating a special release boundary.
+The important scarcity work should happen through public auction competition
+and bonded bitcoin, not through manual gates.
 
 ## Auction Timing Defaults
 
@@ -74,9 +89,9 @@ The current preferred timing shape is:
 
 - default auction window: about `7 days`
 - soft-close extension: about `24 hours`
-- max extension cap: still to be implemented / decided
+- no hard extension cap in the current design; late bids can keep extending only
+  by clearing stronger bonded increments
 - initial launch period: may use longer windows if awareness is uneven
-- all valid names use the public auction mechanics
 
 The prototype currently has older simulator defaults in some places. Those
 should be migrated toward this model rather than treated as final.
@@ -99,9 +114,10 @@ The current direction:
 - normal Bitcoin transaction fees still apply
 - the protocol does not sell names and does not collect rent
 
-## Research Notes Outside The Allocation Path
+## What Happens To Old Reserved-List Work
 
-Demand-list and salience research is not launch machinery.
+The previous auction-list and reserved-list work is now obsolete as launch
+machinery.
 
 It may still be useful as research:
 
@@ -110,22 +126,26 @@ It may still be useful as research:
 - to generate examples for reviewers
 - to model speculative behavior
 
-It should not be used as a protocol-critical allocation list.
+But it should not be used as a protocol-critical launch list.
 
 ## What Still Needs Work
 
-The remaining allocation-design questions are now narrower:
+The remaining launch-design questions are now narrower:
 
 - exact auction window
 - exact soft-close increment
-- whether to cap total extension time
-- length-based opening-bond floor curve
+- grief-cost modeling for the uncapped soft-close path
+- opening-bond floor curve
 - settlement duration after winning an auction
-- how auction-opening and bid packages should be finalized
+- how auction-opening and bid packages replace the retired direct-claim tooling
 - how batching should work for auction openings and bids
+
+This is a much better open-question set than:
+
+> which people, brands, companies, and words deserve special treatment?
 
 ## Canonical One-Sentence Summary
 
-ONT uses one market rule for names: valid names are auctioned, shorter names
-can have higher fixed objective opening floors, and the auction discovers the
-final bond when more than one participant cares.
+ONT uses one market rule for names: every valid name can be opened by public
+bonded auction, and no semantic reserved list decides who deserves special
+treatment.

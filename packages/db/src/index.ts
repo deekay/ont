@@ -55,6 +55,8 @@ export type PersistedTransactionProvenancePayload =
       readonly auctionLotCommitment: string;
       readonly auctionCommitment: string;
       readonly bidderCommitment: string;
+      readonly name: string;
+      readonly unlockBlock: number;
     };
 
 export interface PersistedTransactionProvenanceEvent {
@@ -499,7 +501,9 @@ function parseTransactionProvenancePayload(
       ownerPubkey: getRequiredString(input, "ownerPubkey"),
       auctionLotCommitment: getRequiredString(input, "auctionLotCommitment"),
       auctionCommitment: getRequiredString(input, "auctionCommitment"),
-      bidderCommitment: getRequiredString(input, "bidderCommitment")
+      bidderCommitment: getRequiredString(input, "bidderCommitment"),
+      name: getRequiredString(input, "name"),
+      unlockBlock: getRequiredInteger(input, "unlockBlock")
     };
   }
 

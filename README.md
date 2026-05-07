@@ -1,21 +1,21 @@
 # Open Name Tags (ONT)
 
-Open Name Tags is a Bitcoin-anchored naming system.
+Open Name Tags is a payment-handle system anchored to Bitcoin.
 
-ONTs are names you can own, verify, and update. Bitcoin anchors ownership; owner-signed off-chain records keep destinations updateable; bonded public auctions price scarce names without rent.
+An ONT name is a human-readable handle you can actually own. Its first job is simple: let a wallet or client resolve who should get paid before money moves. The owner can update signed off-chain destination records, so the same name can later carry other destinations if clients and applications decide to support them.
 
 The hosted website is mainly a tool surface:
 
 - browse names
 - check ownership and auction state
-- check names and active auctions
-- prepare auction bid packages
+- inspect eligible names and active auctions
+- prepare prototype auction bid packages
 - prepare transfers
 - fund the private signet demo
 
 This repository is where the fuller project explanation lives.
 
-Human-facing amounts in ONT use the bitcoin symbol with integer amounts and the conventional BTC equivalent. Example: `₿50,000 (0.0005 BTC)`.
+Human-facing amounts in ONT use ₿ notation. Example: `₿0.0005`.
 
 ## Start Here
 
@@ -31,10 +31,11 @@ If you want the shortest honest project orientation before touching the product 
 
 If you want the fastest first walkthrough, use the hosted private demo:
 
-1. Open [setup](https://opennametags.org/setup) and point Sparrow at the hosted demo wallet endpoint shown there.
-2. Request demo coins into the same Sparrow wallet you plan to spend from.
-3. Open [auctions](https://opennametags.org/auctions), check a name or active auction, and prepare a bid package with an owner key.
-4. Build and sign the auction bid transaction in Sparrow, then watch the name appear in [explore](https://opennametags.org/explore) after settlement.
+1. Open [setup](https://opennametags.org/setup), quit Sparrow if it is open, then run `open /Applications/Sparrow.app --args -n signet` in Terminal. Sparrow chooses Signet when the app starts, not during wallet creation.
+2. In Sparrow `Settings` → `Server`, choose `Private Electrum` instead of `Public Server`, then enter the hosted demo host and port shown on setup.
+3. Copy a fresh receive address from that Sparrow wallet and request demo coins into it.
+4. Open [auctions](https://opennametags.org/auctions), inspect eligible names or active auctions, and prepare a bid package with an owner key.
+5. Build and sign the auction bid transaction in Sparrow, then watch the name appear in [explore](https://opennametags.org/explore) after settlement.
 
 If you want the tightest possible product demo instead of the full docs path, use:
 
@@ -50,7 +51,7 @@ Keep these distinctions in mind:
 One important testing/status distinction:
 
 - the hosted private demo is a **private signet** walkthrough and the active live environment we maintain
-- public bonded auctions allocate every valid name, with length-based opening floors
+- the leading launch model is public bonded auctions for every valid name
 - the old shared **public signet** path has been retired from the active demo and validation story because faucet funding never became reliable
 
 ## Quick Map
@@ -77,7 +78,7 @@ There are three practical ways to use ONT today:
 | --- | --- | --- | --- |
 | `Hosted Private Demo` | Fastest first walkthrough | Hosted site, hosted resolver, private demo chain | Yes |
 | `Self-Hosted Website + Resolver` | Running your own browsing and resolution surface | Your own web stack and resolver; optionally your own Bitcoin backend | Yes |
-| `Auction Bid Prep` | Reviewing auction state and preparing bidder handoffs | Website preview plus your own wallet signer | Yes |
+| `Auction Bid Prep` | Reviewing auction state and preparing bidder handoffs | Website preview plus your own wallet signer | Prototype |
 
 Hosted private demo:
 - website: [https://opennametags.org](https://opennametags.org)
@@ -91,12 +92,12 @@ Self-hosted website + resolver:
 
 | Capability | Status | Notes |
 | --- | --- | --- |
-| Hosted private demo auctions | Demo | Best first walkthrough today |
+| Hosted private demo auctions | Prototype | Best first walkthrough today |
 | Self-hosted website + resolver | Yes | Fixture-backed by default; can point at your own backend later |
 | Browser destination publishing | Yes | Owner-signed in the browser |
 | Profile bundle destination records | Yes | One record can point to several destinations |
-| Transfers | Handoff | Website prepares packages; CLI and signer finish the transaction |
-| Mainnet-ready usage | Not yet | Still under active design and review |
+| Transfers | Prototype | Works in the prototype, but not yet mainnet-ready |
+| Mainnet-ready usage | Not yet | Still an active prototype |
 
 ## Which Key Does What
 
@@ -109,10 +110,10 @@ Self-hosted website + resolver:
 
 | Phase | What it means | What you do next |
 | --- | --- | --- |
-| `Review` | Inspect opening floor, current auction state, minimum bid, and closing rules | Decide whether to prepare a bid |
+| `Review` | Inspect eligibility, current auction state, minimum bid, and closing rules | Decide whether to prepare a bid |
 | `Bid Broadcast` | A bid transaction is on-chain with bonded bitcoin | Watch whether the bid becomes or remains the leader |
 | `Settling` | The name is already owned and usable, but bond continuity still matters | Keep the bond intact until maturity |
-| `Active` | The name is mature, so ongoing bond continuity no longer matters | Publish destinations, update the signed bundle, or transfer later |
+| `Active` | The name is mature, so ongoing bond continuity no longer matters | Publish destinations, update the destination bundle, or transfer later |
 | `Released` | The name returned to the pool | Start from the auction flow if you still want it |
 
 ## Hosted Demo Walkthrough
@@ -127,23 +128,25 @@ Use the homepage to look up a name, see the quick model, and choose whether you 
 
 ### 2. Set up Sparrow and request demo coins
 
-Use the setup page to point Sparrow at the hosted private signet wallet endpoint, confirm it sees the demo chain, then fund the same wallet you plan to spend from.
+Use the setup page to open Sparrow from Terminal with `open /Applications/Sparrow.app --args -n signet`, create or open a wallet, switch Sparrow to `Private Electrum`, confirm it sees the hosted private signet demo chain, then fund the same wallet you plan to spend from.
 
 ### 3. Prepare an auction bid
 
-On auctions, check a name or active auction, generate or paste the owner key, and build the bid-package signer handoff.
+On auctions, inspect the eligible name or active auction, generate or paste the owner key, and build the bid-package signer handoff.
 
 ### 4. Publish what the name points to
 
-Once the name is active, use the destinations tool to publish ordered entries that describe where the name should resolve.
+Once the name is active, use the destinations tool to publish ordered destination entries that describe where the name should resolve.
 
-### 5. Inspect the live demo status
+### 5. Inspect live status
 
-Use the explore page to inspect recent names, provenance, and the current smoke summaries.
+Use the explore page to inspect recent names, provenance, and current live state.
 
-Use the auction page to check a name, review the current length-based opening floors, and prepare the opening-bid path.
+Use the auction page to inspect live auction activity:
 
-Use the Advanced page when you want implementation reference material: modeled auction states, the chain-derived observed `AUCTION_BID` feed, stale-bid rejection, same-bidder replacement, derived bond spend / release summaries, and the hosted private signet auction-smoke summary.
+- opening bid prep for a searched name
+- confirmed auction bids observed by the resolver
+- current leaders, next minimum bids, and settled winners
 
 ## What ONT Is
 
@@ -174,13 +177,13 @@ The clearest current wording is:
 
 > a payment handle you can actually own.
 
-Adjacent work is worth keeping in mind here too. Systems like Pubky / PKARR (which the old Slashtags project now points to) explore self-sovereign routing around public keys and signed DHT records while intentionally avoiding a scarce global name layer. ONT is trying to solve a different layer: Bitcoin-anchored ownership of shared names, with broader owner-signed records possible later. For a short internal comparison note, see [docs/research/ONT_VS_PUBKY_PKARR.md](./docs/research/ONT_VS_PUBKY_PKARR.md).
+Adjacent work is worth keeping in mind here too. Systems like Pubky / PKARR (which the old Slashtags project now points to) explore self-sovereign routing around public keys and signed DHT records while intentionally avoiding a scarce global human-readable namespace. ONT is trying to solve a different layer: Bitcoin-anchored ownership of shared human-readable payment handles, with broader owner-signed records possible later. For a short internal comparison note, see [docs/research/ONT_VS_PUBKY_PKARR.md](./docs/research/ONT_VS_PUBKY_PKARR.md).
 
 ## How Ownership Works
 
 ### Auctions
 
-Valid names open through public bonded auctions.
+Launch-eligible names use one auction lane.
 
 1. a valid bonded opening bid names the auction, bidder, owner key, and bonded amount
 2. market rules determine the leading bid, soft close, and settlement
@@ -209,7 +212,7 @@ Transfers move owner authority from one pubkey to another.
 
 What a name points to is intentionally off-chain.
 
-- destination records are signed by the current owner
+- destinations are signed by the current owner
 - authenticity is cryptographic
 - availability depends on one or more resolvers retaining a copy
 
@@ -225,34 +228,34 @@ It does that by using locked bitcoin bonds instead of:
 - whitelist access
 - protocol-level sales of names
 
-The current allocation model is intentionally simple:
+The current lead launch direction is intentionally simple:
 
-- all valid names use public bonded auctions
-- shorter names have higher fixed objective opening floors
-- length floors make early bulk capture of scarce names materially expensive
-- allocation does not depend on brand, category, or editorial judgment
+- every valid name can be opened by a public bonded auction
+- there is no semantic reserved-name list
+- there is no separate ordinary lane or direct-allocation path
+- there is no pre-launch reservation system
 
 Auctions discover the BTC amount. Length may still provide an objective
 opening-bond floor, but ONT should not decide which brands, people, companies,
-or words deserve special treatment.
+or words deserve special launch treatment.
 
 ### Bond Floors
 
-The current illustrative floor curve is:
+The current legacy floor curve is:
 
-- `₿100,000,000 (1 BTC)` for a 1-character name
+- `₿1` for a 1-character name
 - each additional character halves the required bond
-- the bond floors at `₿50,000 (0.0005 BTC)` for names of length 12 and longer
+- the bond floors at `₿0.0005` for names of length 12 and longer
 
-Under the public-auction model, this kind of curve is best understood
+Under the universal-auction launch model, this kind of curve is best understood
 as an opening-bond / anti-spam floor. It is not the final price; the auction
 discovers that.
 
 ### Why The Namespace Remains Open
 
-Length floors also make early bulk capture expensive. Using the current v1 alphabet (`a-z0-9`), there are about `2.18 billion` possible 6-character names.
+Using the current v1 alphabet (`a-z0-9`), there are about `2.18 billion` possible 6-character names.
 
-At the current 6-character bond of `₿3,125,000 (0.03125 BTC)`, bonding all possible 6-character names would require about `68 million BTC`, which is more than three times Bitcoin's total `21 million` supply.
+At the current 6-character bond of `₿0.03125`, bonding all possible 6-character names would require about `68 million BTC`, which is more than three times Bitcoin's total `21 million` supply.
 
 Even if every bitcoin in existence were somehow devoted to 6-character bonds, it would only be enough to bond about `672 million` names out of roughly `2.18 billion` possible 6-character names. The majority of that namespace would still remain open.
 
@@ -338,7 +341,7 @@ npm run reseed:private-signet:canonical -- root@<server-ip> ~/.ssh/<your-key>
 
 ## Quick Start
 
-### Run the local demo
+### Run the local prototype
 
 ```bash
 npm install
@@ -415,7 +418,7 @@ More exploratory and draft-oriented material lives under [`docs/research/`](./do
 
 ## Status
 
-ONT is currently in active demo/prototype phase.
+ONT is currently in active prototype phase.
 
 It is useful for local, regtest, signet, and private-signet experimentation, but it is **not ready for mainnet use**.
 

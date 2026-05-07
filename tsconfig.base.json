@@ -19,8 +19,11 @@
     "baseUrl": ".",
     "paths": {
       "@ont/architect": ["packages/architect/src/index.ts"],
+      "@ont/architect/browser": ["packages/architect/src/browser.ts"],
       "@ont/bitcoin": ["packages/bitcoin/src/index.ts"],
       "@ont/core": ["packages/core/src/index.ts"],
+      "@ont/core/auction-policy": ["packages/core/src/auction-policy.ts"],
+      "@ont/core/experimental-auction": ["packages/core/src/experimental-auction.ts"],
       "@ont/db": ["packages/db/src/index.ts"],
       "@ont/protocol": ["packages/protocol/src/index.ts"]
     }

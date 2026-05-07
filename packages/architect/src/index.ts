@@ -8,6 +8,7 @@ import {
   Transaction
 } from "bitcoinjs-lib";
 import { BIP32Factory } from "bip32";
+import { Buffer } from "buffer";
 import * as tinysecp from "tiny-secp256k1";
 
 import {
@@ -185,7 +186,7 @@ export function parseFundingInputDescriptor(spec: string): FundingInputDescripto
 
   if (parts.length !== 4 && parts.length !== 5) {
     throw new Error(
-      "input descriptors must use txid:vout:amount:address[:derivationPath]"
+      "input descriptors must use txid:vout:valueSats:address[:derivationPath]"
     );
   }
 
@@ -202,7 +203,7 @@ export function parseFundingInputDescriptor(spec: string): FundingInputDescripto
 
   const valueSats = BigInt(valueText ?? "");
   if (valueSats <= 0n) {
-    throw new Error("input amount must be positive");
+    throw new Error("input valueSats must be positive");
   }
 
   if (!inputAddress) {
@@ -290,7 +291,9 @@ export function buildAuctionBidArtifacts(
     ownerPubkey: bidPackage.ownerPubkey,
     auctionLotCommitment: bidPackage.auctionLotCommitment,
     auctionCommitment: bidPackage.auctionStateCommitment,
-    bidderCommitment: bidPackage.bidderCommitment
+    bidderCommitment: bidPackage.bidderCommitment,
+    name: bidPackage.name,
+    unlockBlock: bidPackage.unlockBlock
   });
   const auctionBidScript = compileOpReturn(bytesToHex(payloadBytes));
   const changeScript = changeAddress === null ? null : toSupportedOutputScript(changeAddress, network, "change address");
@@ -406,7 +409,7 @@ export function buildTransferArtifacts(options: BuildTransferArtifactsOptions): 
   }
 
   if (options.successorBondSats < 0n) {
-    throw new Error("successor bond amount must be non-negative");
+    throw new Error("successorBondSats must be non-negative");
   }
 
   const fundingInputs = [options.currentBondInput, ...(options.additionalFundingInputs ?? [])];
@@ -553,7 +556,7 @@ export function buildSaleTransferArtifacts(
   }
 
   if (options.sellerPaymentSats < 0n) {
-    throw new Error("seller payment amount must be non-negative");
+    throw new Error("sellerPaymentSats must be non-negative");
   }
 
   const totalSellerInputSats = sumInputValues(options.sellerInputs);
@@ -706,11 +709,11 @@ export function buildImmatureSaleTransferArtifacts(
   }
 
   if (options.successorBondSats < 0n) {
-    throw new Error("successor bond amount must be non-negative");
+    throw new Error("successorBondSats must be non-negative");
   }
 
   if (options.salePriceSats < 0n) {
-    throw new Error("sale price amount must be non-negative");
+    throw new Error("salePriceSats must be non-negative");
   }
 
   const sellerInputs = [options.currentBondInput, ...(options.sellerInputs ?? [])];

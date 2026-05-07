@@ -77,11 +77,12 @@ Rules:
 - The successor bond output must contain at least the required bond amount.
 - The original acquisition height remains the maturity anchor.
 - If bond continuity breaks before maturity, the name immediately loses active ownership.
+- A released name can be opened again through a new auction generation anchored to the release block.
 - No two live names or pending acquisitions may reference the same bond outpoint at the same time.
 
 Notes:
 - The successor bond amount may be topped up with extra inputs.
-- The protocol cares about successor bond continuity, not exact-unit continuity of the exact prior bond amount.
+- The protocol cares about successor bond continuity, not exact-unit continuity of the prior bond amount.
 - The successor bond may be funded by the seller, the recipient, or any combination of transaction inputs, as long as the old bond outpoint is spent and the required new bond output is created in the same transaction.
 - Fees should be funded separately so the bonded amount is not accidentally reduced below threshold.
 
@@ -93,17 +94,18 @@ The winning bid transaction must establish both:
 
 7. Auction-first allocation
 
-Initial launch allocation uses auctions.
+Initial launch allocation uses auctions, not a separate direct-claim lane.
 
 Purpose:
 - Let markets price scarce names.
-- Avoid subjective brand, category, or editorial judgments in allocation.
-- Keep long-tail names reachable without special editorial decisions.
+- Avoid maintaining a subjective reserved-name list.
+- Keep ordinary long-tail names reachable without special editorial decisions.
 
-8. Length-based opening floors
+8. No short-name wave
 
-All valid names use public bonded auctions. Shorter names can still require
-higher opening floors through the objective length-based bond curve.
+Short names use the same public auction model as every other valid name.
+Opening-bond floors can still vary objectively by name length, but there is no
+separate short-name launch phase.
 
 9. Maturity anchor
 
@@ -124,7 +126,7 @@ Bond amounts follow a Bitcoin-like halving curve with a minimum floor.
 
 Formula under consideration:
 
-`bond_amount(length) = max(floor_amount, base_amount >> (length - 1))`
+`bond_btc(length) = max(floor_btc, base_btc / 2^(length - 1))`
 
 12. Maturity duration binding
 
@@ -198,7 +200,7 @@ Bitcoin carries ownership events only. Optional destination records are off-chai
 
 Implications:
 - Bitcoin alone should be sufficient for independent, trust-minimized ownership verification.
-- Routine destination updates should not consume blockspace in v1.
+- Destination updates should not consume blockspace in v1.
 - Loss of off-chain destination data does not affect on-chain ownership validity.
 
 17. Off-chain destination authentication
@@ -229,21 +231,21 @@ Rules:
 
 Rationale:
 - Sequence numbers plus predecessor hashes let clients prove update order, not
-  just inspect the latest signed destination record.
-- Binding the destination record chain to an ownership interval prevents a stale record from
+  just inspect the latest signed value.
+- Binding the destination chain to an ownership interval prevents a stale record from
   an earlier ownership period from becoming current again if the same key later
   reacquires the same name.
 - This mirrors the useful part of Keybase-style signature chains without
-  requiring routine mutable destination updates to be posted to Bitcoin.
+  requiring mutable destination updates to be posted to Bitcoin.
 
 18. Destination behavior on transfer
 
 On transfer, the current off-chain destination record is cleared by default.
 
 Rules:
-- Ownership transfer does not automatically preserve the prior owner's destination record.
+- Ownership transfer does not automatically preserve the prior owner's value record.
 - A transfer format may support an explicit preserve signal, but preserve is not the default behavior.
-- After transfer, the new owner may publish a fresh destination record under their own key and sequence space.
+- After transfer, the new owner may publish a fresh value record under their own key and sequence space.
 
 19. Bitcoin footprint minimization
 
@@ -257,13 +259,16 @@ Implications:
 
 20. Resolver strategy
 
-ONT core remains transport-agnostic for off-chain destinations, but the project should ship a reference implementation of a minimal read-only ONT resolver/indexer profile.
+ONT core remains transport-agnostic for off-chain values, but the project should ship a reference implementation of a minimal read-only ONT resolver/indexer profile.
 
 Implications:
 - The reference resolver is a convenience interface, not the source of ownership truth.
 - Ownership truth remains Bitcoin plus the ONT protocol rules.
 - Clients may use a hosted resolver, self-host a resolver, or implement compatible alternatives.
 - The project should prefer a reference implementation over remaining only a protocol hypothesis.
+- Resolver endpoint discovery should begin off-chain through defaults, configuration, DNS seeds, manual URLs, or peer gossip rather than as a required Bitcoin event.
+- Bitcoin-derived state should be used to score resolver correctness, completeness, and tip freshness.
+- On-chain resolver announcements may be considered later for optional identity anchoring, but not as v1 trust or endpoint-discovery infrastructure.
 
 21. Minimal resolver API surface
 
@@ -286,9 +291,9 @@ Design constraints:
 - Prefer explicit provenance fields over opaque answers.
 - Avoid standardizing write APIs in the protocol profile.
 
-22. Off-chain value encoding envelope
+22. Off-chain destination encoding envelope
 
-Off-chain values use a compact typed binary envelope.
+Off-chain destinations use a compact typed binary envelope.
 
 Envelope shape:
 - `value_type`: 1 byte
@@ -297,9 +302,9 @@ Envelope shape:
 
 This keeps destination records compact while allowing a small standardized type set and future extension.
 
-23. Initial standardized value types
+23. Initial standardized destination types
 
-The initial standardized value types for v1 are:
+The initial standardized destination types for v1 are:
 - `0x00`: null
 - `0x01`: bitcoin payment target
 - `0x02`: HTTPS target
@@ -313,12 +318,12 @@ Notes:
 24. Bond amount parameters
 
 The launch bond curve parameters are:
-- `base_amount = ₿100,000,000 (1 BTC)`
-- `floor_amount = ₿50,000 (0.0005 BTC)`
+- `base_btc = ₿1`
+- `floor_btc = ₿0.0005`
 
 Implications:
 - 1-character names require a 1 BTC bond at launch.
-- Each additional character halves the required bond until the ₿50,000 (0.0005 BTC) floor is reached.
+- Each additional character halves the required bond until the `₿0.0005` floor is reached.
 - The 4,000-block value previously resolved is the minimum maturity floor, not the bond floor.
 
 25. Same-block auction tie-break rule
@@ -373,7 +378,8 @@ The project should support a prototype website, but the boundary between interfa
 
 Recommended boundary:
 - website handles browsing, availability search, validation, provenance display, and transaction assembly
-- CLI, wallet, or explicit signer component handles key derivation, signing, bond continuity checks, and final broadcast
+- browser-local website code or CLI tooling may assemble unsigned transaction artifacts
+- wallet, CLI, or explicit signer component handles private-key signing and final broadcast
 
 Implementation principle:
 - website-assisted actions should have CLI-capable equivalents
@@ -395,6 +401,7 @@ Rules:
 - For post-maturity sales, seller authorization must be bound to the exact Bitcoin transaction that pays the seller and transfers the name.
 - The v1 reference implementation should achieve that binding with a cooperative PSBT flow and at least one seller-controlled input in the mature-sale transaction.
 - Mature gift transfers may remain simpler signed ownership transfers when no atomic payment is required.
+- The sale price is not an ONT consensus field. It is verifiable from the Bitcoin transaction outputs when the parties use the cooperative sale PSBT flow.
 
 Rationale:
 - prevents replay or underpayment of mature-name sale authorizations
@@ -425,20 +432,25 @@ These are not yet immutable launch commitments, but they are concrete enough
 that implementation, documentation, and reviewer-facing materials should treat
 them as the current defaults unless they are later revised explicitly.
 
-32. Auction lifecycle scaling baseline
+32. Retired direct-allocation batching baseline
 
+The old direct-allocation scaling baseline is retired from launch planning.
 Future footprint work should be evaluated against auction openings, bids,
-transfers, and destination-publication flows.
+transfers, and value-publication flows.
 
-34. Auction architecture lead direction
+34. Launch architecture lead direction
 
-The current lead architecture is **public bonded auctions**.
+The current lead launch architecture is **public bonded auctions for every
+valid name**.
 
 Current shape:
-- every valid name is allocated by auction
-- allocation does not depend on brand, category, or editorial judgment
-- shorter names have higher fixed length-based opening floors
-- public tooling should present auction-opening as the acquisition path
+- any valid name can be opened by a bonded public bid
+- there is no semantic reserved-name list
+- there is no ordinary direct-allocation lane in the launch model
+- there is no pre-launch reservation system
+- there is no short-name wave
+- old direct-claim tooling should be removed from public surfaces rather than
+  treated as a parallel launch path
 
 This is strong enough to build supporting materials around, but it should still
 be treated as a working launch assumption rather than an immutable protocol
@@ -453,12 +465,28 @@ The current auction family is:
 - soft close
 - meaningful minimum increments
 - stronger minimum increments for bids that would extend the auction
+- no hard extension cap in the current design; a cap would create a known final
+  edge and reintroduce sniping pressure
 - if nobody submits a valid bonded opening bid, no auction has opened and no
   ownership changes
 
+Current default increment parameters:
+- normal bids must clear `max(0.00001 BTC, 5%)`
+- soft-close bids must clear `max(0.00001 BTC, 10%)`
+
+Current rebid shape:
+- a same-bidder rebid can replace that bidder's prior bid only if the new
+  transaction spends the prior bid-bond output
+- the new transaction creates one new bid bond for the full new bid amount
+- a bidder may add a fresh wallet input for the difference plus fees
+- the prior bond is not separately released during the rebid; it is consumed by
+  the replacement transaction
+
 Implications:
-- the project can explain one coherent allocation rule for all valid names
-- source-generated auction lists are not protocol-critical
+- the project can explain one coherent allocation rule for all eligible names
+- old reserved-list generation work is no longer launch-critical
+- close-griefing is handled by forcing late extensions to be real higher bonded
+  bids with stronger increments, not by adding a hard final cap
 - placeholder floors, windows, and lock durations should not be presented as
   frozen constants just because the auction family itself is now the working
   assumption
@@ -475,7 +503,7 @@ Implications:
 - public signet should only appear in historical notes or explicit cleanup
   context, not as an active user path
 
-## Fairness Principles To Carry Into The Allocation Model
+## Fairness Principles To Carry Into The Launch Rewrite
 
 The rewritten launch draft should explicitly state:
 - No founder allocation
@@ -484,7 +512,6 @@ The rewritten launch draft should explicitly state:
 - No identity-based quotas
 - Every immature auction-acquired name requires dedicated bonded BTC
 - Bond and maturity rules are fixed at launch
-- Length-based opening floors must be pre-announced and auditable
 - Auction rules and release conditions must be objective enough that outcomes
   are auditable from chain data plus the pre-announced launch artifacts
 
@@ -495,11 +522,12 @@ That means:
   protocol.
 - Scarcity and anti-hoarding pressure come from auction-discovered bonded BTC
   and time, not from subjective pricing rules.
-- Shorter names can have higher fixed objective length-based floors.
+- If opening floors differ by length, that difference comes from a public
+  objective curve rather than discretionary per-user judgment.
 
 ## Open Questions
 
-1. Destination payload definitions
+1. Value payload definitions
 
 Need to define the exact payload format for:
 - `0x01` bitcoin payment target
@@ -520,7 +548,10 @@ Need to define:
 3. ONT-native resolver profile
 
 Need to define:
-- how clients discover resolver endpoints, if at all
+- the exact bootstrap format for default/configured resolver endpoints
+- whether a simple `GET /peers` style gossip endpoint is worth standardizing
+- whether optional resolver identity keys need a signed metadata profile
+- how clients should present resolver freshness and signed-record conflicts
 
 4. Reviewer-facing modeling and risk disclosure
 
@@ -558,4 +589,4 @@ Need to define UX and implementation safeguards to prevent users from accidental
 Need to define clearer operator and wallet guidance around stale or failed bids:
 - a failed bid package should have an obvious recovery path for funds
 - the docs should explain when a bid exposes demand for a name before the bidder wins it
-- mainnet review should revisit auction windows, soft-close extensions, and stale-state behavior
+- pre-launch review should revisit auction windows, soft-close extensions, and stale-state behavior

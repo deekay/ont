@@ -13,6 +13,7 @@ import {
   findBitcoinEsploraMatchingCheckpoint,
   findBitcoinRpcMatchingCheckpoint,
   type BitcoinRpcSyncStatus,
+  getBitcoinRpcUnspentTransactionOutput,
   createBitcoinEsploraConfig,
   createBitcoinRpcConfig,
   isBitcoinEsploraHeadCurrent,
@@ -464,7 +465,7 @@ async function main(): Promise<void> {
         if (!verifyValueRecord(parsedRecord)) {
           return writeJson(response, 400, {
             error: "invalid_signature",
-            message: "Destination record signature did not verify."
+            message: "Value record signature did not verify."
           });
         }
 
@@ -473,7 +474,7 @@ async function main(): Promise<void> {
         if (currentNameRecord === null || currentNameRecord.status === "invalid") {
           return writeJson(response, 404, {
             error: "name_not_found",
-            message: "Cannot publish destinations for an unclaimed or invalid name.",
+            message: "Cannot publish a value for an unclaimed or invalid name.",
             name: parsedRecord.name
           });
         }
@@ -481,7 +482,7 @@ async function main(): Promise<void> {
         if (currentNameRecord.currentOwnerPubkey !== parsedRecord.ownerPubkey) {
           return writeJson(response, 409, {
             error: "owner_mismatch",
-            message: "Destination record owner pubkey does not match the resolver's current owner.",
+            message: "Value record owner pubkey does not match the resolver's current owner.",
             name: parsedRecord.name,
             currentOwnerPubkey: currentNameRecord.currentOwnerPubkey
           });
@@ -492,7 +493,7 @@ async function main(): Promise<void> {
         if (parsedRecord.ownershipRef !== currentOwnershipRef) {
           return writeJson(response, 409, {
             error: "ownership_ref_mismatch",
-            message: "Destination record ownershipRef must match the resolver's current ownership interval.",
+            message: "Value record ownershipRef must match the resolver's current ownership interval.",
             name: parsedRecord.name,
             currentOwnershipRef
           });
@@ -507,7 +508,7 @@ async function main(): Promise<void> {
         if (parsedRecord.sequence < expectedSequence) {
           return writeJson(response, 409, {
             error: "stale_sequence",
-            message: "Destination record sequence must be the exact next sequence for the current ownership interval.",
+            message: "Value record sequence must be the exact next sequence for the current ownership interval.",
             name: parsedRecord.name,
             currentSequence: existingRecord?.sequence ?? 0,
             expectedSequence
@@ -517,7 +518,7 @@ async function main(): Promise<void> {
         if (parsedRecord.sequence > expectedSequence) {
           return writeJson(response, 409, {
             error: "sequence_gap",
-            message: "Destination record sequence cannot skip over missing predecessors.",
+            message: "Value record sequence cannot skip over missing predecessors.",
             name: parsedRecord.name,
             currentSequence: existingRecord?.sequence ?? 0,
             expectedSequence
@@ -527,7 +528,7 @@ async function main(): Promise<void> {
         if (parsedRecord.previousRecordHash !== expectedPreviousRecordHash) {
           return writeJson(response, 409, {
             error: "predecessor_mismatch",
-            message: "Destination record previousRecordHash must point to the current chain head.",
+            message: "Value record previousRecordHash must point to the current chain head.",
             name: parsedRecord.name,
             expectedPreviousRecordHash
           });
@@ -553,7 +554,7 @@ async function main(): Promise<void> {
       } catch (error) {
         return writeJson(response, 400, {
           error: "invalid_value_record",
-          message: error instanceof Error ? error.message : "Invalid destination record"
+          message: error instanceof Error ? error.message : "Invalid value record"
         });
       }
     }
@@ -622,6 +623,52 @@ async function main(): Promise<void> {
         return writeJson(response, 400, {
           error: "invalid_limit",
           message: error instanceof Error ? error.message : "Invalid activity limit"
+        });
+      }
+    }
+
+    const utxoPathMatch = url.pathname.match(/^\/utxo\/([0-9a-fA-F]{64})\/([0-9]+)$/);
+    if (utxoPathMatch) {
+      if (rpc === undefined) {
+        return writeJson(response, 501, {
+          error: "utxo_lookup_unavailable",
+          message: "UTXO lookup requires an RPC-backed resolver."
+        });
+      }
+
+      const txid = (utxoPathMatch[1] ?? "").toLowerCase();
+      const vout = Number.parseInt(utxoPathMatch[2] ?? "", 10);
+      if (!Number.isSafeInteger(vout) || vout < 0) {
+        return writeJson(response, 400, {
+          error: "invalid_vout",
+          message: "UTXO vout must be a non-negative safe integer."
+        });
+      }
+
+      try {
+        const utxo = await getBitcoinRpcUnspentTransactionOutput(rpc, txid, vout, true);
+        if (utxo === null) {
+          return writeJson(response, 404, {
+            error: "utxo_not_found_or_spent",
+            txid,
+            vout,
+            message: "That funding output is missing or already spent."
+          });
+        }
+
+        return writeJson(response, 200, {
+          txid,
+          vout,
+          unspent: true,
+          valueSats: utxo.valueSats.toString(),
+          confirmations: utxo.confirmations,
+          ...(utxo.bestblock === undefined ? {} : { bestblock: utxo.bestblock }),
+          ...(utxo.address === undefined ? {} : { address: utxo.address })
+        });
+      } catch (error) {
+        return writeJson(response, 502, {
+          error: "utxo_lookup_failed",
+          message: error instanceof Error ? error.message : "Unable to check the funding output."
         });
       }
     }
@@ -771,7 +818,7 @@ async function main(): Promise<void> {
     return writeJson(response, 404, {
       error: "not_found",
       message:
-        "Supported prototype endpoints: /health, /stats, /names, /experimental-auctions, /activity, /tx/{txid}, /name/{normalized_name}, /name/{normalized_name}/activity, /name/{normalized_name}/value, /name/{normalized_name}/value/history, POST /values"
+        "Supported prototype endpoints: /health, /stats, /names, /experimental-auctions, /activity, /tx/{txid}, /utxo/{txid}/{vout}, /name/{normalized_name}, /name/{normalized_name}/activity, /name/{normalized_name}/value, /name/{normalized_name}/value/history, POST /values"
     });
   }
 

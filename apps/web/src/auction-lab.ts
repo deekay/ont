@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { createAuctionBidPackage, type AuctionBidPackage } from "@ont/protocol";
 import {
   createDefaultLaunchAuctionPolicy,
-  getDefaultLaunchAuctionClassIdForName,
+  getExperimentalLaunchAuctionId,
   getLaunchAuctionOpeningRequirements,
   parseLaunchAuctionScenario,
   serializeLaunchAuctionPolicy,
@@ -56,6 +56,7 @@ interface WebsiteAuctionBidPackageStateInput {
 const AUCTION_LAB_FIXTURE_DIR =
   process.env.ONT_EXPERIMENTAL_AUCTION_FIXTURE_DIR?.trim()
   || fileURLToPath(new URL("../../../fixtures/auction/lab", import.meta.url));
+const UNIVERSAL_LAUNCH_AUCTION_UNLOCK_BLOCK = 0;
 
 export async function loadLaunchAuctionLab(): Promise<LaunchAuctionLabPayload> {
   const policy = createDefaultLaunchAuctionPolicy();
@@ -64,7 +65,7 @@ export async function loadLaunchAuctionLab(): Promise<LaunchAuctionLabPayload> {
     .filter((name) => name.endsWith(".json"))
     .sort((left, right) => left.localeCompare(right));
 
-  const loadedCases = await Promise.all(
+  const casesWithLegacy = await Promise.all(
     fixtureFileNames.map(async (fileName) => {
       const raw = await readFile(`${AUCTION_LAB_FIXTURE_DIR}/${fileName}`, "utf8");
       const fixture = JSON.parse(raw) as AuctionLabFixtureFile;
@@ -83,7 +84,7 @@ export async function loadLaunchAuctionLab(): Promise<LaunchAuctionLabPayload> {
       } satisfies AuctionLabCase;
     })
   );
-  const cases = loadedCases.filter(
+  const cases = casesWithLegacy.filter(
     (entry) =>
       entry.state.phase !== "pending_unlock"
       && !entry.id.includes("legacy")
@@ -132,48 +133,53 @@ export async function createLaunchAuctionLabBidPackage(input: {
     bidderId: input.bidderId,
     ownerPubkey: input.ownerPubkey,
     bidAmountSats: input.bidAmountSats,
-    sourceLabel: `auction lab case ${auctionCase.id}`
+    sourceLabel: `auction example ${auctionCase.id}`
   });
 }
 
-export function createOpeningAuctionBidPackage(input: {
+export function createLaunchAuctionOpeningBidPackage(input: {
   readonly name: string;
   readonly currentBlockHeight: number;
   readonly bidderId: string;
   readonly ownerPubkey: string;
   readonly bidAmountSats: bigint | number | string;
+  readonly unlockBlock?: number;
 }): AuctionBidPackage {
   const policy = createDefaultLaunchAuctionPolicy();
-  const auctionClassId = getDefaultLaunchAuctionClassIdForName(input.name);
-  const opening = getLaunchAuctionOpeningRequirements({
+  const requirements = getLaunchAuctionOpeningRequirements({
     policy,
     name: input.name,
-    auctionClassId
+    auctionClassId: "launch_name"
   });
+  const unlockBlock = input.unlockBlock ?? UNIVERSAL_LAUNCH_AUCTION_UNLOCK_BLOCK;
 
   return createWebsiteAuctionBidPackage({
     auctionState: {
-      auctionId: `opening-${opening.normalizedName}`,
-      normalizedName: opening.normalizedName,
-      auctionClassId,
-      classLabel: opening.classLabel,
+      auctionId: getExperimentalLaunchAuctionId({
+        name: requirements.normalizedName,
+        unlockBlock
+      }),
+      normalizedName: requirements.normalizedName,
+      auctionClassId: "launch_name",
+      classLabel: requirements.classLabel,
       currentBlockHeight: input.currentBlockHeight,
-      phase: "awaiting_opening_bid",
-      unlockBlock: input.currentBlockHeight,
+      phase: input.currentBlockHeight < unlockBlock ? "pending_unlock" : "awaiting_opening_bid",
+      unlockBlock,
       auctionCloseBlockAfter: null,
-      openingMinimumBidSats: opening.openingMinimumBidSats.toString(),
+      openingMinimumBidSats: requirements.openingMinimumBidSats.toString(),
       currentLeaderBidderId: null,
+      currentLeaderBidderCommitment: null,
       currentHighestBidSats: null,
-      currentRequiredMinimumBidSats: opening.openingMinimumBidSats.toString(),
-      settlementLockBlocks: opening.settlementLockBlocks,
-      blocksUntilUnlock: 0,
+      currentRequiredMinimumBidSats: requirements.openingMinimumBidSats.toString(),
+      settlementLockBlocks: requirements.settlementLockBlocks,
+      blocksUntilUnlock: Math.max(0, unlockBlock - input.currentBlockHeight),
       blocksUntilClose: null,
-      baseMinimumBidSats: opening.baseMinimumBidSats.toString()
+      baseMinimumBidSats: requirements.baseMinimumBidSats.toString()
     },
     bidderId: input.bidderId,
     ownerPubkey: input.ownerPubkey,
     bidAmountSats: input.bidAmountSats,
-    sourceLabel: `opening bid for ${opening.normalizedName}`
+    sourceLabel: `opening bid for ${requirements.normalizedName}`
   });
 }
 
@@ -188,7 +194,7 @@ export function createExperimentalAuctionFeedBidPackage(input: {
     bidderId: input.bidderId,
     ownerPubkey: input.ownerPubkey,
     bidAmountSats: input.bidAmountSats,
-    sourceLabel: `observed auction ${input.auction.auctionId}`
+    sourceLabel: `live auction ${input.auction.auctionId}`
   });
 }
 

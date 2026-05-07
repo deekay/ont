@@ -26,13 +26,13 @@ The shortest honest summary is:
 - the resolver and website are real
 - auction simulation, bid packages, bid artifacts, and auction-state rendering
   exist
-- transfer and destination-record flows exist as prototypes
-- destination-record history plus CLI multi-resolver publish/read are implemented
+- transfer and value-record flows exist as prototypes
+- value-record history plus CLI multi-resolver publish/read are implemented
   enough to inspect
 - the website can compare/fan out across a configured resolver set when a
   deployment opts into that allowlist
-- the public auction allocation design is the current direction, but not the
-  fully frozen mainnet mechanism yet
+- the universal-auction launch design is the lead direction, but not the fully
+  frozen launch mechanism yet
 
 For external technically sophisticated review, the best current entry point is:
 
@@ -43,9 +43,9 @@ For external technically sophisticated review, the best current entry point is:
 | Area | Status | Confidence | Notes |
 | --- | --- | --- | --- |
 | Auction flow | Implemented prototype | Moderate | Configurable policy, CLI simulation, fixture coverage, website state rendering, bid packages, signable bid artifacts, chain-derived `AUCTION_BID` state, and settled-winner-to-owned-name materialization exist; final launch parameters are still open |
-| Off-chain signed destination records | Implemented history-aware prototype | Moderate to high | Current records prove owner authorization, exact sequence, predecessor linkage, ownership-interval binding, CLI multi-resolver publish/read comparison, website-side fanout/compare against a configured resolver set, and browser-level local proof of consistent-versus-lagging resolver views; resolver transparency remains future work |
+| Off-chain signed value records | Implemented history-aware prototype | Moderate to high | Current records prove owner authorization, exact sequence, predecessor linkage, ownership-interval binding, CLI multi-resolver publish/read comparison, website-side fanout/compare against a configured resolver set, and browser-level local proof of consistent-versus-lagging resolver views; resolver transparency remains future work |
 | Transfers | Implemented prototype | Moderate to high | Gift and cooperative sale flows exist; browser UX is not the full end-user story yet |
-| Public auction allocation policy | Working direction | Moderate | Public bonded auctions with length-based opening floors |
+| Universal auction launch policy | Working launch direction | Moderate | Public bonded auctions for every valid name; no reserved list, no pre-launch reservations, and no direct-allocation lane |
 
 ## What Is Implemented Today
 
@@ -62,8 +62,8 @@ Today the repo has:
 - CLI commands for policy printing, scenario execution, and bid-package
   creation / inspection
 - bid transaction builder and signer paths built on top of those bid packages
-- a website-facing `/auctions` page that renders ready-to-open, live bidding,
-  soft-close, and settled states
+- a website-facing `/auctions` page that renders eligibility, opening-bid prep,
+  live bidding, soft-close, and settled states
 - a resolver-backed chain-derived auction feed for prototype catalog entries, derived from
   observed `AUCTION_BID` transactions
 - same-bidder rebid classification when the later bid spends the prior bid bond
@@ -72,15 +72,15 @@ Today the repo has:
   winning bid's `ownerPubkey` and bond outpoint as the live post-auction name
   state
 
-### 2. Owner-Signed Destination Records
+### 2. Owner-Signed Value Records
 
-The repo supports an off-chain destination-record model:
+The repo supports an off-chain value-record model:
 
-- destinations are signed by the current owner key
+- values are signed by the current owner key
 - resolver can ingest and serve them
 - clients can verify authenticity without trusting the resolver
 - the CLI can fan one signed record out to several resolvers and compare
-  destination-history visibility across them
+  value-history visibility across them
 - the website can surface that same pattern when the deployment configures an
   explicit resolver allowlist
 
@@ -141,21 +141,21 @@ fixtures.
 
 The strongest implementation claims we can make today are:
 
-1. The resolver, website, CLI, transfer, and destination-record surfaces are coherent
+1. The resolver, website, CLI, transfer, and value-record surfaces are coherent
    enough to review and demo.
 2. The auction stack is implemented enough to inspect policy, generate bid
    packages, build signer artifacts, derive chain state, and materialize winners
    into owned names.
-3. The allocation direction is now public bonded auctions: valid names can be
-   opened with bonded bids, and shorter names use higher length-based opening
-   floors.
+3. The lead launch direction is now universal auctions: every valid name can be
+   opened by public bonded auction, and no semantic reserved list decides who
+   gets special treatment.
 
 ## What Is Still Experimental
 
-The public auction details still need final review:
+The universal-auction launch details still need final review:
 
 - auction window
-- soft-close extension and cap
+- soft-close response window and late-bid increment strength
 - opening-bond floors
 - winner bond duration
 - quantum/long-lock posture
@@ -165,9 +165,9 @@ The public auction details still need final review:
 
 These are not done yet and should not be implied by the current docs:
 
-- final public auction engine
+- final universal-auction launch engine
 - batched transfers
-- batched destination-record updates
+- batched value-record updates
 - a fully polished browser signing flow
 - a final mainnet launch package
 
@@ -175,12 +175,12 @@ These are not done yet and should not be implied by the current docs:
 
 If we want a reviewer-friendly summary right now, the strongest version is:
 
-> ONT has a real resolver, website, transfer prototype, destination-record
-> prototype, and increasingly concrete auction stack. The current allocation
-> direction is public bonded auctions: valid names can be opened with bonded
-> bids, and shorter names use higher objective opening floors. The next big
-> questions are final auction parameters,
-> settlement duration, and long-lock/quantum posture.
+> ONT has a real resolver, website, transfer prototype, value-record prototype,
+> and increasingly concrete auction stack. The current launch direction is
+> universal auctions: every valid name can be opened by public bonded auction,
+> and no semantic reserved list decides who gets special treatment. The next
+> big questions are final auction parameters, settlement duration, and
+> long-lock/quantum posture.
 
 ## Suggested Next Review Order
 

@@ -79,7 +79,9 @@ describe("indexer snapshot persistence", () => {
                 ownerPubkey: "77".repeat(32),
                 auctionLotCommitment: "44".repeat(16),
                 auctionCommitment: "55".repeat(32),
-                bidderCommitment: "66".repeat(16)
+                bidderCommitment: "66".repeat(16),
+                name: "alice",
+                unlockBlock: 100
               },
               validationStatus: "applied" as const,
               reason: "auction_bid_recorded",

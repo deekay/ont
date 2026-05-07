@@ -1,9 +1,9 @@
-# ONT Auction Spec v0
+# ONT Launch Spec v0
 
-This note is the current best attempt to turn allocation research into a
-provisional auction specification.
+This note is the current best attempt to turn launch research into a provisional
+specification.
 
-It is not a final protocol freeze. It is a **working auction spec** for the
+It is not a final protocol freeze. It is a **working launch spec** for the
 direction we are most likely to pursue unless new evidence changes the choice.
 
 Related notes:
@@ -14,14 +14,24 @@ Related notes:
 - [BITCOIN_REVIEW_CLOSURE_MATRIX.md](./BITCOIN_REVIEW_CLOSURE_MATRIX.md)
 - [AUCTION_IMPLEMENTATION_GAP_LIST.md](./AUCTION_IMPLEMENTATION_GAP_LIST.md)
 
-## Current Direction
+## Current Lead Direction
 
-The current allocation rule is simple:
+The leading launch candidate is now **public bonded auctions for every valid
+name**.
 
-> every valid name is allocated by public bonded auction.
+The intended rule is:
 
-Shorter names can have higher fixed objective opening floors, but they do not
-move into a special wave or alternate process.
+> every valid name can be opened by public bonded auction.
+
+That means:
+
+- no ordinary direct-allocation lane
+- no reserved-name lane
+- no semantic reserved-name list
+- no pre-launch reservation system
+- no editorial distinction between brands, public figures, generic words, and
+  ordinary names
+- no short-name wave
 
 ## Primary Objectives
 
@@ -34,21 +44,13 @@ The launch design should try to satisfy all of these at once:
 5. preserve the bonded-bitcoin model: cost without rent or protocol sales
 6. remain credible on blockspace and implementation complexity
 
-## Opening A Name
+## Eligibility
 
-The opening rule is intentionally simple:
+Every valid name uses the same public auction model.
 
-| Name length | Auction treatment |
-| --- | --- |
-| shorter strings | public auction system, higher opening floor |
-| longer strings | public auction system, lower opening floor |
-
-It is a structural scarcity rule. Very short names are uniquely scarce, so they
-can require higher objective opening floors without asking ONT to judge which
-brands, people, companies, or words matter.
-
-Those floors also make early bulk capture materially expensive before the
-market has discovered every name that will eventually matter.
+Very short names are uniquely scarce, but the current model asks auctions and
+objective opening-bond floors to handle that scarcity rather than a separate
+launch gate.
 
 ## Auction Flow
 
@@ -80,11 +82,10 @@ Current preferred defaults:
 | soft-close extension | about `24 hours` |
 | minimum increment | absolute floor plus percentage increment |
 | soft-close increment | stronger than normal mid-auction increment |
-| max extension cap | open, likely needed |
-| initial mainnet period | may use longer windows if awareness is uneven |
-| valid names | all use the public auction system |
+| hard extension cap | not in the current design; stronger late-bid increments handle close-griefing without creating a cap-edge snipe |
+| initial launch period | may use longer windows if awareness is uneven |
 
-These are mainnet parameters, not final protocol constants yet.
+These are launch parameters, not final protocol constants yet.
 
 ## Pricing And Bonds
 
@@ -112,54 +113,48 @@ Winning an auction should produce normal ONT ownership:
 - off-chain destination records are signed by the current owner key
 - transfers move owner authority later
 
-The exact settlement duration is still a mainnet parameter.
+The exact settlement duration is still a launch parameter.
 
-The current bias is to avoid decade-scale Bitcoin-native locks at mainnet. The
-public auction model gets much of its fairness from public price discovery,
+The current bias is to avoid decade-scale Bitcoin-native locks at launch. The
+universal auction model gets much of its fairness from public price discovery,
 so it does not need to rely as heavily on very long lock durations.
 
-## Length-Based Opening Floors
+## What The Spec Drops
 
-Every valid name can be opened by a valid bonded bid.
+This launch model drops:
 
-The opening floor should be:
+- semantic reserved-name lists
+- source-generated auction lists as protocol-critical artifacts
+- pre-launch proof/reservation systems
+- ordinary-vs-reserved allocation treatment
+- unopened-name fallback from auction into a separate ordinary direct-allocation lane
+- bespoke reserved classes for brands, identities, and generics
 
-- pre-announced
-- objective
-- easy to verify from name length
-- higher for shorter strings
-- part of the public auction mechanics
-
-The floor curve can still be tuned. The important simplification is that the
-auction system handles all valid names, while the length floor supplies
-objective scarcity pressure.
-
-## Allocation Guardrails
-
-The allocation model should keep these guardrails:
-
-- no source-generated auction lists as protocol-critical artifacts
-- no bespoke classes for brands, identities, or generics
+The previous source-list work can remain useful for research and examples, but
+it is no longer the allocation mechanism.
 
 ## Implementation Gap List
 
 The main implementation work now is:
 
-- keep public flows auction-opening-first
-- update auction policy defaults toward the timing above
-- enforce the length-based opening floors
-- add or decide a max soft-close extension cap
+- keep retiring old direct-claim code paths in favor of auction-opening-first flows
+- update auction policy defaults toward the launch timing above
+- document the no-hard-cap soft-close posture in reviewer and user-facing docs
 - decide final settlement duration after winning auction
 - update batch/footprint analysis for auction openings and bids
-- keep user-facing docs and tools aligned with the public auction model
+- remove old list-based launch language from user-facing docs and tools
+- remove remaining legacy direct-claim implementation details that are no longer
+  needed for auction-opening-first flows
 
 ## Current Status
 
-The repo still contains some internal test and fixture vocabulary for timing
-states, but public surfaces should describe the current model directly.
+The repo still contains a few legacy internal type names in code and fixtures.
 
-The current allocation sentence is:
+Those should now be read as implementation history unless a document explicitly
+points back to this launch spec.
 
-> ONT uses one market rule for names: valid names are auctioned, shorter names
-> can have higher fixed objective opening floors, and the auction discovers the
-> final bond when more than one participant cares.
+The current lead launch sentence is:
+
+> ONT uses one market rule for names: every valid name can be opened by public
+> bonded auction, and no semantic reserved list decides who deserves special
+> treatment.

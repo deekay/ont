@@ -1,7 +1,7 @@
-import { createHash } from "node:crypto";
-import * as secp256k1 from "tiny-secp256k1";
+import { schnorr, secp256k1 } from "@noble/curves/secp256k1.js";
 
 import { assertHexBytes, bytesToHex, hexToBytes } from "./bytes.js";
+import { concatBytes, sha256Bytes, utf8ToBytes } from "./crypto.js";
 import { normalizeName } from "./names.js";
 
 export const VALUE_RECORD_FORMAT = "ont-value-record";
@@ -55,11 +55,11 @@ export function signValueRecord(input: {
   const ownerPrivateKeyHex = assertHexBytes(input.ownerPrivateKeyHex, 32, "ownerPrivateKeyHex");
   const ownerPrivateKey = hexToBytes(ownerPrivateKeyHex);
 
-  if (!secp256k1.isPrivate(ownerPrivateKey)) {
+  if (!secp256k1.utils.isValidSecretKey(ownerPrivateKey)) {
     throw new Error("ownerPrivateKeyHex must be a valid secp256k1 private key");
   }
 
-  const ownerPubkey = bytesToHex(secp256k1.xOnlyPointFromScalar(ownerPrivateKey));
+  const ownerPubkey = deriveOwnerPubkey(ownerPrivateKeyHex);
   const fields: ValueRecordFields = {
     name: normalizeName(input.name),
     ownerPubkey,
@@ -73,32 +73,42 @@ export function signValueRecord(input: {
 
   return createValueRecord({
     ...fields,
-    signature: bytesToHex(secp256k1.signSchnorr(computeValueRecordDigest(fields), ownerPrivateKey))
+    signature: bytesToHex(schnorr.sign(computeValueRecordDigest(fields), ownerPrivateKey))
   });
+}
+
+export function deriveOwnerPubkey(ownerPrivateKeyHex: string): string {
+  const ownerPrivateKey = hexToBytes(assertHexBytes(ownerPrivateKeyHex, 32, "ownerPrivateKeyHex"));
+
+  if (!secp256k1.utils.isValidSecretKey(ownerPrivateKey)) {
+    throw new Error("ownerPrivateKeyHex must be a valid secp256k1 private key");
+  }
+
+  return bytesToHex(schnorr.getPublicKey(ownerPrivateKey));
 }
 
 export function verifyValueRecord(input: SignedValueRecord): boolean {
   const ownerPubkey = hexToBytes(assertHexBytes(input.ownerPubkey, 32, "ownerPubkey"));
   const signature = hexToBytes(assertHexBytes(input.signature, 64, "signature"));
 
-  if (!secp256k1.isXOnlyPoint(ownerPubkey)) {
+  try {
+    return schnorr.verify(
+      signature,
+      computeValueRecordDigest({
+        name: input.name,
+        ownerPubkey: input.ownerPubkey,
+        ownershipRef: input.ownershipRef,
+        sequence: input.sequence,
+        previousRecordHash: input.previousRecordHash,
+        valueType: input.valueType,
+        payloadHex: input.payloadHex,
+        issuedAt: input.issuedAt
+      }),
+      ownerPubkey
+    );
+  } catch {
     return false;
   }
-
-  return secp256k1.verifySchnorr(
-    computeValueRecordDigest({
-      name: input.name,
-      ownerPubkey: input.ownerPubkey,
-      ownershipRef: input.ownershipRef,
-      sequence: input.sequence,
-      previousRecordHash: input.previousRecordHash,
-      valueType: input.valueType,
-      payloadHex: input.payloadHex,
-      issuedAt: input.issuedAt
-    }),
-    ownerPubkey,
-    signature
-  );
 }
 
 export function computeValueRecordHash(input: ValueRecordFields): string {
@@ -106,14 +116,14 @@ export function computeValueRecordHash(input: ValueRecordFields): string {
 }
 
 export function parseSignedValueRecord(input: unknown): SignedValueRecord {
-  const record = assertRecord(input, "destination record");
+  const record = assertRecord(input, "value record");
 
   if (record.format !== VALUE_RECORD_FORMAT) {
-    throw new Error(`destination record format must be ${VALUE_RECORD_FORMAT}`);
+    throw new Error(`value record format must be ${VALUE_RECORD_FORMAT}`);
   }
 
   if (record.recordVersion !== VALUE_RECORD_VERSION) {
-    throw new Error(`destination record version must be ${VALUE_RECORD_VERSION}`);
+    throw new Error(`value record version must be ${VALUE_RECORD_VERSION}`);
   }
 
   return createValueRecord({
@@ -139,32 +149,28 @@ function computeValueRecordDigest(input: ValueRecordFields): Uint8Array {
   const payloadHex = normalizePayloadHex(input.payloadHex);
   const payloadBytes = hexToBytes(payloadHex);
   const issuedAt = assertIsoTimestamp(input.issuedAt, "issuedAt");
-  const hasher = createHash("sha256");
-
-  updateUtf8(hasher, VALUE_RECORD_FORMAT);
-  hasher.update(Uint8Array.of(VALUE_RECORD_VERSION));
-  updateUtf8(hasher, name);
-  hasher.update(hexToBytes(ownerPubkey));
-  hasher.update(hexToBytes(ownershipRef));
-  hasher.update(bigIntToUint64Bytes(BigInt(sequence)));
-  if (previousRecordHash === null) {
-    hasher.update(Uint8Array.of(0));
-  } else {
-    hasher.update(Uint8Array.of(1));
-    hasher.update(hexToBytes(previousRecordHash));
-  }
-  hasher.update(Uint8Array.of(valueType));
-  hasher.update(uint16ToBytes(payloadBytes.length));
-  hasher.update(payloadBytes);
-  updateUtf8(hasher, issuedAt);
-
-  return hasher.digest();
+  return sha256Bytes(
+    concatBytes(
+      ...lengthPrefixedUtf8(VALUE_RECORD_FORMAT),
+      Uint8Array.of(VALUE_RECORD_VERSION),
+      ...lengthPrefixedUtf8(name),
+      hexToBytes(ownerPubkey),
+      hexToBytes(ownershipRef),
+      bigIntToUint64Bytes(BigInt(sequence)),
+      previousRecordHash === null
+        ? Uint8Array.of(0)
+        : concatBytes(Uint8Array.of(1), hexToBytes(previousRecordHash)),
+      Uint8Array.of(valueType),
+      uint16ToBytes(payloadBytes.length),
+      payloadBytes,
+      ...lengthPrefixedUtf8(issuedAt)
+    )
+  );
 }
 
-function updateUtf8(hasher: ReturnType<typeof createHash>, value: string): void {
-  const bytes = Buffer.from(value, "utf8");
-  hasher.update(uint16ToBytes(bytes.length));
-  hasher.update(bytes);
+function lengthPrefixedUtf8(value: string): readonly [Uint8Array, Uint8Array] {
+  const bytes = utf8ToBytes(value);
+  return [uint16ToBytes(bytes.length), bytes];
 }
 
 function normalizePayloadHex(payloadHex: string): string {

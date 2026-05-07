@@ -1,8 +1,11 @@
-import { createHash } from "node:crypto";
-import * as secp256k1 from "tiny-secp256k1";
+import { schnorr, secp256k1 } from "@noble/curves/secp256k1.js";
 
 import { assertHexBytes, bytesToHex, hexToBytes } from "./bytes.js";
 import { OntEventType } from "./constants.js";
+import { concatBytes, sha256Bytes } from "./crypto.js";
+import { normalizeName } from "./names.js";
+
+export const AUCTION_BID_FLAG_INCLUDES_NAME = 0x01;
 
 export interface TransferEventPayload {
   readonly prevStateTxid: string;
@@ -21,6 +24,8 @@ export interface AuctionBidEventPayload {
   readonly auctionLotCommitment: string;
   readonly auctionCommitment: string;
   readonly bidderCommitment: string;
+  readonly name: string;
+  readonly unlockBlock: number;
 }
 
 export interface TransferAuthorizationFields {
@@ -67,8 +72,11 @@ export function createAuctionBidPayload(input: {
   readonly auctionLotCommitment: string;
   readonly auctionCommitment: string;
   readonly bidderCommitment: string;
+  readonly name: string;
+  readonly unlockBlock: number;
 }): AuctionBidEventPayload {
-  const flags = input.flags ?? 0;
+  const normalizedName = normalizeName(input.name);
+  const flags = (input.flags ?? 0) | AUCTION_BID_FLAG_INCLUDES_NAME;
 
   if (!Number.isInteger(flags) || flags < 0 || flags > 0xff) {
     throw new Error("flags must fit in one byte");
@@ -83,7 +91,15 @@ export function createAuctionBidPayload(input: {
   }
 
   if (input.bidAmountSats < 0n || input.bidAmountSats > 0xffff_ffff_ffff_ffffn) {
-    throw new Error("bid amount must fit in an unsigned 64-bit integer");
+    throw new Error("bidAmountSats must fit in an unsigned 64-bit integer");
+  }
+
+  if (
+    !Number.isInteger(input.unlockBlock) ||
+    input.unlockBlock < 0 ||
+    input.unlockBlock > 0xffff_ffff
+  ) {
+    throw new Error("unlockBlock must fit in an unsigned 32-bit integer");
   }
 
   return {
@@ -94,7 +110,9 @@ export function createAuctionBidPayload(input: {
     ownerPubkey: assertHexBytes(input.ownerPubkey, 32, "ownerPubkey"),
     auctionLotCommitment: assertHexBytes(input.auctionLotCommitment, 16, "auctionLotCommitment"),
     auctionCommitment: assertHexBytes(input.auctionCommitment, 32, "auctionCommitment"),
-    bidderCommitment: assertHexBytes(input.bidderCommitment, 16, "bidderCommitment")
+    bidderCommitment: assertHexBytes(input.bidderCommitment, 16, "bidderCommitment"),
+    name: normalizedName,
+    unlockBlock: input.unlockBlock
   };
 }
 
@@ -103,12 +121,12 @@ export function signTransferAuthorization(
 ): string {
   const ownerPrivateKey = hexToBytes(assertHexBytes(input.ownerPrivateKeyHex, 32, "ownerPrivateKeyHex"));
 
-  if (!secp256k1.isPrivate(ownerPrivateKey)) {
+  if (!secp256k1.utils.isValidSecretKey(ownerPrivateKey)) {
     throw new Error("ownerPrivateKeyHex must be a valid secp256k1 private key");
   }
 
   return bytesToHex(
-    secp256k1.signSchnorr(computeTransferAuthorizationDigest(input), ownerPrivateKey)
+    schnorr.sign(computeTransferAuthorizationDigest(input), ownerPrivateKey)
   );
 }
 
@@ -121,15 +139,11 @@ export function verifyTransferAuthorization(
   const ownerPubkey = hexToBytes(assertHexBytes(input.ownerPubkey, 32, "ownerPubkey"));
   const signature = hexToBytes(assertHexBytes(input.signature, 64, "signature"));
 
-  if (!secp256k1.isXOnlyPoint(ownerPubkey)) {
+  try {
+    return schnorr.verify(signature, computeTransferAuthorizationDigest(input), ownerPubkey);
+  } catch {
     return false;
   }
-
-  return secp256k1.verifySchnorr(
-    computeTransferAuthorizationDigest(input),
-    ownerPubkey,
-    signature
-  );
 }
 
 export function computeTransferAuthorizationHash(input: TransferAuthorizationFields): string {
@@ -154,10 +168,6 @@ export function serializeUint8ArrayToHex(bytes: Uint8Array): string {
 }
 
 function computeTransferAuthorizationDigest(input: TransferAuthorizationFields): Uint8Array {
-  const hasher = createHash("sha256");
-  hasher.update(hexToBytes(assertHexBytes(input.prevStateTxid, 32, "prevStateTxid")));
-  hasher.update(hexToBytes(assertHexBytes(input.newOwnerPubkey, 32, "newOwnerPubkey")));
-
   if (!Number.isInteger(input.flags) || input.flags < 0 || input.flags > 0xff) {
     throw new Error("flags must fit in one byte");
   }
@@ -170,6 +180,11 @@ function computeTransferAuthorizationDigest(input: TransferAuthorizationFields):
     throw new Error("successorBondVout must fit in one byte");
   }
 
-  hasher.update(Uint8Array.of(input.flags, input.successorBondVout));
-  return hasher.digest();
+  return sha256Bytes(
+    concatBytes(
+      hexToBytes(assertHexBytes(input.prevStateTxid, 32, "prevStateTxid")),
+      hexToBytes(assertHexBytes(input.newOwnerPubkey, 32, "newOwnerPubkey")),
+      Uint8Array.of(input.flags, input.successorBondVout)
+    )
+  );
 }

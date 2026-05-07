@@ -36,7 +36,7 @@ This is the cleanest proof point because the stakes are immediate.
 
 - money going to the wrong place is easy to understand
 - the pain of opaque addresses is already familiar
-- names people can use feel obviously better at the point of action
+- human-readable names feel obviously better at the point of action
 
 It also gives a good answer to "why not just let the model handle it?" A model can help interpret the request, but it should not be free to improvise who gets paid.
 
@@ -173,9 +173,10 @@ If names become part of how humans tell software which service they trust, then 
 
 That strengthens the universal-auction case:
 
-- valid names should face the same allocation rule
+- launch-eligible names should face the same allocation rule
 - the market should discover which names draw real demand
-- shorter names can use higher objective opening floors
+- very short names should be priced by objective floors, not carved into a
+  separate subjective lane
 
 The fairness argument is not mainly about prestige. It is about coordination pressure, market discovery, and the cost of misallocation.
 

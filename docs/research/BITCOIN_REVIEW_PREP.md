@@ -68,10 +68,11 @@ The clean current stance is:
 
 - compactness work should follow the auction-first transaction shape, not
   precede it
-- universal auctions are the current allocation direction
-- shorter names stay in the public auction system with higher length-based opening floors
-- allocation starts with bonded public auctions
-  launch plan
+- universal auctions are the current lead launch direction
+- no reserved-word list, pre-launch reservation system, or separate ordinary
+  lane is part of the current launch plan
+- very short names use the same auction rule, with objective floor calibration
+  still under review
 - auction mechanics are implemented enough to inspect and critique, but some
   numbers are still calibration placeholders
 - transfer sales have CLI-backed atomic handoff flows, but the browser is still

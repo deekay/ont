@@ -5,6 +5,7 @@ set -euo pipefail
 CONFIG_FILE="${ONT_PRIVATE_SIGNET_BITCOIN_CONF:-/etc/bitcoin-private-signet.conf}"
 ELECTRS_VERSION="${ONT_PRIVATE_SIGNET_ELECTRS_VERSION:-0.11.1}"
 ELECTRUM_PORT="${ONT_PRIVATE_SIGNET_ELECTRUM_PORT:-50001}"
+ELECTRS_USER="${ONT_PRIVATE_SIGNET_ELECTRS_USER:-ont}"
 INSTALL_DIR="/opt/electrs-v${ELECTRS_VERSION}"
 DB_DIR="${ONT_PRIVATE_SIGNET_ELECTRS_DB_DIR:-/var/lib/electrs-private-signet}"
 CONFIG_PATH="${ONT_PRIVATE_SIGNET_ELECTRS_CONFIG_PATH:-/etc/electrs-private-signet.toml}"
@@ -59,9 +60,13 @@ RPC_PASSWORD="${ONT_PRIVATE_SIGNET_RPC_PASSWORD:-$(require_config_value rpcpassw
 SIGNET_CHALLENGE="${ONT_PRIVATE_SIGNET_CHALLENGE:-$(require_config_value signetchallenge)}"
 SIGNET_MAGIC="${ONT_PRIVATE_SIGNET_MAGIC:-$(derive_signet_magic "$SIGNET_CHALLENGE")}"
 
-if ! id -u ont >/dev/null 2>&1; then
-  echo "Missing ont user. Bootstrap private signet first." >&2
-  exit 1
+if ! id -u "$ELECTRS_USER" >/dev/null 2>&1; then
+  if [[ "$ELECTRS_USER" == "ont" ]] && id -u gns >/dev/null 2>&1; then
+    ELECTRS_USER=gns
+  else
+    echo "Missing ${ELECTRS_USER} user. Bootstrap private signet first." >&2
+    exit 1
+  fi
 fi
 
 if [[ ! -x "${INSTALL_DIR}/target/release/electrs" ]]; then
@@ -69,19 +74,19 @@ if [[ ! -x "${INSTALL_DIR}/target/release/electrs" ]]; then
   apt-get update
   apt-get install -y build-essential clang cmake curl git libclang-dev pkg-config
 
-  if ! su -s /bin/bash ont -c 'test -x "$HOME/.cargo/bin/cargo"'; then
-    su -s /bin/bash ont -c 'curl --proto "=https" --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain stable'
+  if ! su -s /bin/bash "$ELECTRS_USER" -c 'test -x "$HOME/.cargo/bin/cargo"'; then
+    su -s /bin/bash "$ELECTRS_USER" -c 'curl --proto "=https" --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain stable'
   fi
 
-  su -s /bin/bash ont -c 'source "$HOME/.cargo/env" && rustup toolchain install stable --profile minimal'
+  su -s /bin/bash "$ELECTRS_USER" -c 'source "$HOME/.cargo/env" && rustup toolchain install stable --profile minimal'
 
   rm -rf "${INSTALL_DIR}"
   git clone --depth 1 --branch "v${ELECTRS_VERSION}" https://github.com/romanz/electrs "${INSTALL_DIR}"
-  chown -R ont:ont "${INSTALL_DIR}"
-  su -s /bin/bash ont -c "source \"\$HOME/.cargo/env\" && cd '${INSTALL_DIR}' && cargo build --locked --release"
+  chown -R "${ELECTRS_USER}:${ELECTRS_USER}" "${INSTALL_DIR}"
+  su -s /bin/bash "$ELECTRS_USER" -c "source \"\$HOME/.cargo/env\" && cd '${INSTALL_DIR}' && cargo build --locked --release"
 fi
 
-install -d -o ont -g ont -m 755 "${DB_DIR}"
+install -d -o "$ELECTRS_USER" -g "$ELECTRS_USER" -m 755 "${DB_DIR}"
 
 cat >"${CONFIG_PATH}" <<EOF
 daemon_rpc_addr = "127.0.0.1:${RPC_PORT}"
@@ -95,7 +100,7 @@ log_filters = "INFO"
 skip_block_download_wait = true
 EOF
 
-chown root:ont "${CONFIG_PATH}"
+chown "root:${ELECTRS_USER}" "${CONFIG_PATH}"
 chmod 640 "${CONFIG_PATH}"
 
 cat >"${SERVICE_PATH}" <<EOF
@@ -105,8 +110,8 @@ After=bitcoind-private-signet.service
 Requires=bitcoind-private-signet.service
 
 [Service]
-User=ont
-Group=ont
+User=${ELECTRS_USER}
+Group=${ELECTRS_USER}
 WorkingDirectory=${INSTALL_DIR}
 ExecStart=${INSTALL_DIR}/target/release/electrs --conf ${CONFIG_PATH} --skip-default-conf-files
 Restart=always

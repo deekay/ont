@@ -205,6 +205,12 @@ su -s /bin/bash "$APP_USER" -c "cd '$APP_ROOT' && npm ci --no-audit --no-fund"
 
 if [[ -f /etc/bitcoin-private-signet.conf ]]; then
   install -m 755 "${APP_ROOT}/scripts/private-signet-auto-mine.sh" "$AUTO_MINE_BIN"
+  install -m 755 "${APP_ROOT}/scripts/private-signet-mine.sh" "/usr/local/bin/${APP_PREFIX}-private-signet-mine"
+  install -m 755 "${APP_ROOT}/scripts/private-signet-fund.sh" "/usr/local/bin/${APP_PREFIX}-private-signet-fund"
+  if [[ "${APP_PREFIX}" != "ont" ]]; then
+    install -m 755 "${APP_ROOT}/scripts/private-signet-mine.sh" /usr/local/bin/ont-private-signet-mine
+    install -m 755 "${APP_ROOT}/scripts/private-signet-fund.sh" /usr/local/bin/ont-private-signet-fund
+  fi
 cat >"$AUTO_MINE_ENV" <<'ENVFILE'
 ONT_PRIVATE_SIGNET_AUTO_MINE_INTERVAL_SECONDS=30
 ONT_PRIVATE_SIGNET_AUTO_MINE_HEARTBEAT_SECONDS=600

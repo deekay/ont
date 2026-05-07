@@ -45,11 +45,6 @@ export interface SerializedLaunchAuctionPolicy {
     readonly softCloseMinimumIncrementBasisPoints: number;
   };
   readonly auctionClasses: Readonly<Record<LaunchAuctionClassId, SerializedLaunchAuctionClassPolicy>>;
-  readonly lengthFloorExamples: ReadonlyArray<{
-    readonly label: string;
-    readonly nameLength: number;
-    readonly floorSats: string;
-  }>;
 }
 
 export interface LaunchAuctionOpeningRequirements {
@@ -67,15 +62,15 @@ export function createDefaultLaunchAuctionPolicy(): LaunchAuctionPolicy {
     auction: {
       baseWindowBlocks: 4_320,
       softCloseExtensionBlocks: 144,
-      minimumIncrementAbsoluteSats: 1_000_000n,
+      minimumIncrementAbsoluteSats: 1_000n,
       minimumIncrementBasisPoints: 500,
-      softCloseMinimumIncrementAbsoluteSats: 1_000_000n,
+      softCloseMinimumIncrementAbsoluteSats: 1_000n,
       softCloseMinimumIncrementBasisPoints: 1_000
     },
     auctionClasses: {
       launch_name: {
         id: "launch_name",
-        label: "Name auction",
+        label: "Public auction",
         floorSats: 50_000n,
         lockBlocks: 52_560
       }
@@ -84,7 +79,7 @@ export function createDefaultLaunchAuctionPolicy(): LaunchAuctionPolicy {
 }
 
 export function getDefaultLaunchAuctionClassIdForName(name: string): LaunchAuctionClassId {
-  normalizeName(name);
+  void name;
   return "launch_name";
 }
 
@@ -165,8 +160,7 @@ export function serializeLaunchAuctionPolicy(
     },
     auctionClasses: {
       launch_name: serializeLaunchAuctionClass(policy.auctionClasses.launch_name)
-    },
-    lengthFloorExamples: serializeLengthFloorExamples()
+    }
   };
 }
 
@@ -207,21 +201,6 @@ export function parseLaunchAuctionPolicy(input: unknown): LaunchAuctionPolicy {
       )
     }
   };
-}
-
-function serializeLengthFloorExamples(): SerializedLaunchAuctionPolicy["lengthFloorExamples"] {
-  return [
-    { label: "1 char", nameLength: 1 },
-    { label: "2 chars", nameLength: 2 },
-    { label: "3 chars", nameLength: 3 },
-    { label: "4 chars", nameLength: 4 },
-    { label: "5 chars", nameLength: 5 },
-    { label: "6 chars", nameLength: 6 },
-    { label: "12+ chars", nameLength: 12 }
-  ].map((entry) => ({
-    ...entry,
-    floorSats: getBondSats(entry.nameLength).toString()
-  }));
 }
 
 function serializeLaunchAuctionClass(

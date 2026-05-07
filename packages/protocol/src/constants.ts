@@ -1,5 +1,6 @@
 function readTestOverrideInteger(name: string, fallback: number): number {
-  const raw = process.env[name];
+  const raw = (globalThis as { process?: { env?: Record<string, string | undefined> } })
+    .process?.env?.[name];
 
   if (raw === undefined || raw.trim() === "") {
     return fallback;

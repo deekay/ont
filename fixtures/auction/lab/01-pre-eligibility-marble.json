@@ -1,6 +1,6 @@
 {
-  "title": "Internal timing fixture · marble",
-  "description": "Internal fixture before the configured opening height. This is filtered out of the public auction examples because no auction exists until a valid bonded opening bid confirms.",
+  "title": "Pre-eligibility fixture · marble",
+  "description": "Internal fixture before the configured eligibility height. This is filtered out of the public auction examples because no auction exists until a valid bonded opening bid confirms.",
   "currentBlockHeight": 839990,
   "scenario": {
     "name": "marble",

@@ -73,6 +73,8 @@ Capture the first point where they hesitate on each of these:
 - choosing between website vs GitHub vs self-hosting
 - wallet setup
 - understanding that Sparrow is the supported hosted-demo wallet path
+- understanding that Sparrow must be set to `Private Electrum`, not `Public Server`
+- understanding that they must create/open a wallet before Sparrow can show a receive address
 - requesting demo coins
 - understanding what to save
 - understanding which files belong in Sparrow

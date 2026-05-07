@@ -162,9 +162,9 @@ async function main() {
         throw new Error(`expected ${targetAuction.normalizedName} to anchor its live bond to the winning bid`);
       }
 
-      logStep(targetAuction.auctionId, "publishing destinations from the settled winning owner");
+      logStep(targetAuction.auctionId, "publishing a value record from the settled winning owner");
       const winnerValueRecord = await cliJson([
-        "sign-destination-record",
+        "sign-value-record",
         "--name",
         targetAuction.normalizedName,
         "--owner-private-key-hex",
@@ -173,26 +173,26 @@ async function main() {
         resolverUrl(),
         "--sequence",
         "1",
-        "--destination-type",
+        "--value-type",
         "2",
         "--payload-utf8",
         `https://example.com/private-auction/${targetAuction.normalizedName}/winner`,
         "--write",
-        join(outDir, "winner-destination-record.json")
+        join(outDir, "winner-value-record.json")
       ]);
       const winnerValuePublish = await postValueRecord(winnerValueRecord);
       if (winnerValuePublish.status !== 201 || winnerValuePublish.payload?.ok !== true) {
-        throw new Error(`expected ${targetAuction.normalizedName} winner destination publish to succeed`);
+        throw new Error(`expected ${targetAuction.normalizedName} winner value publish to succeed`);
       }
 
       const currentWinnerValue = await cliJson([
-        "get-destination",
+        "get-value",
         targetAuction.normalizedName,
         "--resolver-url",
         resolverUrl()
       ]);
       if (currentWinnerValue.sequence !== 1) {
-        throw new Error(`expected ${targetAuction.normalizedName} winner destination record to publish at sequence 1`);
+        throw new Error(`expected ${targetAuction.normalizedName} winner value record to publish at sequence 1`);
       }
 
       const winnerReleaseBlocks = Math.max(
@@ -232,9 +232,9 @@ async function main() {
         throw new Error(`expected ${targetAuction.normalizedName} to transfer to the pending owner after maturity`);
       }
 
-      logStep(targetAuction.auctionId, "publishing destinations from the post-transfer owner");
+      logStep(targetAuction.auctionId, "publishing a value record from the post-transfer owner");
       const transferredValueRecord = await cliJson([
-        "sign-destination-record",
+        "sign-value-record",
         "--name",
         targetAuction.normalizedName,
         "--owner-private-key-hex",
@@ -243,26 +243,26 @@ async function main() {
         resolverUrl(),
         "--sequence",
         "1",
-        "--destination-type",
+        "--value-type",
         "2",
         "--payload-utf8",
         `https://example.com/private-auction/${targetAuction.normalizedName}/recipient`,
         "--write",
-        join(outDir, "transferred-destination-record.json")
+        join(outDir, "transferred-value-record.json")
       ]);
       const transferredValuePublish = await postValueRecord(transferredValueRecord);
       if (transferredValuePublish.status !== 201 || transferredValuePublish.payload?.ok !== true) {
-        throw new Error(`expected ${targetAuction.normalizedName} post-transfer destination publish to succeed`);
+        throw new Error(`expected ${targetAuction.normalizedName} post-transfer value publish to succeed`);
       }
 
       const currentTransferredValue = await cliJson([
-        "get-destination",
+        "get-value",
         targetAuction.normalizedName,
         "--resolver-url",
         resolverUrl()
       ]);
       if (currentTransferredValue.sequence !== 1) {
-        throw new Error(`expected ${targetAuction.normalizedName} post-transfer destination record to publish at sequence 1`);
+        throw new Error(`expected ${targetAuction.normalizedName} post-transfer value record to publish at sequence 1`);
       }
 
       logStep(targetAuction.auctionId, "spending the winning bond after allowed release");
@@ -290,7 +290,7 @@ async function main() {
 
       summary.status = "complete";
       summary.message =
-        "Private signet experimental auction smoke succeeded with opening bid, higher bid, settlement, winner destination publication, post-release transfer, and losing-bond violation checks.";
+        "Private signet experimental auction smoke succeeded with opening bid, higher bid, settlement, winner value publication, post-release transfer, and losing-bond violation checks.";
       summary.completedAt = new Date().toISOString();
       summary.resolverUrl = privateResolverUrl;
       summary.rpcUrl = rpcUrl;
@@ -396,7 +396,7 @@ async function ensureAuctionReadyForOpeningBid(auctionState) {
   }
 
   if (auctionState.phase !== "pending_unlock") {
-    throw new Error(`expected ${auctionState.auctionId} to be not-openable or ready for an opening bid`);
+    throw new Error(`expected ${auctionState.auctionId} to be pre-eligibility or eligible to open`);
   }
 
   const blocksToMine = Math.max(1, auctionState.unlockBlock - auctionState.currentBlockHeight);
@@ -497,7 +497,7 @@ async function buildAndMaybeBroadcastAuctionBid({
     packagePath,
     "--input",
     formatDescriptor(fundingInput),
-    "--fee",
+    "--fee-sats",
     BID_FEE_SATS.toString(),
     "--network",
     "signet",

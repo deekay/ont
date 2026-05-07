@@ -48,7 +48,7 @@ describe("destination bundle helpers", () => {
       { key: "payment", value: "bitcoin:bc1qexample" },
       { key: "profile", value: "https://social.example/alice" }
     ]);
-    expect(describeProfileBundle(decoded!)).toBe("Destination bundle · website, payment, profile");
+    expect(describeProfileBundle(decoded!)).toBe("Key/value bundle · website, payment, profile");
   });
 
   it("requires at least one destination entry", () => {
@@ -92,7 +92,7 @@ describe("destination bundle helpers", () => {
         entries: [{ key: "profile", value: "" }]
       })
     ).toThrow(
-      "Destination entry 1 needs both a label and a destination."
+      "Key/value bundle entry 1 needs both a key and a value."
     );
   });
 });

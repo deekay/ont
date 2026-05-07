@@ -21,7 +21,9 @@ import {
 } from "./engine.js";
 import { getClaimedNameStatus } from "./state.js";
 import {
+  createExperimentalLaunchAuctionCatalogEntry,
   deriveExperimentalLaunchAuctionStates,
+  getExperimentalLaunchAuctionId,
   type ExperimentalSpentOutpointObservation,
   serializeExperimentalLaunchAuctionState,
   type ExperimentalLaunchAuctionBidObservation,
@@ -46,6 +48,8 @@ export interface ExperimentalAuctionBidPayloadSnapshot {
   readonly auctionLotCommitment: string;
   readonly auctionCommitment: string;
   readonly bidderCommitment: string;
+  readonly name: string;
+  readonly unlockBlock: number;
 }
 
 export interface InMemoryOntIndexerPersistedState {
@@ -344,7 +348,11 @@ export class InMemoryOntIndexer {
     }
 
     for (const transaction of snapshot.transactionProvenance) {
-      this.transactionProvenance.set(transaction.txid, transaction);
+      const sanitized = sanitizeTransactionProvenanceSnapshot(transaction);
+
+      if (sanitized.events.length > 0 || sanitized.invalidatedNames.length > 0) {
+        this.transactionProvenance.set(sanitized.txid, sanitized);
+      }
     }
 
     for (const spentOutpoint of snapshot.spentOutpoints ?? []) {
@@ -466,6 +474,8 @@ export class InMemoryOntIndexer {
             blockHeight: transaction.blockHeight,
             txIndex: transaction.txIndex,
             vout: event.vout,
+            normalizedName: event.payload.name,
+            unlockBlock: event.payload.unlockBlock,
             bondVout: event.payload.bondVout,
             bidderCommitment: event.payload.bidderCommitment,
             ownerPubkey: event.payload.ownerPubkey,
@@ -502,13 +512,87 @@ export class InMemoryOntIndexer {
   }
 
   private deriveExperimentalAuctionStatesAtHeight(currentBlockHeight: number) {
+    const bidObservations = this.listAppliedAuctionBidObservations();
+
     return deriveExperimentalLaunchAuctionStates({
       policy: this.experimentalLaunchAuctionPolicy,
       currentBlockHeight,
-      catalog: this.experimentalLaunchAuctionCatalog,
-      bidObservations: this.listAppliedAuctionBidObservations(),
+      catalog: this.createObservedExperimentalAuctionCatalog(bidObservations),
+      bidObservations,
       spentOutpoints: [...this.spentOutpoints.values()]
     });
+  }
+
+  private createObservedExperimentalAuctionCatalog(
+    bidObservations: readonly ExperimentalLaunchAuctionBidObservation[]
+  ): ExperimentalLaunchAuctionCatalogEntry[] {
+    const catalog: ExperimentalLaunchAuctionCatalogEntry[] = [...this.experimentalLaunchAuctionCatalog];
+    const seenCommitments = new Set(catalog.map((entry) => entry.auctionLotCommitment));
+    const latestReleaseHeightByName = this.getLatestReleaseHeightByName();
+
+    for (const observation of bidObservations) {
+      if (
+        observation.normalizedName === undefined ||
+        observation.unlockBlock === undefined ||
+        seenCommitments.has(observation.auctionLotCommitment)
+      ) {
+        continue;
+      }
+
+      if (observation.unlockBlock > 0) {
+        const latestReleaseHeight = latestReleaseHeightByName.get(observation.normalizedName) ?? null;
+
+        if (latestReleaseHeight !== observation.unlockBlock) {
+          continue;
+        }
+      }
+
+      try {
+        const auctionId = getExperimentalLaunchAuctionId({
+          name: observation.normalizedName,
+          unlockBlock: observation.unlockBlock
+        });
+        const entry = createExperimentalLaunchAuctionCatalogEntry(
+          {
+            auctionId,
+            title: `Auction · ${observation.normalizedName}`,
+            description: "Live auction opened from on-chain bid activity.",
+            name: observation.normalizedName,
+            auctionClassId: "launch_name",
+            unlockBlock: observation.unlockBlock
+          },
+          this.experimentalLaunchAuctionPolicy
+        );
+
+        if (entry.auctionLotCommitment !== observation.auctionLotCommitment) {
+          continue;
+        }
+
+        catalog.push(entry);
+        seenCommitments.add(entry.auctionLotCommitment);
+      } catch {
+        continue;
+      }
+    }
+
+    return catalog;
+  }
+
+  private getLatestReleaseHeightByName(): Map<string, number> {
+    const latestReleaseHeightByName = new Map<string, number>();
+
+    for (const transaction of this.transactionProvenance.values()) {
+      for (const name of transaction.invalidatedNames) {
+        const normalizedName = normalizeName(name);
+        const existing = latestReleaseHeightByName.get(normalizedName) ?? -1;
+
+        if (transaction.blockHeight > existing) {
+          latestReleaseHeightByName.set(normalizedName, transaction.blockHeight);
+        }
+      }
+    }
+
+    return latestReleaseHeightByName;
   }
 
   private reconcileExperimentalAuctionOwnedNames(currentBlockHeight: number): void {
@@ -526,7 +610,8 @@ export class InMemoryOntIndexer {
         continue;
       }
 
-      if (this.state.names.has(auctionState.normalizedName)) {
+      const existingName = this.state.names.get(auctionState.normalizedName) ?? null;
+      if (existingName !== null && existingName.status !== "invalid") {
         continue;
       }
 
@@ -540,6 +625,10 @@ export class InMemoryOntIndexer {
         );
 
       if (!winningOutcome) {
+        continue;
+      }
+
+      if (winningOutcome.bondSpendStatus === "spent_before_allowed_release") {
         continue;
       }
 
@@ -573,6 +662,30 @@ export class InMemoryOntIndexer {
       });
     }
   }
+}
+
+function sanitizeTransactionProvenanceSnapshot(
+  transaction: TransactionProvenanceSnapshot
+): TransactionProvenanceSnapshot {
+  const events = transaction.events.filter((event) => {
+    if (event.typeName !== "AUCTION_BID") {
+      return true;
+    }
+
+    const payload = event.payload;
+    return (
+      "auctionCommitment" in payload
+      && typeof payload.name === "string"
+      && typeof payload.unlockBlock === "number"
+    );
+  });
+
+  return events.length === transaction.events.length
+    ? transaction
+    : {
+        ...transaction,
+        events
+      };
 }
 
 function serializeTransactionProvenanceRecord(input: {

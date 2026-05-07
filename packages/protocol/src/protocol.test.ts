@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import * as secp256k1 from "tiny-secp256k1";
 
 import {
-  AUCTION_BID_PAYLOAD_LENGTH,
+  AUCTION_BID_FIXED_PAYLOAD_LENGTH,
   BOND_FLOOR_SATS,
   computeAuctionBidderCommitment,
   computeAuctionBidStateCommitment,
@@ -93,17 +93,35 @@ describe("auction and transfer wire payloads", () => {
         currentRequiredMinimumBidSats: 231_000_000n,
         settlementLockBlocks: 262_800
       }),
-      bidderCommitment: computeAuctionBidderCommitment("operator_alpha")
+      bidderCommitment: computeAuctionBidderCommitment("operator_alpha"),
+      name: "Meadow",
+      unlockBlock: 840_000
+    };
+    const expectedPayload = {
+      ...payload,
+      flags: 1,
+      name: "meadow"
     };
 
     const encoded = encodeAuctionBidPayload(payload);
 
-    expect(encoded).toHaveLength(AUCTION_BID_PAYLOAD_LENGTH);
-    expect(decodeAuctionBidPayload(encoded)).toEqual(payload);
+    expect(encoded.length).toBeGreaterThan(AUCTION_BID_FIXED_PAYLOAD_LENGTH);
+    expect(decodeAuctionBidPayload(encoded)).toEqual(expectedPayload);
     expect(decodeOntPayload(encoded)).toEqual({
       type: OntEventType.AuctionBid,
-      payload
+      payload: expectedPayload
     });
+  });
+
+  it("rejects legacy commitment-only auction bid payloads", () => {
+    const legacyPayload = Uint8Array.from([
+      ...Buffer.from("ONT", "utf8"),
+      1,
+      OntEventType.AuctionBid,
+      ...new Uint8Array(AUCTION_BID_FIXED_PAYLOAD_LENGTH - 5)
+    ]);
+
+    expect(() => decodeAuctionBidPayload(legacyPayload)).toThrow(/name context/i);
   });
 
   it("round-trips transfer payloads", () => {
@@ -232,8 +250,8 @@ describe("transfer packages", () => {
   });
 });
 
-describe("destination records", () => {
-  it("signs and verifies owner-authenticated off-chain destination records", () => {
+describe("value records", () => {
+  it("signs and verifies owner-authenticated off-chain value records", () => {
     const record = signValueRecord({
       name: "Alice",
       ownerPrivateKeyHex: "0c".repeat(32),
@@ -253,7 +271,7 @@ describe("destination records", () => {
     expect(verifyValueRecord(record)).toBe(true);
   });
 
-  it("parses and verifies signed destination records", () => {
+  it("parses and verifies signed value records", () => {
     const record = signValueRecord({
       name: "bob",
       ownerPrivateKeyHex: "0d".repeat(32),

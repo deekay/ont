@@ -1,23 +1,23 @@
 {
   "scenario": {
-    "name": "cedar",
+    "name": "luna",
     "auctionClassId": "launch_name",
     "unlockBlock": 880000,
     "bidAttempts": [
       {
         "bidderId": "speculator_a",
         "blockHeight": 880015,
-        "amountSats": "5000000"
+        "amountSats": "10000000"
       },
       {
         "bidderId": "speculator_b",
         "blockHeight": 880020,
-        "amountSats": "5500000"
+        "amountSats": "11000000"
       },
       {
         "bidderId": "speculator_c",
         "blockHeight": 880030,
-        "amountSats": "6249999"
+        "amountSats": "12499999"
       }
     ]
   },

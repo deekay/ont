@@ -6,7 +6,7 @@ Status note:
   [ONT_FROM_ZERO.md](../core/ONT_FROM_ZERO.md)
 - for what is implemented and validated, use
   [ONT_IMPLEMENTATION_AND_VALIDATION.md](./ONT_IMPLEMENTATION_AND_VALIDATION.md)
-- for the current allocation direction, use
+- for the current launch direction, use
   [UNIVERSAL_AUCTION_LAUNCH_MODEL.md](./UNIVERSAL_AUCTION_LAUNCH_MODEL.md)
 
 ## The Problem With Payment Handles Today
@@ -70,17 +70,17 @@ ONT separates two concerns:
 - Bitcoin anchors who owns the name
 - the records it points to are kept off-chain and signed by the owner
 
-The current direction is public bonded auctions:
+The current launch direction is public bonded auctions for every valid name:
 
-- every valid name is allocated by auction
-- all valid names can be opened through the same public mechanism
-- shorter names have higher fixed length-based opening floors
-- allocation does not depend on brand, category, or editorial judgment
+- every valid name can be opened by auction
+- there is no semantic reserved-name list
+- there is no pre-launch reservation system
+- there is no direct-allocation lane
+- there is no short-name wave
 
 This keeps allocation neutral. ONT does not have to decide which brands, people,
 companies, or generic words are important. If a name matters to multiple
-bidders, the auction discovers the bonded BTC amount; length floors make early
-bulk capture of scarce names materially expensive.
+bidders, the auction discovers the bonded BTC amount.
 
 ## No Suffixes, No Hierarchy
 
@@ -95,7 +95,7 @@ The fairness goal is:
 - no founder allocation
 - no discounted allocations
 - no whitelist or identity-based quotas
-- no hand-built manual allocation list
+- no hand-built reserved list
 
 Fairness should come from public rules and public on-chain outcomes, not private
 approvals.
@@ -119,5 +119,5 @@ resolvers. They are signed by the name's current owner key, so authenticity is
 verifiable without trusting the resolver, but availability depends on at least
 one resolver having a copy.
 
-This is a deliberate trade-off. Storing routine destination updates on-chain would
+This is a deliberate trade-off. Storing destination updates on-chain would
 turn Bitcoin into a database rather than an ownership notary.

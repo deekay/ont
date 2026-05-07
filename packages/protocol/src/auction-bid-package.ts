@@ -1,7 +1,6 @@
-import { createHash } from "node:crypto";
-
 import { assertHexBytes } from "./bytes.js";
 import { PROTOCOL_NAME } from "./constants.js";
+import { concatBytes, sha256Hex, utf8ToBytes } from "./crypto.js";
 import { normalizeName } from "./names.js";
 
 export const AUCTION_BID_PACKAGE_FORMAT = "ont-auction-bid-package";
@@ -377,12 +376,13 @@ export function parseAuctionBidPackage(input: unknown): AuctionBidPackage {
 }
 
 export function computeAuctionBidderCommitment(bidderId: string): string {
-  return createHash("sha256")
-    .update("ont-auction-bidder-v1", "utf8")
-    .update("\u0000", "utf8")
-    .update(normalizeRequiredText(bidderId, "bidderId"), "utf8")
-    .digest("hex")
-    .slice(0, 32);
+  return sha256Hex(
+    concatBytes(
+      utf8ToBytes("ont-auction-bidder-v1"),
+      utf8ToBytes("\u0000"),
+      utf8ToBytes(normalizeRequiredText(bidderId, "bidderId"))
+    )
+  ).slice(0, 32);
 }
 
 export function computeAuctionLotCommitment(input: {
@@ -391,18 +391,19 @@ export function computeAuctionLotCommitment(input: {
   readonly auctionClassId: string;
   readonly unlockBlock: number;
 }): string {
-  return createHash("sha256")
-    .update("ont-auction-lot-v1", "utf8")
-    .update("\u0000", "utf8")
-    .update(normalizeRequiredText(input.auctionId, "auctionId"), "utf8")
-    .update("\u0000", "utf8")
-    .update(normalizeName(input.name), "utf8")
-    .update("\u0000", "utf8")
-    .update(normalizeRequiredText(input.auctionClassId, "auctionClassId"), "utf8")
-    .update("\u0000", "utf8")
-    .update(String(parseNonNegativeSafeInteger(input.unlockBlock, "unlockBlock")), "utf8")
-    .digest("hex")
-    .slice(0, 32);
+  return sha256Hex(
+    concatBytes(
+      utf8ToBytes("ont-auction-lot-v1"),
+      utf8ToBytes("\u0000"),
+      utf8ToBytes(normalizeRequiredText(input.auctionId, "auctionId")),
+      utf8ToBytes("\u0000"),
+      utf8ToBytes(normalizeName(input.name)),
+      utf8ToBytes("\u0000"),
+      utf8ToBytes(normalizeRequiredText(input.auctionClassId, "auctionClassId")),
+      utf8ToBytes("\u0000"),
+      utf8ToBytes(String(parseNonNegativeSafeInteger(input.unlockBlock, "unlockBlock")))
+    )
+  ).slice(0, 32);
 }
 
 export function computeAuctionBidStateCommitment(input: {
@@ -419,7 +420,6 @@ export function computeAuctionBidStateCommitment(input: {
   readonly currentRequiredMinimumBidSats: bigint | null;
   readonly settlementLockBlocks: number;
 }): string {
-  const hasher = createHash("sha256");
   const fields = [
     "ont-auction-state-v1",
     normalizeRequiredText(input.auctionId, "auctionId"),
@@ -436,12 +436,14 @@ export function computeAuctionBidStateCommitment(input: {
     String(parseNonNegativeSafeInteger(input.settlementLockBlocks, "settlementLockBlocks"))
   ];
 
-  for (const field of fields) {
-    hasher.update(field, "utf8");
-    hasher.update("\u0000", "utf8");
-  }
-
-  return hasher.digest("hex");
+  return sha256Hex(
+    concatBytes(
+      ...fields.flatMap((field) => [
+        utf8ToBytes(field),
+        utf8ToBytes("\u0000")
+      ])
+    )
+  );
 }
 
 function deriveAuctionBidPreview(input: {
@@ -463,7 +465,7 @@ function deriveAuctionBidPreview(input: {
     return {
       previewStatus: "too_early",
       previewSummary:
-        `This name is not openable yet. Wait ${input.blocksUntilUnlock} more block${input.blocksUntilUnlock === 1 ? "" : "s"} before bidding.`,
+        `This name is not eligible to open yet. Wait ${input.blocksUntilUnlock} more block${input.blocksUntilUnlock === 1 ? "" : "s"} before bidding.`,
       previewRequiredMinimumBidSats: input.openingMinimumBidSats,
       wouldBecomeLeader: false,
       wouldExtendSoftClose: false
@@ -485,7 +487,7 @@ function deriveAuctionBidPreview(input: {
     return {
       previewStatus: "below_minimum",
       previewSummary:
-        `Bid is below the current minimum valid bid of ${requiredMinimumBidSats.toString()} for this observed state.`,
+        `Bid is below the current minimum valid bid of ${requiredMinimumBidSats.toString()} base units for this observed state.`,
       previewRequiredMinimumBidSats: requiredMinimumBidSats,
       wouldBecomeLeader: false,
       wouldExtendSoftClose: false

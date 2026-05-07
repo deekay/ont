@@ -144,11 +144,11 @@ The deeper problem is knowing that the destination is the one you meant. A name 
 
 The point is not just resolution. It is authoritative resolution.
 
-### 4. Key/destination records after the payment handle lands
+### 4. Key/value records after the payment handle lands
 
 A payment handle is the first proof point because the cost of misdirection is obvious.
 
-The protocol can support broader owner-signed key/destination records, but those should appear as a natural extension:
+The protocol can support broader owner-signed key/value records, but those should appear as a natural extension:
 
 - a human uses a stable name
 - the owner signs the current records
@@ -231,7 +231,7 @@ The tone should be:
 
 The universal-auction story strengthens the philosophy rather than weakening it.
 
-The story is simple: if ONT is allocating scarce names people can use, every valid name should face the same market rule. Length floors add objective friction where scarcity is highest without asking ONT to decide which names are important.
+The old two-lane story tried to protect the long tail with a simple direct-allocation lane and send salient names to auction. The stronger updated story is simpler: if ONT is allocating scarce human-readable names, every launch-eligible name should face the same market rule.
 
 The moral center should be:
 
@@ -255,8 +255,9 @@ If bootstrapping comes first, the mechanism can sound extractive. If legitimacy 
 So the launch story says:
 
 - valid names are auctioned under one rule
-- there is no manual allocation list
-- shorter names use higher length-based opening floors
+- there is no reserved-word list
+- there is no ordinary direct-allocation lane
+- there is no short-name wave
 
 This is not a retreat from fairness. It is a cleaner market-based account of fairness.
 
@@ -269,7 +270,7 @@ The main points are:
 - human-readable payment handles solve a real human problem
 - existing approaches can be part of a transitional landscape
 - ONT is aimed at the same human need, but with a more sovereign foundation
-- over time ONT can also extend beyond payment records through app-defined key/destination records
+- over time ONT can also extend beyond payment records through app-defined key/value records
 
 That keeps the tone friendly and acknowledges useful adjacent work without turning the narrative into an attack.
 
@@ -294,7 +295,7 @@ These are working lines, not final copy.
 - Leading with a broad naming ambition asks people to believe too much too early.
 - Leading with identity alone makes ONT sound like a generic handle system.
 - Leading with anti-censorship alone can sound generic and underspecified.
-- Leading with generic key/destination publishing can make the protocol feel abstract before the payment problem lands.
+- Leading with generic key/value publishing can make the protocol feel abstract before the payment problem lands.
 - Leading with premium-name monetization can make the project feel extractive before the fairness argument lands.
 - Over-describing a sci-fi future can make the thesis feel less credible instead of more credible.
 - Treating key/value extensibility as the first explanation can distract from the payment-handle use case.

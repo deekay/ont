@@ -23,9 +23,12 @@ npm run dev:cli -- generate-live-account --network signet --write /path/to/live-
 npm run dev:cli -- create-auction-bid-package /path/to/auction-scenario.json \
   --bidder-id <local-bidder-id> \
   --owner-pubkey <owner-pubkey-hex> \
-  --amount <amount> \
+  --bid-amount-sats <amount-in-base-units> \
   --write /path/to/bid-package.json
 ```
+
+The `--bid-amount-sats` flag is a low-level CLI/API name from the transaction
+builder. User-facing docs and website copy show amounts in ₿.
 
 That gives you:
 

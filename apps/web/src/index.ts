@@ -1,5 +1,4 @@
 import { execFile as execFileCallback } from "node:child_process";
-import { generateKeyPairSync } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { createServer } from "node:http";
@@ -7,17 +6,12 @@ import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
 import {
-  normalizeName,
   parseSignedValueRecord,
   PRODUCT_NAME,
   PROTOCOL_NAME
 } from "@ont/protocol";
-import {
-  createExperimentalAuctionFeedBidPackage,
-  createLaunchAuctionLabBidPackage,
-  createOpeningAuctionBidPackage,
-  loadLaunchAuctionLab
-} from "./auction-lab.js";
+import { loadLaunchAuctionLab } from "./auction-lab.js";
+import { getAuctionToolsClientBundle } from "./auction-tools-bundle.js";
 import { renderClientScript } from "./client-script.js";
 import { getKeyToolsClientBundle } from "./key-tools-bundle.js";
 import { renderPageHtml } from "./page-shell.js";
@@ -64,6 +58,12 @@ const privateSignetFundingAmountSats = parseSatsValue(
   "ONT_WEB_PRIVATE_SIGNET_FUNDING_AMOUNT_SATS"
 );
 const privateSignetFundingAmountBtc = satsToBitcoinString(privateSignetFundingAmountSats);
+const privateSignetFundingMaxSats = parseSatsValue(
+  process.env.ONT_WEB_PRIVATE_SIGNET_FUNDING_MAX_SATS
+    ?? "100000000",
+  "ONT_WEB_PRIVATE_SIGNET_FUNDING_MAX_SATS"
+);
+const privateSignetFundingMaxBtc = satsToBitcoinString(privateSignetFundingMaxSats);
 const privateSignetFundingCooldownMs = parseNonNegativeInteger(
   process.env.ONT_WEB_PRIVATE_SIGNET_FUNDING_COOLDOWN_MS
     ?? "30000",
@@ -134,7 +134,7 @@ const server = createServer(async (request, response) => {
         });
       }
 
-      const fundingResult = await fundPrivateSignetAddress(address);
+      const fundingResult = await fundPrivateSignetAddress(address, parseFundingRequestAmountSats(body));
       return writeJson(response, 200, fundingResult);
     } catch (error) {
       if (error instanceof HttpRequestError) {
@@ -155,7 +155,7 @@ const server = createServer(async (request, response) => {
     if (method !== "POST") {
       return writeJson(response, 405, {
         error: "method_not_allowed",
-        message: "Use POST for signed destination publishing."
+        message: "Use POST for signed value record publishing."
       });
     }
 
@@ -178,7 +178,7 @@ const server = createServer(async (request, response) => {
 
       return writeJson(response, 400, {
         error: "invalid_value_record",
-        message: error instanceof Error ? error.message : "Unable to publish the signed destination record."
+        message: error instanceof Error ? error.message : "Unable to publish the signed value record."
       });
     }
   }
@@ -187,7 +187,7 @@ const server = createServer(async (request, response) => {
     if (method !== "POST") {
       return writeJson(response, 405, {
         error: "method_not_allowed",
-        message: "Use POST for signed destination fanout publishing."
+        message: "Use POST for signed destination-record fanout publishing."
       });
     }
 
@@ -206,162 +206,7 @@ const server = createServer(async (request, response) => {
       return writeJson(response, 400, {
         error: "invalid_value_record",
         message:
-          error instanceof Error ? error.message : "Unable to publish the signed destination record to the configured resolver set."
-      });
-    }
-  }
-
-  if (pathname === "/api/auction-bid-package") {
-    if (method !== "POST") {
-      return writeJson(response, 405, {
-        error: "method_not_allowed",
-        message: "Use POST for auction bid package generation."
-      });
-    }
-
-    try {
-      const body = await readJsonBody(request);
-
-      if (!body || typeof body !== "object") {
-        return writeJson(response, 400, {
-          error: "invalid_body",
-          message: "Auction bid package generation requires a JSON body."
-        });
-      }
-
-      const record = body as Record<string, unknown>;
-      const caseId = getRequiredWebBodyString(record, "caseId");
-      const bidderId = getRequiredWebBodyString(record, "bidderId");
-      const ownerPubkey = getRequiredWebBodyString(record, "ownerPubkey");
-      const bidAmountSats = getRequiredWebBodySats(record, "bidAmountSats");
-      const pkg = await createLaunchAuctionLabBidPackage({
-        caseId,
-        bidderId,
-        ownerPubkey,
-        bidAmountSats
-      });
-
-      return writeJson(response, 200, pkg);
-    } catch (error) {
-      return writeJson(response, 400, {
-        error: "auction_bid_package_failed",
-        message:
-          error instanceof Error
-            ? error.message
-            : "Unable to build the auction bid package."
-      });
-    }
-  }
-
-  if (pathname === "/api/auction-opening-bid-package") {
-    if (method !== "POST") {
-      return writeJson(response, 405, {
-        error: "method_not_allowed",
-        message: "Use POST for opening bid package generation."
-      });
-    }
-
-    try {
-      const body = await readJsonBody(request);
-
-      if (!body || typeof body !== "object") {
-        return writeJson(response, 400, {
-          error: "invalid_body",
-          message: "Opening bid package generation requires a JSON body."
-        });
-      }
-
-      const record = body as Record<string, unknown>;
-      const name = getRequiredWebBodyString(record, "name");
-      const bidderId = getRequiredWebBodyString(record, "bidderId");
-      const ownerPubkey = getRequiredWebBodyString(record, "ownerPubkey");
-      const bidAmountSats = getRequiredWebBodySats(record, "bidAmountSats");
-      const currentBlockHeight = await fetchResolverCurrentHeight();
-      const pkg = createOpeningAuctionBidPackage({
-        name,
-        currentBlockHeight,
-        bidderId,
-        ownerPubkey,
-        bidAmountSats
-      });
-
-      return writeJson(response, 200, pkg);
-    } catch (error) {
-      return writeJson(response, 400, {
-        error: "auction_opening_bid_package_failed",
-        message:
-          error instanceof Error
-            ? error.message
-            : "Unable to build the opening bid package."
-      });
-    }
-  }
-
-  if (pathname === "/api/experimental-auction-bid-package") {
-    if (method !== "POST") {
-      return writeJson(response, 405, {
-        error: "method_not_allowed",
-        message: "Use POST for observed auction bid package generation."
-      });
-    }
-
-    try {
-      const body = await readJsonBody(request);
-
-      if (!body || typeof body !== "object") {
-        return writeJson(response, 400, {
-          error: "invalid_body",
-          message: "Observed auction bid package generation requires a JSON body."
-        });
-      }
-
-      const record = body as Record<string, unknown>;
-      const auctionId = getRequiredWebBodyString(record, "auctionId");
-      const bidderId = getRequiredWebBodyString(record, "bidderId");
-      const ownerPubkey = getRequiredWebBodyString(record, "ownerPubkey");
-      const bidAmountSats = getRequiredWebBodySats(record, "bidAmountSats");
-      const upstream = await fetch(`${resolverUrl}/experimental-auctions`);
-
-      if (!upstream.ok) {
-        return writeJson(response, 502, {
-          error: "resolver_unavailable",
-          message: `Resolver returned ${upstream.status} while loading observed auctions.`
-        });
-      }
-
-      const payload = await upstream.json() as {
-        readonly auctions?: readonly unknown[];
-      };
-      const auctions = Array.isArray(payload.auctions) ? payload.auctions : [];
-      const auction = auctions.find((candidate) => {
-        return candidate
-          && typeof candidate === "object"
-          && !Array.isArray(candidate)
-          && (candidate as { auctionId?: unknown }).auctionId === auctionId;
-      });
-
-      if (!auction) {
-        return writeJson(response, 404, {
-          error: "auction_not_found",
-          message: `No observed auction with id ${auctionId} is currently visible.`
-        });
-      }
-
-      const pkg = createExperimentalAuctionFeedBidPackage({
-        auction: auction as Parameters<typeof createExperimentalAuctionFeedBidPackage>[0]["auction"],
-        bidderId,
-        ownerPubkey,
-        bidAmountSats
-      });
-
-      return writeJson(response, 200, pkg);
-    } catch (error) {
-      return writeJson(response, 400, {
-        error: "experimental_auction_bid_package_failed",
-        message:
-          error instanceof Error
-            ? error.message
-            : "Unable to build the observed auction bid package."
+          error instanceof Error ? error.message : "Unable to publish the signed value record to the configured resolver set."
       });
     }
   }
@@ -369,7 +214,7 @@ const server = createServer(async (request, response) => {
   if (method !== "GET") {
     return writeJson(response, 405, {
       error: "method_not_allowed",
-      message: "Only GET is supported by this website."
+      message: "Only GET is supported in the prototype web app."
     });
   }
 
@@ -415,6 +260,7 @@ const server = createServer(async (request, response) => {
               : "explore",
         privateSignetElectrumEndpoint,
         privateSignetFundingAmountSats,
+        privateSignetFundingMaxSats,
         privateSignetFundingEnabled
       })
     );
@@ -425,11 +271,15 @@ const server = createServer(async (request, response) => {
   }
 
   if (pathname === "/styles.css") {
-    return writeText(response, 200, STYLESHEET, "text/css; charset=utf-8");
+    return writeText(response, 200, STYLESHEET, "text/css; charset=utf-8", {
+      "cache-control": "no-store"
+    });
   }
 
   if (pathname === "/app.js") {
-    return writeText(response, 200, renderClientScript(basePath), "application/javascript; charset=utf-8");
+    return writeText(response, 200, renderClientScript(basePath), "application/javascript; charset=utf-8", {
+      "cache-control": "no-store"
+    });
   }
 
   if (pathname === "/key-tools.js") {
@@ -438,7 +288,10 @@ const server = createServer(async (request, response) => {
         response,
         200,
         await getKeyToolsClientBundle(),
-        "application/javascript; charset=utf-8"
+        "application/javascript; charset=utf-8",
+        {
+          "cache-control": "no-store"
+        }
       );
     } catch (error) {
       return writeJson(response, 500, {
@@ -447,6 +300,28 @@ const server = createServer(async (request, response) => {
           error instanceof Error
             ? error.message
             : "Unable to generate the browser key tools bundle."
+      });
+    }
+  }
+
+  if (pathname === "/auction-tools.js") {
+    try {
+      return writeText(
+        response,
+        200,
+        await getAuctionToolsClientBundle(),
+        "application/javascript; charset=utf-8",
+        {
+          "cache-control": "no-store"
+        }
+      );
+    } catch (error) {
+      return writeJson(response, 500, {
+        error: "auction_tools_unavailable",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Unable to generate the auction helper client bundle."
       });
     }
   }
@@ -486,6 +361,8 @@ const server = createServer(async (request, response) => {
         enabled: privateSignetFundingEnabled,
         amountSats: privateSignetFundingAmountSats.toString(),
         amountBtc: privateSignetFundingAmountBtc,
+        maxAmountSats: privateSignetFundingMaxSats.toString(),
+        maxAmountBtc: privateSignetFundingMaxBtc,
         electrumEndpoint: privateSignetElectrumEndpoint
       }
     });
@@ -528,8 +405,9 @@ const server = createServer(async (request, response) => {
     return proxyJson(response, `${resolverUrl}/tx/${txid}`);
   }
 
-  if (pathname === "/api/dev-owner-key") {
-    return writeJson(response, 200, generateDemoOwnerKey());
+  if (pathname.startsWith("/api/utxo/")) {
+    const suffix = pathname.slice("/api/utxo/".length);
+    return proxyJson(response, `${resolverUrl}/utxo/${suffix}`);
   }
 
   if (pathname.startsWith("/api/name/")) {
@@ -584,8 +462,8 @@ const server = createServer(async (request, response) => {
   return writeJson(response, 404, {
     error: "not_found",
     message:
-      "Supported paths: /, /explore, /advanced, /auctions, /values, /transfer, /setup, /explainer, /api/config, /api/health, /api/names, /api/activity, /api/tx/{txid}, /api/dev-owner-key, /api/private-signet-fund, /api/name/{name}, /api/name/{name}/activity, /api/name/{name}/value, /api/name/{name}/value/history, /api/name/{name}/value/compare, /api/auctions"
-      + ", /api/private-auction-smoke-status, /api/experimental-auctions, /api/auction-bid-package, /api/auction-opening-bid-package, /api/experimental-auction-bid-package, /api/values, /api/values/fanout"
+      "Supported paths: /, /explore, /advanced, /auctions, /values, /transfer, /setup, /explainer, /app.js, /auction-tools.js, /key-tools.js, /value-tools.js, /api/config, /api/health, /api/names, /api/activity, /api/tx/{txid}, /api/utxo/{txid}/{vout}, /api/private-signet-fund, /api/name/{name}, /api/name/{name}/activity, /api/name/{name}/value, /api/name/{name}/value/history, /api/name/{name}/value/compare, /api/auctions"
+      + ", /api/private-auction-smoke-status, /api/experimental-auctions, /api/values, /api/values/fanout"
   });
 });
 
@@ -665,25 +543,6 @@ async function proxyJson(
       message: error instanceof Error ? error.message : "Resolver request failed"
     });
   }
-}
-
-async function fetchResolverCurrentHeight(): Promise<number> {
-  const upstream = await fetch(`${resolverUrl}/health`);
-  if (!upstream.ok) {
-    throw new Error(`Resolver returned ${upstream.status} while loading current block height.`);
-  }
-
-  const payload = await upstream.json() as {
-    readonly stats?: { readonly currentHeight?: unknown };
-    readonly rpcChainInfo?: { readonly blocks?: unknown };
-  };
-  const currentHeight = payload.stats?.currentHeight ?? payload.rpcChainInfo?.blocks;
-
-  if (!Number.isInteger(currentHeight) || Number(currentHeight) < 0) {
-    throw new Error("Resolver health did not include a current block height.");
-  }
-
-  return Number(currentHeight);
 }
 
 async function proxyExperimentalAuctionsJson(
@@ -773,7 +632,7 @@ function sanitizePrivateAuctionSmokeStatus(payload: unknown): unknown {
   return {
     ...(sanitized as Record<string, unknown>),
     message:
-      "Private signet auction smoke covers opening bid, higher bid, settlement, destination publication, transfer, and losing-bond violation checks."
+      "Private signet auction smoke covers opening bid, higher bid, settlement, value publication, transfer, and losing-bond violation checks."
   };
 }
 
@@ -819,11 +678,12 @@ function writeText(
   response: import("node:http").ServerResponse,
   statusCode: number,
   body: string,
-  contentType: string
+  contentType: string,
+  headers: Record<string, string> = {}
 ): void {
   response.writeHead(statusCode, {
     "content-type": contentType,
-    "cache-control": "no-store"
+    ...headers
   });
   response.end(body);
 }
@@ -871,56 +731,6 @@ function parseSatsValue(value: string, envName: string): bigint {
   }
 }
 
-function getRequiredWebBodyString(record: Record<string, unknown>, key: string): string {
-  const value = record[key];
-  if (typeof value !== "string" || value.trim() === "") {
-    throw new Error(`${key} is required`);
-  }
-
-  return value.trim();
-}
-
-function getOptionalWebBodySats(
-  record: Record<string, unknown>,
-  key: string
-): bigint | undefined {
-  const value = record[key];
-  if (value === undefined || value === null || value === "") {
-    return undefined;
-  }
-
-  if (typeof value !== "string" && typeof value !== "number") {
-    throw new Error(`${key} must be an integer bitcoin amount`);
-  }
-
-  const normalized = String(value).trim();
-  if (normalized === "") {
-    return undefined;
-  }
-
-  try {
-    const parsed = BigInt(normalized);
-    if (parsed <= 0n) {
-      throw new Error("must be positive");
-    }
-    return parsed;
-  } catch {
-    throw new Error(`${key} must be a positive bitcoin amount`);
-  }
-}
-
-function getRequiredWebBodySats(
-  record: Record<string, unknown>,
-  key: string
-): bigint {
-  const parsed = getOptionalWebBodySats(record, key);
-  if (parsed === undefined) {
-    throw new Error(`${key} is required`);
-  }
-
-  return parsed;
-}
-
 function parseBoolean(value: string | undefined, fallback: boolean): boolean {
   if (value === undefined) {
     return fallback;
@@ -946,7 +756,7 @@ async function readJsonBody(request: import("node:http").IncomingMessage): Promi
     const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
     totalBytes += buffer.length;
 
-    if (totalBytes > 8 * 1024) {
+    if (totalBytes > 64 * 1024) {
       throw new HttpRequestError(413, "payload_too_large", "Request body is too large.");
     }
 
@@ -966,13 +776,15 @@ async function readJsonBody(request: import("node:http").IncomingMessage): Promi
 }
 
 async function fundPrivateSignetAddress(
-  address: string
+  address: string,
+  amountSats: bigint = privateSignetFundingAmountSats
 ): Promise<{
   readonly status: "funded";
   readonly address: string;
   readonly fundedSats: string;
   readonly fundedBtc: string;
   readonly txid: string;
+  readonly fundingInputDescriptor?: string;
   readonly minedBlocks: number;
   readonly cooldownMs: number;
 }> {
@@ -993,10 +805,14 @@ async function fundPrivateSignetAddress(
   }
 
   try {
-    const { stdout, stderr } = await execFile(privateSignetFundingCommand, [address, privateSignetFundingAmountBtc], {
+    const amountBtc = satsToBitcoinString(amountSats);
+    const { stdout, stderr } = await execFile(privateSignetFundingCommand, [address, amountBtc], {
       timeout: 60_000
     });
-    const txidMatches = `${stdout}\n${stderr}`.match(/[a-f0-9]{64}/gi) ?? [];
+    const commandOutput = `${stdout}\n${stderr}`;
+    const descriptorMatches = commandOutput.match(/[a-f0-9]{64}:\d+:\d+:[^\s]+/gi) ?? [];
+    const fundingInputDescriptor = descriptorMatches[descriptorMatches.length - 1]?.trim();
+    const txidMatches = commandOutput.match(/[a-f0-9]{64}/gi) ?? [];
     const txid = txidMatches[txidMatches.length - 1]?.trim() ?? "";
 
     if (!/^[a-f0-9]{64}$/i.test(txid)) {
@@ -1008,9 +824,10 @@ async function fundPrivateSignetAddress(
     return {
       status: "funded",
       address,
-      fundedSats: privateSignetFundingAmountSats.toString(),
-      fundedBtc: privateSignetFundingAmountBtc,
+      fundedSats: amountSats.toString(),
+      fundedBtc: amountBtc,
       txid,
+      ...(fundingInputDescriptor ? { fundingInputDescriptor } : {}),
       minedBlocks: 1,
       cooldownMs: privateSignetFundingCooldownMs
     };
@@ -1026,9 +843,68 @@ async function fundPrivateSignetAddress(
   }
 }
 
-function satsToBitcoinString(amount: bigint): string {
-  const whole = amount / 100_000_000n;
-  const fractional = (amount % 100_000_000n).toString().padStart(8, "0").replace(/0+$/g, "");
+function parseFundingRequestAmountSats(body: unknown): bigint {
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return privateSignetFundingAmountSats;
+  }
+
+  const record = body as Record<string, unknown>;
+  const rawBtc = record.amountBtc;
+  const rawSats = record.amountSats;
+  const amountSats =
+    typeof rawBtc === "string" && rawBtc.trim() !== ""
+      ? parseBitcoinAmountToSats(rawBtc, "amountBtc")
+      : rawSats === undefined || rawSats === null || rawSats === ""
+        ? privateSignetFundingAmountSats
+        : parsePositiveSats(rawSats, "amountSats");
+
+  if (amountSats > privateSignetFundingMaxSats) {
+    throw new HttpRequestError(
+      400,
+      "funding_amount_too_large",
+      `Request ${privateSignetFundingMaxBtc} BTC or less for this hosted demo.`
+    );
+  }
+
+  return amountSats;
+}
+
+function parsePositiveSats(value: unknown, label: string): bigint {
+  if (typeof value !== "string" && typeof value !== "number") {
+    throw new HttpRequestError(400, "invalid_funding_amount", `${label} must be a positive amount.`);
+  }
+
+  try {
+    const parsed = BigInt(String(value).trim());
+    if (parsed <= 0n) {
+      throw new Error("must be positive");
+    }
+    return parsed;
+  } catch {
+    throw new HttpRequestError(400, "invalid_funding_amount", `${label} must be a positive whole number.`);
+  }
+}
+
+function parseBitcoinAmountToSats(value: string, label: string): bigint {
+  const normalized = value.trim();
+  if (!/^\d+(\.\d{1,8})?$/u.test(normalized)) {
+    throw new HttpRequestError(400, "invalid_funding_amount", `${label} must be a positive BTC amount with up to 8 decimal places.`);
+  }
+
+  const [wholePart = "0", fractionalPart = ""] = normalized.split(".");
+  const wholeSats = BigInt(wholePart) * 100_000_000n;
+  const fractionalSats = BigInt(fractionalPart.padEnd(8, "0"));
+  const sats = wholeSats + fractionalSats;
+  if (sats <= 0n) {
+    throw new HttpRequestError(400, "invalid_funding_amount", `${label} must be greater than zero.`);
+  }
+
+  return sats;
+}
+
+function satsToBitcoinString(sats: bigint): string {
+  const whole = sats / 100_000_000n;
+  const fractional = (sats % 100_000_000n).toString().padStart(8, "0").replace(/0+$/g, "");
   return fractional === "" ? `${whole}.0` : `${whole}.${fractional}`;
 }
 
@@ -1081,26 +957,6 @@ function withBasePath(pathname: string, configuredBasePath: string): string {
   return `${configuredBasePath}${pathname}`;
 }
 
-function generateDemoOwnerKey() {
-  const { publicKey, privateKey } = generateKeyPairSync("ec", {
-    namedCurve: "secp256k1"
-  });
-
-  const publicJwk = publicKey.export({ format: "jwk" });
-  const privateJwk = privateKey.export({ format: "jwk" });
-
-  if (typeof publicJwk.x !== "string" || typeof privateJwk.d !== "string") {
-    throw new Error("unable to export secp256k1 key material");
-  }
-
-  return {
-    ownerPubkey: base64UrlToHex(publicJwk.x),
-    privateKeyHex: base64UrlToHex(privateJwk.d),
-    warning:
-      "Demo helper only. This key is generated by the local web server for testing and should not be used for real value."
-  };
-}
-
 function normalizeOptionalText(value: string | undefined): string | null {
   if (value === undefined) {
     return null;
@@ -1117,9 +973,4 @@ function escapeHtml(value: string): string {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
-}
-
-function base64UrlToHex(input: string): string {
-  const padded = input.replaceAll("-", "+").replaceAll("_", "/").padEnd(Math.ceil(input.length / 4) * 4, "=");
-  return Buffer.from(padded, "base64").toString("hex");
 }

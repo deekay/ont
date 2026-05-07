@@ -10,7 +10,7 @@ The current prototype uses ordinary Bitcoin/secp256k1 assumptions:
 
 - owner control is tied to a secp256k1 key
 - acquisition and transfer authorization are tied to that key
-- off-chain destination records are signed by that key
+- off-chain value records are signed by that key
 
 That is fine for today's Bitcoin environment.
 
@@ -56,7 +56,7 @@ That means designing the protocol so it does not unnecessarily hard-code:
 The most credible position for ONT today is:
 
 1. **Do not claim post-quantum security today.**
-2. **Do treat signature agility as a real pre-mainnet design concern.**
+2. **Do treat signature agility as a real pre-launch design concern.**
 3. **Do require a credible migration story before launching extremely long-lived mainnet commitments.**
 4. **Do expect that the final migration path may depend on Bitcoin's own future upgrade path.**
 
@@ -188,7 +188,7 @@ That is not defeatist. It is just intellectually honest.
 
 A concise way to say this later might be:
 
-> ONT does not claim post-quantum security today, and it should not pretend to outrun Bitcoin's own signature assumptions. But because ONT is meant to anchor long-lived names, signature-agility and owner-key migration should be treated as real pre-mainnet design requirements rather than ignored as distant theory.
+> ONT does not claim post-quantum security today, and it should not pretend to outrun Bitcoin's own signature assumptions. But because ONT is meant to anchor long-lived names, signature-agility and owner-key migration should be treated as real pre-launch design requirements rather than ignored as distant theory.
 
 ## Open Questions
 

@@ -13,10 +13,10 @@ import {
 describe("auction bid packages", () => {
   it("builds a preview for pending-opening states", () => {
     const pkg = createAuctionBidPackage({
-      auctionId: "01-not-openable-marble",
+      auctionId: "01-pre-eligibility-marble",
       name: "marble",
       auctionClassId: "launch_name",
-      classLabel: "Name auction",
+      classLabel: "Public auction",
       currentBlockHeight: 95_000,
       phase: "pending_unlock",
       unlockBlock: 95_144,
@@ -38,12 +38,12 @@ describe("auction bid packages", () => {
     expect(pkg.previewStatus).toBe("too_early");
     expect(pkg.previewRequiredMinimumBidSats).toBe("1000000000");
     expect(pkg.wouldBecomeLeader).toBe(false);
-    expect(pkg.previewSummary).toContain("not openable yet");
+    expect(pkg.previewSummary).toContain("not eligible to open yet");
     expect(pkg.bidderCommitment).toBe(computeAuctionBidderCommitment("operator_a"));
     expect(pkg.currentLeaderBidderCommitment).toBeNull();
     expect(pkg.auctionLotCommitment).toBe(
       computeAuctionLotCommitment({
-        auctionId: "01-not-openable-marble",
+        auctionId: "01-pre-eligibility-marble",
         name: "marble",
         auctionClassId: "launch_name",
         unlockBlock: 95_144
@@ -57,7 +57,7 @@ describe("auction bid packages", () => {
       auctionId: "04-soft-close-marble",
       name: "marble",
       auctionClassId: "launch_name",
-      classLabel: "Name auction",
+      classLabel: "Public auction",
       currentBlockHeight: 100_288,
       phase: "soft_close",
       unlockBlock: 96_000,
@@ -89,7 +89,7 @@ describe("auction bid packages", () => {
       auctionId: "03-live-meadow",
       name: "meadow",
       auctionClassId: "launch_name",
-      classLabel: "Name auction",
+      classLabel: "Public auction",
       currentBlockHeight: 128,
       phase: "live_bidding",
       unlockBlock: 110,
@@ -117,9 +117,9 @@ describe("auction bid packages", () => {
   it("rejects packages whose preview fields no longer match the observed state", () => {
     const pkg = createAuctionBidPackage({
       auctionId: "02-awaiting-opening",
-      name: "cedar",
+      name: "luna",
       auctionClassId: "launch_name",
-      classLabel: "Name auction",
+      classLabel: "Public auction",
       currentBlockHeight: 99_000,
       phase: "awaiting_opening_bid",
       unlockBlock: 99_000,

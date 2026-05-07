@@ -209,7 +209,32 @@ CLI="/usr/local/bin/bitcoin-cli -conf=${CONF} -datadir=${DATADIR}"
 /usr/local/bin/ont-private-signet-ensure-wallet >/dev/null
 TXID=$(${CLI} -rpcwallet=miner sendtoaddress "${ADDRESS}" "${AMOUNT}")
 /usr/local/bin/ont-private-signet-mine 1 >/dev/null
-echo "${TXID}"
+TX_JSON=$(${CLI} -rpcwallet=miner gettransaction "${TXID}" true true 2>/dev/null || true)
+VOUT=$(printf '%s' "${TX_JSON}" | python3 -c '
+import json
+import sys
+
+address = sys.argv[1]
+try:
+    tx = json.load(sys.stdin)
+except Exception:
+    sys.exit(0)
+
+for output in tx.get("decoded", {}).get("vout", []):
+    script_pubkey = output.get("scriptPubKey", {})
+    output_address = script_pubkey.get("address")
+    output_addresses = script_pubkey.get("addresses", [])
+    if output_address == address or address in output_addresses:
+        print(output.get("n"))
+        break
+' "${ADDRESS}")
+AMOUNT_SATS=$(python3 -c 'from decimal import Decimal; import sys; print(int(Decimal(sys.argv[1]) * Decimal(100000000)))' "${AMOUNT}")
+
+if [[ -n "${VOUT}" ]]; then
+  echo "${TXID}:${VOUT}:${AMOUNT_SATS}:${ADDRESS}"
+else
+  echo "${TXID}"
+fi
 SCRIPT
 chmod 755 /usr/local/bin/ont-private-signet-fund
 

@@ -1,7 +1,8 @@
 # Testing
 
-This guide reflects the current ONT allocation direction: public bonded auctions
-for valid names, with objective length-based opening floors.
+This guide reflects the current ONT launch direction: public bonded auctions
+for every valid name, with no reserved list, direct-allocation lane, pre-launch
+reservation system, or short-name wave.
 
 ## Core Test Commands
 
@@ -48,7 +49,7 @@ Then open:
 - `http://127.0.0.1:3000/values`
 - `http://127.0.0.1:3000/transfer`
 
-For link compatibility, `/claim` should redirect to `/auctions`.
+The retired direct-claim route, `/claim`, should redirect to `/auctions`.
 
 ## Auction CLI Smoke
 
@@ -75,13 +76,16 @@ Create and inspect a bid package:
 ```sh
 npm run dev:cli -- create-auction-bid-package fixtures/auction/lab/04-soft-close-marble.json \
   --bidder-id operator_alpha \
-  --amount 1800000000 \
+  --amount-sats 1800000000 \
   --write /tmp/ont-auction-bid.json
 
 npm run dev:cli -- inspect-auction-bid-package /tmp/ont-auction-bid.json
 ```
 
-## Transfer And Value Smoke
+The `--amount-sats` flag is a low-level CLI/API name from the transaction
+builder. Public UI and docs should show user-facing amounts in ₿.
+
+## Transfer And Destination Smoke
 
 Transfer package review:
 
@@ -89,23 +93,28 @@ Transfer package review:
 npm run dev:cli -- inspect-transfer-package /path/to/package.json --role buyer
 ```
 
-Destination signing and publishing:
+Destination-record signing and publishing:
 
 ```sh
-npm run dev:cli -- sign-destination-record \
+npm run dev:cli -- sign-value-record \
   --name alice \
   --owner-private-key-hex <hex32> \
   --resolver-url http://127.0.0.1:8787 \
-  --destination-type 2 \
+  --value-type 2 \
   --payload-utf8 https://example.com/alice \
-  --write /tmp/alice-destination.json
+  --write /tmp/alice-value.json
 
-npm run dev:cli -- publish-destination-record /tmp/alice-destination.json \
+npm run dev:cli -- publish-value-record /tmp/alice-value.json \
   --resolver-url http://127.0.0.1:8787
 ```
 
-## Compatibility Redirects
+The `sign-value-record` and `publish-value-record` command names are legacy
+low-level CLI names. Public copy should describe this as destination-record
+signing and publishing.
 
-Tests should not assert success for hidden-name staging flows. If an older
-endpoint is kept temporarily for link compatibility, it should point users to
-auctions.
+## Retired Paths
+
+The old direct-allocation preparation path is retired. Tests should not assert
+success for that hidden-name staging family of flows. If an old endpoint is kept
+temporarily for link compatibility, it should return a retirement response and
+point users to auctions.

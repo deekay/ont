@@ -761,7 +761,7 @@ h2 {
 
 .site-footer-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 18px 28px;
 }
 
@@ -824,6 +824,28 @@ h2 {
 
 .tool-handoff-note a {
   color: var(--accent-strong);
+}
+
+.tool-handoff-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 18px 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.62);
+}
+
+.tool-handoff-card h3 {
+  margin: 0 0 6px;
+}
+
+.tool-handoff-card p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+  text-wrap: pretty;
 }
 
 .tool-callout-row {
@@ -1418,6 +1440,37 @@ h2 {
   gap: 6px;
 }
 
+.transfer-role-workflow-simple {
+  grid-template-columns: minmax(280px, 0.82fr) minmax(0, 1.18fr);
+  margin-top: 22px;
+}
+
+.draft-grid-transfer {
+  grid-template-columns: minmax(0, 0.72fr) minmax(0, 1.28fr);
+}
+
+.transfer-primary-result {
+  margin-top: 20px;
+}
+
+.transfer-primary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.transfer-advanced-tools {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
+.transfer-advanced-tools .detail-technical-body {
+  display: grid;
+  gap: 18px;
+}
+
 .claim-flow-step {
   display: grid;
   gap: 0;
@@ -1877,6 +1930,169 @@ button:disabled {
 }
 
 .guide-card-wide {
+  grid-column: 1 / -1;
+}
+
+.auction-psbt-builder {
+  margin-top: 18px;
+}
+
+.bid-flow-timeline {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.64);
+  overflow-x: auto;
+}
+
+.bid-flow-steps {
+  --flow-line: rgba(27, 63, 55, 0.2);
+  display: grid;
+  grid-template-columns: repeat(6, minmax(118px, 1fr));
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 720px;
+}
+
+.bid-flow-step {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 9px;
+  align-items: start;
+  padding-right: 14px;
+  color: var(--muted);
+}
+
+.bid-flow-step::after {
+  content: "";
+  position: absolute;
+  top: 15px;
+  left: 32px;
+  right: 6px;
+  height: 2px;
+  background: var(--flow-line);
+}
+
+.bid-flow-step:last-child::after {
+  display: none;
+}
+
+.bid-flow-marker {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: #fffaf4;
+  color: var(--muted);
+  font-weight: 900;
+  font-size: 0.82rem;
+}
+
+.bid-flow-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.bid-flow-copy strong {
+  color: inherit;
+  font-size: 0.86rem;
+  line-height: 1.2;
+}
+
+.bid-flow-copy small {
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.25;
+}
+
+.bid-flow-step.is-complete {
+  color: var(--accent-strong);
+}
+
+.bid-flow-step.is-complete::after {
+  background: rgba(27, 94, 79, 0.5);
+}
+
+.bid-flow-step.is-complete .bid-flow-marker {
+  border-color: rgba(27, 94, 79, 0.36);
+  background: rgba(231, 240, 231, 0.94);
+  color: var(--accent-strong);
+}
+
+.bid-flow-step.is-current {
+  color: var(--ink);
+}
+
+.bid-flow-step.is-current .bid-flow-marker {
+  border-color: rgba(176, 90, 43, 0.34);
+  background: rgba(255, 239, 226, 0.98);
+  color: #7f3514;
+  box-shadow: 0 0 0 4px rgba(176, 90, 43, 0.08);
+}
+
+.bid-flow-step.is-pending {
+  color: var(--muted);
+}
+
+.auction-psbt-builder textarea,
+.auction-psbt-builder input[data-auction-funding-output],
+.auction-psbt-builder [data-auction-funding-amount],
+.auction-psbt-builder [data-auction-funding-address],
+.auction-psbt-builder input[data-auction-funding-inputs] {
+  font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
+  font-size: 0.92rem;
+}
+
+.auction-psbt-advanced {
+  margin-top: 2px;
+}
+
+.psbt-handoff-steps {
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.psbt-handoff-steps .guide-list {
+  color: var(--ink);
+}
+
+.psbt-trust-note {
+  padding: 14px 16px;
+  border: 1px solid rgba(27, 94, 79, 0.22);
+  border-radius: 16px;
+  background: rgba(231, 240, 231, 0.58);
+}
+
+.auction-owner-key-confirmation-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 14px 16px;
+  align-items: start;
+}
+
+.auction-owner-key-confirmation-row .field-actions {
+  margin: 0;
+}
+
+.auction-owner-key-confirmation-field {
+  min-width: 0;
+}
+
+.auction-owner-key-confirmation-row .tx-panel-note {
   grid-column: 1 / -1;
 }
 
@@ -3622,22 +3838,23 @@ body[data-page-kind="auctions"] .panel-head-copy p {
   }
 
   .jump-bar-overview {
-    flex-wrap: wrap;
-    align-items: stretch;
-    overflow: visible;
+    flex-wrap: nowrap;
+    align-items: center;
+    overflow-x: auto;
     padding: 10px;
-    border-radius: 24px;
+    border-radius: 999px;
+    scroll-padding-inline: 10px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
   }
 
   .jump-bar-overview .jump-bar-label {
-    flex: 1 0 100%;
-    padding: 0 4px 2px;
+    flex: 0 0 auto;
+    padding: 0 8px 0 4px;
   }
 
   .jump-bar-overview a {
-    flex: 1 1 100%;
-    justify-content: center;
-    white-space: normal;
+    flex: 0 0 auto;
   }
 
   .summary-chip,

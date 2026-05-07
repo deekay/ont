@@ -15,7 +15,7 @@ Related notes:
 
 ## The Short Version
 
-ONT is an attempt to give Bitcoin payment names people can
+ONT is an attempt to give Bitcoin human-readable payment handles people can
 actually own.
 
 The first user problem is simple:
@@ -37,7 +37,7 @@ operator between the payer and the recipient.
 ONT explores a different approach:
 
 - ownership is anchored to Bitcoin
-- the name string is flat, like `alice`
+- the human-readable string is flat, like `alice`
 - no registrar or platform gets to revoke it
 - what the name points to can change, while ownership remains public and
   auditable
@@ -60,7 +60,7 @@ Today, a name can conceptually point to:
 
 But the current story should start with:
 
-> use a name you control to say who gets paid.
+> use a human-readable payment handle to say who gets paid.
 
 ## Why Bonds Instead Of Fees
 
@@ -86,27 +86,25 @@ The intended moral intuition is:
 - the cost should come from capital commitment and time
 - not from perpetual rent paid to a gatekeeper
 
-## Auction Allocation
+## Launch Allocation
 
-The current allocation direction is public bonded auctions:
+The current launch direction is **public bonded auctions for every valid
+name**:
 
-- every valid name is allocated by auction
-- allocation does not depend on brand, category, or editorial judgment
-- shorter names have higher fixed length-based opening floors
+- any valid name can be opened by a bonded public bid
+- there is no semantic reserved-name list
+- there is no ordinary-vs-reserved split
+- there is no direct-allocation lane
+- there is no pre-launch reservation system
+- there is no short-name wave
 
-That direction is motivated by fairness and simplicity:
+That direction is motivated by launch fairness and simplicity:
 
 - avoid asking ONT to decide which brands, people, companies, and words are
   special
 - let markets discover BTC amounts whenever more than one party cares
-- keep scarcity pressure for shorter strings in the objective opening floor
-- make early bulk capture of scarce names materially expensive
 - make uncontested names feel simple even though the allocation rule is still an
   auction
-
-The length floor should be objective, auditable, and announced in advance.
-The current working shape keeps every valid name in the public auction mechanism
-while letting scarce short strings start at a higher bonded amount.
 
 ## Lifecycle
 
@@ -120,7 +118,7 @@ At a high level, ONT now treats the auction bid as the acquisition event:
 Transfers and destination updates are separate:
 
 - Bitcoin transaction keys fund and sign the Bitcoin transaction flow
-- owner keys control later ONT updates and transfers
+- owner keys control later ONT destination updates and transfers
 
 ## What Is Real Today
 
@@ -131,18 +129,19 @@ What is real today:
 - resolver and website
 - auction simulation and bid-package tooling
 - transfer tooling
-- off-chain signed destination flow
-- private-signet demo paths for auction, transfer, and destination smoke tests
+- off-chain signed destination-record flow
+- private-signet demo paths for auction, transfer, and destination-record smoke tests
 
-Public product surfaces and tests should stay auction-opening-first.
+The old direct-claim path is retired from the product surface and tests. It
+should not be treated as a parallel launch lane.
 
 ## Open Questions Worth Review
 
 Some important questions are still intentionally open:
 
 - final universal-auction settlement semantics and rule strictness
-- final auction windows, increments, and extension cap
-- final length-based opening-bond floors
+- final auction windows, soft-close response window, and increment schedule
+- final opening-bond floors
 - how conservative the system should be about long-duration locks given quantum
   concerns
 
@@ -171,6 +170,6 @@ The project is best understood as:
 - a serious Bitcoin-native naming project
 - with a payment-handle first use case
 - a real working prototype already on disk
-- an increasingly coherent public auction allocation design
+- an increasingly coherent universal-auction launch design
 - and a deliberate effort to be thoughtful about allocation, validation, and
   reviewer trust before asking for broad buy-in

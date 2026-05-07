@@ -78,8 +78,8 @@ It covers:
 - winner destination publication after settlement
 - mature transfer from an auction-owned name
 - new-owner destination publication after that transfer
-- loser release and allowed spend
-- winner bond maturity until release and allowed spend
+- loser bond release and allowed spend
+- winner bond maturity and post-maturity spend
 
 That means we are not relying only on simulator logic for the important auction
 state-machine transitions.
@@ -95,8 +95,10 @@ It currently proves:
 - one intentionally early losing-bond spend
 - settlement into a real owned name
 - winner destination publication
-- post-release transfer
+- post-maturity transfer
 - recipient destination publication
+- legacy scheduled-catalog compatibility is still covered in the
+  smoke data, but should not be presented as a current launch outcome
 
 This is the strongest live demo evidence we currently have.
 
@@ -113,15 +115,16 @@ user-facing auction states in one place.
 
 At the time of this audit, the public lab API includes explicit cases for:
 
-- `ready_to_open` (internal phase id: `awaiting_opening_bid`)
+- `not_eligible_yet` (internal phase id: `pending_unlock`)
+- `eligible_to_open` (internal phase id: `awaiting_opening_bid`)
 - `live_bidding`
 - `soft_close`
 - `settled`
 
 This is the right place to say:
 
-> the website visibly demonstrates ready-to-open, live bidding, soft close, and
-> settlement states
+> the website visibly demonstrates eligibility, opening-bid prep, live bidding,
+> soft close, and settlement
 
 because that claim is stable and fixture-backed.
 
@@ -145,8 +148,8 @@ The private feed is now maintained in two ways:
 
 - the private auction smoke leaves behind real `settled` outcomes
 - a dedicated private phase-gallery refresh script parks real prototype entries in
-  internal timing coverage before a lot is openable (internal phase id:
-  `pending_unlock`), ready-to-open (internal phase id: `awaiting_opening_bid`),
+  `not_eligible_yet` (internal phase id: `pending_unlock`),
+  `eligible_to_open` (internal phase id: `awaiting_opening_bid`),
   `live_bidding`, and `soft_close`
 
 That means the private live feed can now show all major phases at once, but it
@@ -180,8 +183,10 @@ It gives a real observed end-to-end lifecycle record with:
 - settled state
 - winner-owned name
 - winner destination record
-- post-release transfer
+- post-maturity transfer
 - post-transfer destination record
+- legacy scheduled-catalog compatibility remains in the smoke JSON but is not part
+  of the current public auction story
 
 So even if the parked entries drift and need refreshing, the smoke summary still
 proves the key live transitions.
@@ -191,10 +196,10 @@ proves the key live transitions.
 The clearest accurate wording today is:
 
 > ONT auctions are tested across simulator, package, regtest, and hosted
-> private-signet layers. The public auction lab shows ready-to-open, live
-> bidding, soft close, and settlement through curated fixtures, while the
-> private signet live feed and smoke summary show real chain-derived examples
-> across the active auction lifecycle on the hosted demo chain.
+> private-signet layers. The public auction lab shows eligibility, opening-bid
+> prep, live bidding, soft close, and settlement through curated fixtures,
+> while the private signet live feed and smoke summary show real chain-derived
+> examples across the active auction lifecycle on the hosted demo chain.
 
 ## Remaining Gap
 

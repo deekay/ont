@@ -1,6 +1,6 @@
 {
   "title": "Soft close · marble",
-  "description": "Name auction after a late higher bid extended the auction. The auction is still live, but continuation now requires a meaningful late response.",
+  "description": "Launch auction after a late higher bid extended the auction. The auction is still live, but continuation now requires a meaningful late response.",
   "currentBlockHeight": 844360,
   "scenario": {
     "name": "marble",

@@ -135,17 +135,11 @@ async function main(): Promise<void> {
     case "submit-sale-transfer":
       await submitSaleTransferCommand(args);
       return;
-    case "sign-destination-record":
-      await signValueRecordCommand(args, "sign-destination-record");
-      return;
     case "sign-value-record":
-      await signValueRecordCommand(args, "sign-destination-record");
-      return;
-    case "publish-destination-record":
-      await publishValueRecordCommand(args, "publish-destination-record");
+      await signValueRecordCommand(args);
       return;
     case "publish-value-record":
-      await publishValueRecordCommand(args, "publish-destination-record");
+      await publishValueRecordCommand(args);
       return;
     case "get-name":
       await getNameCommand(args);
@@ -153,17 +147,11 @@ async function main(): Promise<void> {
     case "get-name-activity":
       await getNameActivityCommand(args);
       return;
-    case "get-destination":
-      await getValueCommand(args, "get-destination");
-      return;
     case "get-value":
-      await getValueCommand(args, "get-destination");
-      return;
-    case "get-destination-history":
-      await getValueHistoryCommand(args, "get-destination-history");
+      await getValueCommand(args);
       return;
     case "get-value-history":
-      await getValueHistoryCommand(args, "get-destination-history");
+      await getValueHistoryCommand(args);
       return;
     case "list-activity":
       await listActivityCommand(args);
@@ -197,7 +185,7 @@ async function inspectAuctionBidPackage(filePath: string | undefined): Promise<v
   console.log(`Class: ${parsed.classLabel} (${parsed.auctionClassId})`);
   console.log(`Observed phase: ${parsed.phase}`);
   console.log(`Observed block: ${parsed.currentBlockHeight}`);
-  console.log(`Openable at block: ${parsed.unlockBlock}`);
+  console.log(`Eligible to open at block: ${parsed.unlockBlock}`);
   console.log(`Close after: ${parsed.auctionCloseBlockAfter ?? "(not started yet)"}`);
   console.log(`Settlement lock: ${parsed.settlementLockBlocks.toLocaleString("en-US")} blocks`);
   console.log("");
@@ -315,7 +303,7 @@ async function createAuctionBidPackageCommand(args: readonly string[]): Promise<
     throw new Error("--owner-pubkey is required");
   }
 
-  const bidAmountSats = parseRequiredBigInt(getOption(parsed.options, "amount", "amount-sats"), "amount");
+  const bidAmountSats = parseRequiredBigInt(parsed.options.get("amount-sats"), "amount-sats");
   const rawInput = await loadJsonFile(scenarioPath);
   const scenario = parseLaunchAuctionScenario(extractLaunchAuctionScenarioInput(rawInput));
   const serializedPolicy = parsed.options.has("policy")
@@ -382,7 +370,7 @@ async function buildAuctionBidArtifactsCommand(args: readonly string[]): Promise
 
   const bidPackage = await loadAuctionBidPackage(bidPackagePath);
   const network = parseNetwork(parsed.options.get("network"));
-  const feeSats = parseRequiredBigInt(getOption(parsed.options, "fee", "fee-sats"), "fee");
+  const feeSats = parseRequiredBigInt(parsed.options.get("fee-sats"), "fee-sats");
   const bondAddress = parsed.options.get("bond-address");
 
   if (!bondAddress) {
@@ -450,12 +438,12 @@ async function buildTransferArtifactsCommand(args: readonly string[]): Promise<v
       "successor-bond-vout"
     ),
     successorBondSats: parseRequiredBigInt(
-      getOption(parsed.options, "successor-bond", "successor-bond-sats"),
-      "successor-bond"
+      parsed.options.get("successor-bond-sats"),
+      "successor-bond-sats"
     ),
     currentBondInput: parseFundingInputDescriptor(bondInputSpec),
     additionalFundingInputs: (parsed.multiOptions.get("input") ?? []).map(parseFundingInputDescriptor),
-    feeSats: parseRequiredBigInt(getOption(parsed.options, "fee", "fee-sats"), "fee"),
+    feeSats: parseRequiredBigInt(parsed.options.get("fee-sats"), "fee-sats"),
     network: parseNetwork(parsed.options.get("network")),
     bondAddress,
     ...(parsed.options.has("change-address")
@@ -510,11 +498,11 @@ async function buildSaleTransferArtifactsCommand(args: readonly string[]): Promi
     sellerInputs,
     buyerInputs,
     sellerPaymentSats: parseRequiredBigInt(
-      getOption(parsed.options, "seller-payment", "seller-payment-sats"),
-      "seller-payment"
+      parsed.options.get("seller-payment-sats"),
+      "seller-payment-sats"
     ),
     sellerPaymentAddress,
-    feeSats: parseRequiredBigInt(getOption(parsed.options, "fee", "fee-sats"), "fee"),
+    feeSats: parseRequiredBigInt(parsed.options.get("fee-sats"), "fee-sats"),
     network: parseNetwork(parsed.options.get("network")),
     ...(parsed.options.has("seller-change-address")
       ? { sellerChangeAddress: parsed.options.get("seller-change-address") as string }
@@ -579,15 +567,15 @@ async function buildImmatureSaleTransferArtifactsCommand(args: readonly string[]
       "successor-bond-vout"
     ),
     successorBondSats: parseRequiredBigInt(
-      getOption(parsed.options, "successor-bond", "successor-bond-sats"),
-      "successor-bond"
+      parsed.options.get("successor-bond-sats"),
+      "successor-bond-sats"
     ),
     currentBondInput: parseFundingInputDescriptor(bondInputSpec),
     ...(sellerInputs.length === 0 ? {} : { sellerInputs }),
     buyerInputs,
-    salePriceSats: parseRequiredBigInt(getOption(parsed.options, "sale-price", "sale-price-sats"), "sale-price"),
+    salePriceSats: parseRequiredBigInt(parsed.options.get("sale-price-sats"), "sale-price-sats"),
     sellerPayoutAddress,
-    feeSats: parseRequiredBigInt(getOption(parsed.options, "fee", "fee-sats"), "fee"),
+    feeSats: parseRequiredBigInt(parsed.options.get("fee-sats"), "fee-sats"),
     network: parseNetwork(parsed.options.get("network")),
     bondAddress,
     ...(parsed.options.has("buyer-change-address")
@@ -758,12 +746,12 @@ async function submitTransferCommand(args: readonly string[]): Promise<void> {
       "successor-bond-vout"
     ),
     successorBondSats: parseRequiredBigInt(
-      getOption(parsed.options, "successor-bond", "successor-bond-sats"),
-      "successor-bond"
+      parsed.options.get("successor-bond-sats"),
+      "successor-bond-sats"
     ),
     currentBondInput: parseFundingInputDescriptor(bondInputSpec),
     additionalFundingInputs: (parsed.multiOptions.get("input") ?? []).map(parseFundingInputDescriptor),
-    feeSats: parseRequiredBigInt(getOption(parsed.options, "fee", "fee-sats"), "fee"),
+    feeSats: parseRequiredBigInt(parsed.options.get("fee-sats"), "fee-sats"),
     network,
     expectedChain,
     rpc: target.rpc,
@@ -837,11 +825,11 @@ async function submitSaleTransferCommand(args: readonly string[]): Promise<void>
     sellerInputs,
     buyerInputs,
     sellerPaymentSats: parseRequiredBigInt(
-      getOption(parsed.options, "seller-payment", "seller-payment-sats"),
-      "seller-payment"
+      parsed.options.get("seller-payment-sats"),
+      "seller-payment-sats"
     ),
     sellerPaymentAddress,
-    feeSats: parseRequiredBigInt(getOption(parsed.options, "fee", "fee-sats"), "fee"),
+    feeSats: parseRequiredBigInt(parsed.options.get("fee-sats"), "fee-sats"),
     network,
     expectedChain,
     rpc: target.rpc,
@@ -925,15 +913,15 @@ async function submitImmatureSaleTransferCommand(args: readonly string[]): Promi
       "successor-bond-vout"
     ),
     successorBondSats: parseRequiredBigInt(
-      getOption(parsed.options, "successor-bond", "successor-bond-sats"),
-      "successor-bond"
+      parsed.options.get("successor-bond-sats"),
+      "successor-bond-sats"
     ),
     currentBondInput: parseFundingInputDescriptor(bondInputSpec),
     ...(sellerInputs.length === 0 ? {} : { sellerInputs }),
     buyerInputs,
-    salePriceSats: parseRequiredBigInt(getOption(parsed.options, "sale-price", "sale-price-sats"), "sale-price"),
+    salePriceSats: parseRequiredBigInt(parsed.options.get("sale-price-sats"), "sale-price-sats"),
     sellerPayoutAddress,
-    feeSats: parseRequiredBigInt(getOption(parsed.options, "fee", "fee-sats"), "fee"),
+    feeSats: parseRequiredBigInt(parsed.options.get("fee-sats"), "fee-sats"),
     network,
     expectedChain,
     rpc: target.rpc,
@@ -952,23 +940,23 @@ async function submitImmatureSaleTransferCommand(args: readonly string[]): Promi
   console.log(JSON.stringify(result, null, 2));
 }
 
-async function signValueRecordCommand(args: readonly string[], commandName: string): Promise<void> {
+async function signValueRecordCommand(args: readonly string[]): Promise<void> {
   const parsed = parseOptions(args);
   const name = parsed.options.get("name");
   const ownerPrivateKeyHex = parsed.options.get("owner-private-key-hex");
 
   if (!name) {
-    throw new Error(`${commandName} requires --name`);
+    throw new Error("sign-value-record requires --name");
   }
 
   if (!ownerPrivateKeyHex) {
-    throw new Error(`${commandName} requires --owner-private-key-hex`);
+    throw new Error("sign-value-record requires --owner-private-key-hex");
   }
 
   const resolverUrl = resolveSingleResolverUrlOption(parsed, {
-    command: commandName,
+    command: "sign-value-record",
     multiResolverMessage:
-      `${commandName} automatic chain field lookup still uses one resolver at a time; use --resolver-url for a single source, or pass explicit --ownership-ref, --previous-record-hash, and --sequence`
+      "sign-value-record automatic chain field lookup still uses one resolver at a time; use --resolver-url for a single source, or pass explicit --ownership-ref, --previous-record-hash, and --sequence"
   });
   let ownershipRef = parsed.options.get("ownership-ref");
   const previousRecordHashProvided = parsed.options.has("previous-record-hash");
@@ -982,7 +970,7 @@ async function signValueRecordCommand(args: readonly string[], commandName: stri
   if (ownershipRef === undefined || previousRecordHash === undefined || sequence === undefined) {
     if (resolverUrl === undefined) {
       throw new Error(
-        `${commandName} requires either --resolver-url for automatic chain fields or explicit --ownership-ref, --previous-record-hash, and --sequence`
+        "sign-value-record requires either --resolver-url for automatic chain fields or explicit --ownership-ref, --previous-record-hash, and --sequence"
       );
     }
 
@@ -1005,7 +993,7 @@ async function signValueRecordCommand(args: readonly string[], commandName: stri
   }
 
   if (ownershipRef === undefined || previousRecordHash === undefined || sequence === undefined) {
-    throw new Error("unable to resolve destination-record chain fields");
+    throw new Error("unable to resolve value-record chain fields");
   }
 
   const record = createSignedValueRecord({
@@ -1014,7 +1002,7 @@ async function signValueRecordCommand(args: readonly string[], commandName: stri
     ownershipRef,
     sequence,
     previousRecordHash,
-    valueType: parseRequiredByte(getOption(parsed.options, "destination-type", "value-type"), "destination-type"),
+    valueType: parseRequiredByte(parsed.options.get("value-type"), "value-type"),
     ...(parsed.options.has("issued-at")
       ? { issuedAt: parsed.options.get("issued-at") as string }
       : {}),
@@ -1030,12 +1018,12 @@ async function signValueRecordCommand(args: readonly string[], commandName: stri
   console.log(JSON.stringify(record, null, 2));
 }
 
-async function publishValueRecordCommand(args: readonly string[], commandName: string): Promise<void> {
+async function publishValueRecordCommand(args: readonly string[]): Promise<void> {
   const parsed = parseOptions(args);
   const recordPath = parsed.positionals[0];
 
   if (!recordPath) {
-    throw new Error(`${commandName} requires a path to a signed destination record JSON file`);
+    throw new Error("publish-value-record requires a path to a signed value record JSON file");
   }
 
   const valueRecord = await loadSignedValueRecord(recordPath);
@@ -1115,12 +1103,12 @@ async function getNameActivityCommand(args: readonly string[]): Promise<void> {
   }
 }
 
-async function getValueCommand(args: readonly string[], commandName: string): Promise<void> {
+async function getValueCommand(args: readonly string[]): Promise<void> {
   const parsed = parseOptions(args);
   const name = parsed.positionals[0] ?? parsed.options.get("name");
 
   if (!name) {
-    throw new Error(`${commandName} requires a name`);
+    throw new Error("get-value requires a name");
   }
 
   try {
@@ -1148,12 +1136,12 @@ async function getValueCommand(args: readonly string[], commandName: string): Pr
   }
 }
 
-async function getValueHistoryCommand(args: readonly string[], commandName: string): Promise<void> {
+async function getValueHistoryCommand(args: readonly string[]): Promise<void> {
   const parsed = parseOptions(args);
   const name = parsed.positionals[0] ?? parsed.options.get("name");
 
   if (!name) {
-    throw new Error(`${commandName} requires a name`);
+    throw new Error("get-value-history requires a name");
   }
 
   try {
@@ -1354,10 +1342,6 @@ function parseOptions(args: readonly string[]): {
   };
 }
 
-function getOption(options: ReadonlyMap<string, string>, primary: string, ...aliases: string[]): string | undefined {
-  return options.get(primary) ?? aliases.map((alias) => options.get(alias)).find((value) => value !== undefined);
-}
-
 function parseResolverUrlList(value: string): readonly string[] {
   return value
     .split(/[\s,]+/u)
@@ -1475,11 +1459,11 @@ function printUsage(): void {
   console.log(`${PRODUCT_NAME} CLI`);
   console.log("");
   console.log("Human-facing amounts use integer bitcoin notation alongside the conventional BTC equivalent here; for example, ₿50,000 (0.0005 BTC).");
-  console.log("Amount flags accept integer bitcoin units; older unit-suffixed aliases still work for existing scripts.");
+  console.log("Legacy amount flags keep their *-sats names for compatibility.");
   console.log("");
   console.log("Commands:");
   console.log("  inspect-auction-bid-package <path>");
-  console.log("    Validate and summarize an experimental auction bid package JSON file");
+  console.log("    Validate and summarize an auction bid package JSON file");
   console.log("");
   console.log("  inspect-transfer-package <path> [--role buyer|seller]");
   console.log("    Validate and summarize a downloaded transfer package JSON file, optionally with a buyer or seller review checklist");
@@ -1487,12 +1471,12 @@ function printUsage(): void {
   console.log("  generate-live-account [--network signet|testnet|regtest|main] [--write <path>]");
   console.log("    Generate a fresh owner key plus a witnesspubkeyhash funding address for live prototype testing");
   console.log("");
-  console.log("  create-auction-bid-package <scenario-or-lab-fixture> --bidder-id <id> --amount <amount> [--current-block-height <height>] [--policy <path>] [--auction-id <id>] [--write <path>]");
-  console.log("    Create an experimental auction bid package from the current simulator state");
+  console.log("  create-auction-bid-package <scenario-or-lab-fixture> --bidder-id <id> --amount-sats <amount> [--current-block-height <height>] [--policy <path>] [--auction-id <id>] [--write <path>]");
+  console.log("    Create an auction bid package from the current simulator state");
   console.log("");
-  console.log("  build-auction-bid-artifacts <auction-bid-package> --input <txid:vout:amount:address[:derivationPath]> [--input ...] --fee <amount> --bond-address <addr> [--bond-vout <0|1>] [--flags <0-255>] [--network signet|testnet|regtest|main] [--change-address <addr>] [--wallet-master-fingerprint <hex8> --wallet-account-xpub <xpub> --wallet-account-path <path> [--wallet-scan-limit <n>]] [--write <path>]");
+  console.log("  build-auction-bid-artifacts <auction-bid-package> --input <txid:vout:valueSats:address[:derivationPath]> [--input ...] --fee-sats <amount> --bond-address <addr> [--bond-vout <0|1>] [--flags <0-255>] [--network signet|testnet|regtest|main] [--change-address <addr>] [--wallet-master-fingerprint <hex8> --wallet-account-xpub <xpub> --wallet-account-path <path> [--wallet-scan-limit <n>]] [--write <path>]");
   console.log("    same-bidder rebids should include the prior bid bond outpoint as one of the --input entries");
-  console.log("    Build unsigned experimental auction bid artifacts from an auction bid package");
+  console.log("    Build unsigned auction bid artifacts from an auction bid package");
   console.log("");
   console.log("  print-auction-policy [--write <path>]");
   console.log("    Emit the current temporary auction policy JSON so floors, durations, and timing can be edited outside the code");
@@ -1503,13 +1487,13 @@ function printUsage(): void {
   console.log("  simulate-auction-market <scenario-json> [--policy <policy-json>] [--write <path>]");
   console.log("    Run a multi-auction market scenario with bidder budget constraints and capital lock carryover");
   console.log("");
-  console.log("  build-transfer-artifacts --prev-state-txid <txid> --new-owner-pubkey <hex32> --owner-private-key-hex <hex32> --bond-input <txid:vout:amount:address> [--input ...] --successor-bond-vout <0-255> --successor-bond <amount> --fee <amount> --bond-address <addr> [--change-address <addr>] [--flags <0-255>] [--network signet|testnet|regtest|main] [--write <path>]");
+  console.log("  build-transfer-artifacts --prev-state-txid <txid> --new-owner-pubkey <hex32> --owner-private-key-hex <hex32> --bond-input <txid:vout:valueSats:address> [--input ...] --successor-bond-vout <0-255> --successor-bond-sats <amount> --fee-sats <amount> --bond-address <addr> [--change-address <addr>] [--flags <0-255>] [--network signet|testnet|regtest|main] [--write <path>]");
   console.log("    Build unsigned gift-transfer artifacts with embedded owner authorization and successor bond output");
   console.log("");
-  console.log("  build-immature-sale-transfer-artifacts --prev-state-txid <txid> --new-owner-pubkey <hex32> --owner-private-key-hex <hex32> --bond-input <txid:vout:amount:address> [--seller-input <txid:vout:amount:address> ...] --buyer-input <txid:vout:amount:address> [--buyer-input ...] --successor-bond-vout <0-255> --successor-bond <amount> --sale-price <amount> --seller-payout-address <addr> --fee <amount> --bond-address <addr> [--buyer-change-address <addr>] [--flags <0-255>] [--network signet|testnet|regtest|main] [--write <path>]");
+  console.log("  build-immature-sale-transfer-artifacts --prev-state-txid <txid> --new-owner-pubkey <hex32> --owner-private-key-hex <hex32> --bond-input <txid:vout:valueSats:address> [--seller-input <txid:vout:valueSats:address> ...] --buyer-input <txid:vout:valueSats:address> [--buyer-input ...] --successor-bond-vout <0-255> --successor-bond-sats <amount> --sale-price-sats <amount> --seller-payout-address <addr> --fee-sats <amount> --bond-address <addr> [--buyer-change-address <addr>] [--flags <0-255>] [--network signet|testnet|regtest|main] [--write <path>]");
   console.log("    Build unsigned immature-sale transfer artifacts where the buyer funds the successor bond, seller payout, and fee");
   console.log("");
-  console.log("  build-sale-transfer-artifacts --prev-state-txid <txid> --new-owner-pubkey <hex32> --owner-private-key-hex <hex32> --seller-input <txid:vout:amount:address> [--seller-input ...] --buyer-input <txid:vout:amount:address> [--buyer-input ...] --seller-payment <amount> --seller-payment-address <addr> --fee <amount> [--seller-change-address <addr>] [--buyer-change-address <addr>] [--flags <0-255>] [--network signet|testnet|regtest|main] [--write <path>]");
+  console.log("  build-sale-transfer-artifacts --prev-state-txid <txid> --new-owner-pubkey <hex32> --owner-private-key-hex <hex32> --seller-input <txid:vout:valueSats:address> [--seller-input ...] --buyer-input <txid:vout:valueSats:address> [--buyer-input ...] --seller-payment-sats <amount> --seller-payment-address <addr> --fee-sats <amount> [--seller-change-address <addr>] [--buyer-change-address <addr>] [--flags <0-255>] [--network signet|testnet|regtest|main] [--write <path>]");
   console.log("    Build unsigned cooperative mature-sale transfer artifacts with explicit seller payment output");
   console.log("");
   console.log("  sign-artifacts <artifacts-json> --wif <wif> [--wif ...] [--write <path>]");
@@ -1527,23 +1511,23 @@ function printUsage(): void {
   console.log("  broadcast-transaction <signed-artifacts-json> [--rpc-url <url> --rpc-username <user> --rpc-password <pass> | --base-url <url>] [--expected-chain signet|testnet|regtest|main]");
   console.log("    Broadcast a signed transaction through Bitcoin Core RPC or a compatible Esplora backend");
   console.log("");
-  console.log("  submit-transfer --prev-state-txid <txid> --new-owner-pubkey <hex32> --owner-private-key-hex <hex32> --bond-input <txid:vout:amount:address> [--input ...] --successor-bond-vout <0-255> --successor-bond <amount> --fee <amount> --bond-address <addr> --wif <wif> [--wif ...] [--change-address <addr>] [--flags <0-255>] [--network signet|testnet|regtest|main] [--expected-chain signet|testnet|regtest|main] [--rpc-url <url> --rpc-username <user> --rpc-password <pass> | --base-url <url>] [--out-dir <dir>]");
+  console.log("  submit-transfer --prev-state-txid <txid> --new-owner-pubkey <hex32> --owner-private-key-hex <hex32> --bond-input <txid:vout:valueSats:address> [--input ...] --successor-bond-vout <0-255> --successor-bond-sats <amount> --fee-sats <amount> --bond-address <addr> --wif <wif> [--wif ...] [--change-address <addr>] [--flags <0-255>] [--network signet|testnet|regtest|main] [--expected-chain signet|testnet|regtest|main] [--rpc-url <url> --rpc-username <user> --rpc-password <pass> | --base-url <url>] [--out-dir <dir>]");
   console.log("    Build, sign, and broadcast a prototype gift/pre-arranged transfer transaction with a successor bond output");
   console.log("");
-  console.log("  submit-immature-sale-transfer --prev-state-txid <txid> --new-owner-pubkey <hex32> --owner-private-key-hex <hex32> --bond-input <txid:vout:amount:address> [--seller-input <txid:vout:amount:address> ...] --buyer-input <txid:vout:amount:address> [--buyer-input ...] --successor-bond-vout <0-255> --successor-bond <amount> --sale-price <amount> --seller-payout-address <addr> --fee <amount> --bond-address <addr> --wif <wif> [--wif ...] [--buyer-change-address <addr>] [--flags <0-255>] [--network signet|testnet|regtest|main] [--expected-chain signet|testnet|regtest|main] [--rpc-url <url> --rpc-username <user> --rpc-password <pass> | --base-url <url>] [--out-dir <dir>]");
+  console.log("  submit-immature-sale-transfer --prev-state-txid <txid> --new-owner-pubkey <hex32> --owner-private-key-hex <hex32> --bond-input <txid:vout:valueSats:address> [--seller-input <txid:vout:valueSats:address> ...] --buyer-input <txid:vout:valueSats:address> [--buyer-input ...] --successor-bond-vout <0-255> --successor-bond-sats <amount> --sale-price-sats <amount> --seller-payout-address <addr> --fee-sats <amount> --bond-address <addr> --wif <wif> [--wif ...] [--buyer-change-address <addr>] [--flags <0-255>] [--network signet|testnet|regtest|main] [--expected-chain signet|testnet|regtest|main] [--rpc-url <url> --rpc-username <user> --rpc-password <pass> | --base-url <url>] [--out-dir <dir>]");
   console.log("    Build, sign, and broadcast an immature sale where the buyer funds the successor bond and the seller receives their bond value plus sale price atomically");
   console.log("");
-  console.log("  submit-sale-transfer --prev-state-txid <txid> --new-owner-pubkey <hex32> --owner-private-key-hex <hex32> --seller-input <txid:vout:amount:address> [--seller-input ...] --buyer-input <txid:vout:amount:address> [--buyer-input ...] --seller-payment <amount> --seller-payment-address <addr> --fee <amount> --wif <wif> [--wif ...] [--seller-change-address <addr>] [--buyer-change-address <addr>] [--flags <0-255>] [--network signet|testnet|regtest|main] [--expected-chain signet|testnet|regtest|main] [--rpc-url <url> --rpc-username <user> --rpc-password <pass> | --base-url <url>] [--out-dir <dir>]");
+  console.log("  submit-sale-transfer --prev-state-txid <txid> --new-owner-pubkey <hex32> --owner-private-key-hex <hex32> --seller-input <txid:vout:valueSats:address> [--seller-input ...] --buyer-input <txid:vout:valueSats:address> [--buyer-input ...] --seller-payment-sats <amount> --seller-payment-address <addr> --fee-sats <amount> --wif <wif> [--wif ...] [--seller-change-address <addr>] [--buyer-change-address <addr>] [--flags <0-255>] [--network signet|testnet|regtest|main] [--expected-chain signet|testnet|regtest|main] [--rpc-url <url> --rpc-username <user> --rpc-password <pass> | --base-url <url>] [--out-dir <dir>]");
   console.log("    Build, sign, and broadcast a prototype cooperative mature-sale transfer with explicit seller payment output");
   console.log("");
-  console.log("  sign-destination-record --name <name> --owner-private-key-hex <hex32> --resolver-url <url> --destination-type <0-255> [--payload-utf8 <text> | --payload-hex <hex>] [--write <path>]");
-  console.log("    Sign the exact next off-chain destination record using resolver-derived ownershipRef and predecessor hash");
+  console.log("  sign-value-record --name <name> --owner-private-key-hex <hex32> --resolver-url <url> --value-type <0-255> [--payload-utf8 <text> | --payload-hex <hex>] [--write <path>]");
+  console.log("    Sign the exact next off-chain value record using resolver-derived ownershipRef and predecessor hash");
   console.log("");
-  console.log("  sign-destination-record --name <name> --owner-private-key-hex <hex32> --ownership-ref <txid> --previous-record-hash <hash|null> --sequence <n> --destination-type <0-255> [--payload-utf8 <text> | --payload-hex <hex>] [--issued-at <iso>] [--write <path>]");
-  console.log("    Sign an off-chain destination record using explicit destination-chain fields");
+  console.log("  sign-value-record --name <name> --owner-private-key-hex <hex32> --ownership-ref <txid> --previous-record-hash <hash|null> --sequence <n> --value-type <0-255> [--payload-utf8 <text> | --payload-hex <hex>] [--issued-at <iso>] [--write <path>]");
+  console.log("    Sign an off-chain value record using explicit value-chain fields");
   console.log("");
-  console.log("  publish-destination-record <destination-record-json> [--resolver-url <url> | --resolver-urls <url1,url2,...>]");
-  console.log("    Publish one signed destination record to one resolver or fan it out across several resolvers");
+  console.log("  publish-value-record <value-record-json> [--resolver-url <url> | --resolver-urls <url1,url2,...>]");
+  console.log("    Publish one signed value record to one resolver or fan it out across several resolvers");
   console.log("");
   console.log("  get-name <name> [--resolver-url <url>]");
   console.log("    Fetch the resolver's current ownership record for one name");
@@ -1551,11 +1535,11 @@ function printUsage(): void {
   console.log("  get-name-activity <name> [--resolver-url <url>] [--limit <n>]");
   console.log("    Fetch recent resolver activity related to one name");
   console.log("");
-  console.log("  get-destination <name> [--resolver-url <url> | --resolver-urls <url1,url2,...>]");
-  console.log("    Fetch the current signed off-chain destination record, or compare destination visibility across several resolvers");
+  console.log("  get-value <name> [--resolver-url <url> | --resolver-urls <url1,url2,...>]");
+  console.log("    Fetch the current signed off-chain value record, or compare value visibility across several resolvers");
   console.log("");
-  console.log("  get-destination-history <name> [--resolver-url <url> | --resolver-urls <url1,url2,...>]");
-  console.log("    Fetch one resolver's current destination-record history chain, or compare history agreement across several resolvers");
+  console.log("  get-value-history <name> [--resolver-url <url> | --resolver-urls <url1,url2,...>]");
+  console.log("    Fetch one resolver's current value-record history chain, or compare history agreement across several resolvers");
   console.log("");
   console.log("  list-activity [--resolver-url <url>] [--limit <n>]");
   console.log("    Fetch recent chain activity with parsed Open Name Tags events and invalidation outcomes");

@@ -8,7 +8,7 @@ In one short walkthrough, the person should see all three layers:
 
 1. connect a wallet to the hosted private demo
 2. acquire a name through the auction flow
-3. publish destination entries for that name
+3. publish destination records for that name
 
 ## Best Audience
 
@@ -28,7 +28,7 @@ Send exactly these two links first:
 
 If you want one sentence of framing, use:
 
-> ONT lets you acquire a name through auction, then point it at ordered destinations you control.
+> ONT lets you acquire a human-readable name through auction, then point it at ordered destination records you control.
 
 ## What They Need
 
@@ -37,7 +37,7 @@ If you want one sentence of framing, use:
 - no SSH access
 - no Bitcoin balance
 
-For the hosted demo, the supported wallet path is Sparrow in `signet` mode using the server string shown on the setup page.
+For the hosted demo, the supported wallet path is Sparrow in `signet` mode using `Private Electrum` and the server settings shown on the setup page. This is private signet only, not mainnet.
 
 ## Fastest Walkthrough
 
@@ -48,10 +48,12 @@ Open [setup](https://opennametags.org/setup).
 In Sparrow:
 
 - run in `signet` mode
-- turn `Public Server` off
-- use the hosted demo server string from the setup page
+- create or open a wallet first; a new BIP39 12-word software wallet is fine for demo use
+- go to `Settings` → `Server`
+- choose `Private Electrum`, not `Public Server`
+- use the hosted demo host and port from the setup page
 
-Then request demo coins into that same Sparrow wallet.
+Then open Sparrow's `Receive` tab, copy a fresh receive address, and request demo coins into that same wallet.
 
 Success looks like:
 
@@ -65,7 +67,7 @@ Open [auctions](https://opennametags.org/auctions).
 Use:
 
 - the same funded Sparrow wallet from setup
-- a visible ready-to-open name or active auction from the hosted demo
+- a visible eligible name or active auction from the hosted demo
 - a saved owner key and bid package
 
 Then:
@@ -79,7 +81,7 @@ Success looks like:
 - the name appears in [explore](https://opennametags.org/explore)
 - or the detail page resolves at `/names/<your-name>`
 
-### 3. Publish A Value Bundle
+### 3. Publish A Destination Bundle
 
 Open [values](https://opennametags.org/values) and use a live name from Explore, or replace the name with the one just acquired through auction.
 
@@ -91,7 +93,7 @@ Load the acquired name, then publish a few destination entries such as:
 
 Success looks like:
 
-- the name detail page shows the published destinations
+- the name detail page shows the published destination records
 - sequence increments
 - future updates require the owner key, not the funding wallet key
 
@@ -119,6 +121,7 @@ Use this short answer:
 Keep these clear:
 
 - this is a private signet demo, not mainnet
+- Flint/early external review should use the private signet path first
 - the hosted wallet path is Sparrow-first today
 - the official Electrum app is not the right wallet for this hosted demo
 - the website prepares flows, but the wallet still signs and broadcasts transactions

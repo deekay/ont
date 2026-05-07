@@ -64,8 +64,6 @@ try {
 
   await assertHomePage(page);
   await assertHomeToAuctionLookupCarryover(page);
-  await assertAuctionOpeningPackagePreview(page);
-  await assertTransferUnopenedNameHandoff(page);
   await assertAuctionsPage(page);
   await assertRetiredDirectClaimRedirect(page);
 
@@ -82,9 +80,7 @@ try {
         checkedFlows: [
           "home-docs-surface",
           "home-search-to-auction-carryover",
-          "auction-opening-browser-flow",
-          "auction-opening-package-preview",
-          "transfer-unopened-name-handoff",
+          "auction-lab-browser-flow",
           "retired-direct-claim-redirect"
         ]
       },
@@ -109,11 +105,11 @@ async function assertHomePage(page) {
     waitUntil: "domcontentloaded"
   });
 
-  await waitForVisibleText(page, "Names you can actually own");
+  await waitForVisibleText(page, "Human-Readable Names You Can Actually Own");
   await waitForVisibleText(page, "Choose A Path");
   await waitForVisibleText(page, "Understand ONT");
-  await waitForVisibleText(page, "Try It On Signet");
-  await waitForVisibleText(page, "Explore Current State");
+  await waitForVisibleText(page, "Try The Prototype");
+  await waitForVisibleText(page, "Explore The Registry");
   const html = await page.content();
   assert(
     html.includes("/auctions"),
@@ -131,11 +127,11 @@ async function assertHomeToAuctionLookupCarryover(page) {
   await page.locator("#nameInput").fill(displayName);
   await page.locator("#searchForm button[type='submit']").click();
 
-  await waitForVisibleText(page, "No current owner is recorded for this name.");
+  await waitForVisibleText(page, "No current owner found");
   await waitForVisibleText(page, normalizedName);
 
   const openAuctionLink = page.getByRole("link", {
-    name: new RegExp(`Open auction for ${normalizedName}`, "i")
+    name: new RegExp(`Build opening bid for ${normalizedName}`, "i")
   });
   const openAuctionHref = await openAuctionLink.getAttribute("href");
   assert(
@@ -147,7 +143,7 @@ async function assertHomeToAuctionLookupCarryover(page) {
   await page.waitForURL(`${webUrl}/auctions?name=${normalizedName}`, {
     timeout: 15_000
   });
-  await waitForVisibleText(page, "No current owner is recorded for this name.");
+  await waitForVisibleText(page, "No current owner found");
 
   const carriedInputValue = await page.locator("#nameInput").inputValue();
   assert(
@@ -156,22 +152,17 @@ async function assertHomeToAuctionLookupCarryover(page) {
   );
 
   const repeatedOpenAuctionLinks = await page.getByRole("link", {
-    name: new RegExp(`Open auction for ${normalizedName}`, "i")
+    name: new RegExp(`Build opening bid for ${normalizedName}`, "i")
   }).count();
   assert(
     repeatedOpenAuctionLinks === 0,
     "auction page should not render a self-link that looks like it will open the same auction again"
   );
 
-  const openAuctionPageHref = await page.getByRole("link", {
-    name: /^Open auction$/i
-  }).first().getAttribute("href");
-  assert(
-    openAuctionPageHref === `#opening-bid-${normalizedName}`,
-    `auction page follow-up action should jump to opening bid prep, got ${openAuctionPageHref}`
-  );
-  await waitForVisibleText(page, "Prepare opening bid package");
-  await waitForVisibleText(page, "Bond amount");
+  await waitForVisibleText(page, "Open auction with bonded bid");
+  await waitForVisibleText(page, "Required opening bond");
+  await waitForVisibleText(page, "Bid Progress");
+  await waitForVisibleText(page, "Download Sparrow PSBT");
 }
 
 async function assertRetiredDirectClaimRedirect(page) {
@@ -183,54 +174,7 @@ async function assertRetiredDirectClaimRedirect(page) {
     new URL(page.url()).pathname === "/auctions",
     "retired direct-acquisition page should redirect to auctions"
   );
-  await waitForVisibleText(page, "Open An Auction");
-}
-
-async function assertAuctionOpeningPackagePreview(page) {
-  const normalizedName = "alice";
-
-  await page.goto(`${webUrl}/auctions?name=${normalizedName}`, {
-    waitUntil: "networkidle"
-  });
-  await waitForVisibleText(page, "Prepare opening bid package");
-  await waitForVisibleText(page, "Bond amount (₿)");
-
-  await page.getByRole("button", {
-    name: "Create In This Browser"
-  }).click();
-  await waitForVisibleText(page, "Generated Auction Owner Key");
-
-  await page.getByRole("button", {
-    name: "Preview bid package"
-  }).click();
-  await waitForVisibleText(page, "Bid Package Preview");
-  await waitForVisibleText(page, "Currently valid");
-  await waitForVisibleText(page, "Bid clears the opening minimum");
-
-  const bodyText = await page.locator("body").textContent();
-  assert(
-    !(bodyText ?? "").includes("Enter the bond amount"),
-    "opening bid preview should accept the prefilled ₿ amount"
-  );
-}
-
-async function assertTransferUnopenedNameHandoff(page) {
-  const normalizedName = "alice";
-
-  await page.goto(`${webUrl}/transfer?name=${normalizedName}`, {
-    waitUntil: "networkidle"
-  });
-  await waitForVisibleText(page, "Transfer unavailable");
-  await waitForVisibleText(page, "No current owner is recorded for this name");
-
-  const openAuctionLink = page.getByRole("link", {
-    name: new RegExp(`Open auction for ${normalizedName}`, "i")
-  });
-  const openAuctionHref = await openAuctionLink.getAttribute("href");
-  assert(
-    openAuctionHref === `/auctions?name=${normalizedName}`,
-    `transfer page unopened state should link to /auctions?name=${normalizedName}, got ${openAuctionHref}`
-  );
+  await waitForVisibleText(page, "Auction Examples");
 }
 
 async function assertAuctionsPage(page) {
@@ -238,22 +182,22 @@ async function assertAuctionsPage(page) {
     waitUntil: "domcontentloaded"
   });
 
-  await page.locator("#auction-open").waitFor({
+  await page.locator("#auctionLabList").waitFor({
     state: "attached",
     timeout: 15_000
   });
   const bodyText = await page.locator("body").textContent();
   assert(
-    (bodyText ?? "").includes("A bonded opening bid starts the auction clock."),
+    (bodyText ?? "").includes("Auction bid prep and flow examples"),
     "auction page should expose the current auction framing"
   );
   assert(
-    (bodyText ?? "").includes("Auction Rules"),
-    "auction page should expose the current auction rules"
+    (bodyText ?? "").includes("Confirmed bids the resolver currently sees on chain."),
+    "auction page should expose the chain-derived experimental bid feed"
   );
   assert(
-    (bodyText ?? "").includes("Auction Workflow"),
-    "auction page should explain the bid-prep workflow"
+    (bodyText ?? "").includes("Auction Examples"),
+    "auction page should render the simulator-backed state surface"
   );
 }
 

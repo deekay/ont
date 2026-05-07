@@ -1,26 +1,26 @@
 {
-  "title": "Private demo auction · cove (awaiting)",
-  "description": "Private signet prototype entry with below-floor attempts after the configured opening height so the hosted lab still shows the ready-to-open state.",
+  "title": "Private demo auction · luna (awaiting)",
+  "description": "Private signet prototype entry with below-floor attempts after the configured eligibility height so the hosted lab still shows the eligible-to-open state.",
   "currentBlockHeight": 128,
   "scenario": {
-    "name": "cove",
+    "name": "luna",
     "auctionClassId": "launch_name",
     "unlockBlock": 118,
     "bidAttempts": [
       {
         "bidderId": "private_speculator_a",
         "blockHeight": 119,
-        "amountSats": "10000000"
+        "amountSats": "150000000"
       },
       {
         "bidderId": "private_speculator_b",
         "blockHeight": 124,
-        "amountSats": "11000000"
+        "amountSats": "180000000"
       },
       {
         "bidderId": "private_speculator_c",
         "blockHeight": 128,
-        "amountSats": "12499999"
+        "amountSats": "199999999"
       }
     ]
   }

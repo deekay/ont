@@ -213,9 +213,9 @@ function deriveLaunchAuctionPhase(input: {
 export function formatLaunchAuctionPhaseLabel(phase: LaunchAuctionPhase): string {
   switch (phase) {
     case "pending_unlock":
-      return "Not openable yet";
+      return "Pre-eligibility";
     case "awaiting_opening_bid":
-      return "Ready to open";
+      return "Eligible to open";
     case "live_bidding":
       return "Live bidding";
     case "soft_close":

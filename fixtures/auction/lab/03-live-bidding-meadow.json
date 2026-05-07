@@ -1,6 +1,6 @@
 {
   "title": "Live bidding · meadow",
-  "description": "Name auction with a valid opening bid and a higher follow-up bid, but still well before the soft-close window.",
+  "description": "Launch auction with a valid opening bid and a higher follow-up bid, but still well before the soft-close window.",
   "currentBlockHeight": 851600,
   "scenario": {
     "name": "meadow",

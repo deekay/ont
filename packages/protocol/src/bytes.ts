@@ -22,7 +22,7 @@ export function hexToBytes(hex: string): Uint8Array {
 }
 
 export function bytesToHex(bytes: Uint8Array): string {
-  return Buffer.from(bytes).toString("hex");
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
 export function assertHexString(hex: string, label: string): string {

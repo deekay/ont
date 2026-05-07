@@ -1,0 +1,248 @@
+%PDF-1.4
+1 0 obj
+<< /Length 15469 >>
+stream
+q 0.965 0.925 0.855 rg 0.00 0.00 792.00 612.00 re f Q
+q 0.995 0.973 0.925 rg 0.870 0.800 0.720 RG 0.75 w 18.00 18.00 756.00 576.00 re B Q
+BT /F3 26 Tf 0.120 0.105 0.090 rg 34.00 556.00 Td (ONT Parameter Review Packet) Tj ET
+BT /F2 7.4 Tf 0.490 0.200 0.100 rg 615.00 573.00 Td (OPEN NAME TAGS) Tj ET
+BT /F1 8.2 Tf 0.360 0.340 0.300 rg 615.00 561.00 Td (discussion draft) Tj ET
+BT /F1 8.8 Tf 0.360 0.340 0.300 rg 36.00 535.00 Td (Prototype defaults for review before launch. These are tunable numbers around name validity, opening bond floors, auction timing, bid) Tj ET
+BT /F1 8.8 Tf 0.360 0.340 0.300 rg 36.00 524.50 Td (escalation, maturity, reauction, and destination records.) Tj ET
+q 0.870 0.800 0.720 RG 0.8 w 34.00 512.00 m 758.00 512.00 l S Q
+q 1.000 0.988 0.955 rg 0.870 0.800 0.720 RG 0.7 w 34.00 384.00 150.00 112.00 re B Q
+BT /F2 7.4 Tf 0.180 0.350 0.270 rg 44.00 479.00 Td (NAME RULES) Tj ET
+q 0.870 0.800 0.720 RG 0.45 w 44.00 458.50 m 174.00 458.50 l S Q
+BT /F1 6.9 Tf 0.360 0.340 0.300 rg 44.00 462.00 Td (Alphabet) Tj ET
+BT /F2 6.9 Tf 0.120 0.105 0.090 rg 149.92 462.00 Td (a-z, 0-9) Tj ET
+q 0.870 0.800 0.720 RG 0.45 w 44.00 446.00 m 174.00 446.00 l S Q
+BT /F1 6.9 Tf 0.360 0.340 0.300 rg 44.00 449.50 Td (Length) Tj ET
+BT /F2 6.9 Tf 0.120 0.105 0.090 rg 141.29 449.50 Td (1-32 chars) Tj ET
+q 0.870 0.800 0.720 RG 0.45 w 44.00 433.50 m 174.00 433.50 l S Q
+BT /F1 6.9 Tf 0.360 0.340 0.300 rg 44.00 437.00 Td (Case) Tj ET
+BT /F2 6.9 Tf 0.120 0.105 0.090 rg 115.42 437.00 Td (lowercase canonical) Tj ET
+BT /F1 6.7 Tf 0.360 0.340 0.300 rg 44.00 408.00 Td (Review alphabet, maximum length, and) Tj ET
+BT /F1 6.7 Tf 0.360 0.340 0.300 rg 44.00 400.00 Td (whether every valid length opens at launch.) Tj ET
+q 1.000 0.988 0.955 rg 0.870 0.800 0.720 RG 0.7 w 196.00 384.00 150.00 112.00 re B Q
+BT /F2 7.4 Tf 0.180 0.350 0.270 rg 206.00 479.00 Td (AUCTION TIMING) Tj ET
+q 0.870 0.800 0.720 RG 0.45 w 206.00 458.50 m 336.00 458.50 l S Q
+BT /F1 6.9 Tf 0.360 0.340 0.300 rg 206.00 462.00 Td (Base window) Tj ET
+BT /F2 6.9 Tf 0.120 0.105 0.090 rg 299.64 462.00 Td (4,320 blocks) Tj ET
+q 0.870 0.800 0.720 RG 0.45 w 206.00 446.00 m 336.00 446.00 l S Q
+BT /F1 6.9 Tf 0.360 0.340 0.300 rg 206.00 449.50 Td (Soft close) Tj ET
+BT /F2 6.9 Tf 0.120 0.105 0.090 rg 304.95 449.50 Td (144 blocks) Tj ET
+q 0.870 0.800 0.720 RG 0.45 w 206.00 433.50 m 336.00 433.50 l S Q
+BT /F1 6.9 Tf 0.360 0.340 0.300 rg 206.00 437.00 Td (Extension cap) Tj ET
+BT /F2 6.9 Tf 0.120 0.105 0.090 rg 322.75 437.00 Td (none) Tj ET
+BT /F1 6.7 Tf 0.360 0.340 0.300 rg 206.00 408.00 Td (Review ~30 day auctions, ~1 day response) Tj ET
+BT /F1 6.7 Tf 0.360 0.340 0.300 rg 206.00 400.00 Td (windows, and whether no hard cap is) Tj ET
+BT /F1 6.7 Tf 0.360 0.340 0.300 rg 206.00 392.00 Td (acceptable.) Tj ET
+q 1.000 0.988 0.955 rg 0.870 0.800 0.720 RG 0.7 w 358.00 384.00 150.00 112.00 re B Q
+BT /F2 7.4 Tf 0.180 0.350 0.270 rg 368.00 479.00 Td (BID ESCALATION) Tj ET
+q 0.870 0.800 0.720 RG 0.45 w 368.00 458.50 m 498.00 458.50 l S Q
+BT /F1 6.9 Tf 0.360 0.340 0.300 rg 368.00 462.00 Td (Min raise) Tj ET
+BT /F2 8.1 Tf 0.120 0.105 0.090 rg 431.40 461.75 Td (B) Tj ET
+q 0.120 0.105 0.090 RG 0.7 w 432.62 459.73 m 432.62 469.20 l S Q
+q 0.120 0.105 0.090 RG 0.7 w 433.75 459.73 m 433.75 469.20 l S Q
+BT /F2 6.9 Tf 0.120 0.105 0.090 rg 443.07 462.00 Td (0.00001000) Tj ET
+q 0.870 0.800 0.720 RG 0.45 w 368.00 446.00 m 498.00 446.00 l S Q
+BT /F1 6.9 Tf 0.360 0.340 0.300 rg 368.00 449.50 Td (Normal raise) Tj ET
+BT /F2 6.9 Tf 0.120 0.105 0.090 rg 491.03 449.50 Td (5%) Tj ET
+q 0.870 0.800 0.720 RG 0.45 w 368.00 433.50 m 498.00 433.50 l S Q
+BT /F1 6.9 Tf 0.360 0.340 0.300 rg 368.00 437.00 Td (Late raise) Tj ET
+BT /F2 6.9 Tf 0.120 0.105 0.090 rg 487.37 437.00 Td (10%) Tj ET
+BT /F1 6.7 Tf 0.360 0.340 0.300 rg 368.00 408.00 Td (Review whether late raises should escalate) Tj ET
+BT /F1 6.7 Tf 0.360 0.340 0.300 rg 368.00 400.00 Td (further to limit close-griefing.) Tj ET
+q 1.000 0.988 0.955 rg 0.870 0.800 0.720 RG 0.7 w 34.00 260.00 150.00 112.00 re B Q
+BT /F2 7.4 Tf 0.180 0.350 0.270 rg 44.00 355.00 Td (WINNER BOND) Tj ET
+q 0.870 0.800 0.720 RG 0.45 w 44.00 334.50 m 174.00 334.50 l S Q
+BT /F1 6.9 Tf 0.360 0.340 0.300 rg 44.00 338.00 Td (Maturity) Tj ET
+BT /F2 6.9 Tf 0.120 0.105 0.090 rg 133.98 338.00 Td (52,560 blocks) Tj ET
+q 0.870 0.800 0.720 RG 0.45 w 44.00 322.00 m 174.00 322.00 l S Q
+BT /F1 6.9 Tf 0.360 0.340 0.300 rg 44.00 325.50 Td (Before mature) Tj ET
+BT /F2 6.9 Tf 0.120 0.105 0.090 rg 129.08 325.50 Td (successor bond) Tj ET
+q 0.870 0.800 0.720 RG 0.45 w 44.00 309.50 m 174.00 309.50 l S Q
+BT /F1 6.9 Tf 0.360 0.340 0.300 rg 44.00 313.00 Td (After mature) Tj ET
+BT /F2 6.9 Tf 0.120 0.105 0.090 rg 129.08 313.00 Td (bond releasable) Tj ET
+BT /F1 6.7 Tf 0.360 0.340 0.300 rg 44.00 284.00 Td (Review fixed ~1 year maturity versus) Tj ET
+BT /F1 6.7 Tf 0.360 0.340 0.300 rg 44.00 276.00 Td (length- or value-based maturity.) Tj ET
+q 1.000 0.988 0.955 rg 0.870 0.800 0.720 RG 0.7 w 196.00 260.00 150.00 112.00 re B Q
+BT /F2 7.4 Tf 0.180 0.350 0.270 rg 206.00 355.00 Td (BOND BREAKS) Tj ET
+q 0.870 0.800 0.720 RG 0.45 w 206.00 334.50 m 336.00 334.50 l S Q
+BT /F1 6.9 Tf 0.360 0.340 0.300 rg 206.00 338.00 Td (If moved early) Tj ET
+BT /F2 6.9 Tf 0.120 0.105 0.090 rg 293.98 338.00 Td (name releases) Tj ET
+q 0.870 0.800 0.720 RG 0.45 w 206.00 322.00 m 336.00 322.00 l S Q
+BT /F1 6.9 Tf 0.360 0.340 0.300 rg 206.00 325.50 Td (Who can reopen) Tj ET
+BT /F2 6.9 Tf 0.120 0.105 0.090 rg 316.13 325.50 Td (anyone) Tj ET
+q 0.870 0.800 0.720 RG 0.45 w 206.00 309.50 m 336.00 309.50 l S Q
+BT /F1 6.9 Tf 0.360 0.340 0.300 rg 206.00 313.00 Td (Cooldown) Tj ET
+BT /F2 6.9 Tf 0.120 0.105 0.090 rg 322.75 313.00 Td (none) Tj ET
+BT /F1 6.7 Tf 0.360 0.340 0.300 rg 206.00 284.00 Td (Review whether early bond breaks should) Tj ET
+BT /F1 6.7 Tf 0.360 0.340 0.300 rg 206.00 276.00 Td (release immediately, reset the floor, and) Tj ET
+BT /F1 6.7 Tf 0.360 0.340 0.300 rg 206.00 268.00 Td (allow instant rebids.) Tj ET
+q 1.000 0.988 0.955 rg 0.870 0.800 0.720 RG 0.7 w 358.00 260.00 150.00 112.00 re B Q
+BT /F2 7.4 Tf 0.180 0.350 0.270 rg 368.00 355.00 Td (DESTINATIONS) Tj ET
+q 0.870 0.800 0.720 RG 0.45 w 368.00 334.50 m 498.00 334.50 l S Q
+BT /F1 6.9 Tf 0.360 0.340 0.300 rg 368.00 338.00 Td (Storage) Tj ET
+BT /F2 6.9 Tf 0.120 0.105 0.090 rg 449.77 338.00 Td (off-chain signed) Tj ET
+q 0.870 0.800 0.720 RG 0.45 w 368.00 322.00 m 498.00 322.00 l S Q
+BT /F1 6.9 Tf 0.360 0.340 0.300 rg 368.00 325.50 Td (Payload max) Tj ET
+BT /F2 6.9 Tf 0.120 0.105 0.090 rg 459.64 325.50 Td (65,535 bytes) Tj ET
+q 0.870 0.800 0.720 RG 0.45 w 368.00 309.50 m 498.00 309.50 l S Q
+BT /F1 6.9 Tf 0.360 0.340 0.300 rg 368.00 313.00 Td (Ordering) Tj ET
+BT /F2 6.9 Tf 0.120 0.105 0.090 rg 451.42 313.00 Td (strict sequence) Tj ET
+BT /F1 6.7 Tf 0.360 0.340 0.300 rg 368.00 284.00 Td (Review launch record types, payload size,) Tj ET
+BT /F1 6.7 Tf 0.360 0.340 0.300 rg 368.00 276.00 Td (resolver retention, and replication) Tj ET
+BT /F1 6.7 Tf 0.360 0.340 0.300 rg 368.00 268.00 Td (expectations.) Tj ET
+q 1.000 0.988 0.955 rg 0.870 0.800 0.720 RG 0.7 w 532.00 206.00 226.00 290.00 re B Q
+BT /F2 7.6 Tf 0.180 0.350 0.270 rg 544.00 478.00 Td (OPENING BOND FLOORS) Tj ET
+q 0.985 0.944 0.875 rg 0.870 0.800 0.720 RG 0.5 w 544.00 428.00 202.00 43.00 re B Q
+BT /F2 6.9 Tf 0.490 0.200 0.100 rg 554.00 458.00 Td (Opening bid must clear the higher floor) Tj ET
+q 0.870 0.800 0.720 RG 0.4 w 554.00 451.00 m 736.00 451.00 l S Q
+BT /F1 6.5 Tf 0.490 0.200 0.100 rg 554.00 440.00 Td (Length floor) Tj ET
+BT /F1 6.5 Tf 0.490 0.200 0.100 rg 626.00 440.00 Td (1-char) Tj ET
+BT /F2 7.7 Tf 0.490 0.200 0.100 rg 658.38 439.75 Td (B) Tj ET
+q 0.490 0.200 0.100 RG 0.7 w 659.54 437.82 m 659.54 446.83 l S Q
+q 0.490 0.200 0.100 RG 0.7 w 660.62 437.82 m 660.62 446.83 l S Q
+BT /F2 6.5 Tf 0.490 0.200 0.100 rg 669.38 440.00 Td (1.00000000) Tj ET
+BT /F1 6.5 Tf 0.490 0.200 0.100 rg 714.00 440.00 Td (halves) Tj ET
+BT /F1 6.5 Tf 0.490 0.200 0.100 rg 554.00 430.00 Td (Minimum floor) Tj ET
+BT /F2 7.7 Tf 0.490 0.200 0.100 rg 658.38 429.75 Td (B) Tj ET
+q 0.490 0.200 0.100 RG 0.7 w 659.54 427.82 m 659.54 436.83 l S Q
+q 0.490 0.200 0.100 RG 0.7 w 660.62 427.82 m 660.62 436.83 l S Q
+BT /F2 6.5 Tf 0.490 0.200 0.100 rg 669.38 430.00 Td (0.00050000) Tj ET
+BT /F2 6.8 Tf 0.360 0.340 0.300 rg 544.00 410.00 Td (Length) Tj ET
+BT /F2 6.8 Tf 0.360 0.340 0.300 rg 730.43 410.00 Td (Floor) Tj ET
+q 0.870 0.800 0.720 RG 0.42 w 544.00 391.40 m 746.00 391.40 l S Q
+BT /F1 7.1 Tf 0.360 0.340 0.300 rg 544.00 395.00 Td (1) Tj ET
+BT /F2 8.299999999999999 Tf 0.120 0.105 0.090 rg 660.41 394.75 Td (B) Tj ET
+q 0.120 0.105 0.090 RG 0.7 w 661.66 392.68 m 661.66 402.39 l S Q
+q 0.120 0.105 0.090 RG 0.7 w 662.82 392.68 m 662.82 402.39 l S Q
+BT /F2 7.1 Tf 0.120 0.105 0.090 rg 672.42 395.00 Td (1.00000000) Tj ET
+q 0.870 0.800 0.720 RG 0.42 w 544.00 378.40 m 746.00 378.40 l S Q
+BT /F1 7.1 Tf 0.360 0.340 0.300 rg 544.00 382.00 Td (2) Tj ET
+BT /F2 8.299999999999999 Tf 0.120 0.105 0.090 rg 660.41 381.75 Td (B) Tj ET
+q 0.120 0.105 0.090 RG 0.7 w 661.66 379.68 m 661.66 389.39 l S Q
+q 0.120 0.105 0.090 RG 0.7 w 662.82 379.68 m 662.82 389.39 l S Q
+BT /F2 7.1 Tf 0.120 0.105 0.090 rg 672.42 382.00 Td (0.50000000) Tj ET
+q 0.870 0.800 0.720 RG 0.42 w 544.00 365.40 m 746.00 365.40 l S Q
+BT /F1 7.1 Tf 0.360 0.340 0.300 rg 544.00 369.00 Td (3) Tj ET
+BT /F2 8.299999999999999 Tf 0.120 0.105 0.090 rg 660.41 368.75 Td (B) Tj ET
+q 0.120 0.105 0.090 RG 0.7 w 661.66 366.68 m 661.66 376.39 l S Q
+q 0.120 0.105 0.090 RG 0.7 w 662.82 366.68 m 662.82 376.39 l S Q
+BT /F2 7.1 Tf 0.120 0.105 0.090 rg 672.42 369.00 Td (0.25000000) Tj ET
+q 0.870 0.800 0.720 RG 0.42 w 544.00 352.40 m 746.00 352.40 l S Q
+BT /F1 7.1 Tf 0.360 0.340 0.300 rg 544.00 356.00 Td (4) Tj ET
+BT /F2 8.299999999999999 Tf 0.120 0.105 0.090 rg 660.41 355.75 Td (B) Tj ET
+q 0.120 0.105 0.090 RG 0.7 w 661.66 353.68 m 661.66 363.39 l S Q
+q 0.120 0.105 0.090 RG 0.7 w 662.82 353.68 m 662.82 363.39 l S Q
+BT /F2 7.1 Tf 0.120 0.105 0.090 rg 672.42 356.00 Td (0.12500000) Tj ET
+q 0.870 0.800 0.720 RG 0.42 w 544.00 339.40 m 746.00 339.40 l S Q
+BT /F1 7.1 Tf 0.360 0.340 0.300 rg 544.00 343.00 Td (5) Tj ET
+BT /F2 8.299999999999999 Tf 0.120 0.105 0.090 rg 660.41 342.75 Td (B) Tj ET
+q 0.120 0.105 0.090 RG 0.7 w 661.66 340.68 m 661.66 350.39 l S Q
+q 0.120 0.105 0.090 RG 0.7 w 662.82 340.68 m 662.82 350.39 l S Q
+BT /F2 7.1 Tf 0.120 0.105 0.090 rg 672.42 343.00 Td (0.06250000) Tj ET
+q 0.870 0.800 0.720 RG 0.42 w 544.00 326.40 m 746.00 326.40 l S Q
+BT /F1 7.1 Tf 0.360 0.340 0.300 rg 544.00 330.00 Td (6) Tj ET
+BT /F2 8.299999999999999 Tf 0.120 0.105 0.090 rg 660.41 329.75 Td (B) Tj ET
+q 0.120 0.105 0.090 RG 0.7 w 661.66 327.68 m 661.66 337.39 l S Q
+q 0.120 0.105 0.090 RG 0.7 w 662.82 327.68 m 662.82 337.39 l S Q
+BT /F2 7.1 Tf 0.120 0.105 0.090 rg 672.42 330.00 Td (0.03125000) Tj ET
+q 0.870 0.800 0.720 RG 0.42 w 544.00 313.40 m 746.00 313.40 l S Q
+BT /F1 7.1 Tf 0.360 0.340 0.300 rg 544.00 317.00 Td (7) Tj ET
+BT /F2 8.299999999999999 Tf 0.120 0.105 0.090 rg 660.41 316.75 Td (B) Tj ET
+q 0.120 0.105 0.090 RG 0.7 w 661.66 314.68 m 661.66 324.39 l S Q
+q 0.120 0.105 0.090 RG 0.7 w 662.82 314.68 m 662.82 324.39 l S Q
+BT /F2 7.1 Tf 0.120 0.105 0.090 rg 672.42 317.00 Td (0.01562500) Tj ET
+q 0.870 0.800 0.720 RG 0.42 w 544.00 300.40 m 746.00 300.40 l S Q
+BT /F1 7.1 Tf 0.360 0.340 0.300 rg 544.00 304.00 Td (8) Tj ET
+BT /F2 8.299999999999999 Tf 0.120 0.105 0.090 rg 660.41 303.75 Td (B) Tj ET
+q 0.120 0.105 0.090 RG 0.7 w 661.66 301.68 m 661.66 311.39 l S Q
+q 0.120 0.105 0.090 RG 0.7 w 662.82 301.68 m 662.82 311.39 l S Q
+BT /F2 7.1 Tf 0.120 0.105 0.090 rg 672.42 304.00 Td (0.00781250) Tj ET
+q 0.870 0.800 0.720 RG 0.42 w 544.00 287.40 m 746.00 287.40 l S Q
+BT /F1 7.1 Tf 0.360 0.340 0.300 rg 544.00 291.00 Td (9) Tj ET
+BT /F2 8.299999999999999 Tf 0.120 0.105 0.090 rg 660.41 290.75 Td (B) Tj ET
+q 0.120 0.105 0.090 RG 0.7 w 661.66 288.68 m 661.66 298.39 l S Q
+q 0.120 0.105 0.090 RG 0.7 w 662.82 288.68 m 662.82 298.39 l S Q
+BT /F2 7.1 Tf 0.120 0.105 0.090 rg 672.42 291.00 Td (0.00390625) Tj ET
+q 0.870 0.800 0.720 RG 0.42 w 544.00 274.40 m 746.00 274.40 l S Q
+BT /F1 7.1 Tf 0.360 0.340 0.300 rg 544.00 278.00 Td (10) Tj ET
+BT /F2 8.299999999999999 Tf 0.120 0.105 0.090 rg 660.41 277.75 Td (B) Tj ET
+q 0.120 0.105 0.090 RG 0.7 w 661.66 275.68 m 661.66 285.39 l S Q
+q 0.120 0.105 0.090 RG 0.7 w 662.82 275.68 m 662.82 285.39 l S Q
+BT /F2 7.1 Tf 0.120 0.105 0.090 rg 672.42 278.00 Td (0.00195312) Tj ET
+q 0.870 0.800 0.720 RG 0.42 w 544.00 261.40 m 746.00 261.40 l S Q
+BT /F1 7.1 Tf 0.360 0.340 0.300 rg 544.00 265.00 Td (11) Tj ET
+BT /F2 8.299999999999999 Tf 0.120 0.105 0.090 rg 660.41 264.75 Td (B) Tj ET
+q 0.120 0.105 0.090 RG 0.7 w 661.66 262.68 m 661.66 272.39 l S Q
+q 0.120 0.105 0.090 RG 0.7 w 662.82 262.68 m 662.82 272.39 l S Q
+BT /F2 7.1 Tf 0.120 0.105 0.090 rg 672.42 265.00 Td (0.00097656) Tj ET
+q 0.870 0.800 0.720 RG 0.42 w 544.00 248.40 m 746.00 248.40 l S Q
+BT /F1 7.1 Tf 0.360 0.340 0.300 rg 544.00 252.00 Td (12-32) Tj ET
+BT /F2 8.299999999999999 Tf 0.120 0.105 0.090 rg 660.41 251.75 Td (B) Tj ET
+q 0.120 0.105 0.090 RG 0.7 w 661.66 249.68 m 661.66 259.39 l S Q
+q 0.120 0.105 0.090 RG 0.7 w 662.82 249.68 m 662.82 259.39 l S Q
+BT /F2 7.1 Tf 0.120 0.105 0.090 rg 672.42 252.00 Td (0.00050000) Tj ET
+q 1.000 0.988 0.955 rg 0.870 0.800 0.720 RG 0.7 w 34.00 48.00 474.00 194.00 re B Q
+BT /F2 7.6 Tf 0.180 0.350 0.270 rg 46.00 224.00 Td (HIGHEST-VALUE REVIEW QUESTIONS) Tj ET
+q 0.490 0.200 0.100 rg 48.00 206.20 3.00 3.00 re f Q
+BT /F1 7 Tf 0.360 0.340 0.300 rg 58.00 204.00 Td (Are the shortest-name floors high enough without making ownership) Tj ET
+BT /F1 7 Tf 0.360 0.340 0.300 rg 58.00 195.60 Td (impossible?) Tj ET
+q 0.490 0.200 0.100 rg 48.00 187.00 3.00 3.00 re f Q
+BT /F1 7 Tf 0.360 0.340 0.300 rg 58.00 184.80 Td (Should the base auction window be shorter than about 30 days?) Tj ET
+q 0.490 0.200 0.100 rg 48.00 176.20 3.00 3.00 re f Q
+BT /F1 7 Tf 0.360 0.340 0.300 rg 58.00 174.00 Td (Is no hard cap acceptable if late bids must clear 10 percent?) Tj ET
+q 0.490 0.200 0.100 rg 282.00 206.20 3.00 3.00 re f Q
+BT /F1 7 Tf 0.360 0.340 0.300 rg 292.00 204.00 Td (Should maturity stay fixed at about 1 year or vary by length or) Tj ET
+BT /F1 7 Tf 0.360 0.340 0.300 rg 292.00 195.60 Td (final bond?) Tj ET
+q 0.490 0.200 0.100 rg 282.00 187.00 3.00 3.00 re f Q
+BT /F1 7 Tf 0.360 0.340 0.300 rg 292.00 184.80 Td (When a bond breaks early, should the next auction reset to the) Tj ET
+BT /F1 7 Tf 0.360 0.340 0.300 rg 292.00 176.40 Td (length floor?) Tj ET
+q 0.490 0.200 0.100 rg 282.00 167.80 3.00 3.00 re f Q
+BT /F1 7 Tf 0.360 0.340 0.300 rg 292.00 165.60 Td (Should destination records launch with a smaller constrained) Tj ET
+BT /F1 7 Tf 0.360 0.340 0.300 rg 292.00 157.20 Td (schema?) Tj ET
+q 0.985 0.944 0.875 rg 0.870 0.800 0.720 RG 0.7 w 532.00 48.00 226.00 140.00 re B Q
+BT /F2 7.3 Tf 0.490 0.200 0.100 rg 544.00 170.00 Td (PROTOTYPE CONSTANT TO RESOLVE) Tj ET
+BT /F1 7.2 Tf 0.360 0.340 0.300 rg 544.00 150.00 Td (The auction path currently uses a fixed 52,560 block) Tj ET
+BT /F1 7.2 Tf 0.360 0.340 0.300 rg 544.00 140.70 Td (winner-bond maturity period. Older helper code still supports an) Tj ET
+BT /F1 7.2 Tf 0.360 0.340 0.300 rg 544.00 131.40 Td (experimental epoch-halving maturity schedule. Before launch,) Tj ET
+BT /F1 7.2 Tf 0.360 0.340 0.300 rg 544.00 122.10 Td (ONT should choose one model and remove or clearly quarantine) Tj ET
+BT /F1 7.2 Tf 0.360 0.340 0.300 rg 544.00 112.80 Td (the other.) Tj ET
+
+endstream
+endobj
+2 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Times-Bold >>
+endobj
+5 0 obj
+<< /Type /Page /Parent 6 0 R /MediaBox [0 0 792 612] /Resources << /Font << /F1 2 0 R /F2 3 0 R /F3 4 0 R >> >> /Contents 1 0 R >>
+endobj
+6 0 obj
+<< /Type /Pages /Kids [5 0 R] /Count 1 >>
+endobj
+7 0 obj
+<< /Type /Catalog /Pages 6 0 R >>
+endobj
+xref
+0 8
+0000000000 65535 f 
+0000000009 00000 n 
+0000015531 00000 n 
+0000015601 00000 n 
+0000015676 00000 n 
+0000015747 00000 n 
+0000015893 00000 n 
+0000015950 00000 n 
+trailer
+<< /Size 8 /Root 7 0 R >>
+startxref
+15999
+%%EOF

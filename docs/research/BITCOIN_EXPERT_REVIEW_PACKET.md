@@ -35,7 +35,7 @@ This packet uses the same status language as
   - implemented today or stable enough that we should speak and build as though
     it is the baseline unless new evidence forces a revisit
 - **current working assumptions**
-  - current allocation direction and review posture, but not yet an immutable
+  - current lead launch direction and review posture, but not yet an immutable
     launch freeze
 - **open questions**
   - still intentionally unresolved and worth challenge from reviewers
@@ -52,7 +52,7 @@ The project is best understood as:
 
 - payment handles first
 - owner-signed payment records second
-- broader key/destination publishing later if useful clients support it
+- broader destination records later if useful clients support them
 
 ## 2. Core System Shape
 
@@ -94,46 +94,48 @@ Implemented today:
 Validated today:
 
 - package tests across protocol, core, CLI, and web
-- private-signet auction smoke for bid, settlement, value, transfer, and release checks
+- private-signet auction smoke for bid, settlement, destination, transfer, and release checks
 - fixture browser E2E smoke for the website
 - hosted private-signet auction smoke
 
 The strongest honest claims we can make now are:
 
-1. the universal-auction allocation direction is concrete enough to inspect
-2. auction bid, settlement, value, transfer, and release checks run on private signet
+1. the universal-auction launch direction is concrete enough to inspect
+2. auction bid, settlement, destination, transfer, and release checks run on private signet
 3. the experimental auction slice is far enough along to inspect,
    test, and critique as a real system rather than only prose
 
 ## 4. Current Working Assumptions
 
-The main current working assumption is a universal-auction allocation model.
+The main current working assumption is a universal-auction launch model.
 
 The launch rule is:
 
-> every valid name is allocated by auction.
+> every launch-eligible name is allocated by auction.
 
 Current launch shape:
 
-- all valid names can be opened at launch
-- shorter names stay in the public auction system with higher length-based opening floors
-- no semantic manual allocation list
-- public auction openings
+- every valid name length uses the same public auction rule
+- no semantic reserved-word list
+- no pre-launch reservation system
+- no separate ordinary lane
 - no editorial distinction between brands, public figures, generic words, and
   ordinary names
 
 The current lead recommendation is:
 
 - build around universal auctions
-- review compactness around auction openings, bids, transfers, and destination updates
+- treat old direct-allocation batching work as historical context only
+- review compactness after the auction-first transaction shape is clearer
 - keep auction mechanics visible and testable, but do not overstate placeholder
   windows, floors, or settlement durations as final protocol constants
 
 ## 5. Footprint: Auction Lifecycle First
 
-The current scaling story starts with the auction-first lifecycle: how much
-footprint auction bids, transfers, and destination records create under realistic
-usage.
+The current scaling story has shifted with the auction-first launch direction.
+The immediate question is no longer how to compress a hidden direct-allocation
+flow. The immediate question is how much footprint the auction bid, transfer,
+and destination-record lifecycle creates under realistic usage.
 
 ### Mainline implemented path
 
@@ -148,13 +150,13 @@ usage.
 - bid packages bind bidder, name/state commitment, amount, owner key, and
   observed auction state
 - chain-derived auction state can materialize a winner into an owned name
-- later transfer and value-record paths work against owned-name records
+- later transfer and destination-record paths work against owned-name records
 
 ### Current limitation
 
 The final auction settlement engine and launch parameters are not frozen yet.
 That means footprint review should focus on the current auction transaction
-shape.
+shape, not on older allocation paths.
 
 The current recommendation is to review the auction transaction shape directly
 before optimizing for batching or alternate carriers.
@@ -174,13 +176,14 @@ Today we have:
 - chain-derived auction feed from observed `AUCTION_BID` transactions
 - stale-state rejection
 - same-bidder replacement derivation
+- legacy scheduled-catalog compatibility coverage kept out of the launch story
 - settled winner materialization into a live owned name
 - live private-signet smoke proving auction lifecycle behavior
 
 What is still provisional:
 
 - final launch semantics for every auction rule
-- exact floors, windows, extension caps, and settlement durations
+- exact floors, windows, late-bid increments, and settlement durations
 - auction-opening tooling for the universal launch flow
 - whether every current experimental derivation should become stricter
   chain-enforced behavior
@@ -188,7 +191,7 @@ What is still provisional:
 So the right wording is:
 
 > the auction path is now implemented enough to test and critique, but the
-> public auction parameters are not yet frozen protocol constants.
+> universal-auction launch parameters are not yet frozen protocol constants.
 
 ## 7. What We Are Actually Asking Bitcoin Experts To Review
 
@@ -219,10 +222,10 @@ The best questions for this round are:
 - are we making the right tradeoff between easy-to-audit explicit data and
   tighter on-chain footprint?
 
-### D. Resolver and value-record history
+### D. Resolver and destination-record history
 
-- is the implemented Keybase-style value-record chain the right baseline for
-  mutable off-chain values?
+- is the implemented Keybase-style destination-record chain the right baseline
+  for mutable off-chain destinations?
 - should resolver transparency roots or append receipts be part of the first
   serious resolver profile, or deferred until after multi-resolver publish/read
   exists?
@@ -255,7 +258,6 @@ These are the current house recommendations for the next review revision.
 ### Treat as current working assumptions
 
 - universal-auction lead architecture
-- shorter names stay in the public auction system with higher length-based opening floors
 - current auction family: open ascending, soft close, meaningful minimum
   increments, stronger extension increments
 - opening-bid starts the auction clock
@@ -264,7 +266,7 @@ These are the current house recommendations for the next review revision.
 ### Keep open or experimental
 
 - transfer batching
-- final auction windows, floors, extension caps, and settlement duration
+- final auction windows, floors, late-bid increments, and bond maturity duration
 
 ## 10. What We Still Need Before Sharing Broadly
 
@@ -305,7 +307,6 @@ If we want one honest paragraph for technically serious reviewers, it is this:
 > human-readable payment resolution. The current auction prototype is real,
 > bid packages, resolver-derived auction state, and settlement/continuity checks
 > are implemented enough to inspect as a real system rather than only a design
-> sketch. The current allocation model
-> is universal auctions: valid names auction at launch, shorter names use
-> higher objective opening floors, and no semantic manual allocation list decides who
-> gets special treatment.
+> sketch. The current lead launch model
+> is universal auctions: every valid name uses the same public auction rule,
+> and no semantic reserved list decides who gets special treatment.

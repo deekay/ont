@@ -7,8 +7,9 @@ This is the cleanest way to make Sparrow talk to the hosted private ONT demo net
 For the private demo:
 
 - Sparrow should run in `signet` mode
-- `Public Server` should be `off`
-- Sparrow should connect to the hosted demo's **private server**
+- create or open a Sparrow wallet before looking for a receive address
+- a new demo wallet can use Sparrow's BIP39 12-word software-wallet path
+- Sparrow's server type should be `Private Electrum`, not `Public Server`
 - the server string should match the one shown on the hosted setup page
 
 Why:
@@ -52,17 +53,38 @@ That keeps the node private without making each demo user depend on SSH access.
 
 ## Quick Start
 
-### 1. Start Sparrow in signet mode
+### 1. Open Sparrow in signet mode
 
-On macOS:
+Sparrow does not ask for Signet while creating a wallet. The network is chosen
+when Sparrow starts. If Sparrow is already running in another network mode, quit
+it fully first.
+
+On macOS, open Terminal and run:
 
 ```bash
-/path/to/ont/scripts/launch-sparrow-signet.sh
+open /Applications/Sparrow.app --args -n signet
 ```
 
-If Sparrow is already running in another network mode, quit it fully first.
+From this repo, you can also run:
 
-### 2. Connect Sparrow to the hosted demo wallet server
+```bash
+./scripts/launch-sparrow-signet.sh
+```
+
+### 2. Create or open a wallet
+
+You need an actual Sparrow wallet before Sparrow can generate a receive address.
+
+For a quick demo wallet:
+
+1. Create a new Sparrow wallet.
+2. Choose a software wallet / new mnemonic flow.
+3. Generate a fresh BIP39 12-word mnemonic.
+4. Save the wallet and keep it open.
+
+Use this same wallet for funding, signing, and broadcasting demo auction bids.
+
+### 3. Connect Sparrow to the hosted demo wallet server
 
 Open:
 
@@ -71,8 +93,7 @@ Open:
 
 Use these values:
 
-- `Public Server`: `off`
-- `Server Type`: Sparrow's private server option
+- `Type`: `Private Electrum`, not `Public Server`
 - `Server String`: use the value shown on the hosted setup page
 
 Important:
@@ -80,7 +101,7 @@ Important:
 - use Sparrow for this hosted walkthrough
 - do not switch to the official Electrum app for this private demo path yet
 
-As of March 31, 2026, the hosted root-domain walkthrough uses:
+The hosted root-domain walkthrough currently uses:
 
 ```text
 opennametags.org:50001:t
@@ -93,6 +114,8 @@ If Sparrow asks for separate fields instead of a single server string, use:
 - `SSL`: `off`
 
 Then click the connect toggle and test the connection.
+
+Success should mention `electrs`.
 
 ## What “Working” Looks Like
 
@@ -109,17 +132,21 @@ Once connected correctly:
 Once Sparrow is connected:
 
 1. Open [https://opennametags.org/setup](https://opennametags.org/setup)
-2. Copy a fresh Sparrow receive address
+2. Open Sparrow's `Receive` tab and copy a fresh receive address from this wallet
 3. Use `Get Demo Coins`
 4. Refresh Sparrow and confirm the UTXO appears
-5. Open the auction page and prepare a bid package
-6. Paste:
-   - master fingerprint
-   - account xpub / tpub / vpub
-   - account derivation path
-7. Click `Build Sparrow PSBTs`
-8. Download and sign the auction bid PSBT in Sparrow
-9. Broadcast the bid transaction and confirm it in the hosted private demo
+5. Open the auction page and check the name you want
+6. Paste one unspent Sparrow `Output` from the UTXOs tab into the website and build the unsigned Sparrow PSBT
+7. Download the PSBT and confirm you have saved the ONT recovery kit
+8. In Sparrow, choose `File -> Open Transaction`, select the downloaded `.psbt` file, and review the outputs
+9. Sign only if the bond and change outputs are addresses from your own Sparrow wallet
+10. Broadcast from Sparrow
+11. Confirm the bid appears in the hosted private demo after the next block
+
+If you are rebidding after being outbid, paste your previous bid-bond `Output`
+into the optional previous-bid field and paste a fresh unspent Sparrow `Output`
+for the additional funding. The website combines those inputs into one
+replacement bid, and Sparrow still shows the final outputs before you sign.
 
 ## Troubleshooting
 
@@ -129,8 +156,8 @@ Usually one of these:
 
 - Sparrow is not in `signet` mode
 - the hosted demo server string is wrong
-- `Public Server` is still enabled
-- Sparrow is not set to the hosted demo server
+- Sparrow is still set to `Public Server`
+- Sparrow is not set to `Private Electrum`
 - the wallet needs a refresh/rescan
 
 ### “The website says funded, but Sparrow is empty”
@@ -142,7 +169,7 @@ Check the hosted demo server settings first. The funding step is on the private 
 Make sure:
 
 - Sparrow is in `signet` mode
-- `Public Server` is off
+- server type is `Private Electrum`
 - the hosted demo server string matches the hosted setup page
 - you are not accidentally pointing Sparrow at a shared public signet server
 

@@ -23,7 +23,7 @@ The project should be read as:
 
 - payment handles first
 - owner-signed payment records second
-- broader key/destination publishing later if useful clients support it
+- broader destination records later if useful clients support them
 
 ## Core Design
 
@@ -43,25 +43,24 @@ Names use bonded bitcoin rather than annual rent:
 
 ## Current Lead Launch Direction
 
-The current allocation direction is **universal auctions**.
+The current lead launch direction is **universal auctions**.
 
 The rule is:
 
-> every valid name is allocated by auction.
+> every launch-eligible name is allocated by auction.
 
 Launch shape:
 
-- all valid names can be opened at launch
-- shorter names stay in the public auction system with higher length-based opening floors
-- there is no semantic manual allocation list
-- there is public auction openings
+- every valid name length uses the same auction rule
+- there is no semantic reserved-word list
+- there is no pre-launch reservation system
+- there is no separate ordinary lane
 - no list of brands, people, companies, or generic words receives special
   protocol treatment
 
 The motivation is neutrality. ONT should not decide which names are important.
 If a name matters to multiple bidders, the auction discovers the bonded BTC
-amount. Length floors make early bulk capture of scarce names materially
-expensive without creating a second allocation rule.
+amount.
 
 ## What Is Implemented Today
 
@@ -76,10 +75,10 @@ Implemented and validated today:
   winner materialization into owned names, regtest coverage, and hosted
   private-signet proof paths
 
-Value records are signed, sequence-numbered, and predecessor-linked. The
+Destination records are signed, sequence-numbered, and predecessor-linked. The
 current prototype uses a Keybase-style predecessor hash chain scoped to the
 current ownership interval, so resolvers can prove that an owner changed a
-record in order without putting routine destination updates on Bitcoin.
+record in order without putting mutable destination updates on Bitcoin.
 
 The current live demo environments are:
 
@@ -100,13 +99,15 @@ expect to keep:
 - same-bidder replacement only counts when the later bid spends the prior bid
   bond
 
-The universal-auction model keeps name importance out of protocol governance.
-The important remaining questions are objective parameters:
+The universal-auction model drops the old question of which names belong in a
+special reserved list. The important remaining questions are now objective
+parameters:
 
 - auction window
-- soft-close extension and cap
+- soft-close response window and late-bid increment
 - opening-bond floors
-- winner settlement duration
+- how aggressive short-name floors should be
+- winner bond maturity duration
 - long-lock/quantum posture
 - local-first signer UX for high-value bids
 
@@ -116,8 +117,8 @@ The best current questions are:
 
 1. Is the current auction transaction / settlement shape coherent?
 2. Are the bond and lock-duration assumptions disciplined enough for launch?
-3. Does the length-based opening floor curve put enough scarcity pressure on
-   very short names?
+3. Are the length-based floors aggressive enough for very scarce short names
+   without reintroducing subjective special cases?
 4. Are there obvious Bitcoin-native concerns around policy, relay, footprint,
    or state-machine complexity that we are missing?
 
