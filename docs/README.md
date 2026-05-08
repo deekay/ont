@@ -10,6 +10,7 @@ These are the best places to start if you want to understand the current prototy
 - [SELF_HOSTING.md](./core/SELF_HOSTING.md): easiest path for running your own ONT website + resolver stack
 - [ARCHITECTURE.md](./core/ARCHITECTURE.md): system structure, trust boundaries, and runtime modes
 - [DECISIONS.md](./core/DECISIONS.md): protocol decisions and tradeoffs that are already explicit
+- [NEW_USER_TESTING_GUIDE.md](./core/NEW_USER_TESTING_GUIDE.md): friendly first-time testing guide for reviewers and friends
 - [TESTING.md](./core/TESTING.md): fixture, regtest, and private signet testing paths
 
 ## Demo

@@ -23,11 +23,12 @@ If you want the shortest honest project orientation before touching the product 
 
 1. [docs/research/BITCOIN_EXPERT_REVIEW_PACKET.md](./docs/research/BITCOIN_EXPERT_REVIEW_PACKET.md)
 2. [docs/core/ONT_FROM_ZERO.md](./docs/core/ONT_FROM_ZERO.md)
-3. [docs/research/ONT_IMPLEMENTATION_AND_VALIDATION.md](./docs/research/ONT_IMPLEMENTATION_AND_VALIDATION.md)
-4. [docs/research/UNIVERSAL_AUCTION_LAUNCH_MODEL.md](./docs/research/UNIVERSAL_AUCTION_LAUNCH_MODEL.md)
-5. [docs/research/LAUNCH_SPEC_V0.md](./docs/research/LAUNCH_SPEC_V0.md)
-6. [docs/research/BITCOIN_REVIEW_CLOSURE_MATRIX.md](./docs/research/BITCOIN_REVIEW_CLOSURE_MATRIX.md)
-7. [docs/core/TESTING.md](./docs/core/TESTING.md)
+3. [docs/core/NEW_USER_TESTING_GUIDE.md](./docs/core/NEW_USER_TESTING_GUIDE.md)
+4. [docs/research/ONT_IMPLEMENTATION_AND_VALIDATION.md](./docs/research/ONT_IMPLEMENTATION_AND_VALIDATION.md)
+5. [docs/research/UNIVERSAL_AUCTION_LAUNCH_MODEL.md](./docs/research/UNIVERSAL_AUCTION_LAUNCH_MODEL.md)
+6. [docs/research/LAUNCH_SPEC_V0.md](./docs/research/LAUNCH_SPEC_V0.md)
+7. [docs/research/BITCOIN_REVIEW_CLOSURE_MATRIX.md](./docs/research/BITCOIN_REVIEW_CLOSURE_MATRIX.md)
+8. [docs/core/TESTING.md](./docs/core/TESTING.md)
 
 If you want the fastest first walkthrough, use the hosted private demo:
 
@@ -413,6 +414,7 @@ Start here:
 - [docs/core/SELF_HOSTING.md](./docs/core/SELF_HOSTING.md): run your own website + resolver stack
 - [docs/core/ARCHITECTURE.md](./docs/core/ARCHITECTURE.md): system structure, trust boundaries, and runtime modes
 - [docs/core/DECISIONS.md](./docs/core/DECISIONS.md): design decisions and open tradeoffs
+- [docs/core/NEW_USER_TESTING_GUIDE.md](./docs/core/NEW_USER_TESTING_GUIDE.md): friendly first-time testing guide for reviewers and friends
 - [docs/core/TESTING.md](./docs/core/TESTING.md): fixture, regtest, and private signet testing paths
 - [docs/research/TRANSFER_RELAY_OPTIONS.md](./docs/research/TRANSFER_RELAY_OPTIONS.md): why transfers are still policy-sensitive and what the real redesign options are
 - [CONTRIBUTING.md](./CONTRIBUTING.md): local setup and contribution workflow

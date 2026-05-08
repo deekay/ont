@@ -1,5 +1,9 @@
 # Testing
 
+For a plain-English guide that is easier to hand to new testers, start with
+[NEW_USER_TESTING_GUIDE.md](./NEW_USER_TESTING_GUIDE.md). This file is the
+more technical command reference.
+
 This guide reflects the current ONT launch direction: public bonded auctions
 for every valid name, with no reserved list, direct-allocation lane, pre-launch
 reservation system, or short-name wave.
