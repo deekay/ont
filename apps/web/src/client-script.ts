@@ -4986,14 +4986,18 @@ function shouldHidePublicAuctionEntry(entry) {
     return false;
   }
 
-  if (entry.phase === "pending_unlock") {
-    return true;
-  }
-
   const text = [entry.auctionId, entry.title, entry.description]
     .filter((value) => typeof value === "string")
     .join(" ")
     .toLowerCase();
+
+  if (text.includes("private-phase-")) {
+    return false;
+  }
+
+  if (entry.phase === "pending_unlock") {
+    return true;
+  }
 
   return text.includes("06-released")
     || text.includes("private-smoke-release")
@@ -5267,20 +5271,36 @@ function renderLiveAuctionActivityCard(auction) {
 }
 
 function renderLiveAuctionObservedBidSummary(outcomes) {
-  const accepted = outcomes.filter((outcome) => outcome?.status === "accepted");
-  const latest = accepted.length > 0 ? accepted[accepted.length - 1] : outcomes[outcomes.length - 1];
-  if (!latest) {
+  if (!Array.isArray(outcomes) || outcomes.length === 0) {
     return '<p class="tx-panel-note">No confirmed bid transaction details are available yet.</p>';
   }
+  const summary = summarizeAuctionBidOutcomes(outcomes);
 
   return [
     '<details class="detail-technical">',
-    "  <summary>Latest confirmed bid</summary>",
-    '  <div class="detail-technical-body result-grid">',
-    '    <div class="result-item"><label>Bid</label><p class="field-value">' + escapeHtml(formatSats(latest.amountSats ?? "0")) + "</p></div>",
-    '    <div class="result-item"><label>Block</label><p class="field-value">' + escapeHtml(String(latest.blockHeight ?? "-")) + "</p></div>",
-    '    <div class="result-item"><label>Tx</label><p class="field-value">' + escapeHtml(shortenTxid(latest.txid ?? "")) + "</p></div>",
-    '    <div class="result-item"><label>Bond</label><p class="field-value">' + escapeHtml(formatAuctionBondStatus(latest.bondStatus)) + "</p></div>",
+    "  <summary>Bid history interpreted by ONT</summary>",
+    '  <div class="detail-technical-body">',
+    '    <p class="tx-panel-note">' + escapeHtml(summary.counted + " counted, " + summary.notCounted + " not counted in confirmed chain order.") + "</p>",
+    '    <div class="tx-event-list">',
+    outcomes
+      .map((outcome, index) => {
+        const statusLabel = formatAuctionBidCountingStatus(outcome);
+        const statusClass = formatAuctionBidCountingStatusClass(outcome);
+        const outcomeLabel = formatAuctionBidOutcomeReason(outcome.reason);
+
+        return [
+          '<article class="tx-event-card">',
+          '  <div class="tx-event-header">',
+          '    <strong>Bid ' + escapeHtml(String(index + 1)) + "</strong>",
+          '    <span class="status-pill ' + escapeHtml(statusClass) + '">' + escapeHtml(statusLabel) + "</span>",
+          '    <span class="inline-note">block ' + escapeHtml(String(outcome.blockHeight ?? "-")) + "</span>",
+          "  </div>",
+          '  <p class="tx-event-meta">' + escapeHtml(formatSats(outcome.amountSats ?? "0") + " · " + outcomeLabel) + "</p>",
+          "</article>"
+        ].join("");
+      })
+      .join(""),
+    "    </div>",
     "  </div>",
     "</details>"
   ].join("");
@@ -6462,25 +6482,29 @@ function renderAuctionBidHistory(outcomes) {
   if (!Array.isArray(outcomes) || outcomes.length === 0) {
     return '<p class="tx-panel-note">No visible bid attempts yet at this block height.</p>';
   }
+  const summary = summarizeAuctionBidOutcomes(outcomes);
 
   return [
     '<details class="detail-technical">',
-    "  <summary>Visible bid attempts</summary>",
+    "  <summary>Bid history interpreted by ONT</summary>",
     '  <div class="detail-technical-body">',
+    '    <p class="tx-panel-note">' + escapeHtml(summary.counted + " counted, " + summary.notCounted + " not counted. The highest-after field shows the auction ladder after each observed attempt.") + "</p>",
     '    <div class="tx-event-list">',
     outcomes
-      .map((outcome) => {
+      .map((outcome, index) => {
         const statusLabel = formatAuctionBidCountingStatus(outcome);
         const statusClass = formatAuctionBidCountingStatusClass(outcome);
         const outcomeLabel = formatAuctionBidOutcomeReason(outcome.reason);
+        const outcomeNote = describeAuctionBidOutcome(outcome) || describeAcceptedAuctionBidOutcome(outcome);
         return [
           '<article class="tx-event-card">',
           '  <div class="tx-event-header">',
-          "    <strong>" + escapeHtml(String(outcome.bidderId ?? "unknown")) + "</strong>",
+          "    <strong>Bid " + escapeHtml(String(index + 1)) + " · " + escapeHtml(String(outcome.bidderId ?? "unknown")) + "</strong>",
           '    <span class="tx-pill ' + escapeHtml(statusClass) + '">' + escapeHtml(statusLabel) + "</span>",
           '    <span class="inline-note">block ' + escapeHtml(String(outcome.blockHeight ?? "-")) + "</span>",
           "  </div>",
           '  <p class="tx-event-meta">Attempted ' + escapeHtml(formatSats(outcome.amountSats ?? "0")) + " · " + escapeHtml(outcomeLabel) + "</p>",
+          outcomeNote.length > 0 ? '  <p class="tx-event-meta">' + escapeHtml(outcomeNote) + "</p>" : "",
           '  <div class="result-grid">',
           '    <div class="result-item"><label>Required minimum</label><p class="field-value">' + escapeHtml(formatSats(outcome.requiredMinimumBidSats ?? "0")) + "</p></div>",
           '    <div class="result-item"><label>Highest after</label><p class="field-value">' + escapeHtml(outcome.highestBidSatsAfter ? formatSats(outcome.highestBidSatsAfter) : "None yet") + "</p></div>",
@@ -6500,22 +6524,24 @@ function renderExperimentalAuctionBidHistory(outcomes) {
   if (!Array.isArray(outcomes) || outcomes.length === 0) {
     return '<p class="tx-panel-note">No confirmed bid transactions have been observed for this auction yet.</p>';
   }
+  const summary = summarizeAuctionBidOutcomes(outcomes);
 
   return [
     '<details class="detail-technical">',
-    "  <summary>Confirmed bid transactions</summary>",
+    "  <summary>Bid history interpreted by ONT</summary>",
     '  <div class="detail-technical-body">',
+    '    <p class="tx-panel-note">' + escapeHtml(summary.counted + " counted, " + summary.notCounted + " not counted. Each row is the ONT resolver interpretation of confirmed chain data, not wallet-local intent.") + "</p>",
     '    <div class="tx-event-list">',
     outcomes
-      .map((outcome) => {
+      .map((outcome, index) => {
         const statusLabel = formatAuctionBidCountingStatus(outcome);
         const statusClass = formatAuctionBidCountingStatusClass(outcome);
         const outcomeLabel = formatAuctionBidOutcomeReason(outcome.reason);
-        const outcomeNote = describeAuctionBidOutcome(outcome);
+        const outcomeNote = describeAuctionBidOutcome(outcome) || describeAcceptedAuctionBidOutcome(outcome);
         return [
           '<article class="tx-event-card">',
           '  <div class="tx-event-header">',
-          '    <strong>' + escapeHtml(formatAuctionCommitment(outcome.bidderCommitment)) + "</strong>",
+          '    <strong>Bid ' + escapeHtml(String(index + 1)) + " · " + escapeHtml(formatAuctionCommitment(outcome.bidderCommitment)) + "</strong>",
           '    <span class="status-pill ' + escapeHtml(statusClass) + '">' + escapeHtml(statusLabel) + "</span>",
           "  </div>",
           outcomeNote.length > 0 ? '  <p class="tx-event-meta">' + escapeHtml(outcomeNote) + "</p>" : "",
@@ -6524,6 +6550,7 @@ function renderExperimentalAuctionBidHistory(outcomes) {
           '    <div class="result-item"><label>Block</label><p class="field-value">' + escapeHtml(String(outcome.blockHeight)) + "</p></div>",
           '    <div class="result-item"><label>Result</label><p class="field-value">' + escapeHtml(outcomeLabel) + "</p></div>",
           '    <div class="result-item"><label>Required minimum</label><p class="field-value">' + escapeHtml(formatSats(outcome.requiredMinimumBidSats)) + "</p></div>",
+          '    <div class="result-item"><label>Highest after</label><p class="field-value">' + escapeHtml(outcome.highestBidSatsAfter ? formatSats(outcome.highestBidSatsAfter) : "None yet") + "</p></div>",
           '    <div class="result-item"><label>Tx</label><p class="field-value">' + escapeHtml(shortenTxid(outcome.txid)) + "</p></div>",
           '    <div class="result-item"><label>Close after</label><p class="field-value">' + escapeHtml(outcome.auctionCloseBlockAfter == null ? "-" : String(outcome.auctionCloseBlockAfter)) + "</p></div>",
           '    <div class="result-item"><label>State check</label><p class="field-value">' + escapeHtml(outcome.stateCommitmentMatched ? "Matched auction state" : "Built from old auction state") + "</p></div>",
@@ -6561,6 +6588,16 @@ function formatAuctionBidCountingStatus(outcome) {
 
 function formatAuctionBidCountingStatusClass(outcome) {
   return outcome?.status === "accepted" ? "status-pending" : "status-invalid";
+}
+
+function summarizeAuctionBidOutcomes(outcomes) {
+  const list = Array.isArray(outcomes) ? outcomes : [];
+  const counted = list.filter((outcome) => outcome?.status === "accepted").length;
+
+  return {
+    counted,
+    notCounted: Math.max(0, list.length - counted)
+  };
 }
 
 function formatAuctionBidOutcomeReason(reason) {
@@ -6610,6 +6647,23 @@ function describeAuctionBidOutcome(outcome) {
       return "This transaction confirmed after the auction had already closed, so it did not affect the outcome.";
     default:
       return "This transaction confirmed, but it did not count toward the current auction state.";
+  }
+}
+
+function describeAcceptedAuctionBidOutcome(outcome) {
+  switch (outcome?.reason) {
+    case "opening_bid":
+      return "This bid opened the auction and started the close clock.";
+    case "higher_bid":
+      return "This bid cleared the normal increment and became the leader.";
+    case "higher_bid_soft_close_extended":
+      return "This late bid cleared the stronger soft-close increment and moved the close height forward when needed.";
+    case "replacement_bid":
+      return "This self-rebid spent the bidder's prior bid bond and replaced it with a higher live bond.";
+    case "replacement_bid_soft_close_extended":
+      return "This self-rebid replaced the prior bid bond during soft close and moved the close height forward when needed.";
+    default:
+      return "";
   }
 }
 

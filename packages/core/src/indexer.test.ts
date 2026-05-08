@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import * as secp256k1 from "tiny-secp256k1";
 
-import type { BitcoinBlock } from "@ont/bitcoin";
+import type { BitcoinBlock, BitcoinTransactionOutput } from "@ont/bitcoin";
 import {
   computeAuctionBidderCommitment,
   computeAuctionBidStateCommitment,
@@ -96,6 +96,71 @@ describe("InMemoryOntIndexer auction observations", () => {
       currentHighestBidSats: bidAmountSats.toString()
     });
     expect(indexer.listRecentActivityForName(name, 1)[0]?.events[0]?.affectedName).toBe(name);
+  });
+
+  it("ignores malformed auction bids whose bond output is missing, non-payment, or value-mismatched", () => {
+    const policy = createFastAuctionPolicy();
+    const cases = [
+      {
+        label: "missing bond output",
+        name: "missingbond",
+        txid: hexByte(0x23),
+        block: createOpeningBidBlock({
+          policy,
+          name: "missingbond",
+          height: 10,
+          txid: hexByte(0x23),
+          ownerPubkey: OWNER_PUBKEY,
+          payloadBondVout: 2
+        }).block,
+        reason: "auction_bid_missing_bond_output"
+      },
+      {
+        label: "non-payment bond output",
+        name: "opreturnbond",
+        txid: hexByte(0x24),
+        block: createOpeningBidBlock({
+          policy,
+          name: "opreturnbond",
+          height: 11,
+          txid: hexByte(0x24),
+          ownerPubkey: OWNER_PUBKEY,
+          bondOutputScriptType: "op_return"
+        }).block,
+        reason: "auction_bid_bond_output_not_payment"
+      },
+      {
+        label: "value-mismatched bond output",
+        name: "shortbond",
+        txid: hexByte(0x25),
+        block: createOpeningBidBlock({
+          policy,
+          name: "shortbond",
+          height: 12,
+          txid: hexByte(0x25),
+          ownerPubkey: OWNER_PUBKEY,
+          bondOutputValueSats: getLaunchAuctionOpeningRequirements({
+            policy,
+            name: "shortbond",
+            auctionClassId: "launch_name"
+          }).openingMinimumBidSats - 1n
+        }).block,
+        reason: "auction_bid_bond_value_mismatch"
+      }
+    ] as const;
+    const indexer = new InMemoryOntIndexer({ launchHeight: 0, experimentalLaunchAuctionPolicy: policy });
+
+    for (const entry of cases) {
+      indexer.ingestBlock(entry.block);
+
+      expect(indexer.getTransactionProvenance(entry.txid)?.events[0]).toMatchObject({
+        typeName: "AUCTION_BID",
+        validationStatus: "ignored",
+        reason: entry.reason,
+        affectedName: null
+      });
+      expect(indexer.listExperimentalAuctions().some((auction) => auction.normalizedName === entry.name)).toBe(false);
+    }
   });
 
   it("materializes a settled winning auction bid into an immature owned name", () => {
@@ -737,12 +802,16 @@ function createOpeningBidBlock(input: {
   readonly txid: string;
   readonly ownerPubkey: string;
   readonly unlockBlock?: number;
+  readonly payloadBondVout?: number;
+  readonly bondOutputValueSats?: bigint;
+  readonly bondOutputScriptType?: BitcoinTransactionOutput["scriptType"];
 }): {
   readonly block: BitcoinBlock;
   readonly txid: string;
   readonly bidAmountSats: bigint;
 } {
   const unlockBlock = input.unlockBlock ?? 0;
+  const bondVout = input.payloadBondVout ?? 0;
   const auctionId = getExperimentalLaunchAuctionId({
     name: input.name,
     unlockBlock
@@ -775,7 +844,7 @@ function createOpeningBidBlock(input: {
   });
   const payload = encodeAuctionBidPayload({
     flags: 0,
-    bondVout: 0,
+    bondVout,
     settlementLockBlocks: openingRequirements.settlementLockBlocks,
     bidAmountSats,
     ownerPubkey: input.ownerPubkey,
@@ -785,6 +854,15 @@ function createOpeningBidBlock(input: {
     name: input.name,
     unlockBlock
   });
+  const bondOutputScriptType = input.bondOutputScriptType ?? "payment";
+  const bondOutput: BitcoinTransactionOutput = {
+    valueSats:
+      bondOutputScriptType === "op_return"
+        ? 0n
+        : input.bondOutputValueSats ?? bidAmountSats,
+    scriptType: bondOutputScriptType,
+    ...(bondOutputScriptType === "op_return" ? { dataHex: "aa" } : {})
+  };
 
   return {
     txid: input.txid,
@@ -797,7 +875,7 @@ function createOpeningBidBlock(input: {
           txid: input.txid,
           inputs: [{ txid: hexByte(0x11), vout: 0, coinbase: false }],
           outputs: [
-            { valueSats: bidAmountSats, scriptType: "payment" },
+            bondOutput,
             { valueSats: 0n, scriptType: "op_return", dataHex: Buffer.from(payload).toString("hex") }
           ]
         }

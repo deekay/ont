@@ -53,7 +53,7 @@ try to automate every case.
 | --- | --- | --- | --- |
 | No bid exists | No auction exists; no owner exists. | Covered | Simulator and UI empty states cover the shape. |
 | Underfloor opening attempt | Does not open the auction. | Covered | Underfloor bids remain rejected and name is still awaiting opening. |
-| Exact-floor opening bid | Opens the auction and becomes leader. | Needs coverage | We cover valid openings, but exact boundary should be explicit. |
+| Exact-floor opening bid | Opens the auction and becomes leader. | Covered | Core simulator covers exact floor paired with one-sat-below rejection. |
 | Above-floor opening bid | Opens the auction and becomes leader at the higher amount. | Covered | Existing opening/auction discovery tests cover this. |
 | Opening before unlock / before release anchor | Rejected as too early. | Covered | Legacy/simulator unlock path covers `before_unlock`. |
 | Opening after current unlock / release anchor | Accepted if otherwise valid. | Partial | Covered for ordinary opening and correct reauction; exact boundary should be explicit. |
@@ -62,9 +62,9 @@ try to automate every case.
 | Opening bid with payload name different from lot commitment name | Rejected. | Needs coverage | Prevents malformed or confused name claims. |
 | Opening bid with missing name context | Rejected by payload decoder. | Needs coverage | Current wire format requires name context. |
 | Opening bid with wrong protocol magic / version / event type | Ignored or rejected by decoder/indexer. | Needs coverage | Important for noisy chain data. |
-| Bond output index points outside outputs | Rejected; no auction state changes. | Needs coverage | Critical malformed transaction case. |
-| Bond output amount differs from bid amount | Rejected; no auction state changes. | Needs coverage | Prevents tiny bond with large declared bid. |
-| Bond output is zero-value or non-payment output | Rejected; no auction state changes. | Needs coverage | Should not allow OP_RETURN or dust-shaped bond. |
+| Bond output index points outside outputs | Rejected; no auction state changes. | Covered | Indexer rejects missing bond output and records ignored provenance. |
+| Bond output amount differs from bid amount | Rejected; no auction state changes. | Covered | Indexer rejects value mismatch before auction state changes. |
+| Bond output is zero-value or non-payment output | Rejected; no auction state changes. | Covered | Indexer rejects non-payment bond outputs such as OP_RETURN. |
 | Multiple opening bids for same name in one block | Deterministic order by block / transaction / output order. | Needs coverage | We should define and test tie ordering. |
 | Two equal valid opening bids in same block | First deterministic order wins until outbid by a valid increment. | Needs coverage | Important for launch contention. |
 | Opening bid confirms but resolver has not indexed it yet | Website says pending / not observed, not “lost.” | Needs coverage | Mostly layer-3 UX and resolver freshness. |
@@ -75,15 +75,15 @@ try to automate every case.
 | --- | --- | --- | --- |
 | One accepted bid only | Auction is live until close; opener leads. | Covered | Opening bid materialization and live states are covered. |
 | Second bid below required increment | Rejected; leader unchanged. | Covered | Simulator covers below-minimum increment. |
-| Second bid exactly at next valid bid | Accepted; second bidder leads. | Needs coverage | Boundary should be explicit after increment formula changes. |
+| Second bid exactly at next valid bid | Accepted; second bidder leads. | Covered | Core simulator pairs exact-minimum acceptance with one-sat-below rejection. |
 | Second bid above next valid bid | Accepted; second bidder leads. | Covered | Existing multi-bid tests cover this. |
 | Third bid below next valid bid | Rejected; leader unchanged. | Covered | Covered in simulator / stale state variants. |
-| Third bid exactly at next valid bid | Accepted; third bidder leads. | Needs coverage | Exact boundary should be explicit. |
+| Third bid exactly at next valid bid | Accepted; third bidder leads. | Covered | Core simulator covers chained exact-minimum rebids. |
 | Normal increment uses absolute floor when percentage is smaller | Next valid bid is current bid plus absolute minimum. | Partial | Increment helper covers max behavior but should include current launch values. |
 | Normal increment uses percentage when percentage is larger | Next valid bid is percentage-rounded-up amount. | Covered | Existing policy tests cover percentage path. |
-| Percentage increment rounding | Rounds up so fractional base-unit requirements cannot be bypassed. | Needs coverage | Very easy place for off-by-one bugs. |
+| Percentage increment rounding | Rounds up so fractional base-unit requirements cannot be bypassed. | Covered | Core policy test checks rounded-up normal and soft-close increments. |
 | Bid amount is one base unit below required minimum | Rejected. | Covered | Underfloor and increment failures exist; exact one-unit boundary should be explicit. |
-| Bid amount equals required minimum | Accepted. | Needs coverage | Pair with one-sat-below boundary. |
+| Bid amount equals required minimum | Accepted. | Covered | Paired with the one-sat-below boundary in core simulator tests. |
 | Bid uses old package after another bid confirmed | Rejected as stale state commitment. | Covered | This is covered and should remain front-and-center in UI copy. |
 | Bid references current state but wrong current leader commitment | Rejected as stale or inconsistent state commitment. | Needs coverage | Good adversarial package case. |
 | Bid with wrong bond maturity duration | Rejected. | Covered | Maturity-duration mismatch is covered. |
@@ -106,13 +106,13 @@ try to automate every case.
 | Case | Expected behavior | Status | Notes |
 | --- | --- | --- | --- |
 | Bid before soft-close window | Accepted if increment clears; close is not extended. | Partial | Covered indirectly by live bidding; exact no-extension boundary should be explicit. |
-| Bid at first block of soft-close window | Accepted if increment clears; close extends. | Needs coverage | Boundary depends on inclusive comparison. |
-| Bid in soft-close window below soft-close increment | Rejected; close not extended. | Needs coverage | Important after separate normal/soft-close increments. |
-| Bid in soft-close window exactly at soft-close increment | Accepted; close extends. | Needs coverage | Exact boundary. |
+| Bid at first block of soft-close window | Accepted if increment clears; close extends. | Covered | Core simulator covers the inclusive first-soft-close block. |
+| Bid in soft-close window below soft-close increment | Rejected; close not extended. | Covered | Core simulator covers one-sat-below soft-close rejection. |
+| Bid in soft-close window exactly at soft-close increment | Accepted; close extends. | Covered | Core simulator covers exact soft-close minimum acceptance. |
 | Bid in soft-close window above soft-close increment | Accepted; close extends. | Covered | Soft-close extension tests cover this generally. |
-| Bid at previous close block | Accepted or rejected according to explicit inclusive/exclusive rule. | Needs coverage | We should make the rule obvious. |
+| Bid at previous close block | Accepted or rejected according to explicit inclusive/exclusive rule. | Covered | Core simulator covers a bid at the close boundary as accepted, with the following block rejected. |
 | Bid one block after close | Rejected as auction closed. | Covered | Simulator covers closed late bid. |
-| Repeated late bids extend close repeatedly | Accepted if each clears stronger increment; no hard cap currently. | Partial | One extension is covered; repeated-extension chain needs coverage. |
+| Repeated late bids extend close repeatedly | Accepted if each clears stronger increment; no hard cap currently. | Covered | Core simulator covers repeated soft-close extensions. |
 | Long griefing soft-close loop | Possible only by bonding increasingly higher amounts. | Open design | Needs economic review more than unit testing. |
 | Stale package during soft close | Rejected; UI should explain old auction state. | Covered | State-commitment tests and UI strings cover conceptually. |
 | Current time / block display during soft close | UI should show next valid bid and that it extends close. | Partial | Client-script strings exist; needs browser QA. |
@@ -222,6 +222,7 @@ try to automate every case.
 | --- | --- | --- | --- |
 | User checks unopened valid name | Site explains opening bid and next step. | Partial | Page shell and client strings exist; browser QA should validate flow. |
 | User checks active auction | Site shows active state, highest bid, next valid bid, and bid CTA. | Partial | Recently improved; should be browser-tested. |
+| User inspects auction bid history | Site shows ONT-interpreted bid outcomes, counted/not-counted totals, and highest-bid ladder. | Covered | Client rendering tests cover interpreted bid-history copy; private signet gallery now parks live and soft-close examples. |
 | User checks settled name in Explore | Explore shows ownership after settlement. | Partial | Needs end-to-end confidence on private signet. |
 | User tries to bid with stale prefilled UTXO | Site should force a fresh unspent coin before PSBT download. | Partial | UTXO validation was added; needs UX coverage. |
 | User copies only `txid:vout` from Sparrow | Site should fill amount/address from resolver when possible. | Partial | Implemented; should test missing/unknown UTXO cases. |
@@ -251,24 +252,18 @@ try to automate every case.
 
 These are the cases most likely to catch real bugs or confusing user failures:
 
-1. Exact-boundary bids: one sat below, exactly at, and one sat above the opening
-   floor / normal increment / soft-close increment.
-2. Same-block ordering: multiple valid bids for one name in the same block,
-   including equal amounts.
-3. Bond-output validation: missing bond vout, wrong value, wrong script type,
-   and amount mismatch.
-4. Single-bond reuse: one UTXO referenced by multiple names or multiple bids.
-5. Stale package UX: user builds a package, another bid confirms, then the old
+1. Single-bond reuse: one UTXO referenced by multiple names or multiple bids.
+2. Stale package UX: user builds a package, another bid confirms, then the old
    PSBT is blocked or clearly rejected before broadcast when possible.
-6. Settlement boundaries: one block before close, exact close block, one block
+3. Settlement boundaries: one block before close, exact close block, one block
    after close; one block before maturity, exact maturity, one block after.
-7. Resolver recovery: rebuild auction and ownership state from chain after
+4. Resolver recovery: rebuild auction and ownership state from chain after
    database wipe / service restart.
-8. Reorg behavior: accepted bid disappears, winner changes, and settled name
+5. Reorg behavior: accepted bid disappears, winner changes, and settled name
    rolls back to the canonical chain state.
-9. Post-auction transfer boundaries: immature transfer with missing or
+6. Post-auction transfer boundaries: immature transfer with missing or
    insufficient successor bond.
-10. End-to-end private signet user journey: open auction, bid again, settle,
+7. End-to-end private signet user journey: open auction, bid again, settle,
     see name in Explore, publish value, transfer, and verify updated owner.
 
 ## Existing Reference Coverage

@@ -35,7 +35,7 @@ void main().catch((error) => {
 });
 
 async function main() {
-  await withPrivateSignetSession(async ({ owner, rpcPassword }) => {
+  await withPrivateSignetSession(async ({ owner, recipient, rpcUsername, rpcPassword }) => {
     const outDir = scenarioArtifactsDir("auction-phase-gallery");
     await mkdir(outDir, { recursive: true });
 
@@ -57,6 +57,11 @@ async function main() {
       ownerPubkey: owner.ownerPubkey,
       fundingAddress: owner.fundingAddress,
       fundingWif: owner.fundingWif,
+      extensionBidderId: `${softCloseState.normalizedName}-gallery-beta`,
+      extensionOwnerPubkey: recipient.ownerPubkey,
+      extensionFundingAddress: recipient.fundingAddress,
+      extensionFundingWif: recipient.fundingWif,
+      rpcUsername,
       rpcPassword
     });
     const preparedLive = await ensureLivePhase({
@@ -66,6 +71,7 @@ async function main() {
       ownerPubkey: owner.ownerPubkey,
       fundingAddress: owner.fundingAddress,
       fundingWif: owner.fundingWif,
+      rpcUsername,
       rpcPassword
     });
 
@@ -83,7 +89,8 @@ async function main() {
       },
       actions: {
         liveBidTxid: preparedLive.bidTxid,
-        softCloseBidTxid: preparedSoftClose.bidTxid
+        softCloseOpeningBidTxid: preparedSoftClose.openingBidTxid,
+        softCloseExtensionBidTxid: preparedSoftClose.extensionBidTxid
       }
     };
 
@@ -94,7 +101,7 @@ async function main() {
 
 async function preparePhaseFixtureOpenings(currentHeight) {
   const schedule = {
-    "19-private-phase-pending.json": currentHeight + 80,
+    "19-private-phase-pending.json": currentHeight + 2_000,
     "20-private-phase-awaiting.json": currentHeight + 5,
     "21-private-phase-live.json": currentHeight + 15,
     "22-private-phase-soft-close.json": currentHeight + 6
@@ -104,7 +111,12 @@ async function preparePhaseFixtureOpenings(currentHeight) {
 const { readFileSync, writeFileSync, existsSync } = require("node:fs");
 const { join } = require("node:path");
 
-const appRoot = "/opt/ont/app";
+const appRoot = ["/opt/gns/app", "/opt/ont/app"].find((candidate) =>
+  existsSync(join(candidate, "fixtures/auction/private-signet-lab"))
+);
+if (!appRoot) {
+  throw new Error("unable to locate private signet app root");
+}
 const fixtureDir = join(appRoot, "fixtures/auction/private-signet-lab");
 const schedule = ${JSON.stringify(schedule)};
 
@@ -120,7 +132,7 @@ for (const [fileName, openingBlock] of Object.entries(schedule)) {
 console.log(JSON.stringify({ fixtureDir, schedule }));
 NODE`);
 
-  await runRemote("systemctl restart ont-private-resolver.service");
+  await runRemote("if systemctl list-unit-files gns-private-resolver.service >/dev/null 2>&1; then systemctl restart gns-private-resolver.service; else systemctl restart ont-private-resolver.service; fi");
   await waitForExperimentalAuctionFeed();
 }
 
@@ -202,6 +214,7 @@ async function ensureLivePhase(input) {
     bidAmountSats,
     fundingAddress: input.fundingAddress,
     fundingWif: input.fundingWif,
+    rpcUsername: input.rpcUsername,
     rpcPassword: input.rpcPassword
   });
 
@@ -219,29 +232,33 @@ async function ensureLivePhase(input) {
 
 async function ensureSoftClosePhase(input) {
   const ready = await ensureAuctionReadyForOpeningBid(input.auctionState);
-  if (ready.phase === "soft_close") {
-    return { bidTxid: null };
-  }
 
-  if (ready.phase !== "awaiting_opening_bid") {
+  if (ready.phase !== "awaiting_opening_bid" && ready.phase !== "soft_close") {
     throw new Error(`expected ${ready.auctionId} to be awaiting_opening_bid before soft-close setup`);
   }
 
-  const bidAmountSats = BigInt(ready.currentRequiredMinimumBidSats ?? ready.openingMinimumBidSats);
-  const bid = await buildAndBroadcastAuctionBid({
-    outDir: input.outDir,
-    fileStem: "phase-soft-close",
-    auctionState: ready,
-    bidderId: input.bidderId,
-    ownerPubkey: input.ownerPubkey,
-    bidAmountSats,
-    fundingAddress: input.fundingAddress,
-    fundingWif: input.fundingWif,
-    rpcPassword: input.rpcPassword
-  });
+  let openingBidTxid = null;
+  let afterBid = ready;
+
+  if (ready.phase === "awaiting_opening_bid") {
+    const bidAmountSats = BigInt(ready.currentRequiredMinimumBidSats ?? ready.openingMinimumBidSats);
+    const bid = await buildAndBroadcastAuctionBid({
+      outDir: input.outDir,
+      fileStem: "phase-soft-close-opening",
+      auctionState: ready,
+      bidderId: input.bidderId,
+      ownerPubkey: input.ownerPubkey,
+      bidAmountSats,
+      fundingAddress: input.fundingAddress,
+      fundingWif: input.fundingWif,
+      rpcUsername: input.rpcUsername,
+      rpcPassword: input.rpcPassword
+    });
+    openingBidTxid = bid.bidTxid;
+    afterBid = requireAuction((await fetchExperimentalAuctionFeed()).auctions, ready.auctionId);
+  }
 
   const afterBidFeed = await fetchExperimentalAuctionFeed();
-  const afterBid = requireAuction(afterBidFeed.auctions, ready.auctionId);
   const softCloseExtensionBlocks = Number(afterBidFeed.policy?.auction?.softCloseExtensionBlocks ?? 0);
   if (afterBid.auctionCloseBlockAfter === null) {
     throw new Error(`expected ${ready.auctionId} to expose an auction close height after the parked opening bid`);
@@ -264,29 +281,57 @@ async function ensureSoftClosePhase(input) {
     throw new Error(`expected ${ready.auctionId} to reach soft_close after mining into the late window`);
   }
 
-  return bid;
+  if (Number(refreshed.acceptedBidCount ?? 0) >= 2) {
+    return { openingBidTxid, extensionBidTxid: null };
+  }
+
+  const extensionBidAmountSats = BigInt(refreshed.currentRequiredMinimumBidSats ?? refreshed.openingMinimumBidSats);
+  const extensionBid = await buildAndBroadcastAuctionBid({
+    outDir: input.outDir,
+    fileStem: "phase-soft-close-extension",
+    auctionState: refreshed,
+    bidderId: input.extensionBidderId,
+    ownerPubkey: input.extensionOwnerPubkey,
+    bidAmountSats: extensionBidAmountSats,
+    fundingAddress: input.extensionFundingAddress,
+    fundingWif: input.extensionFundingWif,
+    rpcUsername: input.rpcUsername,
+    rpcPassword: input.rpcPassword
+  });
+
+  const extended = requireAuction((await fetchExperimentalAuctionFeed()).auctions, ready.auctionId);
+  if (extended.phase !== "soft_close" || Number(extended.acceptedBidCount ?? 0) < 2) {
+    throw new Error(`expected ${ready.auctionId} to show a multi-bid soft-close history`);
+  }
+
+  return { openingBidTxid, extensionBidTxid: extensionBid.bidTxid };
 }
 
 async function ensureAuctionReadyForOpeningBid(auctionState) {
-  if (auctionState.phase === "awaiting_opening_bid") {
-    return auctionState;
+  let currentState = auctionState;
+  if (auctionState.phase === "pending_unlock") {
+    currentState = requireAuction((await fetchExperimentalAuctionFeed()).auctions, auctionState.auctionId);
   }
 
-  if (auctionState.phase === "pending_unlock") {
-    const blocksToMine = Math.max(1, auctionState.unlockBlock - auctionState.currentBlockHeight);
+  if (currentState.phase === "awaiting_opening_bid") {
+    return currentState;
+  }
+
+  if (currentState.phase === "pending_unlock") {
+    const blocksToMine = Math.max(1, currentState.unlockBlock - currentState.currentBlockHeight);
     const currentHeight = await getBlockCount();
     await mineBlocks(blocksToMine);
     await waitForResolverHeight(currentHeight + blocksToMine);
 
-    return requireAuction((await fetchExperimentalAuctionFeed()).auctions, auctionState.auctionId);
+    return requireAuction((await fetchExperimentalAuctionFeed()).auctions, currentState.auctionId);
   }
 
-  if (auctionState.phase === "live_bidding" || auctionState.phase === "soft_close") {
-    return auctionState;
+  if (currentState.phase === "live_bidding" || currentState.phase === "soft_close") {
+    return currentState;
   }
 
   throw new Error(
-    `expected ${auctionState.auctionId} to be pre-eligibility or eligible to open; current phase is ${auctionState.phase}`
+    `expected ${currentState.auctionId} to be pre-eligibility or eligible to open; current phase is ${currentState.phase}`
   );
 }
 
@@ -299,6 +344,7 @@ async function buildAndBroadcastAuctionBid({
   bidAmountSats,
   fundingAddress,
   fundingWif,
+  rpcUsername,
   rpcPassword
 }) {
   const packagePath = join(outDir, `${fileStem}-auction-bid-package.json`);
@@ -367,7 +413,7 @@ async function buildAndBroadcastAuctionBid({
     "--rpc-url",
     localRpcUrl(),
     "--rpc-username",
-    "ontrpcprivate",
+    rpcUsername,
     "--rpc-password",
     rpcPassword,
     "--expected-chain",

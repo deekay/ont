@@ -208,6 +208,10 @@ describe("renderClientScript", () => {
     expect(script).toContain("Late-bid step");
     expect(script).toContain("Next valid bid (extends close)");
     expect(script).toContain("Counted / not counted");
+    expect(script).toContain("Bid history interpreted by ONT");
+    expect(script).toContain("Each row is the ONT resolver interpretation of confirmed chain data");
+    expect(script).toContain("The highest-after field shows the auction ladder after each observed attempt.");
+    expect(script).toContain("This late bid cleared the stronger soft-close increment");
     expect(script).toContain("Not counted: stale auction state");
     expect(script).toContain("Built from old auction state");
     expect(script).toContain("This bid was built from an older auction state.");

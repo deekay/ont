@@ -583,14 +583,18 @@ function shouldHidePublicAuctionEntry(entry: unknown): boolean {
     phase?: unknown;
   };
 
-  if (record.phase === "pending_unlock") {
-    return true;
-  }
-
   const text = [record.auctionId, record.title, record.description]
     .filter((value): value is string => typeof value === "string")
     .join(" ")
     .toLowerCase();
+
+  if (text.includes("private-phase-")) {
+    return false;
+  }
+
+  if (record.phase === "pending_unlock") {
+    return true;
+  }
 
   return text.includes("06-released")
     || text.includes("private-smoke-release")

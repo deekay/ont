@@ -52,6 +52,7 @@ async function main() {
     owner,
     recipient,
     pendingOwner,
+    rpcUsername,
     rpcPassword,
     resolverUrl: privateResolverUrl,
     rpcUrl
@@ -77,6 +78,7 @@ async function main() {
         bidAmountSats: alphaBidAmountSats,
         fundingAddress: owner.fundingAddress,
         fundingWif: owner.fundingWif,
+        rpcUsername,
         rpcPassword
       });
 
@@ -101,6 +103,7 @@ async function main() {
         bidAmountSats: betaBidAmountSats,
         fundingAddress: recipient.fundingAddress,
         fundingWif: recipient.fundingWif,
+        rpcUsername,
         rpcPassword
       });
 
@@ -224,6 +227,7 @@ async function main() {
         nameRecord: releasableNameRecord,
         sellerAccount: recipient,
         buyerAccount: pendingOwner,
+        rpcUsername,
         rpcPassword,
         outDir: join(outDir, "winner-mature-transfer")
       });
@@ -460,6 +464,7 @@ async function buildAndMaybeBroadcastAuctionBid({
   bidAmountSats,
   fundingAddress,
   fundingWif,
+  rpcUsername,
   rpcPassword,
   broadcastNow = true
 }) {
@@ -524,6 +529,7 @@ async function buildAndMaybeBroadcastAuctionBid({
   if (broadcastNow) {
     await broadcastSignedAuctionBid({
       signedPath,
+      rpcUsername,
       rpcPassword,
       expectedTxid: artifacts.bidTxid
     });
@@ -544,6 +550,7 @@ async function buildAndMaybeBroadcastAuctionBid({
 
 async function broadcastSignedAuctionBid({
   signedPath,
+  rpcUsername,
   rpcPassword,
   expectedTxid
 }) {
@@ -553,7 +560,7 @@ async function broadcastSignedAuctionBid({
     "--rpc-url",
     localRpcUrl(),
     "--rpc-username",
-    "ontrpcprivate",
+    rpcUsername,
     "--rpc-password",
     rpcPassword,
     "--expected-chain",

@@ -44,13 +44,13 @@ const LOCAL_RESOLVER_PORT = Number.parseInt(
     ?? "18788",
   10
 );
-const RPC_USERNAME =
+const DEFAULT_RPC_USERNAME =
   process.env.ONT_PRIVATE_SIGNET_RPC_USERNAME
   ?? "ontrpcprivate";
 
 export const TRANSFER_FEE_SATS = 1_000n;
 
-let cachedRpcPassword = null;
+let cachedRpcCredentials = null;
 
 export async function withPrivateSignetSession(callback) {
   ensureSshConfig();
@@ -60,7 +60,7 @@ export async function withPrivateSignetSession(callback) {
   const owner = await ensureAccount(OWNER_PATH);
   const recipient = await ensureAccount(RECIPIENT_PATH);
   const pendingOwner = await ensureAccount(PENDING_OWNER_PATH);
-  const rpcPassword = await getRemotePrivateRpcPassword();
+  const { rpcUsername, rpcPassword } = await getRemotePrivateRpcCredentials();
 
   await openTunnel();
 
@@ -71,6 +71,7 @@ export async function withPrivateSignetSession(callback) {
       owner,
       recipient,
       pendingOwner,
+      rpcUsername,
       rpcPassword,
       dataDir: DATA_DIR,
       artifactsRoot: OUT_DIR,
@@ -129,10 +130,12 @@ export async function giftTransferName({
   nameRecord,
   currentOwnerAccount,
   newOwnerAccount,
+  rpcUsername,
   rpcPassword,
   outDir
 }) {
   await mkdir(outDir, { recursive: true });
+  const username = rpcUsername ?? (await getRemotePrivateRpcUsername());
   const feeUtxo = await fundAddress(currentOwnerAccount.fundingAddress, 20_000n);
   const transferResult = await cliJson([
     "submit-transfer",
@@ -170,7 +173,7 @@ export async function giftTransferName({
     "--rpc-url",
     localRpcUrl(),
     "--rpc-username",
-    RPC_USERNAME,
+    username,
     "--rpc-password",
     rpcPassword,
     "--out-dir",
@@ -190,11 +193,13 @@ export async function immatureSaleTransferName({
   nameRecord,
   sellerAccount,
   buyerAccount,
+  rpcUsername,
   rpcPassword,
   outDir,
   salePriceSats = 20_000n
 }) {
   await mkdir(outDir, { recursive: true });
+  const username = rpcUsername ?? (await getRemotePrivateRpcUsername());
   const buyerFunding = await fundAddress(
     buyerAccount.fundingAddress,
     BigInt(nameRecord.currentBondValueSats) + salePriceSats + 20_000n
@@ -242,7 +247,7 @@ export async function immatureSaleTransferName({
     "--rpc-url",
     localRpcUrl(),
     "--rpc-username",
-    RPC_USERNAME,
+    username,
     "--rpc-password",
     rpcPassword,
     "--out-dir",
@@ -262,6 +267,7 @@ export async function matureSaleTransferName({
   nameRecord,
   sellerAccount,
   buyerAccount,
+  rpcUsername,
   rpcPassword,
   outDir,
   salePriceSats = 1_000n,
@@ -269,6 +275,7 @@ export async function matureSaleTransferName({
   buyerFundingSats = 20_000n
 }) {
   await mkdir(outDir, { recursive: true });
+  const username = rpcUsername ?? (await getRemotePrivateRpcUsername());
   const sellerFunding = await fundAddress(
     sellerAccount.fundingAddress,
     sellerFundingSats
@@ -311,7 +318,7 @@ export async function matureSaleTransferName({
     "--rpc-url",
     localRpcUrl(),
     "--rpc-username",
-    RPC_USERNAME,
+    username,
     "--rpc-password",
     rpcPassword,
     "--out-dir",
@@ -337,14 +344,24 @@ export async function ensureAccount(path) {
 
 export async function fundAddress(address, sats) {
   const amountBtc = satsToBtcString(sats);
-  const txid = (await runRemote(
+  const fundingOutput = (await runRemote(
     `ont-private-signet-fund ${shellEscape(address)} ${shellEscape(amountBtc)}`
   )).trim();
-  if (!txid) {
+  if (!fundingOutput) {
     throw new Error(`private signet funding did not return a txid for ${address}`);
   }
 
   await waitForResolverHeight(await getBlockCount());
+
+  const descriptor = parseFundingDescriptor(fundingOutput);
+  if (descriptor) {
+    if (descriptor.address !== address) {
+      throw new Error(`private signet funding returned output for ${descriptor.address}, expected ${address}`);
+    }
+    return descriptor;
+  }
+
+  const txid = fundingOutput.split(/\s+/g).at(-1);
   return await waitForAddressUtxo(txid, address);
 }
 
@@ -408,11 +425,12 @@ export async function waitForResolverHeight(targetHeight, attempts = 60) {
 }
 
 export async function rpcCall(method, params) {
+  const { rpcUsername, rpcPassword } = await getRemotePrivateRpcCredentials();
   const response = await fetch(localRpcUrl(), {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      authorization: `Basic ${Buffer.from(`${RPC_USERNAME}:${await getRemotePrivateRpcPassword()}`).toString("base64")}`
+      authorization: `Basic ${Buffer.from(`${rpcUsername}:${rpcPassword}`).toString("base64")}`
     },
     body: JSON.stringify({
       jsonrpc: "1.0",
@@ -435,18 +453,61 @@ export async function rpcCall(method, params) {
 }
 
 export async function getRemotePrivateRpcPassword() {
-  if (cachedRpcPassword) {
-    return cachedRpcPassword;
+  return (await getRemotePrivateRpcCredentials()).rpcPassword;
+}
+
+export async function getRemotePrivateRpcUsername() {
+  return (await getRemotePrivateRpcCredentials()).rpcUsername;
+}
+
+export async function getRemotePrivateRpcCredentials() {
+  if (cachedRpcCredentials) {
+    return cachedRpcCredentials;
   }
 
-  cachedRpcPassword = (await runRemote(
-    `awk -F= '/^ONT_BITCOIN_RPC_PASSWORD=/{print $2; exit}' /etc/ont/ont-private.env`
+  const envUsername = process.env.ONT_PRIVATE_SIGNET_RPC_USERNAME;
+  const envPassword = process.env.ONT_PRIVATE_SIGNET_RPC_PASSWORD;
+  if (envPassword) {
+    cachedRpcCredentials = {
+      rpcUsername: envUsername ?? DEFAULT_RPC_USERNAME,
+      rpcPassword: envPassword
+    };
+    return cachedRpcCredentials;
+  }
+
+  const rawCredentials = (await runRemote(
+    `node <<'NODE'
+const { existsSync, readFileSync } = require("node:fs");
+const files = ["/etc/gns/gns-private.env", "/etc/ont/ont-private.env"];
+const env = {};
+
+for (const file of files) {
+  if (!existsSync(file)) {
+    continue;
+  }
+  for (const line of readFileSync(file, "utf8").split(/\\r?\\n/g)) {
+    const match = line.match(/^([A-Z0-9_]+)=(.*)$/);
+    if (match && env[match[1]] === undefined) {
+      env[match[1]] = match[2];
+    }
+  }
+}
+
+const rpcUsername = env.GNS_BITCOIN_RPC_USERNAME || env.ONT_BITCOIN_RPC_USERNAME || ${JSON.stringify(DEFAULT_RPC_USERNAME)};
+const rpcPassword = env.GNS_BITCOIN_RPC_PASSWORD || env.ONT_BITCOIN_RPC_PASSWORD || "";
+if (!rpcPassword) {
+  process.exit(2);
+}
+console.log(JSON.stringify({ rpcUsername, rpcPassword }));
+NODE`
   )).trim();
-  if (!cachedRpcPassword) {
+
+  cachedRpcCredentials = JSON.parse(rawCredentials);
+  if (!cachedRpcCredentials.rpcUsername || !cachedRpcCredentials.rpcPassword) {
     throw new Error("unable to read private signet RPC password from VPS");
   }
 
-  return cachedRpcPassword;
+  return cachedRpcCredentials;
 }
 
 export async function openTunnel() {
@@ -627,6 +688,24 @@ export function btcDecimalToSats(value) {
 
 export function formatDescriptor(utxo) {
   return `${utxo.txid}:${utxo.vout}:${utxo.valueSats}:${utxo.address}`;
+}
+
+export function parseFundingDescriptor(value) {
+  const token = String(value).trim().split(/\s+/g).at(-1) ?? "";
+  const [txid, voutRaw, valueSatsRaw, address] = token.split(":");
+  if (!/^[0-9a-f]{64}$/i.test(txid ?? "")) {
+    return null;
+  }
+  if (!/^\d+$/.test(voutRaw ?? "") || !/^\d+$/.test(valueSatsRaw ?? "") || !address) {
+    return null;
+  }
+
+  return {
+    txid,
+    vout: Number.parseInt(voutRaw, 10),
+    valueSats: BigInt(valueSatsRaw),
+    address
+  };
 }
 
 export function localRpcUrl() {

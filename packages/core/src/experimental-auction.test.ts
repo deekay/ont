@@ -284,20 +284,49 @@ describe("experimental auction derivation", () => {
             currentRequiredMinimumBidSats: catalogEntry.openingMinimumBidSats,
             settlementLockBlocks: catalogEntry.settlementLockBlocks
           })
+        },
+        {
+          txid: "33".repeat(32),
+          blockHeight: 840_010,
+          txIndex: 2,
+          vout: 1,
+          bondVout: 0,
+          bidderCommitment: computeAuctionBidderCommitment("gamma"),
+          bidAmountSats: 1_050_000_000n,
+          settlementLockBlocks: catalogEntry.settlementLockBlocks,
+          auctionLotCommitment: catalogEntry.auctionLotCommitment,
+          spentOutpoints: [],
+          auctionCommitment: computeAuctionBidStateCommitment({
+            auctionId: catalogEntry.auctionId,
+            name: catalogEntry.normalizedName,
+            auctionClassId: catalogEntry.auctionClassId,
+            currentBlockHeight: 840_010,
+            phase: "live_bidding",
+            unlockBlock: catalogEntry.unlockBlock,
+            auctionCloseBlockAfter: 841_018,
+            openingMinimumBidSats: catalogEntry.openingMinimumBidSats,
+            currentLeaderBidderCommitment: betaCommitment,
+            currentHighestBidSats: 1_050_000_000n,
+            currentRequiredMinimumBidSats: 1_102_500_000n,
+            settlementLockBlocks: catalogEntry.settlementLockBlocks
+          })
         }
       ]
     });
 
     expect(state.acceptedBidCount).toBe(2);
+    expect(state.rejectedBidCount).toBe(1);
     expect(state.currentLeaderBidderCommitment).toBe(betaCommitment);
     expect(state.currentHighestBidSats).toBe(1_050_000_000n);
     expect(state.visibleBidOutcomes.map((outcome) => outcome.txid)).toEqual([
       "11".repeat(32),
-      "22".repeat(32)
+      "22".repeat(32),
+      "33".repeat(32)
     ]);
     expect(state.visibleBidOutcomes.map((outcome) => outcome.reason)).toEqual([
       "opening_bid",
-      "higher_bid"
+      "higher_bid",
+      "below_minimum_increment"
     ]);
   });
 

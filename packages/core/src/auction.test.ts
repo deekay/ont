@@ -61,6 +61,34 @@ describe("auction policy", () => {
       })
     ).toBe(1_210_000_000n);
   });
+
+  it("rounds percentage increments up so fractional requirements cannot be bypassed", () => {
+    const defaultPolicy = createDefaultLaunchAuctionPolicy();
+    const policy = {
+      ...defaultPolicy,
+      auction: {
+        ...defaultPolicy.auction,
+        minimumIncrementAbsoluteSats: 1n,
+        minimumIncrementBasisPoints: 500,
+        softCloseMinimumIncrementAbsoluteSats: 1n,
+        softCloseMinimumIncrementBasisPoints: 1_000
+      }
+    };
+
+    expect(
+      calculateLaunchAuctionMinimumIncrementBidSats({
+        currentBidSats: 101n,
+        policy
+      })
+    ).toBe(107n);
+    expect(
+      calculateLaunchAuctionMinimumIncrementBidSats({
+        currentBidSats: 101n,
+        policy,
+        useSoftCloseIncrement: true
+      })
+    ).toBe(112n);
+  });
 });
 
 describe("simulateLaunchAuction", () => {
@@ -205,6 +233,126 @@ describe("simulateLaunchAuction", () => {
     ]);
     expect(result.winner?.bidderId).toBe("exact");
     expect(result.winner?.amountSats).toBe(opening);
+  });
+
+  it("accepts the exact normal increment and rejects one sat below it", () => {
+    const policy = createDefaultLaunchAuctionPolicy();
+    const result = simulateLaunchAuction({
+      policy,
+      scenario: {
+        name: "marble",
+        auctionClassId: "launch_name",
+        unlockBlock: 900_000,
+        bidAttempts: [
+          {
+            bidderId: "alpha",
+            blockHeight: 900_010,
+            amountSats: 1_000_000_000n
+          },
+          {
+            bidderId: "under",
+            blockHeight: 900_020,
+            amountSats: 1_049_999_999n
+          },
+          {
+            bidderId: "exact",
+            blockHeight: 900_021,
+            amountSats: 1_050_000_000n
+          }
+        ]
+      }
+    });
+
+    expect(result.bidOutcomes.map((outcome) => outcome.reason)).toEqual([
+      "opening_bid",
+      "below_minimum_increment",
+      "higher_bid"
+    ]);
+    expect(result.winner).toEqual({
+      bidderId: "exact",
+      blockHeight: 900_021,
+      amountSats: 1_050_000_000n
+    });
+  });
+
+  it("handles soft-close boundaries, exact late increments, repeated extensions, and after-close rejection", () => {
+    const defaultPolicy = createDefaultLaunchAuctionPolicy();
+    const policy = {
+      ...defaultPolicy,
+      auction: {
+        ...defaultPolicy.auction,
+        baseWindowBlocks: 10,
+        softCloseExtensionBlocks: 3,
+        minimumIncrementAbsoluteSats: 1n,
+        minimumIncrementBasisPoints: 500,
+        softCloseMinimumIncrementAbsoluteSats: 1n,
+        softCloseMinimumIncrementBasisPoints: 1_000
+      }
+    };
+    const result = simulateLaunchAuction({
+      policy,
+      scenario: {
+        name: "silverpine",
+        auctionClassId: "launch_name",
+        unlockBlock: 100,
+        bidAttempts: [
+          {
+            bidderId: "alpha",
+            blockHeight: 100,
+            amountSats: 200_000n
+          },
+          {
+            bidderId: "before_soft_close",
+            blockHeight: 106,
+            amountSats: 210_000n
+          },
+          {
+            bidderId: "under_soft_close",
+            blockHeight: 107,
+            amountSats: 230_999n
+          },
+          {
+            bidderId: "exact_soft_close",
+            blockHeight: 107,
+            amountSats: 231_000n
+          },
+          {
+            bidderId: "at_close_boundary",
+            blockHeight: 110,
+            amountSats: 254_100n
+          },
+          {
+            bidderId: "after_extended_close",
+            blockHeight: 114,
+            amountSats: 279_510n
+          }
+        ]
+      }
+    });
+
+    expect(result.initialAuctionCloseBlock).toBe(110);
+    expect(result.finalAuctionCloseBlock).toBe(113);
+    expect(result.bidOutcomes.map((outcome) => outcome.reason)).toEqual([
+      "opening_bid",
+      "higher_bid",
+      "below_minimum_increment",
+      "higher_bid_soft_close_extended",
+      "higher_bid_soft_close_extended",
+      "auction_closed"
+    ]);
+    expect(result.bidOutcomes.map((outcome) => outcome.auctionCloseBlockAfter)).toEqual([
+      110,
+      110,
+      110,
+      110,
+      113,
+      113
+    ]);
+    expect(result.winner).toEqual({
+      bidderId: "at_close_boundary",
+      blockHeight: 110,
+      amountSats: 254_100n
+    });
   });
 
   it("accepts bids at the close boundary but rejects after it", () => {
