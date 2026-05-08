@@ -74,14 +74,14 @@ describe("simulateLaunchAuctionStateAtBlock", () => {
   it("reports live bidding after a valid opening bid before soft close", () => {
     const state = simulateLaunchAuctionStateAtBlock({
       policy,
-      currentBlockHeight: 851_600,
+      currentBlockHeight: 850_600,
       scenario: parseLaunchAuctionScenario({
         name: "meadow",
         auctionClassId: "launch_name",
         unlockBlock: 850_000,
         bidAttempts: [
           { bidderId: "speculator_a", blockHeight: 850_010, amountSats: "200000000" },
-          { bidderId: "speculator_b", blockHeight: 851_500, amountSats: "220000000" }
+          { bidderId: "speculator_b", blockHeight: 850_500, amountSats: "220000000" }
         ]
       })
     });
@@ -95,22 +95,22 @@ describe("simulateLaunchAuctionStateAtBlock", () => {
   it("reports soft close after a late extension bid", () => {
     const state = simulateLaunchAuctionStateAtBlock({
       policy,
-      currentBlockHeight: 844_360,
+      currentBlockHeight: 841_060,
       scenario: parseLaunchAuctionScenario({
         name: "marble",
         auctionClassId: "launch_name",
         unlockBlock: 840_000,
         bidAttempts: [
           { bidderId: "alpha", blockHeight: 840_010, amountSats: "1000000000" },
-          { bidderId: "beta", blockHeight: 844_210, amountSats: "1100000000" },
-          { bidderId: "gamma", blockHeight: 844_353, amountSats: "1210000000" }
+          { bidderId: "beta", blockHeight: 840_910, amountSats: "1100000000" },
+          { bidderId: "gamma", blockHeight: 841_053, amountSats: "1210000000" }
         ]
       })
     });
 
     expect(state.phase).toBe("soft_close");
     expect(state.currentLeaderBidderId).toBe("gamma");
-    expect(state.auctionCloseBlockAfter).toBe(844_497);
+    expect(state.auctionCloseBlockAfter).toBe(841_197);
     expect(state.blocksUntilClose).toBe(137);
     expect(state.currentRequiredMinimumBidSats?.toString()).toBe("1331000000");
   });
@@ -118,16 +118,16 @@ describe("simulateLaunchAuctionStateAtBlock", () => {
   it("reports settled after the closing block passes", () => {
     const state = simulateLaunchAuctionStateAtBlock({
       policy,
-      currentBlockHeight: 854_700,
+      currentBlockHeight: 851_400,
       scenario: parseLaunchAuctionScenario({
         name: "meadow",
         auctionClassId: "launch_name",
         unlockBlock: 850_000,
         bidAttempts: [
           { bidderId: "speculator_a", blockHeight: 850_010, amountSats: "200000000" },
-          { bidderId: "speculator_b", blockHeight: 851_500, amountSats: "220000000" },
-          { bidderId: "speculator_c", blockHeight: 854_320, amountSats: "242000000" },
-          { bidderId: "speculator_d", blockHeight: 854_450, amountSats: "267000000" }
+          { bidderId: "speculator_b", blockHeight: 850_900, amountSats: "220000000" },
+          { bidderId: "speculator_c", blockHeight: 851_043, amountSats: "242000000" },
+          { bidderId: "speculator_d", blockHeight: 851_180, amountSats: "267000000" }
         ]
       })
     });

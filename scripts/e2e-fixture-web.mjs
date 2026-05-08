@@ -78,7 +78,7 @@ try {
         secondaryResolverUrl,
         webUrl,
         checkedFlows: [
-          "home-docs-surface",
+          "home-workflow-surface",
           "home-search-to-auction-carryover",
           "live-auction-browser-flow",
           "retired-direct-claim-redirect"
@@ -106,10 +106,10 @@ async function assertHomePage(page) {
   });
 
   await waitForVisibleText(page, "Human-Readable Names You Can Actually Own");
-  await waitForVisibleText(page, "Start Here");
-  await waitForVisibleText(page, "Set Up Sparrow");
-  await waitForVisibleText(page, "Bid On A Name");
-  await waitForVisibleText(page, "Inspect Live Names");
+  await waitForVisibleText(page, "Choose A Workflow");
+  await waitForVisibleText(page, "Set Up Signing");
+  await waitForVisibleText(page, "Build A Bid");
+  await waitForVisibleText(page, "Inspect Live State");
   const html = await page.content();
   assert(
     html.includes("/auctions"),
@@ -188,11 +188,11 @@ async function assertAuctionsPage(page) {
   });
   const bodyText = await page.locator("body").textContent();
   assert(
-    (bodyText ?? "").includes("Check a name, prepare the Sparrow transaction"),
+    (bodyText ?? "").includes("Check a name, build the unsigned Sparrow PSBT"),
     "auction page should expose the current auction framing"
   );
   assert(
-    (bodyText ?? "").includes("Confirmed bids the resolver currently sees on chain."),
+    (bodyText ?? "").includes("Confirmed bid activity and current minimums from the resolver."),
     "auction page should expose the chain-derived experimental bid feed"
   );
   assert(

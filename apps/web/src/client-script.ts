@@ -5349,25 +5349,26 @@ function renderAuctionBidPackageComposer(input) {
 
   if (input.phase === "settled") {
     return [
-      '<details class="detail-technical">',
-      "  <summary>Auction bid packages unavailable</summary>",
-      '  <div class="detail-technical-body">',
-      '    <p class="tx-panel-note">This auction is already settled. Review the winner and release details above instead of preparing another bid package.</p>',
-      "  </div>",
-      "</details>"
+      '<div class="result-card empty">',
+      "  <h3>Auction bid unavailable</h3>",
+      "  <p>This auction is already settled. Open the name detail page to manage destinations or transfer ownership.</p>",
+      "</div>"
     ].join("");
   }
 
 	  return [
-	    '<details class="detail-technical"' + (input.open ? " open" : "") + ">",
-	    "  <summary>" + escapeHtml(input.source === "opening" ? "Open auction with bonded bid" : "Bid with Sparrow") + "</summary>",
-	    '  <div class="detail-technical-body draft-grid">',
+	    '<section class="auction-bid-workflow">',
+	    '  <div class="result-title auction-bid-workflow-head">',
+	    "    <h3>" + escapeHtml(input.source === "opening" ? "Open auction with bonded bid" : "Bid with Sparrow") + "</h3>",
+	    '    <span class="status-pill pending">PSBT workflow</span>',
+	    "  </div>",
+	    '  <div class="draft-grid">',
 	    renderAuctionBidFlowTimeline(input.source, input.id, domKey),
 	    '    <input id="auction-bidder-' + escapeHtml(domKey) + '" type="hidden" data-auction-bidder-id="' + escapeHtml(input.id) + '" data-auction-package-source="' + escapeHtml(input.source) + '" value="' + escapeHtml(input.defaultBidderId) + '" />',
 	    '    <input id="auction-owner-' + escapeHtml(domKey) + '" type="hidden" data-auction-owner-pubkey="' + escapeHtml(input.id) + '" data-auction-package-source="' + escapeHtml(input.source) + '" value="' + escapeHtml(defaultOwnerPubkey) + '" />',
     '    <div class="field draft-field-full"><label class="field-label" for="auction-amount-' + escapeHtml(domKey) + '">' + escapeHtml(input.source === "opening" ? "Required opening bond (BTC)" : "Bid amount (BTC)") + '</label><input id="auction-amount-' + escapeHtml(domKey) + '" type="text" inputmode="decimal" data-auction-bid-amount="' + escapeHtml(input.id) + '" data-auction-package-source="' + escapeHtml(input.source) + '" value="' + escapeHtml(input.defaultBidAmount) + '" /><p class="field-note">This becomes the self-custodied bond for the auction bid. Make sure your Sparrow wallet has at least this amount plus a small network fee.</p></div>',
     '    <div class="draft-field-full">',
-    '      <div class="result-card empty" data-auction-owner-key-result="' + escapeHtml(domKey) + '">This bid needs an ONT recovery kit. Your wallet backup stays inside your wallet and signs the bitcoin transaction; this recovery kit controls the name if the bid wins. Create, download, and confirm the kit before building the bid transaction.</div>',
+    '      <div class="result-card empty" data-auction-owner-key-result="' + escapeHtml(domKey) + '">Create, download, and confirm the ONT recovery kit before building the bid transaction. Sparrow still signs the bitcoin transaction.</div>',
     renderAuctionBidArtifactsComposer(input, domKey),
     '      <details class="detail-technical">',
     "        <summary>Advanced bid package details</summary>",
@@ -5385,7 +5386,7 @@ function renderAuctionBidPackageComposer(input) {
     '      <div data-auction-package-preview="' + escapeHtml(domKey) + '"></div>',
     "    </div>",
 	    "  </div>",
-	    "</details>"
+	    "</section>"
 	  ].join("");
 	}
 

@@ -242,7 +242,7 @@ install -m 755 /opt/ont/app/scripts/private-signet-auto-mine.sh /usr/local/bin/o
 
 cat >/etc/default/ont-private-signet-auto-mine <<'ENVFILE'
 ONT_PRIVATE_SIGNET_AUTO_MINE_INTERVAL_SECONDS=30
-ONT_PRIVATE_SIGNET_AUTO_MINE_HEARTBEAT_SECONDS=600
+ONT_PRIVATE_SIGNET_AUTO_MINE_HEARTBEAT_SECONDS=60
 ENVFILE
 chown root:root /etc/default/ont-private-signet-auto-mine
 chmod 644 /etc/default/ont-private-signet-auto-mine

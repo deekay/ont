@@ -46,14 +46,15 @@ Review questions:
 
 | Parameter | Current default | Approximate time |
 | --- | ---: | ---: |
-| Base auction window | `4,320` blocks | ~30 days |
+| Base auction window | `1,008` blocks | ~7 days |
 | Soft-close window | `144` blocks | ~1 day |
 | Soft-close extension rule | Bid inside the final `144` blocks moves close to bid block + `144` | ~1 day from late bid |
 | Hard cap on extensions | None | N/A |
 
 Review questions:
 
-- Is a ~30 day auction too long for ordinary names?
+- Is a ~7 day auction long enough for ordinary names without making testing and
+  capital lockup feel slow?
 - Is a ~1 day soft-close response window enough?
 - Should there be no hard cap, or should auctions eventually be forced to end?
 

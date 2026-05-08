@@ -91,10 +91,9 @@ The current preferred timing shape is:
 - soft-close extension: about `24 hours`
 - no hard extension cap in the current design; late bids can keep extending only
   by clearing stronger bonded increments
-- initial launch period: may use longer windows if awareness is uneven
 
-The prototype currently has older simulator defaults in some places. Those
-should be migrated toward this model rather than treated as final.
+The prototype default should stay aligned with this single timing model unless
+review feedback gives us a strong reason to change it.
 
 ## Pricing And Bonds
 

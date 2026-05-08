@@ -1,4 +1,5 @@
-import { getBondSats, normalizeName } from "@ont/protocol";
+import { getBondSats } from "@ont/protocol/bond";
+import { normalizeName } from "@ont/protocol/names";
 
 export const LAUNCH_AUCTION_CLASS_IDS = [
   "launch_name"
@@ -60,7 +61,7 @@ export function createDefaultLaunchAuctionPolicy(): LaunchAuctionPolicy {
   return {
     defaultSettlementLockBlocks: 52_560,
     auction: {
-      baseWindowBlocks: 4_320,
+      baseWindowBlocks: 1_008,
       softCloseExtensionBlocks: 144,
       minimumIncrementAbsoluteSats: 1_000n,
       minimumIncrementBasisPoints: 500,

@@ -162,7 +162,7 @@ describe("renderClientScript", () => {
     expect(script).toContain("Sign only if those addresses are yours.");
     expect(script).toContain("Paste a funded Sparrow output first.");
     expect(script).not.toContain("Funded Sparrow coin");
-    expect(script).toContain("This bid needs an ONT recovery kit.");
+    expect(script).toContain("Create, download, and confirm the ONT recovery kit before building the bid transaction.");
     expect(script).toContain("Confirm the ONT recovery kit before building the bid transaction.");
     expect(script).toContain("Download debug artifacts");
     expect(script).not.toContain("Master fingerprint");

@@ -1933,6 +1933,19 @@ button:disabled {
   grid-column: 1 / -1;
 }
 
+.auction-bid-workflow {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.auction-bid-workflow-head {
+  margin: 0;
+}
+
 .auction-psbt-builder {
   margin-top: 18px;
 }
@@ -3907,6 +3920,309 @@ body[data-page-kind="auctions"] .panel-head-copy p {
   .guide-card,
   .highlight-card {
     padding: 18px;
+  }
+}
+
+/* Tool-surface polish: tighter sections, flatter cards, no clipped action rows. */
+:root {
+  --shadow: 0 18px 44px rgba(23, 50, 44, 0.1);
+  --shadow-soft: 0 10px 26px rgba(23, 50, 44, 0.08);
+  --shadow-card: 0 6px 16px rgba(23, 50, 44, 0.055);
+  --shadow-lift: 0 10px 26px rgba(23, 50, 44, 0.09);
+  --radius-lg: 10px;
+  --radius-md: 8px;
+  --radius-sm: 6px;
+}
+
+.site-nav,
+.site-nav-link,
+.hero-copy,
+.hero-card,
+.hero-home-copy,
+.hero-home-lookup,
+.hero-home-launch-strip,
+.panel,
+.site-footer,
+.jump-bar-overview,
+.jump-bar a,
+.link-chip,
+.tool-handoff-card,
+.command-block,
+.summary-chip,
+.detail-summary-card,
+.info-popover-toggle,
+.info-popover-card,
+.hero-status,
+.hero-action-item,
+.claim-flow-step,
+.claim-step-badge,
+input,
+textarea,
+select,
+button,
+.action-link,
+.result-card,
+.highlight-card,
+.transfer-essentials-card,
+.stat-card,
+.guide-card,
+.auction-bid-workflow,
+.bid-flow-timeline,
+.psbt-handoff-steps,
+.psbt-trust-note,
+.protocol-flow-card,
+.protocol-flow-number,
+.protocol-example,
+.protocol-result,
+.choice-card,
+.panel-empty-state,
+.explore-empty-card,
+.destination-stage,
+.destination-map-anchor,
+.destination-map-record,
+.destination-map-client,
+.destination-token,
+.path-card,
+.transfer-role-panel,
+.transfer-package-review-tool,
+.value-bundle-editor,
+.value-bundle-row,
+.value-bundle-preview-row,
+.value-history-card,
+.resolver-compare-card,
+.value-history-row,
+.state-chip,
+.status-chip,
+.status-pill,
+.filter-chip,
+.lookup-fact,
+.result-banner,
+.search-state-banner,
+.timeline-entry,
+.name-activity-entry,
+.transfer-mode-entry,
+.mode-card,
+.message,
+.compact-name-card {
+  border-radius: var(--radius-md);
+}
+
+.site-nav,
+.hero-copy,
+.hero-card,
+.hero-home-copy,
+.hero-home-lookup,
+.panel,
+.site-footer {
+  box-shadow: var(--shadow-soft);
+}
+
+.hero-page {
+  max-width: 1080px;
+}
+
+.hero-page .hero-copy {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px 24px;
+  align-items: center;
+  padding: 24px 28px;
+  text-align: left;
+}
+
+.hero-page h1 {
+  grid-column: 1;
+  justify-self: start;
+  max-width: none;
+  margin: 0;
+  width: 100%;
+  font-size: clamp(2rem, 3.2vw, 3rem);
+  line-height: 1;
+  letter-spacing: 0;
+  text-align: left;
+}
+
+.hero-page .lede {
+  grid-column: 1;
+  justify-self: start;
+  margin: 8px 0 0;
+  max-width: 46ch;
+  width: 100%;
+  text-align: left;
+}
+
+.hero-page .hero-status {
+  grid-row: 1 / span 2;
+  grid-column: 2;
+  margin: 0;
+  max-width: 34ch;
+  text-align: center;
+}
+
+.panel {
+  padding: 24px;
+  gap: 18px;
+}
+
+.guide-card,
+.result-card,
+.highlight-card,
+.transfer-essentials-card,
+.stat-card,
+.path-card,
+.transfer-role-panel,
+.transfer-package-review-tool {
+  padding: 16px;
+  box-shadow: var(--shadow-card);
+}
+
+.guide-card,
+.result-card,
+.stat-card,
+.path-card,
+.transfer-role-panel,
+.transfer-package-review-tool {
+  background: rgba(255, 255, 255, 0.74);
+}
+
+.claim-flow {
+  gap: 16px;
+}
+
+.wizard-step-summary {
+  padding: 18px 20px;
+}
+
+.wizard-step-body {
+  padding: 0 20px 20px;
+}
+
+.value-intake-grid {
+  grid-template-columns: minmax(280px, 0.92fr) minmax(300px, 1fr);
+  gap: 16px;
+}
+
+.value-intake-callout {
+  min-height: 0;
+}
+
+.transfer-role-workflow-simple {
+  margin-top: 16px;
+}
+
+.path-grid {
+  grid-template-columns: repeat(auto-fit, minmax(218px, 1fr));
+}
+
+.path-card {
+  min-width: 0;
+  min-height: 172px;
+  overflow: visible;
+}
+
+.path-card-actions,
+.guide-card-actions,
+.hero-lookup-actions,
+.link-strip-actions {
+  flex-wrap: wrap;
+}
+
+.path-card-actions .action-link {
+  min-width: 0;
+  max-width: 100%;
+}
+
+button,
+.action-link,
+.link-chip {
+  min-height: 42px;
+  padding: 10px 16px;
+  box-shadow: 0 8px 18px rgba(23, 50, 44, 0.11);
+}
+
+input,
+textarea,
+select {
+  min-height: 46px;
+  padding: 11px 13px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+.result-card.empty {
+  color: var(--ink);
+}
+
+@media (max-width: 980px) {
+  .hero-page .hero-copy {
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+
+  .hero-page .lede {
+    grid-column: auto;
+    justify-self: center;
+    margin-left: auto;
+    margin-right: auto;
+    width: auto;
+    text-align: center;
+  }
+
+  .hero-page h1 {
+    grid-column: auto;
+    justify-self: center;
+    width: auto;
+    text-align: center;
+  }
+
+  .hero-page .hero-status {
+    grid-row: auto;
+    grid-column: auto;
+    justify-self: center;
+  }
+
+  .value-intake-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 981px) {
+  .path-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .page-shell {
+    width: min(100vw, calc(100vw - 20px));
+  }
+
+  .hero-page .hero-copy,
+  .hero-home-copy,
+  .hero-home-lookup,
+  .panel,
+  .site-footer {
+    padding: 18px;
+  }
+
+  .hero-page h1,
+  .hero-home-copy h1 {
+    font-size: clamp(2rem, 8.5vw, 2.7rem);
+    max-width: none;
+  }
+
+  .path-card,
+  .guide-card,
+  .result-card,
+  .highlight-card,
+  .transfer-essentials-card,
+  .stat-card,
+  .transfer-role-panel,
+  .transfer-package-review-tool {
+    padding: 16px;
+  }
+
+  .link-strip-actions {
+    grid-template-columns: 1fr;
   }
 }
 `;

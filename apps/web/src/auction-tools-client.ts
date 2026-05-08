@@ -2,7 +2,7 @@ import { buildAuctionBidArtifacts, parseFundingInputDescriptor } from "@ont/arch
 import {
   createAuctionBidPackage,
   type AuctionBidPackage
-} from "@ont/protocol";
+} from "@ont/protocol/auction-bid-package";
 import {
   createDefaultLaunchAuctionPolicy,
   getLaunchAuctionOpeningRequirements

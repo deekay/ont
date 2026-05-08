@@ -1,8 +1,8 @@
 import {
   computeAuctionBidStateCommitment,
-  computeAuctionLotCommitment,
-  normalizeName
-} from "@ont/protocol";
+  computeAuctionLotCommitment
+} from "@ont/protocol/auction-bid-package";
+import { normalizeName } from "@ont/protocol/names";
 
 import {
   calculateLaunchAuctionMinimumIncrementBidSats,

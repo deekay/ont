@@ -1,7 +1,7 @@
 {
   "title": "Private demo auction · marble (soft close)",
   "description": "Private signet auction fixture kept around specifically so the curated auction lab still shows a soft-close phase even though the live chain is much shorter.",
-  "currentBlockHeight": 4450,
+  "currentBlockHeight": 990,
   "scenario": {
     "name": "marble",
     "auctionClassId": "launch_name",
@@ -14,7 +14,7 @@
       },
       {
         "bidderId": "private_beta",
-        "blockHeight": 4311,
+        "blockHeight": 980,
         "amountSats": "1100000000"
       }
     ]

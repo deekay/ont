@@ -191,7 +191,7 @@ if [[ -f /etc/bitcoin-private-signet.conf ]]; then
   install -m 755 "${APP_ROOT}/scripts/install-private-signet-electrum.sh" /usr/local/bin/install-private-signet-electrum
 cat >"$AUTO_MINE_ENV" <<'ENVFILE'
 ONT_PRIVATE_SIGNET_AUTO_MINE_INTERVAL_SECONDS=30
-ONT_PRIVATE_SIGNET_AUTO_MINE_HEARTBEAT_SECONDS=600
+ONT_PRIVATE_SIGNET_AUTO_MINE_HEARTBEAT_SECONDS=60
 ENVFILE
   chown root:root "$AUTO_MINE_ENV"
   chmod 644 "$AUTO_MINE_ENV"

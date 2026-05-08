@@ -35,11 +35,11 @@ const cards = [
   {
     title: "Auction Timing",
     rows: [
-      ["Base window", "4,320 blocks"],
+      ["Base window", "1,008 blocks"],
       ["Soft close", "144 blocks"],
       ["Extension cap", "none"]
     ],
-    ask: "Review ~30 day auctions, ~1 day response windows, and whether no hard cap is acceptable."
+    ask: "Review ~7 day auctions, ~1 day response windows, and whether no hard cap is acceptable."
   },
   {
     title: "Bid Escalation",
@@ -96,7 +96,7 @@ const bondRows = [
 
 const reviewQuestions = [
   "Are the shortest-name floors high enough without making ownership impossible?",
-  "Should the base auction window be shorter than about 30 days?",
+  "Is about 7 days long enough for ordinary public auctions?",
   "Is no hard cap acceptable if late bids must clear 10 percent?",
   "Should maturity stay fixed at about 1 year or vary by length or final bond?",
   "When a bond breaks early, should the next auction reset to the length floor?",

@@ -28,7 +28,7 @@ describe("experimental auction derivation", () => {
 
     const state = deriveExperimentalLaunchAuctionState({
       policy,
-      currentBlockHeight: 844_250,
+      currentBlockHeight: 840_950,
       catalogEntry,
       bidObservations: [
         {
@@ -59,7 +59,7 @@ describe("experimental auction derivation", () => {
         },
         {
           txid: "22".repeat(32),
-          blockHeight: 844_210,
+          blockHeight: 840_910,
           txIndex: 0,
           vout: 1,
           bondVout: 0,
@@ -72,10 +72,10 @@ describe("experimental auction derivation", () => {
             auctionId: catalogEntry.auctionId,
             name: catalogEntry.normalizedName,
             auctionClassId: catalogEntry.auctionClassId,
-            currentBlockHeight: 844_210,
+            currentBlockHeight: 840_910,
             phase: "soft_close",
             unlockBlock: catalogEntry.unlockBlock,
-            auctionCloseBlockAfter: 844_330,
+            auctionCloseBlockAfter: 841_018,
             openingMinimumBidSats: catalogEntry.openingMinimumBidSats,
             currentLeaderBidderCommitment: computeAuctionBidderCommitment("alpha"),
             currentHighestBidSats: 1_000_000_000n,
@@ -85,7 +85,7 @@ describe("experimental auction derivation", () => {
         },
         {
           txid: "33".repeat(32),
-          blockHeight: 844_211,
+          blockHeight: 840_911,
           txIndex: 0,
           vout: 1,
           bondVout: 0,
@@ -98,10 +98,10 @@ describe("experimental auction derivation", () => {
             auctionId: catalogEntry.auctionId,
             name: catalogEntry.normalizedName,
             auctionClassId: catalogEntry.auctionClassId,
-            currentBlockHeight: 844_211,
+            currentBlockHeight: 840_911,
             phase: "soft_close",
             unlockBlock: catalogEntry.unlockBlock,
-            auctionCloseBlockAfter: 844_330,
+            auctionCloseBlockAfter: 841_054,
             openingMinimumBidSats: catalogEntry.openingMinimumBidSats,
             currentLeaderBidderCommitment: computeAuctionBidderCommitment("beta"),
             currentHighestBidSats: 1_100_000_000n,
@@ -143,7 +143,7 @@ describe("experimental auction derivation", () => {
 
     const state = deriveExperimentalLaunchAuctionState({
       policy,
-      currentBlockHeight: 844_250,
+      currentBlockHeight: 840_050,
       catalogEntry,
       bidObservations: [
         {
@@ -251,7 +251,7 @@ describe("experimental auction derivation", () => {
             currentBlockHeight: 840_010,
             phase: "live_bidding",
             unlockBlock: catalogEntry.unlockBlock,
-            auctionCloseBlockAfter: 844_330,
+            auctionCloseBlockAfter: 841_018,
             openingMinimumBidSats: catalogEntry.openingMinimumBidSats,
             currentLeaderBidderCommitment: alphaCommitment,
             currentHighestBidSats: 1_000_000_000n,
@@ -422,7 +422,7 @@ describe("experimental auction derivation", () => {
         },
         {
           txid: "22".repeat(32),
-          blockHeight: 844_210,
+          blockHeight: 840_910,
           txIndex: 0,
           vout: 1,
           bondVout: 0,
@@ -435,10 +435,10 @@ describe("experimental auction derivation", () => {
             auctionId: catalogEntry.auctionId,
             name: catalogEntry.normalizedName,
             auctionClassId: catalogEntry.auctionClassId,
-            currentBlockHeight: 844_210,
+            currentBlockHeight: 840_910,
             phase: "soft_close",
             unlockBlock: catalogEntry.unlockBlock,
-            auctionCloseBlockAfter: 844_330,
+            auctionCloseBlockAfter: 841_018,
             openingMinimumBidSats: catalogEntry.openingMinimumBidSats,
             currentLeaderBidderCommitment: computeAuctionBidderCommitment("alpha"),
             currentHighestBidSats: 1_000_000_000n,
@@ -452,7 +452,7 @@ describe("experimental auction derivation", () => {
     expect(state.phase).toBe("settled");
     expect(state.winnerBidTxid).toBe("22".repeat(32));
     expect(state.winnerBidderCommitment).toBe(computeAuctionBidderCommitment("beta"));
-    expect(state.winnerBondReleaseBlock).toBe(844_210 + catalogEntry.settlementLockBlocks);
+    expect(state.winnerBondReleaseBlock).toBe(840_910 + catalogEntry.settlementLockBlocks);
     expect(state.currentlyLockedAcceptedBidCount).toBe(0);
     expect(state.releasableAcceptedBidCount).toBe(2);
     expect(state.releasableAcceptedBidAmountSats).toBe(2_100_000_000n);
@@ -480,7 +480,7 @@ describe("experimental auction derivation", () => {
 
     const state = deriveExperimentalLaunchAuctionState({
       policy,
-      currentBlockHeight: 844_250,
+      currentBlockHeight: 840_950,
       catalogEntry,
       bidObservations: [
         {
@@ -511,7 +511,7 @@ describe("experimental auction derivation", () => {
         },
         {
           txid: "22".repeat(32),
-          blockHeight: 844_210,
+          blockHeight: 840_910,
           txIndex: 0,
           vout: 1,
           bondVout: 0,
@@ -524,10 +524,10 @@ describe("experimental auction derivation", () => {
             auctionId: catalogEntry.auctionId,
             name: catalogEntry.normalizedName,
             auctionClassId: catalogEntry.auctionClassId,
-            currentBlockHeight: 844_210,
+            currentBlockHeight: 840_910,
             phase: "soft_close",
             unlockBlock: catalogEntry.unlockBlock,
-            auctionCloseBlockAfter: 844_330,
+            auctionCloseBlockAfter: 841_018,
             openingMinimumBidSats: catalogEntry.openingMinimumBidSats,
             currentLeaderBidderCommitment: computeAuctionBidderCommitment("alpha"),
             currentHighestBidSats: 1_000_000_000n,
@@ -541,7 +541,7 @@ describe("experimental auction derivation", () => {
           outpointTxid: "11".repeat(32),
           outpointVout: 0,
           spentTxid: "aa".repeat(32),
-          spentBlockHeight: 844_220,
+          spentBlockHeight: 840_920,
           spentTxIndex: 0,
           spendingInputIndex: 0
         },
@@ -549,7 +549,7 @@ describe("experimental auction derivation", () => {
           outpointTxid: "22".repeat(32),
           outpointVout: 0,
           spentTxid: "bb".repeat(32),
-          spentBlockHeight: 844_221,
+          spentBlockHeight: 840_921,
           spentTxIndex: 0,
           spendingInputIndex: 0
         }
@@ -558,17 +558,17 @@ describe("experimental auction derivation", () => {
 
     expect(state.visibleBidOutcomes[0]).toMatchObject({
       bondStatus: "superseded_locked_until_settlement",
-      bondReleaseBlock: 844355,
+      bondReleaseBlock: 841055,
       bondSpendStatus: "spent_before_allowed_release",
       bondSpentTxid: "aa".repeat(32),
-      bondSpentBlockHeight: 844220
+      bondSpentBlockHeight: 840920
     });
     expect(state.visibleBidOutcomes[1]).toMatchObject({
       bondStatus: "leading_locked",
       bondReleaseBlock: null,
       bondSpendStatus: "spent_before_allowed_release",
       bondSpentTxid: "bb".repeat(32),
-      bondSpentBlockHeight: 844221
+      bondSpentBlockHeight: 840921
     });
   });
 
@@ -585,8 +585,8 @@ describe("experimental auction derivation", () => {
       },
       policy
     );
-    const winnerReleaseBlock = 844_210 + catalogEntry.settlementLockBlocks;
-    const losingReleaseBlock = 844_355;
+    const winnerReleaseBlock = 840_910 + catalogEntry.settlementLockBlocks;
+    const losingReleaseBlock = 841_055;
 
     const state = deriveExperimentalLaunchAuctionState({
       policy,
@@ -621,7 +621,7 @@ describe("experimental auction derivation", () => {
         },
         {
           txid: "22".repeat(32),
-          blockHeight: 844_210,
+          blockHeight: 840_910,
           txIndex: 0,
           vout: 1,
           bondVout: 0,
@@ -634,10 +634,10 @@ describe("experimental auction derivation", () => {
             auctionId: catalogEntry.auctionId,
             name: catalogEntry.normalizedName,
             auctionClassId: catalogEntry.auctionClassId,
-            currentBlockHeight: 844_210,
+            currentBlockHeight: 840_910,
             phase: "soft_close",
             unlockBlock: catalogEntry.unlockBlock,
-            auctionCloseBlockAfter: 844_330,
+            auctionCloseBlockAfter: 841_018,
             openingMinimumBidSats: catalogEntry.openingMinimumBidSats,
             currentLeaderBidderCommitment: computeAuctionBidderCommitment("alpha"),
             currentHighestBidSats: 1_000_000_000n,
@@ -698,7 +698,7 @@ describe("experimental auction derivation", () => {
 
     const state = deriveExperimentalLaunchAuctionState({
       policy,
-      currentBlockHeight: 844_250,
+      currentBlockHeight: 840_950,
       catalogEntry,
       bidObservations: [
         {
@@ -729,7 +729,7 @@ describe("experimental auction derivation", () => {
         },
         {
           txid: "22".repeat(32),
-          blockHeight: 844_210,
+          blockHeight: 840_910,
           txIndex: 0,
           vout: 1,
           bondVout: 0,
@@ -747,10 +747,10 @@ describe("experimental auction derivation", () => {
             auctionId: catalogEntry.auctionId,
             name: catalogEntry.normalizedName,
             auctionClassId: catalogEntry.auctionClassId,
-            currentBlockHeight: 844_210,
+            currentBlockHeight: 840_910,
             phase: "soft_close",
             unlockBlock: catalogEntry.unlockBlock,
-            auctionCloseBlockAfter: 844_330,
+            auctionCloseBlockAfter: 841_018,
             openingMinimumBidSats: catalogEntry.openingMinimumBidSats,
             currentLeaderBidderCommitment: computeAuctionBidderCommitment("alpha"),
             currentHighestBidSats: 1_000_000_000n,
@@ -760,7 +760,7 @@ describe("experimental auction derivation", () => {
         },
         {
           txid: "33".repeat(32),
-          blockHeight: 844_211,
+          blockHeight: 840_911,
           txIndex: 0,
           vout: 1,
           bondVout: 0,
@@ -773,10 +773,10 @@ describe("experimental auction derivation", () => {
             auctionId: catalogEntry.auctionId,
             name: catalogEntry.normalizedName,
             auctionClassId: catalogEntry.auctionClassId,
-            currentBlockHeight: 844_211,
+            currentBlockHeight: 840_911,
             phase: "soft_close",
             unlockBlock: catalogEntry.unlockBlock,
-            auctionCloseBlockAfter: 844_354,
+            auctionCloseBlockAfter: 841_054,
             openingMinimumBidSats: catalogEntry.openingMinimumBidSats,
             currentLeaderBidderCommitment: computeAuctionBidderCommitment("alpha"),
             currentHighestBidSats: 1_100_000_000n,
@@ -796,7 +796,7 @@ describe("experimental auction derivation", () => {
     expect(state.visibleBidOutcomes[0]).toMatchObject({
       reason: "opening_bid",
       bondStatus: "replaced_by_self_rebid",
-      bondReleaseBlock: 844_210
+      bondReleaseBlock: 840_910
     });
     expect(state.visibleBidOutcomes[1]).toMatchObject({
       reason: "replacement_bid_soft_close_extended",

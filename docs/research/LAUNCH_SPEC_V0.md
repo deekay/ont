@@ -83,7 +83,6 @@ Current preferred defaults:
 | minimum increment | absolute floor plus percentage increment |
 | soft-close increment | stronger than normal mid-auction increment |
 | hard extension cap | not in the current design; stronger late-bid increments handle close-griefing without creating a cap-edge snipe |
-| initial launch period | may use longer windows if awareness is uneven |
 
 These are launch parameters, not final protocol constants yet.
 

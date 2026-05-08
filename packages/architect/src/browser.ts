@@ -9,14 +9,18 @@ import {
 import { Buffer } from "buffer";
 
 import {
-  bytesToHex,
+  bytesToHex
+} from "@ont/protocol/bytes";
+import {
   computeAuctionBidderCommitment,
   computeAuctionBidStateCommitment,
   computeAuctionLotCommitment,
-  encodeAuctionBidPayload,
   type AuctionBidPackage,
   parseAuctionBidPackage
-} from "@ont/protocol";
+} from "@ont/protocol/auction-bid-package";
+import {
+  encodeAuctionBidPayload
+} from "@ont/protocol/wire";
 
 export type OntCliNetwork = "main" | "signet" | "testnet" | "regtest";
 

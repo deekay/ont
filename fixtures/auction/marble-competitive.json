@@ -16,22 +16,22 @@
       },
       {
         "bidderId": "beta",
-        "blockHeight": 844200,
+        "blockHeight": 840900,
         "amountSats": "1020000000"
       },
       {
         "bidderId": "beta",
-        "blockHeight": 844210,
+        "blockHeight": 840910,
         "amountSats": "1100000000"
       },
       {
         "bidderId": "gamma",
-        "blockHeight": 844353,
+        "blockHeight": 841053,
         "amountSats": "1210000000"
       },
       {
         "bidderId": "late",
-        "blockHeight": 844500,
+        "blockHeight": 841200,
         "amountSats": "1300000000"
       }
     ]
@@ -40,8 +40,8 @@
     "status": "settled",
     "winnerBidderId": "gamma",
     "winnerAmountSats": "1210000000",
-    "initialAuctionCloseBlock": 844330,
-    "finalAuctionCloseBlock": 844497,
+    "initialAuctionCloseBlock": 841018,
+    "finalAuctionCloseBlock": 841197,
     "reasons": [
       "before_unlock",
       "opening_bid",

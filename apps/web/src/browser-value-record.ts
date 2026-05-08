@@ -1,16 +1,17 @@
 import {
   assertHexString,
-  bytesToHex,
+  bytesToHex
+} from "@ont/protocol/bytes";
+import {
   computeValueRecordHash as computeBrowserValueRecordHash,
   deriveOwnerPubkey,
   signValueRecord as signBrowserValueRecord,
-  utf8ToBytes,
   verifyValueRecord as verifyBrowserValueRecord,
   VALUE_RECORD_FORMAT,
   VALUE_RECORD_VERSION,
   type SignedValueRecord as BrowserSignedValueRecord,
   type ValueRecordFields as BrowserValueRecordFields
-} from "@ont/protocol";
+} from "@ont/protocol/value-record";
 
 export {
   computeBrowserValueRecordHash,
@@ -24,7 +25,7 @@ export {
 };
 
 export function payloadUtf8ToHex(value: string): string {
-  return bytesToHex(utf8ToBytes(value));
+  return bytesToHex(new TextEncoder().encode(value));
 }
 
 export function normalizeRawPayloadHex(value: string): string {

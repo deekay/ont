@@ -1,6 +1,6 @@
 %PDF-1.4
 1 0 obj
-<< /Length 15469 >>
+<< /Length 15464 >>
 stream
 q 0.965 0.925 0.855 rg 0.00 0.00 792.00 612.00 re f Q
 q 0.995 0.973 0.925 rg 0.870 0.800 0.720 RG 0.75 w 18.00 18.00 756.00 576.00 re B Q
@@ -27,14 +27,14 @@ q 1.000 0.988 0.955 rg 0.870 0.800 0.720 RG 0.7 w 196.00 384.00 150.00 112.00 re
 BT /F2 7.4 Tf 0.180 0.350 0.270 rg 206.00 479.00 Td (AUCTION TIMING) Tj ET
 q 0.870 0.800 0.720 RG 0.45 w 206.00 458.50 m 336.00 458.50 l S Q
 BT /F1 6.9 Tf 0.360 0.340 0.300 rg 206.00 462.00 Td (Base window) Tj ET
-BT /F2 6.9 Tf 0.120 0.105 0.090 rg 299.64 462.00 Td (4,320 blocks) Tj ET
+BT /F2 6.9 Tf 0.120 0.105 0.090 rg 299.64 462.00 Td (1,008 blocks) Tj ET
 q 0.870 0.800 0.720 RG 0.45 w 206.00 446.00 m 336.00 446.00 l S Q
 BT /F1 6.9 Tf 0.360 0.340 0.300 rg 206.00 449.50 Td (Soft close) Tj ET
 BT /F2 6.9 Tf 0.120 0.105 0.090 rg 304.95 449.50 Td (144 blocks) Tj ET
 q 0.870 0.800 0.720 RG 0.45 w 206.00 433.50 m 336.00 433.50 l S Q
 BT /F1 6.9 Tf 0.360 0.340 0.300 rg 206.00 437.00 Td (Extension cap) Tj ET
 BT /F2 6.9 Tf 0.120 0.105 0.090 rg 322.75 437.00 Td (none) Tj ET
-BT /F1 6.7 Tf 0.360 0.340 0.300 rg 206.00 408.00 Td (Review ~30 day auctions, ~1 day response) Tj ET
+BT /F1 6.7 Tf 0.360 0.340 0.300 rg 206.00 408.00 Td (Review ~7 day auctions, ~1 day response) Tj ET
 BT /F1 6.7 Tf 0.360 0.340 0.300 rg 206.00 400.00 Td (windows, and whether no hard cap is) Tj ET
 BT /F1 6.7 Tf 0.360 0.340 0.300 rg 206.00 392.00 Td (acceptable.) Tj ET
 q 1.000 0.988 0.955 rg 0.870 0.800 0.720 RG 0.7 w 358.00 384.00 150.00 112.00 re B Q
@@ -191,7 +191,7 @@ q 0.490 0.200 0.100 rg 48.00 206.20 3.00 3.00 re f Q
 BT /F1 7 Tf 0.360 0.340 0.300 rg 58.00 204.00 Td (Are the shortest-name floors high enough without making ownership) Tj ET
 BT /F1 7 Tf 0.360 0.340 0.300 rg 58.00 195.60 Td (impossible?) Tj ET
 q 0.490 0.200 0.100 rg 48.00 187.00 3.00 3.00 re f Q
-BT /F1 7 Tf 0.360 0.340 0.300 rg 58.00 184.80 Td (Should the base auction window be shorter than about 30 days?) Tj ET
+BT /F1 7 Tf 0.360 0.340 0.300 rg 58.00 184.80 Td (Is about 7 days long enough for ordinary public auctions?) Tj ET
 q 0.490 0.200 0.100 rg 48.00 176.20 3.00 3.00 re f Q
 BT /F1 7 Tf 0.360 0.340 0.300 rg 58.00 174.00 Td (Is no hard cap acceptable if late bids must clear 10 percent?) Tj ET
 q 0.490 0.200 0.100 rg 282.00 206.20 3.00 3.00 re f Q
@@ -235,14 +235,14 @@ xref
 0 8
 0000000000 65535 f 
 0000000009 00000 n 
-0000015531 00000 n 
-0000015601 00000 n 
-0000015676 00000 n 
-0000015747 00000 n 
-0000015893 00000 n 
-0000015950 00000 n 
+0000015526 00000 n 
+0000015596 00000 n 
+0000015671 00000 n 
+0000015742 00000 n 
+0000015888 00000 n 
+0000015945 00000 n 
 trailer
 << /Size 8 /Root 7 0 R >>
 startxref
-15999
+15994
 %%EOF

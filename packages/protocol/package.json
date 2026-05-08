@@ -7,6 +7,30 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./auction-bid-package": {
+      "types": "./dist/auction-bid-package.d.ts",
+      "default": "./dist/auction-bid-package.js"
+    },
+    "./bond": {
+      "types": "./dist/bond.d.ts",
+      "default": "./dist/bond.js"
+    },
+    "./bytes": {
+      "types": "./dist/bytes.d.ts",
+      "default": "./dist/bytes.js"
+    },
+    "./names": {
+      "types": "./dist/names.d.ts",
+      "default": "./dist/names.js"
+    },
+    "./value-record": {
+      "types": "./dist/value-record.d.ts",
+      "default": "./dist/value-record.js"
+    },
+    "./wire": {
+      "types": "./dist/wire.d.ts",
+      "default": "./dist/wire.js"
     }
   },
   "scripts": {

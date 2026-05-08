@@ -109,22 +109,22 @@ describe("simulateLaunchAuction", () => {
           },
           {
             bidderId: "beta",
-            blockHeight: 844_200,
+            blockHeight: 840_900,
             amountSats: 1_020_000_000n
           },
           {
             bidderId: "beta",
-            blockHeight: 844_210,
+            blockHeight: 840_910,
             amountSats: 1_100_000_000n
           },
           {
             bidderId: "gamma",
-            blockHeight: 844_353,
+            blockHeight: 841_053,
             amountSats: 1_210_000_000n
           },
           {
             bidderId: "late",
-            blockHeight: 844_500,
+            blockHeight: 841_200,
             amountSats: 1_300_000_000n
           }
         ]
@@ -139,11 +139,11 @@ describe("simulateLaunchAuction", () => {
       "higher_bid_soft_close_extended",
       "auction_closed"
     ]);
-    expect(result.initialAuctionCloseBlock).toBe(844_330);
-    expect(result.finalAuctionCloseBlock).toBe(844_497);
+    expect(result.initialAuctionCloseBlock).toBe(841_018);
+    expect(result.finalAuctionCloseBlock).toBe(841_197);
     expect(result.winner).toEqual({
       bidderId: "gamma",
-      blockHeight: 844_353,
+      blockHeight: 841_053,
       amountSats: 1_210_000_000n
     });
   });
@@ -230,19 +230,19 @@ describe("simulateLaunchAuction", () => {
           },
           {
             bidderId: "at_boundary",
-            blockHeight: 904_330,
+            blockHeight: 901_018,
             amountSats: 1_100_000_000n
           },
           {
             bidderId: "after_boundary",
-            blockHeight: 904_331,
+            blockHeight: 901_019,
             amountSats: 1_210_000_000n
           }
         ]
       }
     });
 
-    expect(result.initialAuctionCloseBlock).toBe(904_330);
+    expect(result.initialAuctionCloseBlock).toBe(901_018);
     expect(result.bidOutcomes.map((outcome) => outcome.reason)).toEqual([
       "opening_bid",
       "higher_bid",

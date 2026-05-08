@@ -1,7 +1,7 @@
 {
   "title": "Live bidding · meadow",
   "description": "Launch auction with a valid opening bid and a higher follow-up bid, but still well before the soft-close window.",
-  "currentBlockHeight": 851600,
+  "currentBlockHeight": 850600,
   "scenario": {
     "name": "meadow",
     "auctionClassId": "launch_name",
@@ -14,13 +14,8 @@
       },
       {
         "bidderId": "speculator_b",
-        "blockHeight": 851500,
+        "blockHeight": 850500,
         "amountSats": "220000000"
-      },
-      {
-        "bidderId": "speculator_c",
-        "blockHeight": 854320,
-        "amountSats": "231000000"
       }
     ]
   }

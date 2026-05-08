@@ -1,7 +1,7 @@
 {
   "title": "Private demo auction · meadow (settled)",
   "description": "Private signet auction fixture kept around so the curated auction lab still shows a fully settled auction lifecycle.",
-  "currentBlockHeight": 4600,
+  "currentBlockHeight": 1150,
   "scenario": {
     "name": "meadow",
     "auctionClassId": "launch_name",
@@ -14,12 +14,12 @@
       },
       {
         "bidderId": "private_speculator_b",
-        "blockHeight": 4311,
+        "blockHeight": 500,
         "amountSats": "220000000"
       },
       {
         "bidderId": "private_speculator_c",
-        "blockHeight": 4451,
+        "blockHeight": 980,
         "amountSats": "250000000"
       }
     ]

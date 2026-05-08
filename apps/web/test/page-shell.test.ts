@@ -20,21 +20,20 @@ describe("renderPageHtml", () => {
     });
 
     expect(html).toContain("Human-readable names you can actually own");
-    expect(html).toContain("Open an auction when a name is eligible.");
-    expect(html).toContain("Public auctions");
-    expect(html).toContain("Self-custodied bond");
-    expect(html).toContain("Owner-signed destinations");
+    expect(html).toContain("Search a name, then jump into the workflow");
+    expect(html).toContain("ONT tools");
+    expect(html).toContain(">Check<");
+    expect(html).toContain(">Bid<");
+    expect(html).toContain(">Manage<");
     expect(html).toContain("Check a name");
-    expect(html).toContain("Resolve ownership or see whether the next step is the auction flow.");
-    expect(html).toContain("Before a bid");
-    expect(html).toContain("Eligible or not eligible");
-    expect(html).toContain("After a bonded opening bid");
-    expect(html).toContain("Auction clock starts");
-    expect(html).toContain("The website prepares the bid; Sparrow signs the transaction.");
-    expect(html).toContain("Start Here");
-    expect(html).toContain("Set Up Sparrow");
-    expect(html).toContain("Bid On A Name");
-    expect(html).toContain("Inspect Live Names");
+    expect(html).toContain("See owner status, auction status, and the next available action.");
+    expect(html).toContain("Build an opening bid");
+    expect(html).toContain("Update or transfer");
+    expect(html).toContain("Choose A Workflow");
+    expect(html).toContain("Set Up Signing");
+    expect(html).toContain("Build A Bid");
+    expect(html).toContain("Inspect Live State");
+    expect(html).toContain("Update A Name");
     expect(html).toContain("From Zero");
     expect(html).toContain("site-footer");
     expect(html).toContain(">Learn<");
@@ -49,6 +48,7 @@ describe("renderPageHtml", () => {
     expect(html).not.toContain("Two ideas shape ONT.");
     expect(html).not.toContain("Eligible names use one auction lane.");
     expect(html).not.toContain("One Name, Many Destinations");
+    expect(html).not.toContain("Any valid name can be opened by a bonded public bid.");
     expect(html).not.toContain("Small Bitcoin footprint");
     expect(html).not.toContain("Resolvers store the current owner-signed bundle for <span class=\"mono\">alice</span>");
     expect(html).not.toContain("Current Status");
@@ -100,6 +100,12 @@ describe("renderPageHtml", () => {
     expect(html).not.toContain("For example, an on-chain claim can establish:");
     expect(html).not.toContain("One owner-signed bundle can carry entries like:");
     expect(html).toContain("Use The Website");
+    expect(html).toContain("Reference Guides");
+    expect(html).toContain("Wallet Setup");
+    expect(html).toContain("Auction guide");
+    expect(html).toContain("Destination guide");
+    expect(html).toContain("Transfer guide");
+    expect(html).toContain("Recovery Kits");
     expect(html).toContain("Current Status");
     expect(html).toContain("Works Today");
     expect(html).toContain("Read Next");
@@ -133,24 +139,24 @@ describe("renderPageHtml", () => {
       pageKind: "auctions"
     });
 
-    expect(html).toContain("Auctions");
+    expect(html).toContain("Bid Builder");
     expect(html).toContain(">Auctions<");
     expect(html).toContain(">Advanced<");
-    expect(html).toContain("Bid On A Name");
+    expect(html).toContain("Build A Bid");
     expect(html).toContain("Check name");
     expect(html).toContain("Live Auction Activity");
-    expect(html).toContain("Check a name, prepare the Sparrow transaction");
-    expect(html).toContain("The website builds the unsigned PSBT");
+    expect(html).toContain("Check a name, build the unsigned Sparrow PSBT");
+    expect(html).toContain("Website builds. Sparrow signs and broadcasts.");
     expect(html).toContain("experimentalAuctionList");
     expect(html).not.toContain("Auction State Gallery");
     expect(html).not.toContain("Auction Examples");
     expect(html).not.toContain("auctionLabList");
     expect(html).not.toContain("privateAuctionSmokeResult");
     expect(html).not.toContain("Launch Status");
-    expect(html).toContain("valid bonded bid opens the auction");
     expect(html).not.toContain("no-winner close");
     expect(html).not.toContain("single-lane launch model");
-    expect(html).toContain("Late bids can extend the close");
+    expect(html).toContain("Confirmed bid activity and current minimums from the resolver.");
+    expect(html).toContain("Auction rules");
     expect(html).not.toContain("AUCTION_BID");
   });
 
@@ -168,12 +174,12 @@ describe("renderPageHtml", () => {
     expect(html).toContain("Publish Destinations");
     expect(html).toContain("valuePublishModeNote");
     expect(html).not.toContain("publishValueFanoutButton");
-    expect(html).toContain("Use the CLI for raw payloads, custom formats, or multi-resolver fanout.");
     expect(html).toContain("cashapp -&gt; $alice1234");
     expect(html).not.toContain("Value Format");
     expect(html).not.toContain("Derived Owner Pubkey");
     expect(html).not.toContain("Owner Private Key (32-byte hex)");
-    expect(html).toContain("Find A Live Name First");
+    expect(html).not.toContain("How Destination Updates Work");
+    expect(html).toContain("Destination guide");
     expect(html).toContain("Related tools");
   });
 
@@ -185,11 +191,10 @@ describe("renderPageHtml", () => {
 
     expect(html).toContain("transfer-role-workflow");
     expect(html).toContain("transfer-package-review-tool");
-    expect(html).toContain("Transfer A Name");
-    expect(html).toContain("Move a name to a new owner key.");
-    expect(html).toContain("Final transfer signing is still an advanced step.");
-    expect(html).toContain("Prepare Transfer");
-    expect(html).toContain("Choose whether this is a gift or a sale first.");
+    expect(html).toContain("Transfer Handoff");
+    expect(html).toContain("Prepare the current advanced handoff");
+    expect(html).toContain("Prepare Handoff");
+    expect(html).toContain("Create the recipient key, choose gift or sale");
     expect(html).toContain("Create Recipient Key");
     expect(html).toContain("Transfer Type");
     expect(html).toContain("Gift / no embedded payment");
@@ -212,6 +217,8 @@ describe("renderPageHtml", () => {
     expect(html).toContain("Package JSON");
     expect(html).toContain("Review Package");
     expect(html).toContain("transferPackageReviewResult");
+    expect(html).not.toContain("How Transfers Work");
+    expect(html).toContain("Transfer guide");
     expect(html).toContain("Related tools");
   });
 

@@ -1,7 +1,7 @@
 {
   "title": "Soft close · marble",
   "description": "Launch auction after a late higher bid extended the auction. The auction is still live, but continuation now requires a meaningful late response.",
-  "currentBlockHeight": 844360,
+  "currentBlockHeight": 841060,
   "scenario": {
     "name": "marble",
     "auctionClassId": "launch_name",
@@ -14,12 +14,12 @@
       },
       {
         "bidderId": "beta",
-        "blockHeight": 844210,
+        "blockHeight": 840910,
         "amountSats": "1100000000"
       },
       {
         "bidderId": "gamma",
-        "blockHeight": 844353,
+        "blockHeight": 841053,
         "amountSats": "1210000000"
       }
     ]

@@ -6,8 +6,14 @@ const GITHUB_BLOB_BASE_URL = `${GITHUB_REPO_URL}/blob/main`;
 const DOC_URLS = {
   readme: `${GITHUB_BLOB_BASE_URL}/README.md`,
   fromZero: `${GITHUB_BLOB_BASE_URL}/docs/core/ONT_FROM_ZERO.md`,
+  newUser: `${GITHUB_BLOB_BASE_URL}/docs/core/NEW_USER_TESTING_GUIDE.md`,
+  sparrowPrivateSignet: `${GITHUB_BLOB_BASE_URL}/docs/demo/SPARROW_PRIVATE_SIGNET.md`,
   implementation: `${GITHUB_BLOB_BASE_URL}/docs/research/ONT_IMPLEMENTATION_AND_VALIDATION.md`,
   launchSpec: `${GITHUB_BLOB_BASE_URL}/docs/research/LAUNCH_SPEC_V0.md`,
+  auctionSettlement: `${GITHUB_BLOB_BASE_URL}/docs/research/AUCTION_SETTLEMENT_AND_OWNERSHIP.md`,
+  destinations: `${GITHUB_BLOB_BASE_URL}/docs/research/VALUE_RECORD_HISTORY_AND_KEYBASE_NOTES.md`,
+  transfer: `${GITHUB_BLOB_BASE_URL}/docs/research/TRANSFER_RELAY_OPTIONS.md`,
+  recovery: `${GITHUB_BLOB_BASE_URL}/docs/research/OWNER_KEY_RECOVERY.md`,
   testing: `${GITHUB_BLOB_BASE_URL}/docs/core/TESTING.md`
 } as const;
 export interface PageShellOptions {
@@ -131,9 +137,9 @@ function renderHeroSection(
   if (pageKind === "transfer") {
     return `<header class="hero hero-single hero-page hero-page-transfer">
       <div class="hero-copy">
-        <h1>Transfer A Name</h1>
+        <h1>Transfer Handoff</h1>
         <p class="lede">
-          Move a name to a new owner key. For sales, payment and ownership should settle in the same Bitcoin transaction.
+          Prepare the current advanced handoff for moving a name to a new owner key.
         </p>
         <p id="chainSummary" class="hero-status">
           ${escapeHtml(configuredNetworkLabel)} · Height - · 0 names · 0 pending
@@ -209,12 +215,12 @@ function renderHeroSection(
   if (pageKind === "auctions") {
     return `<header class="hero hero-single hero-page hero-page-auctions">
       <div class="hero-copy">
-        <h1>Auctions</h1>
+        <h1>Bid Builder</h1>
         <p class="lede">
-          Check a name, prepare the Sparrow transaction, and inspect live auction activity.
+          Check a name, build the unsigned Sparrow PSBT, and review live auction state.
         </p>
         <p class="hero-status">
-          The website builds the unsigned PSBT; Sparrow signs and broadcasts it.
+          Website builds. Sparrow signs and broadcasts.
         </p>
       </div>
     </header>`;
@@ -222,22 +228,22 @@ function renderHeroSection(
 
   return `<header class="hero hero-home hero-home-product">
     <section class="hero-home-copy" aria-labelledby="homeHeroTitle">
-      <p class="hero-home-kicker">Bitcoin-bonded names</p>
+      <p class="hero-home-kicker">ONT tools</p>
       <h1 id="homeHeroTitle">Human-readable names you can actually own</h1>
       <p class="hero-home-lede">
-        Open an auction when a name is eligible. Bitcoin anchors ownership; owner-signed records keep destinations flexible off-chain.
+        Search a name, then jump into the workflow that matches its current state.
       </p>
       <div class="hero-home-proof-row" aria-label="Core ONT model">
-        <span>Public auctions</span>
-        <span>Self-custodied bond</span>
-        <span>Owner-signed destinations</span>
+        <span>Check</span>
+        <span>Bid</span>
+        <span>Manage</span>
       </div>
     </section>
     <section id="lookup" class="hero-home-lookup" aria-labelledby="homeLookupTitle">
       <div class="hero-home-lookup-head">
-        <p class="hero-home-kicker">Auction status</p>
+        <p class="hero-home-kicker">Name lookup</p>
         <h2 id="homeLookupTitle">Check a name</h2>
-        <p>Resolve ownership or see whether the next step is the auction flow.</p>
+        <p>See owner status, auction status, and the next available action.</p>
       </div>
       <form id="searchForm" class="search-form hero-search-form">
         <label class="field-label" for="nameInput">Name</label>
@@ -249,32 +255,19 @@ function renderHeroSection(
       <div id="searchResult" class="result-card empty hero-search-result" hidden></div>
       <div class="hero-lookup-status-grid" aria-label="Auction opening rule">
         <article>
-          <span>Before a bid</span>
-          <strong>Eligible or not eligible</strong>
+          <span>Available</span>
+          <strong>Build an opening bid</strong>
         </article>
         <article>
-          <span>After a bonded opening bid</span>
-          <strong>Auction clock starts</strong>
+          <span>Owned</span>
+          <strong>Update or transfer</strong>
         </article>
       </div>
       <div class="hero-lookup-actions">
         <a class="action-link secondary" href="${withBasePath("/auctions", configuredBasePath)}">Open auctions</a>
         <a class="action-link secondary" href="${withBasePath("/setup", configuredBasePath)}">Set up signing</a>
+        <a class="action-link secondary" href="${withBasePath("/explainer", configuredBasePath)}">Read overview</a>
       </div>
-    </section>
-    <section class="hero-home-launch-strip" aria-label="Launch rules">
-      <article>
-        <span>At launch</span>
-        <strong>Any valid name can be opened by a bonded public bid.</strong>
-      </article>
-      <article>
-        <span>Signing</span>
-        <strong>The website prepares the bid; Sparrow signs the transaction.</strong>
-      </article>
-      <article>
-        <span>Records</span>
-        <strong>Ownership is on-chain; destinations update off-chain.</strong>
-      </article>
     </section>
   </header>`;
 }
@@ -460,13 +453,11 @@ function renderAdvancedReferencesSection(configuredBasePath: string): string {
 
 function renderTransferPageSections(configuredBasePath: string): string {
   return `${renderTransferPrepSection()}
-    ${renderTransferGuideSection()}
     ${renderTransferSupportStrip(configuredBasePath)}`;
 }
 
 function renderValuesPageSections(configuredBasePath: string): string {
   return `${renderValuesToolSection()}
-    ${renderValuesGuideSection(configuredBasePath)}
     ${renderValuesSupportStrip(configuredBasePath)}`;
 }
 
@@ -487,14 +478,15 @@ function renderExplainerPageSections(configuredBasePath: string): string {
     ${renderHomeModelSection()}
     ${renderHomeDestinationDiagramSection()}
     ${renderUsingOntSection(configuredBasePath)}
+    ${renderFeatureReferenceSection(configuredBasePath)}
     ${renderHomeDocsSection()}`;
 }
 
 function renderAuctionStartSection(configuredBasePath: string): string {
   return `<section id="auction-start" class="panel panel-compose">
     ${renderPanelHead(
-      "Bid On A Name",
-      "Start with the name you want. If it is not already owned here, prepare the Sparrow bid flow."
+      "Build A Bid",
+      "Start with a name. The page will show whether to open a new auction or bid in an active one."
     )}
     <form id="searchForm" class="search-form tool-draft-form">
       <label class="field-label" for="nameInput">Name</label>
@@ -504,15 +496,11 @@ function renderAuctionStartSection(configuredBasePath: string): string {
       </div>
     </form>
     <div id="searchResult" class="result-card empty" hidden></div>
-    <div class="tool-handoff-card">
-      <div>
-        <h3>Normal path</h3>
-        <p>Set up Sparrow, get demo bitcoin, check a name here, then download the unsigned Sparrow PSBT when the auction state is ready.</p>
-      </div>
-      <div class="guide-card-actions">
-        <a class="action-link secondary" href="${withBasePath("/setup", configuredBasePath)}">Set up Sparrow</a>
-      </div>
-    </div>
+    ${renderLinkStrip("Before bidding", [
+      { href: withBasePath("/setup", configuredBasePath), label: "Set up Sparrow" },
+      { href: DOC_URLS.auctionSettlement, label: "Auction guide", external: true },
+      { href: DOC_URLS.recovery, label: "Recovery kit guide", external: true }
+    ])}
   </section>`;
 }
 
@@ -556,17 +544,14 @@ function renderExperimentalAuctionFeedSection(): string {
   return `<section id="experimental-auction-feed" class="panel panel-list">
     ${renderPanelHead(
       "Live Auction Activity",
-      "Confirmed bids the resolver currently sees on chain.",
-      `<p>This is the live auction surface. It only shows bid activity observed from the chain.</p>
-      <ul>
-        <li>A valid bonded bid opens the auction for a name.</li>
-        <li>Higher bids update the current leader and minimum next bid.</li>
-        <li>Late bids can extend the close so others have time to respond.</li>
-        <li>When the auction settles, the winner becomes the on-chain owner.</li>
-      </ul>`
+      "Confirmed bid activity and current minimums from the resolver."
     )}
     <p id="experimentalAuctionMeta" class="helper-text">Loading observed bid activity.</p>
     <div id="experimentalAuctionList" class="activity-list"></div>
+    ${renderLinkStrip("Reference", [
+      { href: DOC_URLS.auctionSettlement, label: "Auction rules", external: true },
+      { href: DOC_URLS.launchSpec, label: "Launch spec", external: true }
+    ])}
   </section>`;
 }
 
@@ -621,36 +606,48 @@ function renderAuctionLabNotesSection(collapsible = false): string {
 function renderHomeStartSection(configuredBasePath: string): string {
   return `<section id="start-here" class="panel panel-guide panel-home">
     ${renderPanelHead(
-      "Start Here",
-      "The demo has one main path: connect Sparrow, bid on a name, then inspect live ownership."
+      "Choose A Workflow",
+      "Use the site as a set of task tools. Deeper explanations stay in the overview and reference guides."
     )}
     <div class="path-grid">
       <article class="path-card">
-        <p class="path-card-kicker">Step 1</p>
-        <h3>Set Up Sparrow</h3>
-        <p>Connect Sparrow to the hosted private signet server and fund the same wallet you will use to sign bids.</p>
+        <p class="path-card-kicker">Wallet</p>
+        <h3>Set Up Signing</h3>
+        <p>Connect Sparrow to the demo endpoint and request private-signet coins.</p>
         <div class="path-card-actions">
           <a class="action-link secondary" href="${withBasePath("/setup", configuredBasePath)}">Open setup</a>
         </div>
       </article>
       <article class="path-card">
-        <p class="path-card-kicker">Step 2</p>
-        <h3>Bid On A Name</h3>
-        <p>Check a name, choose your bid amount, and download the unsigned PSBT for Sparrow to review and sign.</p>
+        <p class="path-card-kicker">Auction</p>
+        <h3>Build A Bid</h3>
+        <p>Check a name, save the recovery kit, and download a Sparrow PSBT.</p>
         <div class="path-card-actions">
           <a class="action-link secondary" href="${withBasePath("/auctions", configuredBasePath)}">Open auctions</a>
         </div>
       </article>
       <article class="path-card">
-        <p class="path-card-kicker">Step 3</p>
-        <h3>Inspect Live Names</h3>
-        <p>Explore only shows names the resolver currently sees on chain, so settled simulator examples will not appear here.</p>
+        <p class="path-card-kicker">Registry</p>
+        <h3>Inspect Live State</h3>
+        <p>Browse names, active auctions, recent activity, and resolver status.</p>
         <div class="path-card-actions">
           <a class="action-link secondary" href="${withBasePath("/explore", configuredBasePath)}">Open explorer</a>
         </div>
       </article>
+      <article class="path-card">
+        <p class="path-card-kicker">Manage</p>
+        <h3>Update A Name</h3>
+        <p>Publish destinations or prepare a transfer after a name is owned.</p>
+        <div class="path-card-actions">
+          <a class="action-link secondary" href="${withBasePath("/values", configuredBasePath)}">Destinations</a>
+          <a class="action-link secondary" href="${withBasePath("/transfer", configuredBasePath)}">Transfer</a>
+        </div>
+      </article>
     </div>
-    <p class="tool-handoff-note">Want the deeper explanation first? The overview and technical docs live in the footer so the main path can stay simple.</p>
+    ${renderLinkStrip("Reference", [
+      { href: withBasePath("/explainer", configuredBasePath), label: "Overview" },
+      { href: DOC_URLS.newUser, label: "Testing guide", external: true }
+    ])}
   </section>`;
 }
 
@@ -714,6 +711,7 @@ function renderExplainerJumpBar(_configuredBasePath: string): string {
     <a href="#how-ont-works">How it works</a>
     <a href="#one-name-many-destinations">One name, many destinations</a>
     <a href="#using-ont">Use the prototype</a>
+    <a href="#reference-guides">Reference guides</a>
     <a href="#current-docs">Current status</a>
   </nav>`;
 }
@@ -840,6 +838,57 @@ function renderUsingOntSection(configuredBasePath: string): string {
       <a class="action-link" href="${withBasePath("/setup", configuredBasePath)}">Start setup</a>
       <a class="action-link" href="${withBasePath("/auctions", configuredBasePath)}">Bid on a name</a>
       <a class="action-link secondary" href="${withBasePath("/explore", configuredBasePath)}">Open explorer</a>
+    </div>
+  </section>`;
+}
+
+function renderFeatureReferenceSection(configuredBasePath: string): string {
+  return `<section id="reference-guides" class="panel panel-guide">
+    ${renderPanelHead(
+      "Reference Guides",
+      "Read these when you want the why, edge cases, or deeper review context behind a tool."
+    )}
+    <div class="guide-grid guide-grid-balanced">
+      <article class="guide-card">
+        <h3>Wallet Setup</h3>
+        <p>Use the setup tool for the short path. Use the guide for Sparrow network details and wallet compatibility.</p>
+        <div class="guide-card-actions">
+          <a class="action-link secondary" href="${withBasePath("/setup", configuredBasePath)}">Open setup</a>
+          <a class="action-link secondary" href="${DOC_URLS.sparrowPrivateSignet}" target="_blank" rel="noreferrer noopener">Setup guide</a>
+        </div>
+      </article>
+      <article class="guide-card">
+        <h3>Auctions</h3>
+        <p>Use Auctions to build PSBTs. Use the guide for settlement, ownership, and launch-rule context.</p>
+        <div class="guide-card-actions">
+          <a class="action-link secondary" href="${withBasePath("/auctions", configuredBasePath)}">Open auctions</a>
+          <a class="action-link secondary" href="${DOC_URLS.auctionSettlement}" target="_blank" rel="noreferrer noopener">Auction guide</a>
+        </div>
+      </article>
+      <article class="guide-card">
+        <h3>Destinations</h3>
+        <p>Use the destinations tool to publish signed records. Use the guide for value-record history and format notes.</p>
+        <div class="guide-card-actions">
+          <a class="action-link secondary" href="${withBasePath("/values", configuredBasePath)}">Open destinations</a>
+          <a class="action-link secondary" href="${DOC_URLS.destinations}" target="_blank" rel="noreferrer noopener">Destination guide</a>
+        </div>
+      </article>
+      <article class="guide-card">
+        <h3>Transfers</h3>
+        <p>Use Transfer for the current handoff prep. Use the guide for relay limits and safer redesign options.</p>
+        <div class="guide-card-actions">
+          <a class="action-link secondary" href="${withBasePath("/transfer", configuredBasePath)}">Open transfer</a>
+          <a class="action-link secondary" href="${DOC_URLS.transfer}" target="_blank" rel="noreferrer noopener">Transfer guide</a>
+        </div>
+      </article>
+      <article class="guide-card guide-card-wide">
+        <h3>Recovery Kits</h3>
+        <p>Auction bids create separate name-control recovery material. Read this before reviewing owner-key recovery behavior.</p>
+        <div class="guide-card-actions">
+          <a class="action-link secondary" href="${DOC_URLS.recovery}" target="_blank" rel="noreferrer noopener">Recovery guide</a>
+          <a class="action-link secondary" href="${DOC_URLS.newUser}" target="_blank" rel="noreferrer noopener">Testing guide</a>
+        </div>
+      </article>
     </div>
   </section>`;
 }
@@ -985,42 +1034,41 @@ function renderSetupQuickstartSection(configuredBasePath: string, privateSignetE
   const transportNote = endpoint.transport === "s" ? "SSL on" : "SSL off";
   return `<section id="setup-start" class="panel panel-guide">
     ${renderPanelHead(
-      "Private Demo Setup",
-      "Open Sparrow from Terminal on the Signet network, switch Server Type to Private Electrum, fund a wallet with demo coins, then return to auctions."
+      "Wallet Setup",
+      "Connect Sparrow to the hosted demo endpoint, fund that wallet, then use it for auction signing."
     )}
-    <p class="tool-handoff-note">This is a private signet demo, not mainnet. Use demo coins only. No SSH access is required; Sparrow talks to the demo chain through a public wallet endpoint while the underlying Bitcoin Core RPC stays private on the server.</p>
-    <div class="guide-grid">
+    <p class="tool-handoff-note">Private signet only. Use demo coins, not real bitcoin.</p>
+    <div class="guide-grid guide-grid-steps">
       <article class="guide-card">
-        <h3>1. Open Sparrow On Signet</h3>
+        <h3>1. Open Sparrow</h3>
         <ul class="guide-list">
-          <li>Sparrow does not ask for Signet while creating a wallet; the network is chosen when Sparrow starts.</li>
           <li>If Sparrow is already open, quit it fully.</li>
-          <li>Open Terminal and run <code>open /Applications/Sparrow.app --args -n signet</code>.</li>
-          <li>After Sparrow opens on Signet, create or open the wallet you plan to use for bids.</li>
-          <li>For a new demo wallet, the simple path is a new software wallet with a fresh BIP39 12-word mnemonic.</li>
-          <li>Keep that wallet open for funding, signing, and broadcast.</li>
+          <li>Run <code>open /Applications/Sparrow.app --args -n signet</code>.</li>
+          <li>Create or open the wallet you will use for bids.</li>
         </ul>
       </article>
       <article class="guide-card">
-        <h3>2. Switch To Private Electrum</h3>
+        <h3>2. Connect Endpoint</h3>
         <ul class="guide-list">
-          <li>Open <code>Settings</code> then <code>Server</code>.</li>
-          <li>In the <code>Type</code> row, choose <code>Private Electrum</code>, not <code>Public Server</code>.</li>
-          <li>If Sparrow asks for separate fields, use host <code>${escapeHtml(endpoint.host)}</code>, port <code>${escapeHtml(endpoint.port)}</code>, and ${escapeHtml(transportNote)}.</li>
-          <li>If Sparrow accepts a server string, use <code>${escapeHtml(endpoint.serverString)}</code>.</li>
-          <li>Click <code>Test Connection</code>; success should mention <code>electrs</code>.</li>
+          <li>Go to <code>Settings</code> then <code>Server</code>.</li>
+          <li>Choose <code>Private Electrum</code>.</li>
+          <li>Use <code>${escapeHtml(endpoint.serverString)}</code>.</li>
         </ul>
+        <p class="field-note">Separate fields: host <code>${escapeHtml(endpoint.host)}</code>, port <code>${escapeHtml(endpoint.port)}</code>, ${escapeHtml(transportNote)}.</p>
       </article>
       <article class="guide-card">
-        <h3>3. Get An Address, Then Fund</h3>
+        <h3>3. Fund Wallet</h3>
         <ul class="guide-list">
-          <li>Open Sparrow's <code>Receive</code> tab and copy a fresh receive address from this wallet.</li>
-          <li>Paste that address into the funding form below to request demo coins.</li>
-          <li>Refresh Sparrow and confirm the balance appears in the same wallet.</li>
-          <li>Then return to Auctions and inspect the bid handoff.</li>
+          <li>Copy a fresh receive address from Sparrow.</li>
+          <li>Paste it into the funding tool below.</li>
+          <li>Refresh Sparrow, then open Auctions.</li>
         </ul>
       </article>
     </div>
+    ${renderLinkStrip("Reference", [
+      { href: DOC_URLS.sparrowPrivateSignet, label: "Sparrow guide", external: true },
+      { href: DOC_URLS.newUser, label: "Testing guide", external: true }
+    ])}
     <div class="hero-cta-row section-cta-row">
       <a class="action-link" href="${withBasePath("/auctions", configuredBasePath)}">Open auctions</a>
       <a class="action-link secondary" href="https://sparrowwallet.com/download/" target="_blank" rel="noreferrer">Download Sparrow</a>
@@ -1031,10 +1079,10 @@ function renderSetupQuickstartSection(configuredBasePath: string, privateSignetE
 function renderSetupFundingSection(privateSignetFundingAmountSats: bigint, privateSignetFundingMaxSats: bigint): string {
   return `<section id="setup-funding" class="panel panel-guide">
     ${renderPanelHead(
-      "Get Demo Coins",
-      "Paste a Sparrow receive address and request enough demo bitcoin for the auction you want to test."
+      "Fund Wallet",
+      "Paste a Sparrow receive address and request demo bitcoin for auction testing."
     )}
-    <p class="tool-handoff-note">You need a created Sparrow wallet before you can copy a receive address. Default: ${formatBitcoinDisplay(privateSignetFundingAmountSats)}. Max per request: ${formatBitcoinDisplay(privateSignetFundingMaxSats)}. One block is mined immediately so Sparrow sees a confirmed balance.</p>
+    <p class="tool-handoff-note">Default: ${formatBitcoinDisplay(privateSignetFundingAmountSats)}. Max per request: ${formatBitcoinDisplay(privateSignetFundingMaxSats)}. The faucet mines one block after funding.</p>
     <form id="privateFundingForm" class="tool-draft-form">
       <div class="draft-grid">
         <label class="draft-field">
@@ -1224,53 +1272,6 @@ function renderValuesToolSection(): string {
   </section>`;
 }
 
-function renderValuesGuideSection(configuredBasePath: string): string {
-  return `<section id="values-guide" class="panel panel-guide">
-    ${renderPanelHead(
-      "How Destination Updates Work",
-      "The name owner signs a small off-chain record. Resolvers store that record, while Bitcoin remains the source of ownership.",
-      `<p>The website focuses on normal destination bundles. Use the CLI for raw payloads, custom formats, or multi-resolver fanout.</p>`
-    )}
-    <div class="guide-grid guide-grid-balanced">
-      <article class="guide-card">
-        <h3>What Gets Published</h3>
-        <ul class="guide-list">
-          <li>A signed JSON update for the current ownership interval.</li>
-          <li>The destination entries you choose, such as bitcoin, lightning, email, or website.</li>
-          <li>No private key material.</li>
-        </ul>
-      </article>
-      <article class="guide-card">
-        <h3>Which Key You Need</h3>
-        <ul class="guide-list">
-          <li>Use the <strong>owner key</strong> saved for the name.</li>
-          <li>If the owner key no longer matches the current owner, publish will fail.</li>
-          <li>After a transfer, only the new owner can publish fresh destinations.</li>
-        </ul>
-      </article>
-      <article class="guide-card">
-        <h3>Common Things A Name Can Point To</h3>
-        <ul class="guide-list">
-          <li>A single website URL</li>
-          <li>A single Bitcoin payment target</li>
-          <li>A bundled list of repeatable destination entries like <span class="mono">btc -&gt; bc1qxy...0wlh</span>, <span class="mono">lightning -&gt; lno1q...9sa</span>, <span class="mono">website -&gt; alice.example</span>, and <span class="mono">cashapp -&gt; $alice1234</span></li>
-        </ul>
-        <div class="guide-card-actions">
-          <a class="action-link secondary" href="${withBasePath("/values", configuredBasePath)}">Open destinations tool</a>
-        </div>
-      </article>
-      <article class="guide-card guide-card-wide">
-        <h3>Find A Live Name First</h3>
-        <p>Destinations are signed by the current owner key. Start in Explore if you need a live name from the resolver, or Auctions if you want to inspect how names become owned.</p>
-        <div class="guide-card-actions">
-          <a class="action-link secondary" href="${withBasePath("/explore", configuredBasePath)}">Open explorer</a>
-          <a class="action-link secondary" href="${withBasePath("/auctions", configuredBasePath)}">Open auctions</a>
-        </div>
-      </article>
-    </div>
-  </section>`;
-}
-
 function renderValuesSupportStrip(configuredBasePath: string): string {
   return `<section id="values-support" class="panel panel-support-strip">
     ${renderLinkStrip("Related tools", [
@@ -1278,6 +1279,10 @@ function renderValuesSupportStrip(configuredBasePath: string): string {
       { href: withBasePath("/transfer", configuredBasePath), label: "Transfer a name" },
       { href: withBasePath("/explore", configuredBasePath), label: "Open explorer" },
       { href: withBasePath("/explainer", configuredBasePath), label: "Open overview" }
+    ])}
+    ${renderLinkStrip("Reference", [
+      { href: DOC_URLS.destinations, label: "Destination guide", external: true },
+      { href: DOC_URLS.fromZero, label: "ONT from zero", external: true }
     ])}
   </section>`;
 }
@@ -1367,52 +1372,11 @@ function parseElectrumEndpoint(endpoint: string): { host: string, port: string, 
   };
 }
 
-function renderTransferGuideSection(): string {
-  return `<section id="transfer-guide" class="panel panel-guide">
-    ${renderPanelHead(
-      "How Transfers Work",
-      "The receiver controls the next owner key. The current owner authorizes the handoff on Bitcoin.",
-      `<p>This page prepares the transfer details. Final transfer signing is still an advanced step.</p>`
-    )}
-    <div class="guide-grid guide-grid-balanced">
-      <article class="guide-card">
-        <h3>1. Receiver Key</h3>
-        <ul class="guide-list">
-          <li>The receiver creates the key that will control the name next.</li>
-          <li>Only the public key is shared with the current owner.</li>
-        </ul>
-      </article>
-      <article class="guide-card">
-        <h3>2. Owner Authorization</h3>
-        <ul class="guide-list">
-          <li>The current owner prepares the transaction that moves control.</li>
-          <li>The owner key, name, recipient pubkey, and current state must match.</li>
-        </ul>
-      </article>
-      <article class="guide-card">
-        <h3>3. Sales</h3>
-        <ul class="guide-list">
-          <li>Add a seller payout address only when money changes hands.</li>
-          <li>Do not pay in one transaction and trust a later transfer promise.</li>
-        </ul>
-      </article>
-      <article class="guide-card">
-        <h3>Current Boundary</h3>
-        <ul class="guide-list">
-          <li>Destination updates are website-native today.</li>
-          <li>Transfers still use an advanced handoff after this page prepares the plan.</li>
-        </ul>
-      </article>
-    </div>
-  </section>`;
-}
-
 function renderTransferPrepSection(): string {
   return `<section id="transfer-prep" class="panel panel-compose panel-compose-minimal">
     ${renderPanelHead(
-      "Prepare Transfer",
-      "Use one recipient pubkey and one current-owner authorization.",
-      `<p>Choose whether this is a gift or a sale first. Sales require a seller payout address so payment and ownership can settle together.</p>`
+      "Prepare Handoff",
+      "Create the recipient key, choose gift or sale, then download the review package."
     )}
     <div class="transfer-role-workflow transfer-role-workflow-simple">
       <section class="transfer-role-panel transfer-role-panel-receiver">
@@ -1421,7 +1385,7 @@ function renderTransferPrepSection(): string {
           <h3>Create Recipient Key</h3>
           <span class="status-pill transfer">new owner</span>
         </div>
-        <p class="field-value">Create the key that should control the name after transfer. Share only the pubkey with the current owner.</p>
+        <p class="field-value">Create the key for the next owner. Share only the pubkey.</p>
         <div class="field-actions">
           <button id="generateTransferOwnerKeyLocalButton" type="button">Create Recipient Key</button>
         </div>
@@ -1435,7 +1399,7 @@ function renderTransferPrepSection(): string {
           <h3>Prepare Transfer</h3>
           <span class="status-pill transfer">sender</span>
         </div>
-        <p class="field-value">Paste the recipient pubkey and the name. The site checks the live name state and recommends the safest path.</p>
+        <p class="field-value">Paste the recipient pubkey and name. The site checks live state and prepares the handoff.</p>
         <form id="transferDraftForm" class="tool-draft-form">
           <div class="draft-grid draft-grid-transfer">
             <label class="draft-field">
@@ -1490,7 +1454,7 @@ function renderTransferPrepSection(): string {
     <details class="detail-technical transfer-advanced-tools">
       <summary>Advanced package review and role exports</summary>
       <div class="detail-technical-body">
-        <p class="field-note">These exports are for the current advanced transfer flow. They are useful when the current owner and receiver need to review the same handoff before building the final transaction outside the website.</p>
+        <p class="field-note">Use these exports when both sides need to review the same handoff before building the final transaction outside the website.</p>
         <div class="transfer-export-grid">
           <article class="guide-card transfer-export-card">
             <h3>Current Owner Export</h3>
@@ -1557,6 +1521,10 @@ function renderTransferSupportStrip(configuredBasePath: string): string {
       { href: withBasePath("/explore", configuredBasePath), label: "Open explorer" },
       { href: withBasePath("/explainer", configuredBasePath), label: "Open overview" }
     ])}
+    ${renderLinkStrip("Reference", [
+      { href: DOC_URLS.transfer, label: "Transfer guide", external: true },
+      { href: DOC_URLS.launchSpec, label: "Launch spec", external: true }
+    ])}
   </section>`;
 }
 
@@ -1571,8 +1539,9 @@ function renderSiteFooter(configuredBasePath: string): string {
         <h2>Learn</h2>
         <div class="site-footer-links">
           <a href="${withBasePath("/explainer", configuredBasePath)}">Overview</a>
+          <a href="${DOC_URLS.newUser}" target="_blank" rel="noreferrer noopener">Testing Guide</a>
+          <a href="${DOC_URLS.sparrowPrivateSignet}" target="_blank" rel="noreferrer noopener">Setup Guide</a>
           <a href="${DOC_URLS.fromZero}" target="_blank" rel="noreferrer noopener">From Zero</a>
-          <a href="${DOC_URLS.launchSpec}" target="_blank" rel="noreferrer noopener">Launch Spec</a>
         </div>
       </section>
       <section class="site-footer-group">

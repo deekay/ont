@@ -1,7 +1,7 @@
 {
   "title": "Settled · meadow",
   "description": "Launch auction after the full auction window and soft-close extension have passed. This is the final winner state the protocol would carry forward.",
-  "currentBlockHeight": 854700,
+  "currentBlockHeight": 851400,
   "scenario": {
     "name": "meadow",
     "auctionClassId": "launch_name",
@@ -14,17 +14,17 @@
       },
       {
         "bidderId": "speculator_b",
-        "blockHeight": 851500,
+        "blockHeight": 850500,
         "amountSats": "220000000"
       },
       {
         "bidderId": "speculator_c",
-        "blockHeight": 854320,
+        "blockHeight": 850900,
         "amountSats": "242000000"
       },
       {
         "bidderId": "speculator_d",
-        "blockHeight": 854450,
+        "blockHeight": 851043,
         "amountSats": "267000000"
       }
     ]

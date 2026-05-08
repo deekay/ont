@@ -20,8 +20,8 @@
     "status": "settled",
     "winnerBidderId": "watcher_b",
     "winnerAmountSats": "25000000",
-    "initialAuctionCloseBlock": 864340,
-    "finalAuctionCloseBlock": 864340,
+    "initialAuctionCloseBlock": 861028,
+    "finalAuctionCloseBlock": 861028,
     "reasons": [
       "opening_bid",
       "higher_bid"
