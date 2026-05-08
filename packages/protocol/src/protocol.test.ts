@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { Signer } from "bip322-js";
 import * as secp256k1 from "tiny-secp256k1";
 
 import {
@@ -7,12 +8,21 @@ import {
   computeAuctionBidderCommitment,
   computeAuctionBidStateCommitment,
   computeAuctionLotCommitment,
+  computeRecoveryDescriptorHash,
+  computeRecoveryWalletProofHash,
+  computeRecoverOwnerAuthorizationHash,
   computeTransferAuthorizationHash,
+  createRecoveryWalletProof,
+  createRecoveryWalletProofCommitment,
+  createRecoveryWalletProofMessage,
   createTransferPackage,
   decodeAuctionBidPayload,
   decodeOntPayload,
+  decodeRecoverOwnerBody,
   decodeTransferBody,
   encodeAuctionBidPayload,
+  encodeRecoverOwnerBody,
+  encodeRecoverOwnerPayload,
   encodeTransferBody,
   encodeTransferPayload,
   getBondSats,
@@ -22,15 +32,25 @@ import {
   MIN_MATURITY_BLOCKS,
   normalizeName,
   OntEventType,
+  parseSignedRecoveryDescriptor,
+  parseRecoveryWalletProof,
   parseSignedValueRecord,
   parseTransferPackage,
   PROTOCOL_NAME,
+  RECOVERY_DESCRIPTOR_FORMAT,
+  RECOVERY_DESCRIPTOR_VERSION,
+  RECOVER_OWNER_FLAG_CANCEL,
+  signRecoverOwnerCancelAuthorization,
+  signRecoveryDescriptor,
   signTransferAuthorization,
   signValueRecord,
   TRANSFER_PACKAGE_FORMAT,
   TRANSFER_PACKAGE_VERSION,
   VALUE_RECORD_FORMAT,
   VALUE_RECORD_VERSION,
+  verifyRecoverOwnerCancelAuthorization,
+  verifyRecoveryWalletProof,
+  verifyRecoveryDescriptor,
   verifyTransferAuthorization,
   verifyValueRecord
 } from "./index.js";
@@ -169,6 +189,136 @@ describe("auction and transfer wire payloads", () => {
       })
     ).toBe(true);
   });
+
+  it("round-trips recover-owner payloads and verifies owner-key cancellation", () => {
+    const ownerPrivateKeyHex = "09".repeat(32);
+    const publicKeyBytes = secp256k1.xOnlyPointFromScalar(Buffer.from(ownerPrivateKeyHex, "hex"));
+
+    if (!publicKeyBytes) {
+      throw new Error("unable to derive test public key");
+    }
+
+    const ownerPubkey = Buffer.from(publicKeyBytes).toString("hex");
+    const fields = {
+      prevStateTxid: "77".repeat(32),
+      newOwnerPubkey: "88".repeat(32),
+      flags: RECOVER_OWNER_FLAG_CANCEL,
+      successorBondVout: 0,
+      challengeWindowBlocks: 144,
+      recoveryDescriptorHash: "99".repeat(32)
+    };
+    const signature = signRecoverOwnerCancelAuthorization({
+      ...fields,
+      ownerPrivateKeyHex
+    });
+    const payload = {
+      ...fields,
+      signature
+    };
+
+    expect(computeRecoverOwnerAuthorizationHash(fields)).toHaveLength(64);
+    expect(decodeRecoverOwnerBody(encodeRecoverOwnerBody(payload))).toEqual(payload);
+    expect(decodeOntPayload(encodeRecoverOwnerPayload(payload))).toEqual({
+      type: OntEventType.RecoverOwner,
+      payload
+    });
+    expect(
+      verifyRecoverOwnerCancelAuthorization({
+        ...fields,
+        ownerPubkey,
+        signature
+      })
+    ).toBe(true);
+  });
+
+  it("builds the BIP322-shaped recovery wallet proof message", () => {
+    const message = createRecoveryWalletProofMessage({
+      name: "Alice",
+      prevStateTxid: "77".repeat(32),
+      recoveryDescriptorHash: "99".repeat(32),
+      newOwnerPubkey: "88".repeat(32),
+      successorBondVout: 0,
+      challengeWindowBlocks: 144,
+      chainTipBlockHash: "aa".repeat(32),
+      chainTipHeight: 840_100
+    });
+
+    expect(message).toContain("profile: bip322");
+    expect(message).toContain("name: alice");
+    expect(message).toContain(`recoveryDescriptorHash: ${"99".repeat(32)}`);
+    expect(message).toContain(`chainTip: ${"aa".repeat(32)}@840100`);
+  });
+
+  it("verifies BIP322 recovery wallet proofs against recovery descriptors", () => {
+    const recoveryAddress = "tb1q9vza2e8x573nczrlzms0wvx3gsqjx7vaxwd45v";
+    const recoveryWalletWif = "L3VFeEujGtevx9w18HD1fhRbCH67Az2dpCymeRE1SoPK6XQtaN2k";
+    const descriptor = signRecoveryDescriptor({
+      name: "Alice",
+      ownerPrivateKeyHex: "0a".repeat(32),
+      ownershipRef: "77".repeat(32),
+      sequence: 1,
+      previousDescriptorHash: null,
+      recoveryAddress,
+      signingProfile: "bip322",
+      challengeWindowBlocks: 144,
+      issuedAt: "2026-05-08T12:00:00.000Z"
+    });
+    const recoveryDescriptorHash = computeRecoveryDescriptorHash(descriptor);
+    const proofFields = {
+      name: descriptor.name,
+      prevStateTxid: descriptor.ownershipRef,
+      recoveryDescriptorHash,
+      newOwnerPubkey: "88".repeat(32),
+      successorBondVout: 0,
+      challengeWindowBlocks: descriptor.challengeWindowBlocks
+    };
+    const signatureBase64 = Signer.sign(
+      recoveryWalletWif,
+      recoveryAddress,
+      createRecoveryWalletProofMessage(proofFields)
+    );
+    const proof = createRecoveryWalletProof({
+      ...proofFields,
+      recoveryAddress,
+      signingProfile: descriptor.signingProfile,
+      signatureBase64
+    });
+
+    expect(parseRecoveryWalletProof(proof)).toEqual(proof);
+    expect(computeRecoveryWalletProofHash(proof)).toHaveLength(64);
+    expect(createRecoveryWalletProofCommitment(proof)).toHaveLength(128);
+    expect(
+      verifyRecoveryWalletProof({
+        descriptor,
+        proof,
+        expected: {
+          prevStateTxid: descriptor.ownershipRef,
+          newOwnerPubkey: "88".repeat(32),
+          successorBondVout: 0
+        }
+      })
+    ).toMatchObject({
+      ok: true,
+      reason: "valid"
+    });
+
+    expect(
+      verifyRecoveryWalletProof({
+        descriptor,
+        proof: {
+          ...proof,
+          newOwnerPubkey: "89".repeat(32),
+          message: createRecoveryWalletProofMessage({
+            ...proofFields,
+            newOwnerPubkey: "89".repeat(32)
+          })
+        }
+      })
+    ).toMatchObject({
+      ok: false,
+      reason: "wallet_signature_invalid"
+    });
+  });
 });
 
 describe("transfer packages", () => {
@@ -287,5 +437,48 @@ describe("value records", () => {
 
     expect(parsed).toEqual(record);
     expect(verifyValueRecord(parsed)).toBe(true);
+  });
+});
+
+describe("recovery descriptors", () => {
+  it("signs and verifies owner-authenticated recovery descriptors", () => {
+    const descriptor = signRecoveryDescriptor({
+      name: "Alice",
+      ownerPrivateKeyHex: "0e".repeat(32),
+      ownershipRef: "cc".repeat(32),
+      sequence: 1,
+      previousDescriptorHash: null,
+      recoveryAddress: "tb1qexampleexampleexampleexampleexample0l7k7f",
+      signingProfile: "bip322",
+      challengeWindowBlocks: 144,
+      issuedAt: "2026-05-07T12:00:00.000Z"
+    });
+
+    expect(descriptor.format).toBe(RECOVERY_DESCRIPTOR_FORMAT);
+    expect(descriptor.descriptorVersion).toBe(RECOVERY_DESCRIPTOR_VERSION);
+    expect(descriptor.name).toBe("alice");
+    expect(descriptor.signingProfile).toBe("bip322");
+    expect(descriptor.challengeWindowBlocks).toBe(144);
+    expect(descriptor.signature).toHaveLength(128);
+    expect(verifyRecoveryDescriptor(descriptor)).toBe(true);
+    expect(computeRecoveryDescriptorHash(descriptor)).toMatch(/^[0-9a-f]{64}$/);
+    expect(parseSignedRecoveryDescriptor(descriptor)).toEqual(descriptor);
+  });
+
+  it("rejects tampered recovery descriptors", () => {
+    const descriptor = signRecoveryDescriptor({
+      name: "alice",
+      ownerPrivateKeyHex: "0f".repeat(32),
+      ownershipRef: "dd".repeat(32),
+      sequence: 1,
+      previousDescriptorHash: null,
+      recoveryAddress: "tb1qexampleexampleexampleexampleexample0l7k7f",
+      issuedAt: "2026-05-07T12:00:00.000Z"
+    });
+
+    expect(verifyRecoveryDescriptor({
+      ...descriptor,
+      recoveryAddress: "tb1qtamperedexampleexampleexampleexamplev3c4t"
+    })).toBe(false);
   });
 });

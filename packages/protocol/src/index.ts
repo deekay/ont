@@ -5,6 +5,8 @@ export * from "./constants.js";
 export * from "./crypto.js";
 export * from "./events.js";
 export * from "./names.js";
+export * from "./recovery-descriptor.js";
+export * from "./recovery-wallet-proof.js";
 export * from "./transfer-package.js";
 export * from "./value-record.js";
 export * from "./wire.js";

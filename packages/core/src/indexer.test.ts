@@ -7,7 +7,10 @@ import {
   computeAuctionBidStateCommitment,
   computeAuctionLotCommitment,
   encodeAuctionBidPayload,
+  encodeRecoverOwnerPayload,
   encodeTransferPayload,
+  RECOVER_OWNER_FLAG_CANCEL,
+  signRecoverOwnerCancelAuthorization,
   signTransferAuthorization
 } from "@ont/protocol";
 
@@ -18,6 +21,7 @@ import { InMemoryOntIndexer } from "./indexer.js";
 const OWNER_PRIVATE_KEY_HEX = "07".repeat(32);
 const OWNER_PUBKEY = deriveXOnlyPubkey(OWNER_PRIVATE_KEY_HEX);
 const NEW_OWNER_PUBKEY = deriveXOnlyPubkey("08".repeat(32));
+const RECOVERY_DESCRIPTOR_HASH = "dd".repeat(32);
 
 describe("InMemoryOntIndexer auction observations", () => {
   it("discovers named auction bids from chain-derived records", () => {
@@ -232,6 +236,257 @@ describe("InMemoryOntIndexer auction observations", () => {
     });
   });
 
+  it("finalizes bond-authorized owner recovery after the challenge window", () => {
+    const policy = createFastAuctionPolicy();
+    const name = "orchard";
+    const openingBid = createOpeningBidBlock({
+      policy,
+      name,
+      height: 10,
+      txid: hexByte(0x22),
+      ownerPubkey: OWNER_PUBKEY
+    });
+    const recoveryTxid = hexByte(0x44);
+    const indexer = new InMemoryOntIndexer({ launchHeight: 0, experimentalLaunchAuctionPolicy: policy });
+
+    indexer.ingestBlocks([
+      openingBid.block,
+      emptyBlock(13, 0x33),
+      recoverOwnerRequestBlock({
+        height: 14,
+        txid: recoveryTxid,
+        prevStateTxid: openingBid.txid,
+        spentBondTxid: openingBid.txid,
+        spentBondVout: 0,
+        successorBondSats: openingBid.bidAmountSats,
+        challengeWindowBlocks: 2
+      }),
+      emptyBlock(15, 0x55)
+    ]);
+
+    expect(indexer.getName(name)).toMatchObject({
+      currentOwnerPubkey: OWNER_PUBKEY,
+      currentBondTxid: recoveryTxid,
+      pendingRecovery: {
+        requestedTxid: recoveryTxid,
+        finalizeHeight: 16,
+        proposedOwnerPubkey: NEW_OWNER_PUBKEY
+      }
+    });
+
+    indexer.ingestBlock(emptyBlock(16, 0x66));
+
+    expect(indexer.getName(name)).toMatchObject({
+      currentOwnerPubkey: NEW_OWNER_PUBKEY,
+      currentBondTxid: recoveryTxid,
+      currentBondValueSats: openingBid.bidAmountSats,
+      lastStateTxid: recoveryTxid,
+      lastStateHeight: 16
+    });
+    expect(indexer.getName(name)?.pendingRecovery).toBeUndefined();
+    expect(indexer.getTransactionProvenance(recoveryTxid)).toMatchObject({
+      events: [
+        {
+          typeName: "RECOVER_OWNER",
+          validationStatus: "applied",
+          reason: "recovery_requested",
+          affectedName: name
+        }
+      ]
+    });
+  });
+
+  it("lets the current owner key cancel a pending recovery before finalization", () => {
+    const policy = createFastAuctionPolicy();
+    const name = "orchard";
+    const openingBid = createOpeningBidBlock({
+      policy,
+      name,
+      height: 10,
+      txid: hexByte(0x22),
+      ownerPubkey: OWNER_PUBKEY
+    });
+    const recoveryTxid = hexByte(0x44);
+    const cancelTxid = hexByte(0x55);
+    const indexer = new InMemoryOntIndexer({ launchHeight: 0, experimentalLaunchAuctionPolicy: policy });
+
+    indexer.ingestBlocks([
+      openingBid.block,
+      emptyBlock(13, 0x33),
+      recoverOwnerRequestBlock({
+        height: 14,
+        txid: recoveryTxid,
+        prevStateTxid: openingBid.txid,
+        spentBondTxid: openingBid.txid,
+        spentBondVout: 0,
+        successorBondSats: openingBid.bidAmountSats,
+        challengeWindowBlocks: 3
+      }),
+      recoverOwnerCancelBlock({
+        height: 15,
+        txid: cancelTxid,
+        recoveryTxid,
+        challengeWindowBlocks: 3
+      }),
+      emptyBlock(17, 0x66)
+    ]);
+
+    expect(indexer.getName(name)).toMatchObject({
+      currentOwnerPubkey: OWNER_PUBKEY,
+      currentBondTxid: recoveryTxid,
+      lastStateTxid: cancelTxid,
+      lastStateHeight: 15
+    });
+    expect(indexer.getName(name)?.pendingRecovery).toBeUndefined();
+    expect(indexer.getTransactionProvenance(cancelTxid)).toMatchObject({
+      events: [
+        {
+          typeName: "RECOVER_OWNER",
+          validationStatus: "applied",
+          reason: "recovery_cancelled_by_owner",
+          affectedName: name
+        }
+      ]
+    });
+  });
+
+  it("ignores owner-key recovery cancellation at the finalization height", () => {
+    const policy = createFastAuctionPolicy();
+    const name = "orchard";
+    const openingBid = createOpeningBidBlock({
+      policy,
+      name,
+      height: 10,
+      txid: hexByte(0x22),
+      ownerPubkey: OWNER_PUBKEY
+    });
+    const recoveryTxid = hexByte(0x44);
+    const cancelTxid = hexByte(0x55);
+    const indexer = new InMemoryOntIndexer({ launchHeight: 0, experimentalLaunchAuctionPolicy: policy });
+
+    indexer.ingestBlocks([
+      openingBid.block,
+      emptyBlock(13, 0x33),
+      recoverOwnerRequestBlock({
+        height: 14,
+        txid: recoveryTxid,
+        prevStateTxid: openingBid.txid,
+        spentBondTxid: openingBid.txid,
+        spentBondVout: 0,
+        successorBondSats: openingBid.bidAmountSats,
+        challengeWindowBlocks: 2
+      }),
+      recoverOwnerCancelBlock({
+        height: 16,
+        txid: cancelTxid,
+        recoveryTxid,
+        challengeWindowBlocks: 2
+      })
+    ]);
+
+    expect(indexer.getName(name)).toMatchObject({
+      currentOwnerPubkey: NEW_OWNER_PUBKEY,
+      lastStateTxid: recoveryTxid
+    });
+    expect(indexer.getTransactionProvenance(cancelTxid)).toMatchObject({
+      events: [
+        {
+          typeName: "RECOVER_OWNER",
+          validationStatus: "ignored",
+          reason: "recovery_cancel_too_late",
+          affectedName: name
+        }
+      ]
+    });
+  });
+
+  it("invalidates an immature name when a malformed recovery request spends the bond", () => {
+    const policy = createFastAuctionPolicy();
+    const name = "orchard";
+    const openingBid = createOpeningBidBlock({
+      policy,
+      name,
+      height: 10,
+      txid: hexByte(0x22),
+      ownerPubkey: OWNER_PUBKEY
+    });
+    const recoveryTxid = hexByte(0x44);
+    const indexer = new InMemoryOntIndexer({ launchHeight: 0, experimentalLaunchAuctionPolicy: policy });
+
+    indexer.ingestBlocks([
+      openingBid.block,
+      emptyBlock(13, 0x33),
+      recoverOwnerRequestBlock({
+        height: 14,
+        txid: recoveryTxid,
+        prevStateTxid: openingBid.txid,
+        spentBondTxid: openingBid.txid,
+        spentBondVout: 0,
+        successorBondSats: openingBid.bidAmountSats - 1n,
+        challengeWindowBlocks: 2
+      })
+    ]);
+
+    expect(indexer.getName(name)).toMatchObject({
+      status: "invalid",
+      currentOwnerPubkey: OWNER_PUBKEY
+    });
+    expect(indexer.getTransactionProvenance(recoveryTxid)).toMatchObject({
+      invalidatedNames: [name],
+      events: [
+        {
+          typeName: "RECOVER_OWNER",
+          validationStatus: "ignored",
+          reason: "recovery_invalid_successor_bond",
+          affectedName: name
+        }
+      ]
+    });
+  });
+
+  it("restores pending recovery state from a recent checkpoint after finalization", () => {
+    const policy = createFastAuctionPolicy();
+    const name = "orchard";
+    const openingBid = createOpeningBidBlock({
+      policy,
+      name,
+      height: 10,
+      txid: hexByte(0x22),
+      ownerPubkey: OWNER_PUBKEY
+    });
+    const recoveryTxid = hexByte(0x44);
+    const indexer = new InMemoryOntIndexer({
+      launchHeight: 0,
+      recentCheckpointLimit: 10,
+      experimentalLaunchAuctionPolicy: policy
+    });
+
+    indexer.ingestBlocks([
+      openingBid.block,
+      emptyBlock(13, 0x33),
+      recoverOwnerRequestBlock({
+        height: 14,
+        txid: recoveryTxid,
+        prevStateTxid: openingBid.txid,
+        spentBondTxid: openingBid.txid,
+        spentBondVout: 0,
+        successorBondSats: openingBid.bidAmountSats,
+        challengeWindowBlocks: 2
+      }),
+      emptyBlock(16, 0x66)
+    ]);
+
+    expect(indexer.getName(name)?.currentOwnerPubkey).toBe(NEW_OWNER_PUBKEY);
+    expect(indexer.restoreRecentCheckpoint(14, hexByte(14))).toBe(true);
+    expect(indexer.getName(name)).toMatchObject({
+      currentOwnerPubkey: OWNER_PUBKEY,
+      pendingRecovery: {
+        requestedTxid: recoveryTxid,
+        finalizeHeight: 16
+      }
+    });
+  });
+
   it("keeps an auction-owned name valid when the winning bond is spent after maturity", () => {
     const policy = createFastAuctionPolicy();
     const name = "orchard";
@@ -261,6 +516,48 @@ describe("InMemoryOntIndexer auction observations", () => {
       currentBondTxid: openingBid.txid
     });
     expect(indexer.getTransactionProvenance(hexByte(0x44))).toBeNull();
+  });
+
+  it("treats maturity height as the first safe height to spend the winning bond", () => {
+    const policy = createFastAuctionPolicy();
+    const name = "orchard";
+    const openingBid = createOpeningBidBlock({
+      policy,
+      name,
+      height: 10,
+      txid: hexByte(0x22),
+      ownerPubkey: OWNER_PUBKEY
+    });
+    const beforeMaturity = new InMemoryOntIndexer({ launchHeight: 0, experimentalLaunchAuctionPolicy: policy });
+    const atMaturity = new InMemoryOntIndexer({ launchHeight: 0, experimentalLaunchAuctionPolicy: policy });
+
+    beforeMaturity.ingestBlocks([
+      openingBid.block,
+      emptyBlock(13, 0x33),
+      spendBondBlock({
+        height: 14,
+        txid: hexByte(0x44),
+        spentTxid: openingBid.txid,
+        spentVout: 0
+      })
+    ]);
+    atMaturity.ingestBlocks([
+      openingBid.block,
+      emptyBlock(13, 0x33),
+      spendBondBlock({
+        height: 15,
+        txid: hexByte(0x55),
+        spentTxid: openingBid.txid,
+        spentVout: 0
+      })
+    ]);
+
+    expect(beforeMaturity.getName(name)).toMatchObject({
+      status: "invalid"
+    });
+    expect(atMaturity.getName(name)).toMatchObject({
+      status: "mature"
+    });
   });
 
   it("lets a released auction-owned name settle through a new release-anchored auction", () => {
@@ -513,6 +810,79 @@ function transferBlock(input: {
         inputs: [{ txid: input.spentBondTxid, vout: input.spentBondVout, coinbase: false }],
         outputs: [
           { valueSats: input.successorBondSats, scriptType: "payment" },
+          { valueSats: 0n, scriptType: "op_return", dataHex: Buffer.from(payload).toString("hex") }
+        ]
+      }
+    ]
+  };
+}
+
+function recoverOwnerRequestBlock(input: {
+  readonly height: number;
+  readonly txid: string;
+  readonly prevStateTxid: string;
+  readonly spentBondTxid: string;
+  readonly spentBondVout: number;
+  readonly successorBondSats: bigint;
+  readonly challengeWindowBlocks: number;
+}): BitcoinBlock {
+  const payload = encodeRecoverOwnerPayload({
+    prevStateTxid: input.prevStateTxid,
+    newOwnerPubkey: NEW_OWNER_PUBKEY,
+    flags: 0,
+    successorBondVout: 0,
+    challengeWindowBlocks: input.challengeWindowBlocks,
+    recoveryDescriptorHash: RECOVERY_DESCRIPTOR_HASH,
+    signature: "00".repeat(64)
+  });
+
+  return {
+    hash: hexByte(input.height),
+    height: input.height,
+    transactions: [
+      {
+        txid: input.txid,
+        inputs: [{ txid: input.spentBondTxid, vout: input.spentBondVout, coinbase: false }],
+        outputs: [
+          { valueSats: input.successorBondSats, scriptType: "payment" },
+          { valueSats: 0n, scriptType: "op_return", dataHex: Buffer.from(payload).toString("hex") }
+        ]
+      }
+    ]
+  };
+}
+
+function recoverOwnerCancelBlock(input: {
+  readonly height: number;
+  readonly txid: string;
+  readonly recoveryTxid: string;
+  readonly challengeWindowBlocks: number;
+}): BitcoinBlock {
+  const fields = {
+    prevStateTxid: input.recoveryTxid,
+    newOwnerPubkey: NEW_OWNER_PUBKEY,
+    flags: RECOVER_OWNER_FLAG_CANCEL,
+    successorBondVout: 0,
+    challengeWindowBlocks: input.challengeWindowBlocks,
+    recoveryDescriptorHash: RECOVERY_DESCRIPTOR_HASH
+  };
+  const signature = signRecoverOwnerCancelAuthorization({
+    ...fields,
+    ownerPrivateKeyHex: OWNER_PRIVATE_KEY_HEX
+  });
+  const payload = encodeRecoverOwnerPayload({
+    ...fields,
+    signature
+  });
+
+  return {
+    hash: hexByte(input.height),
+    height: input.height,
+    transactions: [
+      {
+        txid: input.txid,
+        inputs: [{ txid: hexByte(0x99), vout: 0, coinbase: false }],
+        outputs: [
           { valueSats: 0n, scriptType: "op_return", dataHex: Buffer.from(payload).toString("hex") }
         ]
       }

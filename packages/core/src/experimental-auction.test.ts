@@ -212,6 +212,95 @@ describe("experimental auction derivation", () => {
     });
   });
 
+  it("orders same-block bids by transaction index before evaluating the next bid", () => {
+    const policy = createDefaultLaunchAuctionPolicy();
+    const catalogEntry = createExperimentalLaunchAuctionCatalogEntry(
+      {
+        auctionId: "04-soft-close-marble",
+        title: "Soft close · marble",
+        description: "Experimental live auction fixture.",
+        name: "marble",
+        auctionClassId: "launch_name",
+        unlockBlock: 840_000
+      },
+      policy
+    );
+    const alphaCommitment = computeAuctionBidderCommitment("alpha");
+    const betaCommitment = computeAuctionBidderCommitment("beta");
+
+    const state = deriveExperimentalLaunchAuctionState({
+      policy,
+      currentBlockHeight: 840_011,
+      catalogEntry,
+      bidObservations: [
+        {
+          txid: "22".repeat(32),
+          blockHeight: 840_010,
+          txIndex: 1,
+          vout: 1,
+          bondVout: 0,
+          bidderCommitment: betaCommitment,
+          bidAmountSats: 1_050_000_000n,
+          settlementLockBlocks: catalogEntry.settlementLockBlocks,
+          auctionLotCommitment: catalogEntry.auctionLotCommitment,
+          spentOutpoints: [],
+          auctionCommitment: computeAuctionBidStateCommitment({
+            auctionId: catalogEntry.auctionId,
+            name: catalogEntry.normalizedName,
+            auctionClassId: catalogEntry.auctionClassId,
+            currentBlockHeight: 840_010,
+            phase: "live_bidding",
+            unlockBlock: catalogEntry.unlockBlock,
+            auctionCloseBlockAfter: 844_330,
+            openingMinimumBidSats: catalogEntry.openingMinimumBidSats,
+            currentLeaderBidderCommitment: alphaCommitment,
+            currentHighestBidSats: 1_000_000_000n,
+            currentRequiredMinimumBidSats: 1_050_000_000n,
+            settlementLockBlocks: catalogEntry.settlementLockBlocks
+          })
+        },
+        {
+          txid: "11".repeat(32),
+          blockHeight: 840_010,
+          txIndex: 0,
+          vout: 1,
+          bondVout: 0,
+          bidderCommitment: alphaCommitment,
+          bidAmountSats: 1_000_000_000n,
+          settlementLockBlocks: catalogEntry.settlementLockBlocks,
+          auctionLotCommitment: catalogEntry.auctionLotCommitment,
+          spentOutpoints: [],
+          auctionCommitment: computeAuctionBidStateCommitment({
+            auctionId: catalogEntry.auctionId,
+            name: catalogEntry.normalizedName,
+            auctionClassId: catalogEntry.auctionClassId,
+            currentBlockHeight: 840_010,
+            phase: "awaiting_opening_bid",
+            unlockBlock: catalogEntry.unlockBlock,
+            auctionCloseBlockAfter: null,
+            openingMinimumBidSats: catalogEntry.openingMinimumBidSats,
+            currentLeaderBidderCommitment: null,
+            currentHighestBidSats: null,
+            currentRequiredMinimumBidSats: catalogEntry.openingMinimumBidSats,
+            settlementLockBlocks: catalogEntry.settlementLockBlocks
+          })
+        }
+      ]
+    });
+
+    expect(state.acceptedBidCount).toBe(2);
+    expect(state.currentLeaderBidderCommitment).toBe(betaCommitment);
+    expect(state.currentHighestBidSats).toBe(1_050_000_000n);
+    expect(state.visibleBidOutcomes.map((outcome) => outcome.txid)).toEqual([
+      "11".repeat(32),
+      "22".repeat(32)
+    ]);
+    expect(state.visibleBidOutcomes.map((outcome) => outcome.reason)).toEqual([
+      "opening_bid",
+      "higher_bid"
+    ]);
+  });
+
   it("keeps unopened eligible entries available for an opening bid", () => {
     const policy = createDefaultLaunchAuctionPolicy();
     const catalogEntry = createExperimentalLaunchAuctionCatalogEntry(

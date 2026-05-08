@@ -122,7 +122,7 @@ try to automate every case.
 | Case | Expected behavior | Status | Notes |
 | --- | --- | --- | --- |
 | Bids sorted by block height | Earlier block is processed first. | Covered | Existing tests use ordered heights. |
-| Bids in same block sorted by transaction index | Deterministic tie order. | Needs coverage | Must be explicit for same-block auctions. |
+| Bids in same block sorted by transaction index | Deterministic tie order. | Covered | Experimental auction derivation now asserts tx-index ordering before next-bid evaluation. |
 | Multiple ONT outputs in one transaction | Deterministic processing order by output index. | Needs coverage | Could matter for batching later. |
 | Same transaction opens multiple names | Allowed only if each name has a distinct valid bond output. | Needs coverage | Prevents one output backing many names. |
 | Same bond output referenced by multiple auction bids | Only one name/bid can treat that UTXO as a valid live bond. | Needs coverage | This is a core anti-reuse invariant. |
@@ -155,7 +155,7 @@ try to automate every case.
 | Winning bond spent before auction settlement | Auction can settle, but no live owned name materializes. | Covered | Indexer covers spent-before-settlement. |
 | Winning bond spent after settlement but before maturity | Name becomes invalid / released. | Covered | Indexer covers release before maturity. |
 | Winning bond spent exactly at maturity height | Allowed; name remains mature. | Covered | Existing test spends at maturity height. |
-| Winning bond spent one block before maturity | Invalidates / releases name. | Needs coverage | Off-by-one pair for maturity. |
+| Winning bond spent one block before maturity | Invalidates / releases name. | Covered | Indexer coverage now pairs one-before-maturity invalidation with at-maturity safe release. |
 | Losing bond spent before settlement | Marked as spent before its allowed post-settlement exit; should not affect leader except if it was current leader. | Covered | Bid outcome spend status tests cover accepted spends. |
 | Losing bond spent after settlement | Allowed. | Covered | Existing test covers losing release block. |
 | Rejected bid bond spent any time | Not tracked as protocol bond. | Partial | Rejected status exists; explicit spend behavior would help. |

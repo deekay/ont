@@ -206,7 +206,10 @@ Transfers move owner authority from one pubkey to another.
 - active names no longer require that continuity
 - the owner key, not a resolver, is what authorizes future destination updates
 - after a transfer, the old owner can no longer publish new destination records for that name
-- if the owner key is lost, v1 has no built-in protocol recovery path even if the user still controls the wallet that funded the auction bid
+- owner-key recovery is being added in layers: signed recovery descriptors can
+  now be stored by resolvers, and a prototype `RECOVER_OWNER` challenge-window
+  event exists; protocol-level BIP322 proof-envelope verification now exists,
+  while indexer enforcement and user-facing recovery flows still need work
 
 ### Destinations
 

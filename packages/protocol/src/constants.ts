@@ -41,7 +41,8 @@ export const BOND_FLOOR_SATS = 50_000n;
 
 export enum OntEventType {
   Transfer = 0x03,
-  AuctionBid = 0x07
+  AuctionBid = 0x07,
+  RecoverOwner = 0x09
 }
 
 export enum ValueType {

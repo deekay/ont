@@ -44,6 +44,8 @@ import {
 } from "./rpc-actions.js";
 import {
   fetchNameActivity,
+  fetchNameRecoveryDescriptor,
+  fetchNameRecoveryDescriptorHistory,
   fetchRecentActivity,
   fetchNameRecord,
   fetchNameValueHistoryFromResolvers,
@@ -65,6 +67,15 @@ import {
   publishValueRecord,
   publishValueRecordToResolvers
 } from "./value-records.js";
+import {
+  createRecoveryWalletProofEnvelope,
+  createRecoveryWalletProofMessageForDescriptor,
+  createSignedRecoveryDescriptor,
+  loadRecoveryWalletProof,
+  loadSignedRecoveryDescriptor,
+  publishRecoveryDescriptor,
+  verifyRecoveryWalletProofEnvelope
+} from "./recovery-descriptors.js";
 
 void main().catch((error) => {
   console.error(error instanceof Error ? error.message : String(error));
@@ -141,6 +152,21 @@ async function main(): Promise<void> {
     case "publish-value-record":
       await publishValueRecordCommand(args);
       return;
+    case "sign-recovery-descriptor":
+      await signRecoveryDescriptorCommand(args);
+      return;
+    case "publish-recovery-descriptor":
+      await publishRecoveryDescriptorCommand(args);
+      return;
+    case "print-recovery-wallet-proof-message":
+      await printRecoveryWalletProofMessageCommand(args);
+      return;
+    case "build-recovery-wallet-proof":
+      await buildRecoveryWalletProofCommand(args);
+      return;
+    case "verify-recovery-wallet-proof":
+      await verifyRecoveryWalletProofCommand(args);
+      return;
     case "get-name":
       await getNameCommand(args);
       return;
@@ -152,6 +178,12 @@ async function main(): Promise<void> {
       return;
     case "get-value-history":
       await getValueHistoryCommand(args);
+      return;
+    case "get-recovery-descriptor":
+      await getRecoveryDescriptorCommand(args);
+      return;
+    case "get-recovery-descriptor-history":
+      await getRecoveryDescriptorHistoryCommand(args);
       return;
     case "list-activity":
       await listActivityCommand(args);
@@ -1042,6 +1074,225 @@ async function publishValueRecordCommand(args: readonly string[]): Promise<void>
   console.log(JSON.stringify(result, null, 2));
 }
 
+async function signRecoveryDescriptorCommand(args: readonly string[]): Promise<void> {
+  const parsed = parseOptions(args);
+  const name = parsed.options.get("name");
+  const ownerPrivateKeyHex = parsed.options.get("owner-private-key-hex");
+  const recoveryAddress = parsed.options.get("recovery-address");
+
+  if (!name) {
+    throw new Error("sign-recovery-descriptor requires --name");
+  }
+
+  if (!ownerPrivateKeyHex) {
+    throw new Error("sign-recovery-descriptor requires --owner-private-key-hex");
+  }
+
+  if (!recoveryAddress) {
+    throw new Error("sign-recovery-descriptor requires --recovery-address");
+  }
+
+  const resolverUrl = resolveSingleResolverUrlOption(parsed, {
+    command: "sign-recovery-descriptor",
+    multiResolverMessage:
+      "sign-recovery-descriptor automatic chain field lookup uses one resolver at a time; use --resolver-url for a single source, or pass explicit --ownership-ref, --previous-descriptor-hash, and --sequence"
+  });
+  let ownershipRef = parsed.options.get("ownership-ref");
+  const previousDescriptorHashProvided = parsed.options.has("previous-descriptor-hash");
+  let previousDescriptorHash = previousDescriptorHashProvided
+    ? parseNullableDescriptorHashOption(parsed.options.get("previous-descriptor-hash"))
+    : undefined;
+  let sequence = parsed.options.has("sequence")
+    ? parseRequiredInteger(parsed.options.get("sequence"), "sequence")
+    : undefined;
+
+  if (ownershipRef === undefined || previousDescriptorHash === undefined || sequence === undefined) {
+    if (resolverUrl === undefined) {
+      throw new Error(
+        "sign-recovery-descriptor requires either --resolver-url for automatic chain fields or explicit --ownership-ref, --previous-descriptor-hash, and --sequence"
+      );
+    }
+
+    const [nameRecord, currentRecoveryDescriptor] = await Promise.all([
+      fetchNameRecord({ name, resolverUrl }),
+      fetchNameRecoveryDescriptor({ name, resolverUrl }).catch((error) => {
+        if (error instanceof ResolverHttpError && error.code === "recovery_descriptor_not_found") {
+          return null;
+        }
+
+        throw error;
+      })
+    ]);
+
+    ownershipRef ??= nameRecord.lastStateTxid;
+    if (!previousDescriptorHashProvided) {
+      previousDescriptorHash = currentRecoveryDescriptor?.descriptorHash ?? null;
+    }
+    sequence ??= currentRecoveryDescriptor === null ? 1 : currentRecoveryDescriptor.sequence + 1;
+  }
+
+  if (ownershipRef === undefined || previousDescriptorHash === undefined || sequence === undefined) {
+    throw new Error("unable to resolve recovery-descriptor chain fields");
+  }
+
+  const descriptor = createSignedRecoveryDescriptor({
+    name,
+    ownerPrivateKeyHex,
+    ownershipRef,
+    sequence,
+    previousDescriptorHash,
+    recoveryAddress,
+    ...(parsed.options.has("signing-profile")
+      ? { signingProfile: parsed.options.get("signing-profile") as string }
+      : {}),
+    ...(parsed.options.has("challenge-window-blocks")
+      ? {
+          challengeWindowBlocks: parseRequiredInteger(
+            parsed.options.get("challenge-window-blocks"),
+            "challenge-window-blocks"
+          )
+        }
+      : {}),
+    ...(parsed.options.has("issued-at")
+      ? { issuedAt: parsed.options.get("issued-at") as string }
+      : {})
+  });
+
+  await maybeWriteJsonFile(parsed.options.get("write"), descriptor);
+  console.log(JSON.stringify(descriptor, null, 2));
+}
+
+async function publishRecoveryDescriptorCommand(args: readonly string[]): Promise<void> {
+  const parsed = parseOptions(args);
+  const descriptorPath = parsed.positionals[0];
+
+  if (!descriptorPath) {
+    throw new Error("publish-recovery-descriptor requires a path to a signed recovery descriptor JSON file");
+  }
+
+  const recoveryDescriptor = await loadSignedRecoveryDescriptor(descriptorPath);
+  const resolverUrl = resolveSingleResolverUrlOption(parsed, {
+    command: "publish-recovery-descriptor"
+  });
+  const result = await publishRecoveryDescriptor({
+    recoveryDescriptor,
+    ...(resolverUrl === undefined ? {} : { resolverUrl })
+  });
+
+  console.log(JSON.stringify(result, null, 2));
+}
+
+async function printRecoveryWalletProofMessageCommand(args: readonly string[]): Promise<void> {
+  const parsed = parseOptions(args);
+  const descriptorPath = parsed.positionals[0];
+
+  if (!descriptorPath) {
+    throw new Error("print-recovery-wallet-proof-message requires a recovery descriptor JSON file");
+  }
+
+  const descriptor = await loadSignedRecoveryDescriptor(descriptorPath);
+  const prevStateTxid = parsed.options.get("prev-state-txid");
+  const newOwnerPubkey = parsed.options.get("new-owner-pubkey");
+
+  if (!prevStateTxid) {
+    throw new Error("print-recovery-wallet-proof-message requires --prev-state-txid");
+  }
+
+  if (!newOwnerPubkey) {
+    throw new Error("print-recovery-wallet-proof-message requires --new-owner-pubkey");
+  }
+
+  console.log(
+    createRecoveryWalletProofMessageForDescriptor({
+      descriptor,
+      prevStateTxid,
+      newOwnerPubkey,
+      successorBondVout: parseRequiredByte(parsed.options.get("successor-bond-vout"), "successor-bond-vout"),
+      ...(parsed.options.has("chain-tip-block-hash")
+        ? { chainTipBlockHash: parsed.options.get("chain-tip-block-hash") as string }
+        : {}),
+      ...(parsed.options.has("chain-tip-height")
+        ? { chainTipHeight: parseRequiredInteger(parsed.options.get("chain-tip-height"), "chain-tip-height") }
+        : {})
+    })
+  );
+}
+
+async function buildRecoveryWalletProofCommand(args: readonly string[]): Promise<void> {
+  const parsed = parseOptions(args);
+  const descriptorPath = parsed.positionals[0];
+
+  if (!descriptorPath) {
+    throw new Error("build-recovery-wallet-proof requires a recovery descriptor JSON file");
+  }
+
+  const descriptor = await loadSignedRecoveryDescriptor(descriptorPath);
+  const prevStateTxid = parsed.options.get("prev-state-txid");
+  const newOwnerPubkey = parsed.options.get("new-owner-pubkey");
+  const signatureBase64 = parsed.options.get("signature-base64");
+
+  if (!prevStateTxid) {
+    throw new Error("build-recovery-wallet-proof requires --prev-state-txid");
+  }
+
+  if (!newOwnerPubkey) {
+    throw new Error("build-recovery-wallet-proof requires --new-owner-pubkey");
+  }
+
+  if (!signatureBase64) {
+    throw new Error("build-recovery-wallet-proof requires --signature-base64");
+  }
+
+  const proof = createRecoveryWalletProofEnvelope({
+    descriptor,
+    prevStateTxid,
+    newOwnerPubkey,
+    successorBondVout: parseRequiredByte(parsed.options.get("successor-bond-vout"), "successor-bond-vout"),
+    signatureBase64,
+    ...(parsed.options.has("chain-tip-block-hash")
+      ? { chainTipBlockHash: parsed.options.get("chain-tip-block-hash") as string }
+      : {}),
+    ...(parsed.options.has("chain-tip-height")
+      ? { chainTipHeight: parseRequiredInteger(parsed.options.get("chain-tip-height"), "chain-tip-height") }
+      : {})
+  });
+
+  await maybeWriteJsonFile(parsed.options.get("write"), proof);
+  console.log(JSON.stringify(proof, null, 2));
+}
+
+async function verifyRecoveryWalletProofCommand(args: readonly string[]): Promise<void> {
+  const parsed = parseOptions(args);
+  const descriptorPath = parsed.positionals[0];
+  const proofPath = parsed.positionals[1];
+
+  if (!descriptorPath || !proofPath) {
+    throw new Error("verify-recovery-wallet-proof requires <recovery-descriptor-json> <recovery-wallet-proof-json>");
+  }
+
+  const descriptor = await loadSignedRecoveryDescriptor(descriptorPath);
+  const proof = await loadRecoveryWalletProof(proofPath);
+  const result = verifyRecoveryWalletProofEnvelope({
+    descriptor,
+    proof,
+    ...(parsed.options.has("prev-state-txid")
+      ? { prevStateTxid: parsed.options.get("prev-state-txid") as string }
+      : {}),
+    ...(parsed.options.has("new-owner-pubkey")
+      ? { newOwnerPubkey: parsed.options.get("new-owner-pubkey") as string }
+      : {}),
+    ...(parsed.options.has("successor-bond-vout")
+      ? { successorBondVout: parseRequiredByte(parsed.options.get("successor-bond-vout"), "successor-bond-vout") }
+      : {})
+  });
+
+  console.log(JSON.stringify(result, null, 2));
+
+  if (!result.ok) {
+    process.exitCode = 1;
+  }
+}
+
 async function getNameCommand(args: readonly string[]): Promise<void> {
   const parsed = parseOptions(args);
   const name = parsed.positionals[0] ?? parsed.options.get("name");
@@ -1156,6 +1407,64 @@ async function getValueHistoryCommand(args: readonly string[]): Promise<void> {
             name,
             ...(resolverUrls[0] === undefined ? {} : { resolverUrl: resolverUrls[0] })
           });
+
+    console.log(JSON.stringify(result, null, 2));
+  } catch (error) {
+    if (error instanceof ResolverHttpError) {
+      console.log(JSON.stringify(error.payload, null, 2));
+      process.exitCode = 1;
+      return;
+    }
+
+    throw error;
+  }
+}
+
+async function getRecoveryDescriptorCommand(args: readonly string[]): Promise<void> {
+  const parsed = parseOptions(args);
+  const name = parsed.positionals[0] ?? parsed.options.get("name");
+
+  if (!name) {
+    throw new Error("get-recovery-descriptor requires a name");
+  }
+
+  try {
+    const resolverUrl = resolveSingleResolverUrlOption(parsed, {
+      command: "get-recovery-descriptor"
+    });
+    const result = await fetchNameRecoveryDescriptor({
+      name,
+      ...(resolverUrl === undefined ? {} : { resolverUrl })
+    });
+
+    console.log(JSON.stringify(result, null, 2));
+  } catch (error) {
+    if (error instanceof ResolverHttpError) {
+      console.log(JSON.stringify(error.payload, null, 2));
+      process.exitCode = 1;
+      return;
+    }
+
+    throw error;
+  }
+}
+
+async function getRecoveryDescriptorHistoryCommand(args: readonly string[]): Promise<void> {
+  const parsed = parseOptions(args);
+  const name = parsed.positionals[0] ?? parsed.options.get("name");
+
+  if (!name) {
+    throw new Error("get-recovery-descriptor-history requires a name");
+  }
+
+  try {
+    const resolverUrl = resolveSingleResolverUrlOption(parsed, {
+      command: "get-recovery-descriptor-history"
+    });
+    const result = await fetchNameRecoveryDescriptorHistory({
+      name,
+      ...(resolverUrl === undefined ? {} : { resolverUrl })
+    });
 
     console.log(JSON.stringify(result, null, 2));
   } catch (error) {
@@ -1401,6 +1710,19 @@ function parseNullableHashOption(value: string | undefined): string | null {
   return normalized;
 }
 
+function parseNullableDescriptorHashOption(value: string | undefined): string | null {
+  if (value === undefined || value.toLowerCase() === "null" || value === "") {
+    return null;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (!/^[0-9a-f]{64}$/.test(normalized)) {
+    throw new Error("--previous-descriptor-hash must be 64 hex characters or null");
+  }
+
+  return normalized;
+}
+
 function parseNetwork(value: string | undefined): OntCliNetwork {
   if (value === undefined) {
     return "signet";
@@ -1529,6 +1851,24 @@ function printUsage(): void {
   console.log("  publish-value-record <value-record-json> [--resolver-url <url> | --resolver-urls <url1,url2,...>]");
   console.log("    Publish one signed value record to one resolver or fan it out across several resolvers");
   console.log("");
+  console.log("  sign-recovery-descriptor --name <name> --owner-private-key-hex <hex32> --resolver-url <url> --recovery-address <addr> [--signing-profile bip322] [--challenge-window-blocks <n>] [--write <path>]");
+  console.log("    Sign the exact next recovery descriptor using resolver-derived ownershipRef and predecessor hash");
+  console.log("");
+  console.log("  sign-recovery-descriptor --name <name> --owner-private-key-hex <hex32> --ownership-ref <txid> --previous-descriptor-hash <hash|null> --sequence <n> --recovery-address <addr> [--signing-profile bip322] [--challenge-window-blocks <n>] [--issued-at <iso>] [--write <path>]");
+  console.log("    Sign a recovery descriptor using explicit recovery-chain fields");
+  console.log("");
+  console.log("  publish-recovery-descriptor <recovery-descriptor-json> [--resolver-url <url>]");
+  console.log("    Publish one signed recovery descriptor to one resolver");
+  console.log("");
+  console.log("  print-recovery-wallet-proof-message <recovery-descriptor-json> --prev-state-txid <txid> --new-owner-pubkey <hex32> --successor-bond-vout <0-255> [--chain-tip-block-hash <hash> --chain-tip-height <n>]");
+  console.log("    Print the exact ONT recovery message for the recovery wallet to sign");
+  console.log("");
+  console.log("  build-recovery-wallet-proof <recovery-descriptor-json> --prev-state-txid <txid> --new-owner-pubkey <hex32> --successor-bond-vout <0-255> --signature-base64 <wallet-signature> [--write <path>]");
+  console.log("    Wrap a wallet-produced BIP322 signature into an ONT recovery wallet-proof JSON envelope");
+  console.log("");
+  console.log("  verify-recovery-wallet-proof <recovery-descriptor-json> <recovery-wallet-proof-json> [--prev-state-txid <txid>] [--new-owner-pubkey <hex32>] [--successor-bond-vout <0-255>]");
+  console.log("    Verify a recovery wallet-proof JSON envelope against its descriptor and optional expected recovery event fields");
+  console.log("");
   console.log("  get-name <name> [--resolver-url <url>]");
   console.log("    Fetch the resolver's current ownership record for one name");
   console.log("");
@@ -1540,6 +1880,12 @@ function printUsage(): void {
   console.log("");
   console.log("  get-value-history <name> [--resolver-url <url> | --resolver-urls <url1,url2,...>]");
   console.log("    Fetch one resolver's current value-record history chain, or compare history agreement across several resolvers");
+  console.log("");
+  console.log("  get-recovery-descriptor <name> [--resolver-url <url>]");
+  console.log("    Fetch the resolver's current signed wallet-backed recovery descriptor");
+  console.log("");
+  console.log("  get-recovery-descriptor-history <name> [--resolver-url <url>]");
+  console.log("    Fetch one resolver's recovery descriptor history chain");
   console.log("");
   console.log("  list-activity [--resolver-url <url>] [--limit <n>]");
   console.log("    Fetch recent chain activity with parsed Open Name Tags events and invalidation outcomes");

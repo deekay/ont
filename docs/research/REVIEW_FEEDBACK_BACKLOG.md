@@ -72,7 +72,22 @@ This is both a usability issue and a sovereignty issue. Reviewers want to know w
 
 ### Current Status
 
-Current v1 stance is documented: no built-in recovery path. Still an open design area for future versions.
+Reopened as a v1 design issue.
+
+The current working recommendation is that, while a name is still backed by a
+live immature bond, control of the current bond UTXO should be able to rotate
+the ONT owner key by moving the bond into a valid successor bond output in the
+same transaction.
+
+The signed recovery descriptor foundation, a prototype `RECOVER_OWNER`
+challenge-window state machine, and protocol-level BIP322 proof-envelope
+verification are implemented. The remaining details still need protocol review:
+
+- whether recovery exists only before maturity, or can remain available through
+  an optional post-maturity recovery anchor
+- how to handle conflicts between owner-key authority and bond-spend authority
+- how resolver/client proof distribution should work for variable-size wallet
+  proofs committed by hash on chain
 
 ## 4. Premium Brands And Top-End Squatting
 

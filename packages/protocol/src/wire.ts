@@ -4,20 +4,24 @@ import { bytesToUtf8, concatBytes, utf8ToBytes } from "./crypto.js";
 import {
   AUCTION_BID_FLAG_INCLUDES_NAME,
   createAuctionBidPayload,
+  createRecoverOwnerPayload,
   createTransferPayload,
   type AuctionBidEventPayload,
+  type RecoverOwnerEventPayload,
   type TransferEventPayload
 } from "./events.js";
 
 const MAGIC_BYTES = utf8ToBytes(PROTOCOL_MAGIC);
 
 export const TRANSFER_BODY_LENGTH = 32 + 32 + 1 + 1 + 64;
+export const RECOVER_OWNER_BODY_LENGTH = 32 + 32 + 1 + 1 + 4 + 32 + 64;
 export const AUCTION_BID_FIXED_PAYLOAD_LENGTH = 3 + 1 + 1 + 1 + 1 + 4 + 8 + 32 + 16 + 32 + 16;
 export const AUCTION_BID_NAMED_PAYLOAD_OVERHEAD = 4 + 1;
 
 export type DecodedOntPayload =
   | { readonly type: OntEventType.Transfer; readonly payload: TransferEventPayload }
-  | { readonly type: OntEventType.AuctionBid; readonly payload: AuctionBidEventPayload };
+  | { readonly type: OntEventType.AuctionBid; readonly payload: AuctionBidEventPayload }
+  | { readonly type: OntEventType.RecoverOwner; readonly payload: RecoverOwnerEventPayload };
 
 export function encodeAuctionBidPayload(payload: AuctionBidEventPayload): Uint8Array {
   const normalized = createAuctionBidPayload(payload);
@@ -116,6 +120,35 @@ export function decodeTransferBody(payload: Uint8Array): TransferEventPayload {
   });
 }
 
+export function encodeRecoverOwnerBody(payload: RecoverOwnerEventPayload): Uint8Array {
+  const normalized = createRecoverOwnerPayload(payload);
+
+  return joinBytes(
+    hexToBytes(normalized.prevStateTxid),
+    hexToBytes(normalized.newOwnerPubkey),
+    Uint8Array.of(normalized.flags, normalized.successorBondVout),
+    uint32ToBytes(normalized.challengeWindowBlocks),
+    hexToBytes(normalized.recoveryDescriptorHash),
+    hexToBytes(normalized.signature)
+  );
+}
+
+export function decodeRecoverOwnerBody(payload: Uint8Array): RecoverOwnerEventPayload {
+  if (payload.length !== RECOVER_OWNER_BODY_LENGTH) {
+    throw new Error(`recover owner body must be ${RECOVER_OWNER_BODY_LENGTH} bytes`);
+  }
+
+  return createRecoverOwnerPayload({
+    prevStateTxid: bytesToHex(payload.slice(0, 32)),
+    newOwnerPubkey: bytesToHex(payload.slice(32, 64)),
+    flags: payload[64] ?? 0,
+    successorBondVout: payload[65] ?? 0,
+    challengeWindowBlocks: uint32FromBytes(payload.slice(66, 70)),
+    recoveryDescriptorHash: bytesToHex(payload.slice(70, 102)),
+    signature: bytesToHex(payload.slice(102, 166))
+  });
+}
+
 export function decodeOntPayload(payload: Uint8Array): DecodedOntPayload {
   const type = peekEventType(payload);
 
@@ -124,6 +157,8 @@ export function decodeOntPayload(payload: Uint8Array): DecodedOntPayload {
       return { type, payload: decodeTransferBody(payload.slice(5)) };
     case OntEventType.AuctionBid:
       return { type, payload: decodeAuctionBidPayload(payload) };
+    case OntEventType.RecoverOwner:
+      return { type, payload: decodeRecoverOwnerBody(payload.slice(5)) };
   }
 }
 
@@ -134,7 +169,8 @@ export function peekEventType(payload: Uint8Array): OntEventType {
 
   if (
     type !== OntEventType.Transfer &&
-    type !== OntEventType.AuctionBid
+    type !== OntEventType.AuctionBid &&
+    type !== OntEventType.RecoverOwner
   ) {
     throw new Error(`unsupported event type ${type}`);
   }
@@ -147,6 +183,14 @@ export function encodeTransferPayload(payload: TransferEventPayload): Uint8Array
     MAGIC_BYTES,
     Uint8Array.of(PROTOCOL_VERSION, OntEventType.Transfer),
     encodeTransferBody(payload)
+  );
+}
+
+export function encodeRecoverOwnerPayload(payload: RecoverOwnerEventPayload): Uint8Array {
+  return joinBytes(
+    MAGIC_BYTES,
+    Uint8Array.of(PROTOCOL_VERSION, OntEventType.RecoverOwner),
+    encodeRecoverOwnerBody(payload)
   );
 }
 

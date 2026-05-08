@@ -7,6 +7,7 @@ import {
 import {
   type AuctionBidEventPayload,
   OntEventType,
+  type RecoverOwnerEventPayload,
   normalizeName,
   type TransferEventPayload
 } from "@ont/protocol";
@@ -78,14 +79,16 @@ export interface TransactionOutputSnapshot extends Omit<BitcoinTransactionOutput
 
 export type TransactionProvenanceEventPayloadSnapshot =
   | TransferEventPayload
-  | ExperimentalAuctionBidPayloadSnapshot;
+  | ExperimentalAuctionBidPayloadSnapshot
+  | RecoverOwnerEventPayload;
 
 export interface TransactionProvenanceEventSnapshot {
   readonly vout: number;
   readonly type: OntEventType;
   readonly typeName:
     | "TRANSFER"
-    | "AUCTION_BID";
+    | "AUCTION_BID"
+    | "RECOVER_OWNER";
   readonly payload: TransactionProvenanceEventPayloadSnapshot;
   readonly validationStatus: "applied" | "ignored";
   readonly reason: string;
@@ -718,6 +721,7 @@ function serializeProvenancePayload(
   payload:
     | TransferEventPayload
     | AuctionBidEventPayload
+    | RecoverOwnerEventPayload
 ): TransactionProvenanceEventPayloadSnapshot {
   if ("auctionCommitment" in payload) {
     return {

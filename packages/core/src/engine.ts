@@ -7,9 +7,12 @@ import {
 import {
   type AuctionBidEventPayload,
   OntEventType,
+  RECOVER_OWNER_FLAG_CANCEL,
+  type RecoverOwnerEventPayload,
   decodeOntPayload,
   getEventTypeName,
   type TransferEventPayload,
+  verifyRecoverOwnerCancelAuthorization,
   verifyTransferAuthorization
 } from "@ont/protocol";
 
@@ -19,6 +22,7 @@ export interface NameRecord {
   readonly name: string;
   readonly status: "pending" | "immature" | "mature" | "invalid";
   readonly currentOwnerPubkey: string;
+  readonly pendingRecovery?: PendingRecoveryRecord;
   readonly acquisitionKind?: "auction";
   readonly acquisitionAuctionId?: string;
   readonly acquisitionAuctionLotCommitment?: string;
@@ -39,6 +43,16 @@ export interface NameRecord {
   readonly winningCommitTxIndex: number;
 }
 
+export interface PendingRecoveryRecord {
+  readonly requestedTxid: string;
+  readonly requestedHeight: number;
+  readonly finalizeHeight: number;
+  readonly proposedOwnerPubkey: string;
+  readonly predecessorStateTxid: string;
+  readonly recoveryDescriptorHash: string;
+  readonly challengeWindowBlocks: number;
+}
+
 export interface ParsedOntEvent {
   readonly txid: string;
   readonly blockHeight: number;
@@ -49,7 +63,8 @@ export interface ParsedOntEvent {
   readonly type: OntEventType;
   readonly payload:
     | TransferEventPayload
-    | AuctionBidEventPayload;
+    | AuctionBidEventPayload
+    | RecoverOwnerEventPayload;
 }
 
 export interface ProvenanceEventRecord {
@@ -57,10 +72,12 @@ export interface ProvenanceEventRecord {
   type: OntEventType;
   typeName:
     | "TRANSFER"
-    | "AUCTION_BID";
+    | "AUCTION_BID"
+    | "RECOVER_OWNER";
   payload:
     | TransferEventPayload
-    | AuctionBidEventPayload;
+    | AuctionBidEventPayload
+    | RecoverOwnerEventPayload;
   validationStatus: "applied" | "ignored";
   reason: string;
   affectedName: string | null;
@@ -147,8 +164,12 @@ export function applyBlockTransactionsWithProvenance(
 export function refreshDerivedState(state: OntState, currentHeight: number): OntState {
   for (const [name, record] of state.names.entries()) {
     const continuityIntact = record.status !== "invalid";
+    const finalizedRecovery =
+      continuityIntact && record.pendingRecovery !== undefined && currentHeight >= record.pendingRecovery.finalizeHeight
+        ? record.pendingRecovery
+        : null;
 
-    state.names.set(name, {
+    const refreshed = {
       ...record,
       status: getClaimedNameStatus({
         isRevealConfirmed: true,
@@ -156,6 +177,18 @@ export function refreshDerivedState(state: OntState, currentHeight: number): Ont
         maturityHeight: record.maturityHeight,
         continuityIntact
       })
+    };
+
+    if (finalizedRecovery === null) {
+      state.names.set(name, refreshed);
+      continue;
+    }
+
+    state.names.set(name, {
+      ...withoutPendingRecovery(refreshed),
+      currentOwnerPubkey: finalizedRecovery.proposedOwnerPubkey,
+      lastStateTxid: finalizedRecovery.requestedTxid,
+      lastStateHeight: finalizedRecovery.finalizeHeight
     });
   }
 
@@ -181,6 +214,14 @@ function applyEvent(
         event as ParsedOntEvent & {
           readonly type: OntEventType.AuctionBid;
           readonly payload: AuctionBidEventPayload;
+        }
+      );
+    case OntEventType.RecoverOwner:
+      return applyRecoverOwner(
+        state,
+        event as ParsedOntEvent & {
+          readonly type: OntEventType.RecoverOwner;
+          readonly payload: RecoverOwnerEventPayload;
         }
       );
   }
@@ -327,7 +368,7 @@ function applyTransfer(state: OntState, event: ParsedOntEvent): EventApplication
     }
 
     state.names.set(record.name, {
-      ...record,
+      ...withoutPendingRecovery(record),
       status: getClaimedNameStatus({
         isRevealConfirmed: true,
         currentHeight: event.blockHeight,
@@ -349,7 +390,7 @@ function applyTransfer(state: OntState, event: ParsedOntEvent): EventApplication
   }
 
   state.names.set(record.name, {
-    ...record,
+    ...withoutPendingRecovery(record),
     status: getClaimedNameStatus({
       isRevealConfirmed: true,
       currentHeight: event.blockHeight,
@@ -364,6 +405,175 @@ function applyTransfer(state: OntState, event: ParsedOntEvent): EventApplication
   return {
     validationStatus: "applied",
     reason: "transfer_applied_mature",
+    affectedName: record.name
+  };
+}
+
+function applyRecoverOwner(
+  state: OntState,
+  event: ParsedOntEvent & { readonly type: OntEventType.RecoverOwner; readonly payload: RecoverOwnerEventPayload }
+): EventApplicationResult {
+  if ((event.payload.flags & RECOVER_OWNER_FLAG_CANCEL) !== 0) {
+    return applyRecoverOwnerCancel(state, event);
+  }
+
+  return applyRecoverOwnerRequest(state, event);
+}
+
+function applyRecoverOwnerRequest(
+  state: OntState,
+  event: ParsedOntEvent & { readonly type: OntEventType.RecoverOwner; readonly payload: RecoverOwnerEventPayload }
+): EventApplicationResult {
+  const payload = event.payload;
+  const record = findNameRecordByLastStateTxid(state, payload.prevStateTxid);
+
+  if (record === null || record.status === "invalid") {
+    return {
+      validationStatus: "ignored",
+      reason: "recovery_name_not_found_or_invalid",
+      affectedName: null
+    };
+  }
+
+  if (record.pendingRecovery !== undefined) {
+    return {
+      validationStatus: "ignored",
+      reason: "recovery_already_pending",
+      affectedName: record.name
+    };
+  }
+
+  if (event.blockHeight >= record.maturityHeight) {
+    return {
+      validationStatus: "ignored",
+      reason: "recovery_requires_immature_bond",
+      affectedName: record.name
+    };
+  }
+
+  if (!spendsOutpoint(event.inputs, record.currentBondTxid, record.currentBondVout)) {
+    return {
+      validationStatus: "ignored",
+      reason: "recovery_missing_bond_spend",
+      affectedName: record.name
+    };
+  }
+
+  const successorBondOutput = event.outputs[payload.successorBondVout];
+  if (
+    successorBondOutput === undefined ||
+    successorBondOutput.scriptType !== "payment" ||
+    successorBondOutput.valueSats < record.requiredBondSats
+  ) {
+    return {
+      validationStatus: "ignored",
+      reason: "recovery_invalid_successor_bond",
+      affectedName: record.name
+    };
+  }
+
+  if (bondOutpointIsReserved(state, event.txid, payload.successorBondVout, {
+    ignoredName: record.name
+  })) {
+    return {
+      validationStatus: "ignored",
+      reason: "recovery_successor_bond_conflict",
+      affectedName: record.name
+    };
+  }
+
+  state.names.set(record.name, {
+    ...record,
+    status: getClaimedNameStatus({
+      isRevealConfirmed: true,
+      currentHeight: event.blockHeight,
+      maturityHeight: record.maturityHeight,
+      continuityIntact: true
+    }),
+    pendingRecovery: {
+      requestedTxid: event.txid,
+      requestedHeight: event.blockHeight,
+      finalizeHeight: event.blockHeight + payload.challengeWindowBlocks,
+      proposedOwnerPubkey: payload.newOwnerPubkey,
+      predecessorStateTxid: record.lastStateTxid,
+      recoveryDescriptorHash: payload.recoveryDescriptorHash,
+      challengeWindowBlocks: payload.challengeWindowBlocks
+    },
+    currentBondTxid: event.txid,
+    currentBondVout: payload.successorBondVout,
+    currentBondValueSats: successorBondOutput.valueSats
+  });
+
+  return {
+    validationStatus: "applied",
+    reason: "recovery_requested",
+    affectedName: record.name
+  };
+}
+
+function applyRecoverOwnerCancel(
+  state: OntState,
+  event: ParsedOntEvent & { readonly type: OntEventType.RecoverOwner; readonly payload: RecoverOwnerEventPayload }
+): EventApplicationResult {
+  const payload = event.payload;
+  const record = findNameRecordByPendingRecoveryTxid(state, payload.prevStateTxid);
+
+  if (record === null || record.status === "invalid" || record.pendingRecovery === undefined) {
+    return {
+      validationStatus: "ignored",
+      reason: "recovery_cancel_not_found",
+      affectedName: null
+    };
+  }
+
+  if (event.blockHeight >= record.pendingRecovery.finalizeHeight) {
+    return {
+      validationStatus: "ignored",
+      reason: "recovery_cancel_too_late",
+      affectedName: record.name
+    };
+  }
+
+  if (
+    payload.newOwnerPubkey !== record.pendingRecovery.proposedOwnerPubkey ||
+    payload.challengeWindowBlocks !== record.pendingRecovery.challengeWindowBlocks ||
+    payload.recoveryDescriptorHash !== record.pendingRecovery.recoveryDescriptorHash
+  ) {
+    return {
+      validationStatus: "ignored",
+      reason: "recovery_cancel_mismatched_request",
+      affectedName: record.name
+    };
+  }
+
+  if (
+    !verifyRecoverOwnerCancelAuthorization({
+      prevStateTxid: payload.prevStateTxid,
+      newOwnerPubkey: payload.newOwnerPubkey,
+      flags: payload.flags,
+      successorBondVout: payload.successorBondVout,
+      challengeWindowBlocks: payload.challengeWindowBlocks,
+      recoveryDescriptorHash: payload.recoveryDescriptorHash,
+      ownerPubkey: record.currentOwnerPubkey,
+      signature: payload.signature
+    })
+  ) {
+    return {
+      validationStatus: "ignored",
+      reason: "recovery_cancel_invalid_signature",
+      affectedName: record.name
+    };
+  }
+
+  state.names.set(record.name, {
+    ...withoutPendingRecovery(record),
+    lastStateTxid: event.txid,
+    lastStateHeight: event.blockHeight
+  });
+
+  return {
+    validationStatus: "applied",
+    reason: "recovery_cancelled_by_owner",
     affectedName: record.name
   };
 }
@@ -424,6 +634,21 @@ function findNameRecordByLastStateTxid(state: OntState, txid: string): NameRecor
   }
 
   return null;
+}
+
+function findNameRecordByPendingRecoveryTxid(state: OntState, txid: string): NameRecord | null {
+  for (const record of state.names.values()) {
+    if (record.pendingRecovery?.requestedTxid === txid) {
+      return record;
+    }
+  }
+
+  return null;
+}
+
+function withoutPendingRecovery(record: NameRecord): Omit<NameRecord, "pendingRecovery"> {
+  const { pendingRecovery: _pendingRecovery, ...rest } = record;
+  return rest;
 }
 
 function bondOutpointIsReserved(

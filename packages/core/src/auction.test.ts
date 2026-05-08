@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   calculateLaunchAuctionMinimumIncrementBidSats,
   createDefaultLaunchAuctionPolicy,
+  getLaunchAuctionOpeningRequirements,
   parseLaunchAuctionPolicy,
   parseLaunchAuctionScenario,
   serializeLaunchAuctionPolicy,
@@ -168,6 +169,86 @@ describe("simulateLaunchAuction", () => {
     expect(result.status).toBe("unopened");
     expect(result.winner).toBeNull();
     expect(result.bidOutcomes[0]?.reason).toBe("below_opening_minimum");
+  });
+
+  it("accepts the exact opening minimum and rejects one sat below it", () => {
+    const policy = createDefaultLaunchAuctionPolicy();
+    const opening = getLaunchAuctionOpeningRequirements({
+      policy,
+      name: "silverpine",
+      auctionClassId: "launch_name"
+    }).openingMinimumBidSats;
+    const result = simulateLaunchAuction({
+      policy,
+      scenario: {
+        name: "silverpine",
+        auctionClassId: "launch_name",
+        unlockBlock: 900_000,
+        bidAttempts: [
+          {
+            bidderId: "under",
+            blockHeight: 900_001,
+            amountSats: opening - 1n
+          },
+          {
+            bidderId: "exact",
+            blockHeight: 900_002,
+            amountSats: opening
+          }
+        ]
+      }
+    });
+
+    expect(result.bidOutcomes.map((outcome) => outcome.reason)).toEqual([
+      "below_opening_minimum",
+      "opening_bid"
+    ]);
+    expect(result.winner?.bidderId).toBe("exact");
+    expect(result.winner?.amountSats).toBe(opening);
+  });
+
+  it("accepts bids at the close boundary but rejects after it", () => {
+    const defaultPolicy = createDefaultLaunchAuctionPolicy();
+    const policy = {
+      ...defaultPolicy,
+      auction: {
+        ...defaultPolicy.auction,
+        softCloseExtensionBlocks: 0
+      }
+    };
+    const result = simulateLaunchAuction({
+      policy,
+      scenario: {
+        name: "marble",
+        auctionClassId: "launch_name",
+        unlockBlock: 900_000,
+        bidAttempts: [
+          {
+            bidderId: "alpha",
+            blockHeight: 900_010,
+            amountSats: 1_000_000_000n
+          },
+          {
+            bidderId: "at_boundary",
+            blockHeight: 904_330,
+            amountSats: 1_100_000_000n
+          },
+          {
+            bidderId: "after_boundary",
+            blockHeight: 904_331,
+            amountSats: 1_210_000_000n
+          }
+        ]
+      }
+    });
+
+    expect(result.initialAuctionCloseBlock).toBe(904_330);
+    expect(result.bidOutcomes.map((outcome) => outcome.reason)).toEqual([
+      "opening_bid",
+      "higher_bid",
+      "auction_closed"
+    ]);
+    expect(result.winner?.bidderId).toBe("at_boundary");
   });
 
   it("round-trips scenarios and results through JSON-safe forms", () => {

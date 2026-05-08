@@ -44,6 +44,33 @@ export interface ResolverValueHistory {
   readonly records: readonly ResolverValueRecord[];
 }
 
+export interface ResolverRecoveryDescriptor {
+  readonly format: string;
+  readonly descriptorVersion: number;
+  readonly name: string;
+  readonly ownerPubkey: string;
+  readonly ownershipRef: string;
+  readonly sequence: number;
+  readonly previousDescriptorHash: string | null;
+  readonly recoveryAddress: string;
+  readonly signingProfile: string;
+  readonly challengeWindowBlocks: number;
+  readonly issuedAt: string;
+  readonly signature: string;
+  readonly descriptorHash: string;
+}
+
+export interface ResolverRecoveryDescriptorHistory {
+  readonly name: string;
+  readonly ownershipRef: string;
+  readonly currentDescriptorHash: string;
+  readonly completeFromSequence: number;
+  readonly completeToSequence: number;
+  readonly hasGaps: boolean;
+  readonly hasForks: boolean;
+  readonly descriptors: readonly ResolverRecoveryDescriptor[];
+}
+
 export interface MultiResolverValueHistoryResult {
   readonly resolverUrl: string;
   readonly outcome: "ok" | "missing" | "error";
@@ -93,7 +120,7 @@ export interface ResolverTransactionProvenance {
   readonly events: ReadonlyArray<{
     readonly vout: number;
     readonly type: number;
-    readonly typeName: "AUCTION_BID" | "TRANSFER";
+    readonly typeName: "AUCTION_BID" | "TRANSFER" | "RECOVER_OWNER";
     readonly payload:
       | {
           readonly flags: number;
@@ -110,6 +137,15 @@ export interface ResolverTransactionProvenance {
           readonly newOwnerPubkey: string;
           readonly flags: number;
           readonly successorBondVout: number;
+          readonly signature: string;
+        }
+      | {
+          readonly prevStateTxid: string;
+          readonly newOwnerPubkey: string;
+          readonly flags: number;
+          readonly successorBondVout: number;
+          readonly challengeWindowBlocks: number;
+          readonly recoveryDescriptorHash: string;
           readonly signature: string;
         };
     readonly validationStatus: "applied" | "ignored";
@@ -195,6 +231,28 @@ export async function fetchNameValueHistory(options: {
   return fetchResolverJson<ResolverValueHistory>({
     ...(options.resolverUrl ? { resolverUrl: options.resolverUrl } : {}),
     path: `/name/${encodeURIComponent(normalized)}/value/history`
+  });
+}
+
+export async function fetchNameRecoveryDescriptor(options: {
+  readonly name: string;
+  readonly resolverUrl?: string;
+}): Promise<ResolverRecoveryDescriptor> {
+  const normalized = normalizeName(options.name);
+  return fetchResolverJson<ResolverRecoveryDescriptor>({
+    ...(options.resolverUrl ? { resolverUrl: options.resolverUrl } : {}),
+    path: `/name/${encodeURIComponent(normalized)}/recovery`
+  });
+}
+
+export async function fetchNameRecoveryDescriptorHistory(options: {
+  readonly name: string;
+  readonly resolverUrl?: string;
+}): Promise<ResolverRecoveryDescriptorHistory> {
+  const normalized = normalizeName(options.name);
+  return fetchResolverJson<ResolverRecoveryDescriptorHistory>({
+    ...(options.resolverUrl ? { resolverUrl: options.resolverUrl } : {}),
+    path: `/name/${encodeURIComponent(normalized)}/recovery/history`
   });
 }
 

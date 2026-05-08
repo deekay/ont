@@ -7,12 +7,16 @@ export interface DatabaseConfig {
   readonly schema: string;
 }
 
-export type DatabaseDocumentKind = "indexer_snapshot" | "value_record_store";
+export type DatabaseDocumentKind =
+  | "indexer_snapshot"
+  | "value_record_store"
+  | "recovery_descriptor_store";
 
 export interface PersistedNameRecord {
   readonly name: string;
   readonly status: "pending" | "immature" | "mature" | "invalid";
   readonly currentOwnerPubkey: string;
+  readonly pendingRecovery?: PersistedPendingRecoveryRecord;
   readonly acquisitionKind?: "auction";
   readonly acquisitionAuctionId?: string;
   readonly acquisitionAuctionLotCommitment?: string;
@@ -32,6 +36,16 @@ export interface PersistedNameRecord {
   readonly winningCommitTxIndex: number;
 }
 
+export interface PersistedPendingRecoveryRecord {
+  readonly requestedTxid: string;
+  readonly requestedHeight: number;
+  readonly finalizeHeight: number;
+  readonly proposedOwnerPubkey: string;
+  readonly predecessorStateTxid: string;
+  readonly recoveryDescriptorHash: string;
+  readonly challengeWindowBlocks: number;
+}
+
 export interface PersistedTransactionOutput {
   readonly valueSats: string;
   readonly scriptType: "op_return" | "payment" | "unknown";
@@ -44,6 +58,15 @@ export type PersistedTransactionProvenancePayload =
       readonly newOwnerPubkey: string;
       readonly flags: number;
       readonly successorBondVout: number;
+      readonly signature: string;
+    }
+  | {
+      readonly prevStateTxid: string;
+      readonly newOwnerPubkey: string;
+      readonly flags: number;
+      readonly successorBondVout: number;
+      readonly challengeWindowBlocks: number;
+      readonly recoveryDescriptorHash: string;
       readonly signature: string;
     }
   | {
@@ -64,7 +87,8 @@ export interface PersistedTransactionProvenanceEvent {
   readonly type: number;
   readonly typeName:
     | "TRANSFER"
-    | "AUCTION_BID";
+    | "AUCTION_BID"
+    | "RECOVER_OWNER";
   readonly payload: PersistedTransactionProvenancePayload;
   readonly validationStatus: "applied" | "ignored";
   readonly reason: string;
@@ -278,11 +302,13 @@ function parseNameRecordSnapshot(input: unknown): PersistedIndexerSnapshot["name
   const acquisitionAuctionBidTxid = getOptionalString(input, "acquisitionAuctionBidTxid");
   const acquisitionAuctionBidderCommitment = getOptionalString(input, "acquisitionAuctionBidderCommitment");
   const acquisitionBondReleaseHeight = getOptionalInteger(input, "acquisitionBondReleaseHeight");
+  const pendingRecovery = parseOptionalPendingRecoveryRecord(input, "pendingRecovery");
 
   return {
     name: getRequiredString(input, "name"),
     status: getRequiredNameStatus(input, "status"),
     currentOwnerPubkey: getRequiredString(input, "currentOwnerPubkey"),
+    ...(pendingRecovery === undefined ? {} : { pendingRecovery }),
     ...(acquisitionKind === undefined ? {} : { acquisitionKind }),
     ...(acquisitionAuctionId === undefined ? {} : { acquisitionAuctionId }),
     ...(acquisitionAuctionLotCommitment === undefined ? {} : { acquisitionAuctionLotCommitment }),
@@ -300,6 +326,31 @@ function parseNameRecordSnapshot(input: unknown): PersistedIndexerSnapshot["name
     lastStateTxid: getRequiredString(input, "lastStateTxid"),
     winningCommitBlockHeight: getRequiredInteger(input, "winningCommitBlockHeight"),
     winningCommitTxIndex: getRequiredInteger(input, "winningCommitTxIndex")
+  };
+}
+
+function parseOptionalPendingRecoveryRecord(
+  input: Record<string, unknown>,
+  key: string
+): PersistedPendingRecoveryRecord | undefined {
+  const value = input[key];
+
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (!isRecord(value)) {
+    throw new Error(`${key} must be an object when provided`);
+  }
+
+  return {
+    requestedTxid: getRequiredString(value, "requestedTxid"),
+    requestedHeight: getRequiredInteger(value, "requestedHeight"),
+    finalizeHeight: getRequiredInteger(value, "finalizeHeight"),
+    proposedOwnerPubkey: getRequiredString(value, "proposedOwnerPubkey"),
+    predecessorStateTxid: getRequiredString(value, "predecessorStateTxid"),
+    recoveryDescriptorHash: getRequiredString(value, "recoveryDescriptorHash"),
+    challengeWindowBlocks: getRequiredInteger(value, "challengeWindowBlocks")
   };
 }
 
@@ -466,10 +517,11 @@ function parseTransactionProvenanceEvent(
   const typeName = input.typeName;
   if (
     typeName !== "TRANSFER" &&
-    typeName !== "AUCTION_BID"
+    typeName !== "AUCTION_BID" &&
+    typeName !== "RECOVER_OWNER"
   ) {
     throw new Error(
-      "transaction provenance event typeName must be TRANSFER or AUCTION_BID"
+      "transaction provenance event typeName must be TRANSFER, AUCTION_BID, or RECOVER_OWNER"
     );
   }
 
@@ -504,6 +556,18 @@ function parseTransactionProvenancePayload(
       bidderCommitment: getRequiredString(input, "bidderCommitment"),
       name: getRequiredString(input, "name"),
       unlockBlock: getRequiredInteger(input, "unlockBlock")
+    };
+  }
+
+  if ("recoveryDescriptorHash" in input) {
+    return {
+      prevStateTxid: getRequiredString(input, "prevStateTxid"),
+      newOwnerPubkey: getRequiredString(input, "newOwnerPubkey"),
+      flags: getRequiredInteger(input, "flags"),
+      successorBondVout: getRequiredInteger(input, "successorBondVout"),
+      challengeWindowBlocks: getRequiredInteger(input, "challengeWindowBlocks"),
+      recoveryDescriptorHash: getRequiredString(input, "recoveryDescriptorHash"),
+      signature: getRequiredString(input, "signature")
     };
   }
 

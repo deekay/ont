@@ -40,14 +40,29 @@ import {
   type DatabaseConfig
 } from "@ont/db";
 import {
+  computeRecoveryDescriptorHash,
   computeValueRecordHash,
   normalizeName,
+  parseSignedRecoveryDescriptor,
   parseSignedValueRecord,
   PRODUCT_NAME,
   PROTOCOL_NAME,
+  type SignedRecoveryDescriptor,
   type SignedValueRecord,
+  verifyRecoveryDescriptor,
   verifyValueRecord
 } from "@ont/protocol";
+import {
+  appendRecoveryDescriptor,
+  countRecoveryDescriptors,
+  getRecoveryDescriptorChain,
+  loadRecoveryDescriptorStoreDatabase,
+  loadRecoveryDescriptorStoreFile,
+  saveRecoveryDescriptorStoreDatabase,
+  saveRecoveryDescriptorStoreFile,
+  type RecoveryDescriptorChain,
+  type RecoveryDescriptorStore
+} from "./recovery-store.js";
 import {
   appendValueRecord,
   countValueRecords,
@@ -91,9 +106,14 @@ async function main(): Promise<void> {
     (process.env.ONT_VALUE_STORE_PATH) === undefined
       ? resolve(process.cwd(), ".data/value-records.json")
       : resolve(process.cwd(), process.env.ONT_VALUE_STORE_PATH ?? "");
+  const recoveryStorePath =
+    (process.env.ONT_RECOVERY_DESCRIPTOR_STORE_PATH) === undefined
+      ? resolve(process.cwd(), ".data/recovery-descriptors.json")
+      : resolve(process.cwd(), process.env.ONT_RECOVERY_DESCRIPTOR_STORE_PATH ?? "");
   const database = resolveDatabaseConfig();
   const snapshotDocumentKey = process.env.ONT_SNAPSHOT_KEY?.trim() || "resolver";
   const valueStoreDocumentKey = process.env.ONT_VALUE_STORE_KEY?.trim() || "resolver";
+  const recoveryStoreDocumentKey = process.env.ONT_RECOVERY_DESCRIPTOR_STORE_KEY?.trim() || "resolver";
   const configuredRpcUrl = resolveConfiguredEndpoint(
     process.env.ONT_BITCOIN_RPC_URL,
     "ONT_BITCOIN_RPC_URL"
@@ -142,6 +162,10 @@ async function main(): Promise<void> {
     database === null
       ? await loadValueRecordStoreFile(valueStorePath)
       : await loadValueRecordStoreDatabase(database, valueStoreDocumentKey);
+  const recoveryDescriptors =
+    database === null
+      ? await loadRecoveryDescriptorStoreFile(recoveryStorePath)
+      : await loadRecoveryDescriptorStoreDatabase(database, recoveryStoreDocumentKey);
   let source: "fixture" | "rpc" | "esplora";
   let descriptor: string;
   let syncMode: "fixture" | "rpc-oneshot" | "rpc-polling" | "esplora-oneshot" | "esplora-polling";
@@ -559,10 +583,117 @@ async function main(): Promise<void> {
       }
     }
 
+    if (method === "POST" && url.pathname === "/recovery-descriptors") {
+      try {
+        const parsedDescriptor = parseSignedRecoveryDescriptor(await readJsonBody(request));
+
+        if (!verifyRecoveryDescriptor(parsedDescriptor)) {
+          return writeJson(response, 400, {
+            error: "invalid_signature",
+            message: "Recovery descriptor signature did not verify."
+          });
+        }
+
+        const currentNameRecord = indexer.getName(parsedDescriptor.name);
+
+        if (currentNameRecord === null || currentNameRecord.status === "invalid") {
+          return writeJson(response, 404, {
+            error: "name_not_found",
+            message: "Cannot publish a recovery descriptor for an unclaimed or invalid name.",
+            name: parsedDescriptor.name
+          });
+        }
+
+        if (currentNameRecord.currentOwnerPubkey !== parsedDescriptor.ownerPubkey) {
+          return writeJson(response, 409, {
+            error: "owner_mismatch",
+            message: "Recovery descriptor owner pubkey does not match the resolver's current owner.",
+            name: parsedDescriptor.name,
+            currentOwnerPubkey: currentNameRecord.currentOwnerPubkey
+          });
+        }
+
+        const currentOwnershipRef = getOwnershipRef(currentNameRecord);
+
+        if (parsedDescriptor.ownershipRef !== currentOwnershipRef) {
+          return writeJson(response, 409, {
+            error: "ownership_ref_mismatch",
+            message: "Recovery descriptor ownershipRef must match the resolver's current ownership interval.",
+            name: parsedDescriptor.name,
+            currentOwnershipRef
+          });
+        }
+
+        const existingChain = getRecoveryDescriptorChain(
+          recoveryDescriptors,
+          parsedDescriptor.name,
+          parsedDescriptor.ownershipRef
+        );
+        const existingDescriptor = getRecoveryChainHead(existingChain);
+        const expectedSequence = existingDescriptor === null ? 1 : existingDescriptor.sequence + 1;
+        const expectedPreviousDescriptorHash =
+          existingDescriptor === null ? null : computeRecoveryDescriptorHash(existingDescriptor);
+
+        if (parsedDescriptor.sequence < expectedSequence) {
+          return writeJson(response, 409, {
+            error: "stale_sequence",
+            message: "Recovery descriptor sequence must be the exact next sequence for the current ownership interval.",
+            name: parsedDescriptor.name,
+            currentSequence: existingDescriptor?.sequence ?? 0,
+            expectedSequence
+          });
+        }
+
+        if (parsedDescriptor.sequence > expectedSequence) {
+          return writeJson(response, 409, {
+            error: "sequence_gap",
+            message: "Recovery descriptor sequence cannot skip over missing predecessors.",
+            name: parsedDescriptor.name,
+            currentSequence: existingDescriptor?.sequence ?? 0,
+            expectedSequence
+          });
+        }
+
+        if (parsedDescriptor.previousDescriptorHash !== expectedPreviousDescriptorHash) {
+          return writeJson(response, 409, {
+            error: "predecessor_mismatch",
+            message: "Recovery descriptor previousDescriptorHash must point to the current chain head.",
+            name: parsedDescriptor.name,
+            expectedPreviousDescriptorHash
+          });
+        }
+
+        appendRecoveryDescriptor(recoveryDescriptors, parsedDescriptor);
+        if (database === null) {
+          await saveRecoveryDescriptorStoreFile(recoveryStorePath, recoveryDescriptors);
+        } else {
+          await saveRecoveryDescriptorStoreDatabase(database, recoveryStoreDocumentKey, recoveryDescriptors);
+        }
+
+        return writeJson(response, 201, {
+          ok: true,
+          name: parsedDescriptor.name,
+          ownershipRef: parsedDescriptor.ownershipRef,
+          sequence: parsedDescriptor.sequence,
+          previousDescriptorHash: parsedDescriptor.previousDescriptorHash,
+          descriptorHash: computeRecoveryDescriptorHash(parsedDescriptor),
+          recoveryAddress: parsedDescriptor.recoveryAddress,
+          signingProfile: parsedDescriptor.signingProfile,
+          challengeWindowBlocks: parsedDescriptor.challengeWindowBlocks,
+          recoveryStorePath
+        });
+      } catch (error) {
+        return writeJson(response, 400, {
+          error: "invalid_recovery_descriptor",
+          message: error instanceof Error ? error.message : "Invalid recovery descriptor"
+        });
+      }
+    }
+
     if (method !== "GET") {
       return writeJson(response, 405, {
         error: "method_not_allowed",
-        message: "Only GET and POST /values are supported in the prototype resolver."
+        message: "Only GET plus POST /values and POST /recovery-descriptors are supported in the prototype resolver."
       });
     }
 
@@ -588,6 +719,12 @@ async function main(): Promise<void> {
         valueRecordsTracked: countValueRecords(valueRecords),
         valueStorePath:
           database === null ? valueStorePath : `${database.schema}:value_record_store/${valueStoreDocumentKey}`,
+        recoveryDescriptorChainsTracked: recoveryDescriptors.size,
+        recoveryDescriptorsTracked: countRecoveryDescriptors(recoveryDescriptors),
+        recoveryStorePath:
+          database === null
+            ? recoveryStorePath
+            : `${database.schema}:recovery_descriptor_store/${recoveryStoreDocumentKey}`,
         stats: indexer.getStats()
       });
     }
@@ -727,6 +864,72 @@ async function main(): Promise<void> {
         }
       }
 
+      const recoveryHistoryPathMatch = url.pathname.match(/^\/name\/(.+)\/recovery\/history$/);
+
+      if (recoveryHistoryPathMatch) {
+        const requested = decodeURIComponent(recoveryHistoryPathMatch[1] ?? "");
+
+        try {
+          const normalized = normalizeName(requested);
+          const currentNameRecord = indexer.getName(normalized);
+
+          if (currentNameRecord === null) {
+            return writeJson(response, 404, {
+              error: "name_not_found",
+              name: normalized
+            });
+          }
+
+          const history = getCurrentRecoveryDescriptorHistory(recoveryDescriptors, indexer, normalized);
+          if (history === null) {
+            return writeJson(response, 404, {
+              error: "recovery_descriptor_not_found",
+              name: normalized
+            });
+          }
+
+          return writeJson(response, 200, history);
+        } catch (error) {
+          return writeJson(response, 400, {
+            error: "invalid_name",
+            message: error instanceof Error ? error.message : "Invalid name"
+          });
+        }
+      }
+
+      const recoveryPathMatch = url.pathname.match(/^\/name\/(.+)\/recovery$/);
+
+      if (recoveryPathMatch) {
+        const requested = decodeURIComponent(recoveryPathMatch[1] ?? "");
+
+        try {
+          const normalized = normalizeName(requested);
+          const currentNameRecord = indexer.getName(normalized);
+
+          if (currentNameRecord === null) {
+            return writeJson(response, 404, {
+              error: "name_not_found",
+              name: normalized
+            });
+          }
+
+          const recoveryDescriptor = getCurrentRecoveryDescriptor(recoveryDescriptors, indexer, normalized);
+          if (recoveryDescriptor === null) {
+            return writeJson(response, 404, {
+              error: "recovery_descriptor_not_found",
+              name: normalized
+            });
+          }
+
+          return writeJson(response, 200, serializeRecoveryDescriptor(recoveryDescriptor));
+        } catch (error) {
+          return writeJson(response, 400, {
+            error: "invalid_name",
+            message: error instanceof Error ? error.message : "Invalid name"
+          });
+        }
+      }
+
       const valueHistoryPathMatch = url.pathname.match(/^\/name\/(.+)\/value\/history$/);
 
       if (valueHistoryPathMatch) {
@@ -818,7 +1021,7 @@ async function main(): Promise<void> {
     return writeJson(response, 404, {
       error: "not_found",
       message:
-        "Supported prototype endpoints: /health, /stats, /names, /experimental-auctions, /activity, /tx/{txid}, /utxo/{txid}/{vout}, /name/{normalized_name}, /name/{normalized_name}/activity, /name/{normalized_name}/value, /name/{normalized_name}/value/history, POST /values"
+        "Supported prototype endpoints: /health, /stats, /names, /experimental-auctions, /activity, /tx/{txid}, /utxo/{txid}/{vout}, /name/{normalized_name}, /name/{normalized_name}/activity, /name/{normalized_name}/value, /name/{normalized_name}/value/history, /name/{normalized_name}/recovery, /name/{normalized_name}/recovery/history, POST /values, POST /recovery-descriptors"
     });
   }
 
@@ -1198,12 +1401,85 @@ function getCurrentValueRecordHistory(
   };
 }
 
+function getCurrentRecoveryDescriptor(
+  recoveryDescriptors: RecoveryDescriptorStore,
+  indexer: InMemoryOntIndexer,
+  name: string
+): SignedRecoveryDescriptor | null {
+  const normalized = normalizeName(name);
+  const currentNameRecord = indexer.getName(normalized);
+
+  if (currentNameRecord === null || currentNameRecord.status === "invalid") {
+    return null;
+  }
+
+  const chain = getRecoveryDescriptorChain(recoveryDescriptors, normalized, getOwnershipRef(currentNameRecord));
+  const descriptor = getRecoveryChainHead(chain);
+
+  if (descriptor === null || currentNameRecord.currentOwnerPubkey !== descriptor.ownerPubkey) {
+    return null;
+  }
+
+  return descriptor;
+}
+
+function getCurrentRecoveryDescriptorHistory(
+  recoveryDescriptors: RecoveryDescriptorStore,
+  indexer: InMemoryOntIndexer,
+  name: string
+): {
+  readonly name: string;
+  readonly ownershipRef: string;
+  readonly currentDescriptorHash: string;
+  readonly completeFromSequence: number;
+  readonly completeToSequence: number;
+  readonly hasGaps: boolean;
+  readonly hasForks: boolean;
+  readonly descriptors: readonly ReturnType<typeof serializeRecoveryDescriptor>[];
+} | null {
+  const normalized = normalizeName(name);
+  const currentNameRecord = indexer.getName(normalized);
+
+  if (currentNameRecord === null || currentNameRecord.status === "invalid") {
+    return null;
+  }
+
+  const ownershipRef = getOwnershipRef(currentNameRecord);
+  const chain = getRecoveryDescriptorChain(recoveryDescriptors, normalized, ownershipRef);
+  const head = getRecoveryChainHead(chain);
+
+  if (chain === null || head === null || head.ownerPubkey !== currentNameRecord.currentOwnerPubkey) {
+    return null;
+  }
+
+  const descriptors = chain.descriptors.map(serializeRecoveryDescriptor);
+
+  return {
+    name: normalized,
+    ownershipRef,
+    currentDescriptorHash: computeRecoveryDescriptorHash(head),
+    completeFromSequence: descriptors[0]?.sequence ?? 0,
+    completeToSequence: descriptors.at(-1)?.sequence ?? 0,
+    hasGaps: hasRecoverySequenceGaps(chain),
+    hasForks: false,
+    descriptors
+  };
+}
+
 function getChainHead(chain: ValueRecordChain | null): SignedValueRecord | null {
   if (chain === null || chain.records.length === 0) {
     return null;
   }
 
   return [...chain.records].sort((left, right) => left.sequence - right.sequence).at(-1) ?? null;
+}
+
+function getRecoveryChainHead(chain: RecoveryDescriptorChain | null): SignedRecoveryDescriptor | null {
+  if (chain === null || chain.descriptors.length === 0) {
+    return null;
+  }
+
+  return [...chain.descriptors].sort((left, right) => left.sequence - right.sequence).at(-1) ?? null;
 }
 
 function serializeValueRecord(record: SignedValueRecord): SignedValueRecord & {
@@ -1215,10 +1491,23 @@ function serializeValueRecord(record: SignedValueRecord): SignedValueRecord & {
   };
 }
 
+function serializeRecoveryDescriptor(descriptor: SignedRecoveryDescriptor): SignedRecoveryDescriptor & {
+  readonly descriptorHash: string;
+} {
+  return {
+    ...descriptor,
+    descriptorHash: computeRecoveryDescriptorHash(descriptor)
+  };
+}
+
 function getOwnershipRef(record: NameRecord): string {
   return record.lastStateTxid;
 }
 
 function hasSequenceGaps(chain: ValueRecordChain): boolean {
   return chain.records.some((record, index) => record.sequence !== index + 1);
+}
+
+function hasRecoverySequenceGaps(chain: RecoveryDescriptorChain): boolean {
+  return chain.descriptors.some((descriptor, index) => descriptor.sequence !== index + 1);
 }
