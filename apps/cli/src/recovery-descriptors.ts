@@ -156,3 +156,33 @@ export async function publishRecoveryDescriptor(options: {
 
   return parsed;
 }
+
+export async function publishRecoveryWalletProof(options: {
+  readonly resolverUrl?: string;
+  readonly recoveryWalletProof: RecoveryWalletProof;
+}): Promise<unknown> {
+  const resolverUrl = resolveResolverUrl(options.resolverUrl);
+  const response = await fetch(`${resolverUrl.replace(/\/$/, "")}/recovery-proofs`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json; charset=utf-8"
+    },
+    body: JSON.stringify(options.recoveryWalletProof)
+  });
+  const raw = await response.text();
+  const parsed = raw.length === 0 ? null : JSON.parse(raw);
+
+  if (!response.ok) {
+    const message =
+      parsed !== null &&
+      typeof parsed === "object" &&
+      parsed !== null &&
+      "message" in parsed &&
+      typeof parsed.message === "string"
+        ? parsed.message
+        : `resolver returned HTTP ${response.status}`;
+    throw new Error(message);
+  }
+
+  return parsed;
+}

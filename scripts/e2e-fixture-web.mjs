@@ -80,7 +80,7 @@ try {
         checkedFlows: [
           "home-docs-surface",
           "home-search-to-auction-carryover",
-          "auction-lab-browser-flow",
+          "live-auction-browser-flow",
           "retired-direct-claim-redirect"
         ]
       },
@@ -106,10 +106,10 @@ async function assertHomePage(page) {
   });
 
   await waitForVisibleText(page, "Human-Readable Names You Can Actually Own");
-  await waitForVisibleText(page, "Choose A Path");
-  await waitForVisibleText(page, "Understand ONT");
-  await waitForVisibleText(page, "Try The Prototype");
-  await waitForVisibleText(page, "Explore The Registry");
+  await waitForVisibleText(page, "Start Here");
+  await waitForVisibleText(page, "Set Up Sparrow");
+  await waitForVisibleText(page, "Bid On A Name");
+  await waitForVisibleText(page, "Inspect Live Names");
   const html = await page.content();
   assert(
     html.includes("/auctions"),
@@ -127,7 +127,7 @@ async function assertHomeToAuctionLookupCarryover(page) {
   await page.locator("#nameInput").fill(displayName);
   await page.locator("#searchForm button[type='submit']").click();
 
-  await waitForVisibleText(page, "No current owner found");
+  await waitForVisibleText(page, "No current owner was found");
   await waitForVisibleText(page, normalizedName);
 
   const openAuctionLink = page.getByRole("link", {
@@ -143,7 +143,7 @@ async function assertHomeToAuctionLookupCarryover(page) {
   await page.waitForURL(`${webUrl}/auctions?name=${normalizedName}`, {
     timeout: 15_000
   });
-  await waitForVisibleText(page, "No current owner found");
+  await waitForVisibleText(page, "No current owner was found");
 
   const carriedInputValue = await page.locator("#nameInput").inputValue();
   assert(
@@ -174,7 +174,7 @@ async function assertRetiredDirectClaimRedirect(page) {
     new URL(page.url()).pathname === "/auctions",
     "retired direct-acquisition page should redirect to auctions"
   );
-  await waitForVisibleText(page, "Auction Examples");
+  await waitForVisibleText(page, "Live Auction Activity");
 }
 
 async function assertAuctionsPage(page) {
@@ -182,13 +182,13 @@ async function assertAuctionsPage(page) {
     waitUntil: "domcontentloaded"
   });
 
-  await page.locator("#auctionLabList").waitFor({
+  await page.locator("#experimentalAuctionList").waitFor({
     state: "attached",
     timeout: 15_000
   });
   const bodyText = await page.locator("body").textContent();
   assert(
-    (bodyText ?? "").includes("Auction bid prep and flow examples"),
+    (bodyText ?? "").includes("Check a name, prepare the Sparrow transaction"),
     "auction page should expose the current auction framing"
   );
   assert(
@@ -196,8 +196,8 @@ async function assertAuctionsPage(page) {
     "auction page should expose the chain-derived experimental bid feed"
   );
   assert(
-    (bodyText ?? "").includes("Auction Examples"),
-    "auction page should render the simulator-backed state surface"
+    (bodyText ?? "").includes("Live Auction Activity"),
+    "auction page should render the live auction activity surface"
   );
 }
 

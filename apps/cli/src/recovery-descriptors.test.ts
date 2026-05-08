@@ -6,6 +6,7 @@ import {
   createRecoveryWalletProofMessageForDescriptor,
   createSignedRecoveryDescriptor,
   publishRecoveryDescriptor,
+  publishRecoveryWalletProof,
   verifyRecoveryWalletProofEnvelope
 } from "./recovery-descriptors.js";
 
@@ -118,6 +119,64 @@ describe("recovery descriptor helpers", () => {
     ).toMatchObject({
       ok: true,
       reason: "valid"
+    });
+  });
+
+  it("publishes recovery wallet proof envelopes to the resolver", async () => {
+    const recoveryAddress = "tb1q9vza2e8x573nczrlzms0wvx3gsqjx7vaxwd45v";
+    const descriptor = createSignedRecoveryDescriptor({
+      name: "dora",
+      ownerPrivateKeyHex: "15".repeat(32),
+      ownershipRef: "ee".repeat(32),
+      sequence: 1,
+      previousDescriptorHash: null,
+      recoveryAddress,
+      challengeWindowBlocks: 144,
+      issuedAt: "2026-05-08T12:02:00.000Z"
+    });
+    const message = createRecoveryWalletProofMessageForDescriptor({
+      descriptor,
+      prevStateTxid: descriptor.ownershipRef,
+      newOwnerPubkey: "88".repeat(32),
+      successorBondVout: 0
+    });
+    const proof = createRecoveryWalletProofEnvelope({
+      descriptor,
+      prevStateTxid: descriptor.ownershipRef,
+      newOwnerPubkey: "88".repeat(32),
+      successorBondVout: 0,
+      signatureBase64: Signer.sign(
+        "L3VFeEujGtevx9w18HD1fhRbCH67Az2dpCymeRE1SoPK6XQtaN2k",
+        recoveryAddress,
+        message
+      )
+    });
+
+    globalThis.fetch = vi.fn(async () =>
+      new Response(
+        JSON.stringify({
+          ok: true,
+          name: proof.name,
+          proofHash: proof.proofHash
+        }),
+        {
+          status: 201,
+          headers: {
+            "content-type": "application/json"
+          }
+        }
+      )
+    ) as typeof fetch;
+
+    await expect(
+      publishRecoveryWalletProof({
+        resolverUrl: "http://127.0.0.1:8787",
+        recoveryWalletProof: proof
+      })
+    ).resolves.toMatchObject({
+      ok: true,
+      name: "dora",
+      proofHash: proof.proofHash
     });
   });
 });

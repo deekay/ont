@@ -10,6 +10,7 @@ import {
   RECOVER_OWNER_FLAG_CANCEL,
   type RecoverOwnerEventPayload,
   decodeOntPayload,
+  extractRecoveryWalletProofHashFromCommitment,
   getEventTypeName,
   type TransferEventPayload,
   verifyRecoverOwnerCancelAuthorization,
@@ -97,6 +98,25 @@ export interface OntState {
   readonly names: Map<string, NameRecord>;
 }
 
+export interface RecoveryWalletProofAvailabilityRequest {
+  readonly name: string;
+  readonly recoveryTxid: string;
+  readonly blockHeight: number;
+  readonly proofCommitment: string;
+  readonly proofHash: string;
+  readonly prevStateTxid: string;
+  readonly recoveryDescriptorHash: string;
+  readonly newOwnerPubkey: string;
+  readonly successorBondVout: number;
+  readonly challengeWindowBlocks: number;
+}
+
+export interface OntEventApplicationOptions {
+  readonly recoveryWalletProofAvailable?: (
+    request: RecoveryWalletProofAvailabilityRequest
+  ) => boolean;
+}
+
 export function createEmptyState(): OntState {
   return {
     names: new Map()
@@ -129,16 +149,18 @@ export function extractOntEvents(transaction: BitcoinTransactionInBlock): Parsed
 export function applyBlockTransactions(
   state: OntState,
   transactions: readonly BitcoinTransactionInBlock[],
-  launchHeight: number
+  launchHeight: number,
+  options: OntEventApplicationOptions = {}
 ): OntState {
-  applyBlockTransactionsWithProvenance(state, transactions, launchHeight);
+  applyBlockTransactionsWithProvenance(state, transactions, launchHeight, options);
   return state;
 }
 
 export function applyBlockTransactionsWithProvenance(
   state: OntState,
   transactions: readonly BitcoinTransactionInBlock[],
-  _launchHeight: number
+  _launchHeight: number,
+  options: OntEventApplicationOptions = {}
 ): TransactionProvenanceRecord[] {
   let currentBlockHeight: number | null = null;
   let blockTransactions: BitcoinTransactionInBlock[] = [];
@@ -146,7 +168,7 @@ export function applyBlockTransactionsWithProvenance(
 
   for (const transaction of transactions) {
     if (currentBlockHeight !== null && transaction.blockHeight !== currentBlockHeight) {
-      provenance.push(...applySingleBlockTransactions(state, blockTransactions));
+      provenance.push(...applySingleBlockTransactions(state, blockTransactions, options));
       blockTransactions = [];
     }
 
@@ -155,7 +177,7 @@ export function applyBlockTransactionsWithProvenance(
   }
 
   if (blockTransactions.length > 0) {
-    provenance.push(...applySingleBlockTransactions(state, blockTransactions));
+    provenance.push(...applySingleBlockTransactions(state, blockTransactions, options));
   }
 
   return provenance;
@@ -203,7 +225,8 @@ interface EventApplicationResult {
 
 function applyEvent(
   state: OntState,
-  event: ParsedOntEvent
+  event: ParsedOntEvent,
+  options: OntEventApplicationOptions
 ): EventApplicationResult {
   switch (event.type) {
     case OntEventType.Transfer:
@@ -222,14 +245,16 @@ function applyEvent(
         event as ParsedOntEvent & {
           readonly type: OntEventType.RecoverOwner;
           readonly payload: RecoverOwnerEventPayload;
-        }
+        },
+        options
       );
   }
 }
 
 function applySingleBlockTransactions(
   state: OntState,
-  transactions: readonly BitcoinTransactionInBlock[]
+  transactions: readonly BitcoinTransactionInBlock[],
+  options: OntEventApplicationOptions
 ): TransactionProvenanceRecord[] {
   if (transactions.length === 0) {
     return [];
@@ -254,7 +279,7 @@ function applySingleBlockTransactions(
     const spentImmatureBonds = collectSpentImmatureBonds(state, transaction);
 
     for (const event of extractOntEvents(transaction)) {
-      txProvenance.events.push(createProvenanceEventRecord(event, applyEvent(state, event)));
+      txProvenance.events.push(createProvenanceEventRecord(event, applyEvent(state, event, options)));
     }
 
     txProvenance.invalidatedNames.push(
@@ -411,18 +436,20 @@ function applyTransfer(state: OntState, event: ParsedOntEvent): EventApplication
 
 function applyRecoverOwner(
   state: OntState,
-  event: ParsedOntEvent & { readonly type: OntEventType.RecoverOwner; readonly payload: RecoverOwnerEventPayload }
+  event: ParsedOntEvent & { readonly type: OntEventType.RecoverOwner; readonly payload: RecoverOwnerEventPayload },
+  options: OntEventApplicationOptions
 ): EventApplicationResult {
   if ((event.payload.flags & RECOVER_OWNER_FLAG_CANCEL) !== 0) {
     return applyRecoverOwnerCancel(state, event);
   }
 
-  return applyRecoverOwnerRequest(state, event);
+  return applyRecoverOwnerRequest(state, event, options);
 }
 
 function applyRecoverOwnerRequest(
   state: OntState,
-  event: ParsedOntEvent & { readonly type: OntEventType.RecoverOwner; readonly payload: RecoverOwnerEventPayload }
+  event: ParsedOntEvent & { readonly type: OntEventType.RecoverOwner; readonly payload: RecoverOwnerEventPayload },
+  options: OntEventApplicationOptions
 ): EventApplicationResult {
   const payload = event.payload;
   const record = findNameRecordByLastStateTxid(state, payload.prevStateTxid);
@@ -478,6 +505,38 @@ function applyRecoverOwnerRequest(
     return {
       validationStatus: "ignored",
       reason: "recovery_successor_bond_conflict",
+      affectedName: record.name
+    };
+  }
+
+  let proofHash: string;
+  try {
+    proofHash = extractRecoveryWalletProofHashFromCommitment(payload.signature);
+  } catch {
+    return {
+      validationStatus: "ignored",
+      reason: "recovery_invalid_wallet_proof_commitment",
+      affectedName: record.name
+    };
+  }
+
+  const proofAvailable = options.recoveryWalletProofAvailable?.({
+    name: record.name,
+    recoveryTxid: event.txid,
+    blockHeight: event.blockHeight,
+    proofCommitment: payload.signature,
+    proofHash,
+    prevStateTxid: payload.prevStateTxid,
+    recoveryDescriptorHash: payload.recoveryDescriptorHash,
+    newOwnerPubkey: payload.newOwnerPubkey,
+    successorBondVout: payload.successorBondVout,
+    challengeWindowBlocks: payload.challengeWindowBlocks
+  }) ?? false;
+
+  if (!proofAvailable) {
+    return {
+      validationStatus: "ignored",
+      reason: "recovery_wallet_proof_unavailable",
       affectedName: record.name
     };
   }

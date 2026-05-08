@@ -10,7 +10,8 @@ export interface DatabaseConfig {
 export type DatabaseDocumentKind =
   | "indexer_snapshot"
   | "value_record_store"
-  | "recovery_descriptor_store";
+  | "recovery_descriptor_store"
+  | "recovery_wallet_proof_store";
 
 export interface PersistedNameRecord {
   readonly name: string;

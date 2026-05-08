@@ -209,8 +209,9 @@ Transfers move owner authority from one pubkey to another.
 - after a transfer, the old owner can no longer publish new destination records for that name
 - owner-key recovery is being added in layers: signed recovery descriptors can
   now be stored by resolvers, and a prototype `RECOVER_OWNER` challenge-window
-  event exists; protocol-level BIP322 proof-envelope verification now exists,
-  while indexer enforcement and user-facing recovery flows still need work
+  event exists; protocol-level BIP322 proof-envelope verification, resolver
+  proof storage, and indexer proof-availability enforcement now exist, while
+  user-facing recovery flows still need work
 
 ### Destinations
 

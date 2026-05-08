@@ -95,12 +95,17 @@ Implemented:
 - resolver publication endpoint `POST /recovery-descriptors`
 - resolver read endpoints `/name/{name}/recovery` and
   `/name/{name}/recovery/history`
+- resolver persistence, publication endpoint `POST /recovery-proofs`, and read
+  endpoint `/recovery-proofs/{proof_hash}` for wallet-proof envelopes
 - CLI helpers to sign, publish, and fetch recovery descriptors
 - CLI helpers to print the exact wallet-signing message, wrap a wallet-produced
-  BIP322 signature, and verify that wallet proof against a descriptor
+  BIP322 signature, verify that wallet proof against a descriptor, and publish
+  the proof to a resolver
 - protocol `RECOVER_OWNER` payload with predecessor state, proposed owner,
   successor bond vout, challenge window, descriptor hash, and signature field
 - immature-name recovery request handling in the core state machine
+- indexer recovery-request gating against a verified wallet-proof availability
+  checker
 - pending recovery finalization after the challenge window
 - owner-key cancellation before finalization
 - indexer coverage for recovery request, cancellation, late cancellation,
@@ -108,10 +113,11 @@ Implemented:
 
 Still not implemented:
 
-- consensus/indexer gating on the off-chain BIP322 wallet proof
 - web recovery-event authoring flows
 - CLI recovery transaction construction/broadcast flows
 - multi-resolver recovery proof distribution
+- late-proof replay/reindex behavior if a proof appears after the chain event
+  was already observed
 
 ## Why Not Instant Recovery?
 
@@ -129,12 +135,16 @@ funding wallet and name authority do not have to fail together.
 
 The safer shape is a two-step or delayed recovery:
 
-1. A recovery transaction spends the current bond outpoint, creates a valid
-   successor bond output, and proposes a new owner pubkey.
-2. The name enters `recovery_pending` for a fixed challenge window.
-3. During the window, the current owner key can cancel or supersede the recovery
+1. The user publishes the matching wallet-proof envelope to the resolver before
+   broadcasting recovery.
+2. A recovery transaction spends the current bond outpoint, creates a valid
+   successor bond output, commits to that proof hash, and proposes a new owner
+   pubkey.
+3. The name enters `recovery_pending` for a fixed challenge window only if the
+   matching proof is available and verifies.
+4. During the window, the current owner key can cancel or supersede the recovery
    with an owner-signed event.
-4. If no owner-key challenge appears before the window ends, the proposed owner
+5. If no owner-key challenge appears before the window ends, the proposed owner
    pubkey becomes current.
 
 This gives users a recovery path when the owner key is truly lost while giving
@@ -143,6 +153,16 @@ legitimate owners a chance to stop a wallet-key compromise.
 Open parameter:
 
 - challenge window length, measured in blocks
+
+V1 proof-availability rule:
+
+- indexers should not enter `recovery_pending` from a bare on-chain recovery
+  request
+- the on-chain request must commit to the exact off-chain wallet-proof hash
+- the matching wallet-proof envelope must already be available to the indexer or
+  resolver and verify against the descriptor and requested recovery fields
+- if a proofless recovery transaction spends the live immature bond, the request
+  is ignored and ordinary bond-continuity rules can release the name
 
 ## Event Shape Options
 
@@ -539,25 +559,20 @@ Recommended bias:
 
 Likely next implementation steps:
 
-1. Connect the BIP322 wallet proof verifier to recovery-event acceptance so an
-   indexer can require the matching off-chain proof before entering
-   `recovery_pending`.
-2. Treat recovery requests as proof-hash committed on chain, with resolver or
-   client-side distribution for the variable-size wallet proof. The current
-   helper uses the fixed 64-byte field as a 32-byte proof hash plus a reserved
-   zero half, while cancellation still uses the current owner-key signature.
-3. Add CLI and web flows for building, reviewing, and broadcasting recovery
+1. Decide whether late proof publication should trigger replay/reindex, or
+   whether v1 requires proof publication before recovery broadcast.
+2. Add CLI and web flows for building, reviewing, and broadcasting recovery
    requests and cancellations.
-4. Add resolver/proof distribution for recovery wallet signatures if those stay
-   off-chain.
-5. Revisit challenge-window length with external reviewers.
+3. Add multi-resolver proof fanout and durability guidance.
+4. Revisit challenge-window length with external reviewers.
 
 ## Current Status
 
-Descriptor foundation, prototype recovery state machine, and protocol-level
-BIP322 proof-envelope verification are implemented. Indexer enforcement,
-proof distribution, and product recovery flows remain important pre-launch
-work.
+Descriptor foundation, prototype recovery state machine, protocol-level BIP322
+proof-envelope verification, resolver proof storage, CLI proof publication, and
+indexer proof-availability enforcement are implemented. Late-proof replay,
+multi-resolver proof durability, and product recovery flows remain important
+pre-launch work.
 
 The previous "no v1 recovery path" posture should no longer be treated as the
 default answer.

@@ -16,8 +16,10 @@ import {
   applyBlockTransactionsWithProvenance,
   createEmptyState,
   type OntState,
+  type OntEventApplicationOptions,
   type NameRecord,
   type ProvenanceEventRecord,
+  type RecoveryWalletProofAvailabilityRequest,
   refreshDerivedState
 } from "./engine.js";
 import { getClaimedNameStatus } from "./state.js";
@@ -39,6 +41,10 @@ export interface IndexerStats {
   readonly processedBlocks: number;
   readonly trackedNames: number;
 }
+
+export type RecoveryWalletProofAvailabilityChecker = (
+  request: RecoveryWalletProofAvailabilityRequest
+) => boolean;
 
 export interface ExperimentalAuctionBidPayloadSnapshot {
   readonly flags: number;
@@ -110,6 +116,7 @@ export class InMemoryOntIndexer {
   private readonly recentCheckpointLimit: number;
   private readonly experimentalLaunchAuctionCatalog: readonly ExperimentalLaunchAuctionCatalogEntry[];
   private readonly experimentalLaunchAuctionPolicy: LaunchAuctionPolicy;
+  private readonly recoveryWalletProofAvailable: RecoveryWalletProofAvailabilityChecker | undefined;
   private readonly state: OntState;
   private readonly spentOutpoints: Map<string, ExperimentalSpentOutpointObservation>;
   private readonly transactionProvenance: Map<string, TransactionProvenanceSnapshot>;
@@ -123,12 +130,14 @@ export class InMemoryOntIndexer {
     recentCheckpointLimit?: number;
     experimentalLaunchAuctionCatalog?: readonly ExperimentalLaunchAuctionCatalogEntry[];
     experimentalLaunchAuctionPolicy?: LaunchAuctionPolicy;
+    recoveryWalletProofAvailable?: RecoveryWalletProofAvailabilityChecker;
   }) {
     this.launchHeight = input.launchHeight;
     this.recentCheckpointLimit = Math.max(1, input.recentCheckpointLimit ?? 100);
     this.experimentalLaunchAuctionCatalog = [...(input.experimentalLaunchAuctionCatalog ?? [])];
     this.experimentalLaunchAuctionPolicy =
       input.experimentalLaunchAuctionPolicy ?? createDefaultLaunchAuctionPolicy();
+    this.recoveryWalletProofAvailable = input.recoveryWalletProofAvailable;
     this.state = createEmptyState();
     this.spentOutpoints = new Map();
     this.transactionProvenance = new Map();
@@ -143,6 +152,7 @@ export class InMemoryOntIndexer {
     options?: {
       readonly experimentalLaunchAuctionCatalog?: readonly ExperimentalLaunchAuctionCatalogEntry[];
       readonly experimentalLaunchAuctionPolicy?: LaunchAuctionPolicy;
+      readonly recoveryWalletProofAvailable?: RecoveryWalletProofAvailabilityChecker;
     }
   ): InMemoryOntIndexer {
     const indexer = new InMemoryOntIndexer({
@@ -153,7 +163,10 @@ export class InMemoryOntIndexer {
         : { experimentalLaunchAuctionCatalog: options.experimentalLaunchAuctionCatalog }),
       ...(options?.experimentalLaunchAuctionPolicy === undefined
         ? {}
-        : { experimentalLaunchAuctionPolicy: options.experimentalLaunchAuctionPolicy })
+        : { experimentalLaunchAuctionPolicy: options.experimentalLaunchAuctionPolicy }),
+      ...(options?.recoveryWalletProofAvailable === undefined
+        ? {}
+        : { recoveryWalletProofAvailable: options.recoveryWalletProofAvailable })
     });
     indexer.hydrate(snapshot);
 
@@ -168,7 +181,16 @@ export class InMemoryOntIndexer {
       txIndex
     }));
 
-    const provenance = applyBlockTransactionsWithProvenance(this.state, transactions, this.launchHeight);
+    const applicationOptions: OntEventApplicationOptions =
+      this.recoveryWalletProofAvailable === undefined
+        ? {}
+        : { recoveryWalletProofAvailable: this.recoveryWalletProofAvailable };
+    const provenance = applyBlockTransactionsWithProvenance(
+      this.state,
+      transactions,
+      this.launchHeight,
+      applicationOptions
+    );
     refreshDerivedState(this.state, block.height);
     this.recordSpentOutpoints(block);
 

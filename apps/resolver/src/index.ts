@@ -28,7 +28,8 @@ import {
   serializeLaunchAuctionPolicy,
   type ExperimentalLaunchAuctionCatalogEntry,
   type NameRecord,
-  type LaunchAuctionPolicy
+  type LaunchAuctionPolicy,
+  type RecoveryWalletProofAvailabilityChecker
 } from "@ont/core";
 import {
   createDatabaseConfig,
@@ -41,15 +42,20 @@ import {
 } from "@ont/db";
 import {
   computeRecoveryDescriptorHash,
+  computeRecoveryWalletProofHash,
+  createRecoveryWalletProofCommitment,
   computeValueRecordHash,
   normalizeName,
+  parseRecoveryWalletProof,
   parseSignedRecoveryDescriptor,
   parseSignedValueRecord,
   PRODUCT_NAME,
   PROTOCOL_NAME,
+  type RecoveryWalletProof,
   type SignedRecoveryDescriptor,
   type SignedValueRecord,
   verifyRecoveryDescriptor,
+  verifyRecoveryWalletProof,
   verifyValueRecord
 } from "@ont/protocol";
 import {
@@ -63,6 +69,16 @@ import {
   type RecoveryDescriptorChain,
   type RecoveryDescriptorStore
 } from "./recovery-store.js";
+import {
+  appendRecoveryWalletProof,
+  countRecoveryWalletProofs,
+  getRecoveryWalletProof,
+  loadRecoveryWalletProofStoreDatabase,
+  loadRecoveryWalletProofStoreFile,
+  saveRecoveryWalletProofStoreDatabase,
+  saveRecoveryWalletProofStoreFile,
+  type RecoveryWalletProofStore
+} from "./recovery-proof-store.js";
 import {
   appendValueRecord,
   countValueRecords,
@@ -110,10 +126,15 @@ async function main(): Promise<void> {
     (process.env.ONT_RECOVERY_DESCRIPTOR_STORE_PATH) === undefined
       ? resolve(process.cwd(), ".data/recovery-descriptors.json")
       : resolve(process.cwd(), process.env.ONT_RECOVERY_DESCRIPTOR_STORE_PATH ?? "");
+  const recoveryProofStorePath =
+    (process.env.ONT_RECOVERY_WALLET_PROOF_STORE_PATH) === undefined
+      ? resolve(process.cwd(), ".data/recovery-wallet-proofs.json")
+      : resolve(process.cwd(), process.env.ONT_RECOVERY_WALLET_PROOF_STORE_PATH ?? "");
   const database = resolveDatabaseConfig();
   const snapshotDocumentKey = process.env.ONT_SNAPSHOT_KEY?.trim() || "resolver";
   const valueStoreDocumentKey = process.env.ONT_VALUE_STORE_KEY?.trim() || "resolver";
   const recoveryStoreDocumentKey = process.env.ONT_RECOVERY_DESCRIPTOR_STORE_KEY?.trim() || "resolver";
+  const recoveryProofStoreDocumentKey = process.env.ONT_RECOVERY_WALLET_PROOF_STORE_KEY?.trim() || "resolver";
   const configuredRpcUrl = resolveConfiguredEndpoint(
     process.env.ONT_BITCOIN_RPC_URL,
     "ONT_BITCOIN_RPC_URL"
@@ -166,6 +187,14 @@ async function main(): Promise<void> {
     database === null
       ? await loadRecoveryDescriptorStoreFile(recoveryStorePath)
       : await loadRecoveryDescriptorStoreDatabase(database, recoveryStoreDocumentKey);
+  const recoveryProofs =
+    database === null
+      ? await loadRecoveryWalletProofStoreFile(recoveryProofStorePath)
+      : await loadRecoveryWalletProofStoreDatabase(database, recoveryProofStoreDocumentKey);
+  const recoveryWalletProofAvailable = createRecoveryWalletProofAvailabilityChecker(
+    recoveryDescriptors,
+    recoveryProofs
+  );
   let source: "fixture" | "rpc" | "esplora";
   let descriptor: string;
   let syncMode: "fixture" | "rpc-oneshot" | "rpc-polling" | "esplora-oneshot" | "esplora-polling";
@@ -182,7 +211,8 @@ async function main(): Promise<void> {
         await loadSnapshot(database, snapshotPath, snapshotDocumentKey),
         {
           experimentalLaunchAuctionPolicy,
-          experimentalLaunchAuctionCatalog
+          experimentalLaunchAuctionCatalog,
+          recoveryWalletProofAvailable
         }
       );
       restoredFromSnapshot = true;
@@ -196,7 +226,8 @@ async function main(): Promise<void> {
       indexer = new InMemoryOntIndexer({
         launchHeight,
         experimentalLaunchAuctionPolicy,
-        experimentalLaunchAuctionCatalog
+        experimentalLaunchAuctionCatalog,
+        recoveryWalletProofAvailable
       });
     }
 
@@ -224,7 +255,8 @@ async function main(): Promise<void> {
         indexer = new InMemoryOntIndexer({
           launchHeight,
           experimentalLaunchAuctionPolicy,
-          experimentalLaunchAuctionCatalog
+          experimentalLaunchAuctionCatalog,
+          recoveryWalletProofAvailable
         });
       }
     }
@@ -278,7 +310,8 @@ async function main(): Promise<void> {
             indexer = new InMemoryOntIndexer({
               launchHeight: indexer.getLaunchHeight(),
               experimentalLaunchAuctionPolicy,
-              experimentalLaunchAuctionCatalog
+              experimentalLaunchAuctionCatalog,
+              recoveryWalletProofAvailable
             });
             const rebuildPoller = new BitcoinRpcBlockPoller({
               rpc,
@@ -317,7 +350,8 @@ async function main(): Promise<void> {
         await loadSnapshot(database, snapshotPath, snapshotDocumentKey),
         {
           experimentalLaunchAuctionPolicy,
-          experimentalLaunchAuctionCatalog
+          experimentalLaunchAuctionCatalog,
+          recoveryWalletProofAvailable
         }
       );
       restoredFromSnapshot = true;
@@ -331,7 +365,8 @@ async function main(): Promise<void> {
       indexer = new InMemoryOntIndexer({
         launchHeight,
         experimentalLaunchAuctionPolicy,
-        experimentalLaunchAuctionCatalog
+        experimentalLaunchAuctionCatalog,
+        recoveryWalletProofAvailable
       });
     }
 
@@ -362,7 +397,8 @@ async function main(): Promise<void> {
         indexer = new InMemoryOntIndexer({
           launchHeight,
           experimentalLaunchAuctionPolicy,
-          experimentalLaunchAuctionCatalog
+          experimentalLaunchAuctionCatalog,
+          recoveryWalletProofAvailable
         });
       }
     }
@@ -422,7 +458,8 @@ async function main(): Promise<void> {
             indexer = new InMemoryOntIndexer({
               launchHeight: indexer.getLaunchHeight(),
               experimentalLaunchAuctionPolicy,
-              experimentalLaunchAuctionCatalog
+              experimentalLaunchAuctionCatalog,
+              recoveryWalletProofAvailable
             });
             const rebuildPoller = new BitcoinEsploraBlockPoller({
               esplora,
@@ -466,7 +503,8 @@ async function main(): Promise<void> {
     indexer = new InMemoryOntIndexer({
       launchHeight: loaded.launchHeight,
       experimentalLaunchAuctionPolicy,
-      experimentalLaunchAuctionCatalog
+      experimentalLaunchAuctionCatalog,
+      recoveryWalletProofAvailable
     });
     indexer.ingestBlocks(loaded.blocks);
   }
@@ -690,10 +728,101 @@ async function main(): Promise<void> {
       }
     }
 
+    if (method === "POST" && url.pathname === "/recovery-proofs") {
+      try {
+        const parsedProof = parseRecoveryWalletProof(await readJsonBody(request));
+        const proofHash = computeRecoveryWalletProofHash(parsedProof);
+        const descriptor = getRecoveryDescriptorByHash(recoveryDescriptors, parsedProof.recoveryDescriptorHash);
+
+        if (descriptor === null) {
+          return writeJson(response, 404, {
+            error: "recovery_descriptor_not_found",
+            message: "Cannot publish a recovery proof before the matching recovery descriptor is available.",
+            name: parsedProof.name,
+            recoveryDescriptorHash: parsedProof.recoveryDescriptorHash
+          });
+        }
+
+        const verification = verifyRecoveryWalletProof({
+          descriptor,
+          proof: parsedProof
+        });
+
+        if (!verification.ok || verification.proofHash !== proofHash) {
+          return writeJson(response, 400, {
+            error: "invalid_recovery_wallet_proof",
+            message: "Recovery wallet proof did not verify.",
+            reason: verification.reason,
+            proofHash
+          });
+        }
+
+        const currentNameRecord = indexer.getName(parsedProof.name);
+
+        if (currentNameRecord === null || currentNameRecord.status === "invalid") {
+          return writeJson(response, 404, {
+            error: "name_not_found",
+            message: "Cannot publish a recovery proof for an unclaimed or invalid name.",
+            name: parsedProof.name
+          });
+        }
+
+        if (currentNameRecord.currentOwnerPubkey !== descriptor.ownerPubkey) {
+          return writeJson(response, 409, {
+            error: "owner_mismatch",
+            message: "Recovery proof descriptor owner pubkey does not match the resolver's current owner.",
+            name: parsedProof.name,
+            currentOwnerPubkey: currentNameRecord.currentOwnerPubkey
+          });
+        }
+
+        const currentOwnershipRef = getOwnershipRef(currentNameRecord);
+
+        if (descriptor.ownershipRef !== currentOwnershipRef) {
+          return writeJson(response, 409, {
+            error: "ownership_ref_mismatch",
+            message: "Recovery proof descriptor ownershipRef must match the resolver's current ownership interval.",
+            name: parsedProof.name,
+            currentOwnershipRef
+          });
+        }
+
+        if (parsedProof.prevStateTxid !== currentOwnershipRef) {
+          return writeJson(response, 409, {
+            error: "predecessor_state_mismatch",
+            message: "Recovery proof prevStateTxid must match the resolver's current ownership interval.",
+            name: parsedProof.name,
+            currentOwnershipRef
+          });
+        }
+
+        appendRecoveryWalletProof(recoveryProofs, parsedProof);
+        if (database === null) {
+          await saveRecoveryWalletProofStoreFile(recoveryProofStorePath, recoveryProofs);
+        } else {
+          await saveRecoveryWalletProofStoreDatabase(database, recoveryProofStoreDocumentKey, recoveryProofs);
+        }
+
+        return writeJson(response, 201, {
+          ok: true,
+          name: parsedProof.name,
+          recoveryDescriptorHash: parsedProof.recoveryDescriptorHash,
+          proofHash,
+          proofCommitment: createRecoveryWalletProofCommitment(parsedProof),
+          recoveryProofStorePath
+        });
+      } catch (error) {
+        return writeJson(response, 400, {
+          error: "invalid_recovery_wallet_proof",
+          message: error instanceof Error ? error.message : "Invalid recovery wallet proof"
+        });
+      }
+    }
+
     if (method !== "GET") {
       return writeJson(response, 405, {
         error: "method_not_allowed",
-        message: "Only GET plus POST /values and POST /recovery-descriptors are supported in the prototype resolver."
+        message: "Only GET plus POST /values, POST /recovery-descriptors, and POST /recovery-proofs are supported in the prototype resolver."
       });
     }
 
@@ -725,12 +854,41 @@ async function main(): Promise<void> {
           database === null
             ? recoveryStorePath
             : `${database.schema}:recovery_descriptor_store/${recoveryStoreDocumentKey}`,
+        recoveryWalletProofsTracked: countRecoveryWalletProofs(recoveryProofs),
+        recoveryProofStorePath:
+          database === null
+            ? recoveryProofStorePath
+            : `${database.schema}:recovery_wallet_proof_store/${recoveryProofStoreDocumentKey}`,
         stats: indexer.getStats()
       });
     }
 
     if (url.pathname === "/stats") {
       return writeJson(response, 200, indexer.getStats());
+    }
+
+    const recoveryProofPathMatch = url.pathname.match(/^\/recovery-proofs\/([^/]+)$/);
+
+    if (recoveryProofPathMatch) {
+      const proofHash = decodeURIComponent(recoveryProofPathMatch[1] ?? "").trim().toLowerCase();
+
+      if (!/^[0-9a-f]{64}$/.test(proofHash)) {
+        return writeJson(response, 400, {
+          error: "invalid_recovery_wallet_proof_hash",
+          message: "Recovery wallet proof hash must be 32 bytes of hex."
+        });
+      }
+
+      const proof = getRecoveryWalletProof(recoveryProofs, proofHash);
+
+      if (proof === null) {
+        return writeJson(response, 404, {
+          error: "recovery_wallet_proof_not_found",
+          proofHash
+        });
+      }
+
+      return writeJson(response, 200, serializeRecoveryWalletProof(proof));
     }
 
     if (url.pathname === "/names") {
@@ -1021,7 +1179,7 @@ async function main(): Promise<void> {
     return writeJson(response, 404, {
       error: "not_found",
       message:
-        "Supported prototype endpoints: /health, /stats, /names, /experimental-auctions, /activity, /tx/{txid}, /utxo/{txid}/{vout}, /name/{normalized_name}, /name/{normalized_name}/activity, /name/{normalized_name}/value, /name/{normalized_name}/value/history, /name/{normalized_name}/recovery, /name/{normalized_name}/recovery/history, POST /values, POST /recovery-descriptors"
+        "Supported prototype endpoints: /health, /stats, /names, /experimental-auctions, /activity, /tx/{txid}, /utxo/{txid}/{vout}, /recovery-proofs/{proof_hash}, /name/{normalized_name}, /name/{normalized_name}/activity, /name/{normalized_name}/value, /name/{normalized_name}/value/history, /name/{normalized_name}/recovery, /name/{normalized_name}/recovery/history, POST /values, POST /recovery-descriptors, POST /recovery-proofs"
     });
   }
 
@@ -1466,6 +1624,55 @@ function getCurrentRecoveryDescriptorHistory(
   };
 }
 
+function createRecoveryWalletProofAvailabilityChecker(
+  recoveryDescriptors: RecoveryDescriptorStore,
+  recoveryProofs: RecoveryWalletProofStore
+): RecoveryWalletProofAvailabilityChecker {
+  return (request) => {
+    const proof = getRecoveryWalletProof(recoveryProofs, request.proofHash);
+    const descriptor = getRecoveryDescriptorByHash(
+      recoveryDescriptors,
+      request.recoveryDescriptorHash
+    );
+
+    if (proof === null || descriptor === null) {
+      return false;
+    }
+
+    const verification = verifyRecoveryWalletProof({
+      descriptor,
+      proof,
+      expected: {
+        name: request.name,
+        prevStateTxid: request.prevStateTxid,
+        recoveryDescriptorHash: request.recoveryDescriptorHash,
+        newOwnerPubkey: request.newOwnerPubkey,
+        successorBondVout: request.successorBondVout,
+        challengeWindowBlocks: request.challengeWindowBlocks
+      }
+    });
+
+    return verification.ok && verification.proofHash === request.proofHash;
+  };
+}
+
+function getRecoveryDescriptorByHash(
+  recoveryDescriptors: RecoveryDescriptorStore,
+  descriptorHash: string
+): SignedRecoveryDescriptor | null {
+  const normalizedHash = descriptorHash.trim().toLowerCase();
+
+  for (const chain of recoveryDescriptors.values()) {
+    for (const descriptor of chain.descriptors) {
+      if (computeRecoveryDescriptorHash(descriptor) === normalizedHash) {
+        return descriptor;
+      }
+    }
+  }
+
+  return null;
+}
+
 function getChainHead(chain: ValueRecordChain | null): SignedValueRecord | null {
   if (chain === null || chain.records.length === 0) {
     return null;
@@ -1497,6 +1704,17 @@ function serializeRecoveryDescriptor(descriptor: SignedRecoveryDescriptor): Sign
   return {
     ...descriptor,
     descriptorHash: computeRecoveryDescriptorHash(descriptor)
+  };
+}
+
+function serializeRecoveryWalletProof(proof: RecoveryWalletProof): RecoveryWalletProof & {
+  readonly proofHash: string;
+  readonly proofCommitment: string;
+} {
+  return {
+    ...proof,
+    proofHash: computeRecoveryWalletProofHash(proof),
+    proofCommitment: createRecoveryWalletProofCommitment(proof)
   };
 }
 

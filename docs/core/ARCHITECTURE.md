@@ -190,7 +190,7 @@ These are the main issues we already understand and want reviewers to keep pushi
 - **Post-maturity holding cost:** mature names no longer require bond continuity. That reduces permanent UTXO pressure, but it also means long names become cheap to hold indefinitely after the maturity period.
 - **Resolver concentration:** ownership is chain-derived, but destination-record availability is still vulnerable to concentration if only one or a few resolvers matter in practice.
 - **Auction visibility:** bids are visible once broadcast. That improves market discovery, but it also means later bidders can react to earlier bids.
-- **Owner-key recovery:** the prototype intentionally separates the wallet/funding key from the owner key. That keeps routine authority clean. Recovery now has signed resolver-stored descriptors, a prototype `RECOVER_OWNER` challenge-window state machine, and protocol-level BIP322 proof-envelope verification. Indexer enforcement, proof distribution, and product recovery flows are still open.
+- **Owner-key recovery:** the prototype intentionally separates the wallet/funding key from the owner key. That keeps routine authority clean. Recovery now has signed resolver-stored descriptors, a prototype `RECOVER_OWNER` challenge-window state machine, protocol-level BIP322 proof-envelope verification, resolver proof storage, and indexer proof-availability enforcement. Proof fanout/durability and product recovery flows are still open.
 
 ### `apps/indexer`
 

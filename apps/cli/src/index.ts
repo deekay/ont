@@ -74,6 +74,7 @@ import {
   loadRecoveryWalletProof,
   loadSignedRecoveryDescriptor,
   publishRecoveryDescriptor,
+  publishRecoveryWalletProof,
   verifyRecoveryWalletProofEnvelope
 } from "./recovery-descriptors.js";
 
@@ -157,6 +158,9 @@ async function main(): Promise<void> {
       return;
     case "publish-recovery-descriptor":
       await publishRecoveryDescriptorCommand(args);
+      return;
+    case "publish-recovery-wallet-proof":
+      await publishRecoveryWalletProofCommand(args);
       return;
     case "print-recovery-wallet-proof-message":
       await printRecoveryWalletProofMessageCommand(args);
@@ -1182,6 +1186,26 @@ async function publishRecoveryDescriptorCommand(args: readonly string[]): Promis
   console.log(JSON.stringify(result, null, 2));
 }
 
+async function publishRecoveryWalletProofCommand(args: readonly string[]): Promise<void> {
+  const parsed = parseOptions(args);
+  const proofPath = parsed.positionals[0];
+
+  if (!proofPath) {
+    throw new Error("publish-recovery-wallet-proof requires a path to a recovery wallet-proof JSON file");
+  }
+
+  const recoveryWalletProof = await loadRecoveryWalletProof(proofPath);
+  const resolverUrl = resolveSingleResolverUrlOption(parsed, {
+    command: "publish-recovery-wallet-proof"
+  });
+  const result = await publishRecoveryWalletProof({
+    recoveryWalletProof,
+    ...(resolverUrl === undefined ? {} : { resolverUrl })
+  });
+
+  console.log(JSON.stringify(result, null, 2));
+}
+
 async function printRecoveryWalletProofMessageCommand(args: readonly string[]): Promise<void> {
   const parsed = parseOptions(args);
   const descriptorPath = parsed.positionals[0];
@@ -1859,6 +1883,9 @@ function printUsage(): void {
   console.log("");
   console.log("  publish-recovery-descriptor <recovery-descriptor-json> [--resolver-url <url>]");
   console.log("    Publish one signed recovery descriptor to one resolver");
+  console.log("");
+  console.log("  publish-recovery-wallet-proof <recovery-wallet-proof-json> [--resolver-url <url>]");
+  console.log("    Publish one verified recovery wallet-proof envelope to one resolver before broadcasting recovery");
   console.log("");
   console.log("  print-recovery-wallet-proof-message <recovery-descriptor-json> --prev-state-txid <txid> --new-owner-pubkey <hex32> --successor-bond-vout <0-255> [--chain-tip-block-hash <hash> --chain-tip-height <n>]");
   console.log("    Print the exact ONT recovery message for the recovery wallet to sign");

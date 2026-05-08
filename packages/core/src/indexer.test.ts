@@ -22,6 +22,7 @@ const OWNER_PRIVATE_KEY_HEX = "07".repeat(32);
 const OWNER_PUBKEY = deriveXOnlyPubkey(OWNER_PRIVATE_KEY_HEX);
 const NEW_OWNER_PUBKEY = deriveXOnlyPubkey("08".repeat(32));
 const RECOVERY_DESCRIPTOR_HASH = "dd".repeat(32);
+const RECOVERY_WALLET_PROOF_HASH = "00".repeat(32);
 
 describe("InMemoryOntIndexer auction observations", () => {
   it("discovers named auction bids from chain-derived records", () => {
@@ -247,7 +248,7 @@ describe("InMemoryOntIndexer auction observations", () => {
       ownerPubkey: OWNER_PUBKEY
     });
     const recoveryTxid = hexByte(0x44);
-    const indexer = new InMemoryOntIndexer({ launchHeight: 0, experimentalLaunchAuctionPolicy: policy });
+    const indexer = createRecoveryProofAwareIndexer(policy);
 
     indexer.ingestBlocks([
       openingBid.block,
@@ -296,6 +297,51 @@ describe("InMemoryOntIndexer auction observations", () => {
     });
   });
 
+  it("does not enter pending recovery without the matching wallet proof", () => {
+    const policy = createFastAuctionPolicy();
+    const name = "orchard";
+    const openingBid = createOpeningBidBlock({
+      policy,
+      name,
+      height: 10,
+      txid: hexByte(0x22),
+      ownerPubkey: OWNER_PUBKEY
+    });
+    const recoveryTxid = hexByte(0x44);
+    const indexer = new InMemoryOntIndexer({ launchHeight: 0, experimentalLaunchAuctionPolicy: policy });
+
+    indexer.ingestBlocks([
+      openingBid.block,
+      emptyBlock(13, 0x33),
+      recoverOwnerRequestBlock({
+        height: 14,
+        txid: recoveryTxid,
+        prevStateTxid: openingBid.txid,
+        spentBondTxid: openingBid.txid,
+        spentBondVout: 0,
+        successorBondSats: openingBid.bidAmountSats,
+        challengeWindowBlocks: 2
+      })
+    ]);
+
+    expect(indexer.getName(name)).toMatchObject({
+      status: "invalid",
+      currentOwnerPubkey: OWNER_PUBKEY
+    });
+    expect(indexer.getName(name)?.pendingRecovery).toBeUndefined();
+    expect(indexer.getTransactionProvenance(recoveryTxid)).toMatchObject({
+      invalidatedNames: [name],
+      events: [
+        {
+          typeName: "RECOVER_OWNER",
+          validationStatus: "ignored",
+          reason: "recovery_wallet_proof_unavailable",
+          affectedName: name
+        }
+      ]
+    });
+  });
+
   it("lets the current owner key cancel a pending recovery before finalization", () => {
     const policy = createFastAuctionPolicy();
     const name = "orchard";
@@ -308,7 +354,7 @@ describe("InMemoryOntIndexer auction observations", () => {
     });
     const recoveryTxid = hexByte(0x44);
     const cancelTxid = hexByte(0x55);
-    const indexer = new InMemoryOntIndexer({ launchHeight: 0, experimentalLaunchAuctionPolicy: policy });
+    const indexer = createRecoveryProofAwareIndexer(policy);
 
     indexer.ingestBlocks([
       openingBid.block,
@@ -362,7 +408,7 @@ describe("InMemoryOntIndexer auction observations", () => {
     });
     const recoveryTxid = hexByte(0x44);
     const cancelTxid = hexByte(0x55);
-    const indexer = new InMemoryOntIndexer({ launchHeight: 0, experimentalLaunchAuctionPolicy: policy });
+    const indexer = createRecoveryProofAwareIndexer(policy);
 
     indexer.ingestBlocks([
       openingBid.block,
@@ -458,7 +504,8 @@ describe("InMemoryOntIndexer auction observations", () => {
     const indexer = new InMemoryOntIndexer({
       launchHeight: 0,
       recentCheckpointLimit: 10,
-      experimentalLaunchAuctionPolicy: policy
+      experimentalLaunchAuctionPolicy: policy,
+      recoveryWalletProofAvailable: (request) => request.proofHash === RECOVERY_WALLET_PROOF_HASH
     });
 
     indexer.ingestBlocks([
@@ -673,6 +720,14 @@ function createFastAuctionPolicy(): LaunchAuctionPolicy {
       }
     }
   };
+}
+
+function createRecoveryProofAwareIndexer(policy: LaunchAuctionPolicy): InMemoryOntIndexer {
+  return new InMemoryOntIndexer({
+    launchHeight: 0,
+    experimentalLaunchAuctionPolicy: policy,
+    recoveryWalletProofAvailable: (request) => request.proofHash === RECOVERY_WALLET_PROOF_HASH
+  });
 }
 
 function createOpeningBidBlock(input: {

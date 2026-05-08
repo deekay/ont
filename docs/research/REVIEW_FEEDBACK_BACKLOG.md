@@ -80,14 +80,15 @@ the ONT owner key by moving the bond into a valid successor bond output in the
 same transaction.
 
 The signed recovery descriptor foundation, a prototype `RECOVER_OWNER`
-challenge-window state machine, and protocol-level BIP322 proof-envelope
-verification are implemented. The remaining details still need protocol review:
+challenge-window state machine, protocol-level BIP322 proof-envelope
+verification, resolver proof storage, and indexer proof-availability
+enforcement are implemented. The remaining details still need protocol review:
 
 - whether recovery exists only before maturity, or can remain available through
   an optional post-maturity recovery anchor
 - how to handle conflicts between owner-key authority and bond-spend authority
-- how resolver/client proof distribution should work for variable-size wallet
-  proofs committed by hash on chain
+- how resolver/client proof fanout and late-proof replay should work for
+  variable-size wallet proofs committed by hash on chain
 
 ## 4. Premium Brands And Top-End Squatting
 
