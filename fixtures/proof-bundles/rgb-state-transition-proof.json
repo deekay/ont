@@ -1,0 +1,80 @@
+{
+  "format": "ont-proof-bundle",
+  "bundleVersion": 0,
+  "status": "mock-research-fixture",
+  "proofSource": "rgb_style_state_transition",
+  "assuranceTier": "client_side_validated",
+  "verificationGoal": "Verify that river is owned according to an RGB-like client-side validated ONT schema and commitment chain.",
+  "name": "river",
+  "normalizedName": "river",
+  "createdAt": "2026-05-14T16:00:00.000Z",
+  "rgbLikeContract": {
+    "schemaId": "ont-name-state-schema-v0",
+    "genesisCommitment": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "network": "signet",
+    "contractType": "mock-ont-name-ownership",
+    "dataAvailabilityUri": "mock://rgb-consignments/river.bundle"
+  },
+  "stateTransitionChain": [
+    {
+      "transitionId": "genesis-river",
+      "transitionType": "name_genesis",
+      "singleUseSeal": {
+        "txid": "1111111111111111111111111111111111111111111111111111111111111111",
+        "vout": 0
+      },
+      "commitmentTxid": "1111111111111111111111111111111111111111111111111111111111111111",
+      "commitmentHeight": 410000,
+      "newOwnerPubkey": "4444444444444444444444444444444444444444444444444444444444444444",
+      "transitionProof": "mock-client-side-validation-proof-0"
+    },
+    {
+      "transitionId": "transfer-river-1",
+      "transitionType": "owner_transfer",
+      "previousTransitionId": "genesis-river",
+      "singleUseSeal": {
+        "txid": "2222222222222222222222222222222222222222222222222222222222222222",
+        "vout": 1
+      },
+      "commitmentTxid": "2222222222222222222222222222222222222222222222222222222222222222",
+      "commitmentHeight": 411000,
+      "oldOwnerPubkey": "4444444444444444444444444444444444444444444444444444444444444444",
+      "newOwnerPubkey": "5555555555555555555555555555555555555555555555555555555555555555",
+      "ownerSignature": "mock-owner-transfer-signature",
+      "transitionProof": "mock-client-side-validation-proof-1"
+    }
+  ],
+  "ownershipProof": {
+    "ownershipRef": "transfer-river-1",
+    "currentOwnerPubkey": "5555555555555555555555555555555555555555555555555555555555555555",
+    "state": "client_side_validated_owner",
+    "latestTransitionId": "transfer-river-1"
+  },
+  "valueRecordChain": {
+    "complete": true,
+    "records": [
+      {
+        "recordHash": "6666666666666666666666666666666666666666666666666666666666666666",
+        "sequence": 1,
+        "previousRecordHash": null,
+        "ownerPubkey": "5555555555555555555555555555555555555555555555555555555555555555",
+        "ownershipRef": "transfer-river-1",
+        "valueType": 2,
+        "payloadHex": "68747470733a2f2f6578616d706c652e636f6d2f7269766572",
+        "signature": "mock-owner-value-signature"
+      }
+    ]
+  },
+  "verificationChecklist": [
+    "Verify the ONT schema rules for valid name ownership transitions.",
+    "Verify every state transition consumes the prior seal exactly once.",
+    "Verify Bitcoin commitments anchor the transition chain in order.",
+    "Verify all required transition data is available in the consignment/proof bundle.",
+    "Verify the latest owner key signed the current value-record chain."
+  ],
+  "openQuestions": [
+    "Is RGB-style client-side validation too private for public namespace discovery?",
+    "Who mirrors consignments so fresh resolvers can discover river without asking the owner?",
+    "Should RGB be used directly or only as inspiration for ONT proof schemas?"
+  ]
+}

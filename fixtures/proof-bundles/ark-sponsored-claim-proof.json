@@ -1,0 +1,90 @@
+{
+  "format": "ont-proof-bundle",
+  "bundleVersion": 0,
+  "status": "mock-research-fixture",
+  "proofSource": "ark_sponsored_claim",
+  "assuranceTier": "sponsored",
+  "verificationGoal": "Verify that agent7 was issued by a sponsor credit spend backed by Ark VTXO BTC-time and was not challenged during the challenge window.",
+  "name": "agent7",
+  "normalizedName": "agent7",
+  "createdAt": "2026-05-14T16:00:00.000Z",
+  "sponsorCreditProof": {
+    "sponsorId": "sponsor-bitcoin-root",
+    "sponsorOwnerPubkey": "3333333333333333333333333333333333333333333333333333333333333333",
+    "capitalSource": {
+      "kind": "ark_vtxo_credit_account",
+      "arkVtxoId": "vtxo-sponsor-bitcoin-root-0001",
+      "valueSats": "100000000",
+      "lockedFromHeight": 300000,
+      "lockedThroughHeight": 352560,
+      "settlementMode": "mock-settled-or-renewed",
+      "exitPackageHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "creditStateBefore": {
+      "epoch": 12,
+      "availableCredits": "250000"
+    },
+    "creditSpend": {
+      "creditSpendId": "credit-spend-agent7-0001",
+      "creditsSpent": "1",
+      "transitionCommitment": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "nonReuseProof": "mock-single-use-credit-transition"
+    },
+    "creditStateAfter": {
+      "epoch": 12,
+      "availableCredits": "249999"
+    }
+  },
+  "sponsoredClaim": {
+    "claimId": "sponsored-agent7-0001",
+    "claimBatchId": "ark-sponsored-claims-epoch-12",
+    "claimBatchRoot": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "claimBatchCommitmentTxid": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "claimBatchHeight": 352600,
+    "dataAvailabilityUri": "mock://ark-sponsored-claims/epoch-12.json",
+    "inclusionProof": "mock-merkle-path-agent7",
+    "sponsorSignature": "mock-sponsor-signature",
+    "recipientOwnerPubkey": "7777777777777777777777777777777777777777777777777777777777777777",
+    "recipientAcceptanceSignature": "mock-recipient-acceptance-signature"
+  },
+  "challengeWindow": {
+    "startHeight": 352600,
+    "endHeight": 354616,
+    "challengeRule": "any_valid_utxo_backed_competing_claim_routes_name_to_l1_auction",
+    "challengeResult": "uncontested",
+    "challengeSearchProof": {
+      "kind": "indexer_no_valid_challenge_observed",
+      "checkedThroughHeight": 354616,
+      "supportingIndexers": [
+        "mock-resolver-a",
+        "mock-resolver-b"
+      ]
+    }
+  },
+  "ownershipProof": {
+    "ownershipRef": "sponsored-agent7-0001",
+    "currentOwnerPubkey": "7777777777777777777777777777777777777777777777777777777777777777",
+    "state": "sponsored_final",
+    "transferPolicy": "owner_key_transfer_after_finality_preserves_assurance",
+    "transferChain": []
+  },
+  "ifChallenged": {
+    "fallbackPath": "bitcoin_l1_direct_auction",
+    "note": "A valid UTXO-backed competing claim would replace sponsored finality with the normal auction transcript and settlement proof."
+  },
+  "verificationChecklist": [
+    "Verify the sponsor capital account had eligible BTC-time.",
+    "Verify the credit spend was valid and not duplicated.",
+    "Verify the sponsored claim is included in the committed batch.",
+    "Verify the recipient accepted the owner key assignment.",
+    "Verify the challenge window start/end from the committed batch height.",
+    "Verify no valid UTXO-backed challenge displaced the claim.",
+    "Verify ordinary transfer after finality preserves the sponsored assurance tier.",
+    "Verify value records are signed by the sponsored owner key."
+  ],
+  "openQuestions": [
+    "Can Ark prove BTC-time across VTXO renewals strongly enough for sponsor credits?",
+    "What is the objective proof of no challenge without trusting one indexer?",
+    "What proof-bundle fields make sponsored-name transfers clear enough for buyers?"
+  ]
+}

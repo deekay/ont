@@ -1,0 +1,94 @@
+{
+  "format": "ont-proof-bundle",
+  "bundleVersion": 0,
+  "status": "mock-research-fixture",
+  "proofSource": "ark_auction_transcript",
+  "assuranceTier": "hardened_after_l1_settlement",
+  "verificationGoal": "Verify that meadow was won through an Ark-backed auction transcript and settled into the normal ONT L1 bond path.",
+  "name": "meadow",
+  "normalizedName": "meadow",
+  "createdAt": "2026-05-14T16:00:00.000Z",
+  "auctionTranscript": {
+    "transcriptSource": "ark_batch_transcript",
+    "auctionId": "opening-meadow-ark-42",
+    "rulesVersion": "ont-auction-v1",
+    "sameAuctionRulesAsL1": true,
+    "openHeight": 220000,
+    "closeHeight": 221008,
+    "transcriptCommitment": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "transcriptBatch": {
+      "arkBatchId": "ark-batch-000042",
+      "batchCommitmentTxid": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "batchCommitmentVout": 0,
+      "batchHeight": 220144,
+      "dataAvailabilityUri": "mock://ark-transcripts/opening-meadow-ark-42.json",
+      "merkleRoot": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+    },
+    "acceptedBids": [
+      {
+        "bidId": "bid-meadow-1",
+        "arkVtxoId": "vtxo-meadow-bidder-a",
+        "bidderCommitment": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "amountSats": "50000",
+        "ownerPubkey": "1111111111111111111111111111111111111111111111111111111111111111",
+        "inclusionProof": "mock-merkle-path-0",
+        "collateralProof": {
+          "kind": "ark_vtxo_locked_for_bid",
+          "valueSats": "50000",
+          "expiryHeight": 222000,
+          "exitPackageHash": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        }
+      },
+      {
+        "bidId": "bid-meadow-2",
+        "arkVtxoId": "vtxo-meadow-bidder-b",
+        "bidderCommitment": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "amountSats": "90000",
+        "ownerPubkey": "2222222222222222222222222222222222222222222222222222222222222222",
+        "inclusionProof": "mock-merkle-path-1",
+        "collateralProof": {
+          "kind": "ark_vtxo_locked_for_bid",
+          "valueSats": "90000",
+          "expiryHeight": 222000,
+          "exitPackageHash": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+        }
+      }
+    ],
+    "winner": {
+      "bidId": "bid-meadow-2",
+      "winnerOwnerPubkey": "2222222222222222222222222222222222222222222222222222222222222222",
+      "winningAmountSats": "90000"
+    }
+  },
+  "settlementProof": {
+    "kind": "l1_winner_bond_after_ark_transcript",
+    "settlementTxid": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "settlementHeight": 221020,
+    "currentBondOutpoint": {
+      "txid": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "vout": 0,
+      "valueSats": "90000"
+    },
+    "requiredBondSats": "50000",
+    "maturityHeight": 273580
+  },
+  "ownershipProof": {
+    "ownershipRef": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "currentOwnerPubkey": "2222222222222222222222222222222222222222222222222222222222222222",
+    "state": "immature_bonded_owner",
+    "transfers": []
+  },
+  "verificationChecklist": [
+    "Verify the Ark transcript commitment is anchored in the cited batch.",
+    "Verify full transcript data is available and matches the Merkle root.",
+    "Verify each bid had valid Ark VTXO collateral at bid time.",
+    "Replay the same ONT auction rules used for L1 auctions.",
+    "Verify the winner settled into the required L1 bond output.",
+    "Verify later ownership exactly like a normal direct L1 name."
+  ],
+  "openQuestions": [
+    "Does preconfirmed Ark VTXO collateral count, or only settled Ark state?",
+    "What L1 fallback protects a censored bidder?",
+    "How should verifiers track VTXO expiry during long auctions?"
+  ]
+}

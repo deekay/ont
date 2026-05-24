@@ -360,6 +360,52 @@ For decade-scale names or bonds, "we'll think about it later" is not a satisfyin
 
 Open. See [POST_QUANTUM_AND_SIGNATURE_AGILITY.md](./POST_QUANTUM_AND_SIGNATURE_AGILITY.md).
 
+## 17. Implementation Simplification Before Wider Review
+
+### Concern
+
+The v1 story is now simpler than some of the implementation history still
+visible in code and tooling. Reviewers may infer unnecessary complexity from
+leftover abstractions that no longer match the universal-auction launch model.
+
+Current examples:
+
+- legacy `gns` names remain in deployment scripts as compatibility fallbacks
+- `auctionClassId` is still threaded through bid packages, fixtures, policy,
+  simulators, indexers, and web surfaces even though v1 has one auction rule
+- older epoch-halving maturity helpers remain in protocol/core code even though
+  the launch direction is a fixed maturity duration
+- recovery now has BIP322 proof-envelope verification, but challenge-window
+  language and proof distribution rules still need a cleaner reviewer-facing
+  explanation
+- transfer tooling still exposes too much "successor bond" machinery instead
+  of presenting immature transfer as a guided ownership move
+- the portable proof-bundle format should become the center of v1 review before
+  more mechanism design is added
+
+### Why It Matters
+
+The external design brief now says "v1 is direct bonded auction only." The code
+and tools should progressively converge on that same mental model. Otherwise
+reviewers have to audit historical flexibility that we no longer intend to use.
+
+### Current Status
+
+New. Suggested order:
+
+1. Standardize reviewer-facing terminology on `ONT`; quarantine or remove
+   legacy `gns` deployment compatibility where safe.
+2. Retire `auctionClassId` from v1 payloads and internal launch policy unless a
+   real second class is reintroduced before launch.
+3. Freeze the maturity model around a fixed duration and remove or quarantine
+   epoch-halving helpers from the v1 protocol surface.
+4. Tighten recovery docs around the challenge window, proof fanout, and
+   late-proof/replay behavior.
+5. Add a CLI/browser helper abstraction for successor-bond linking so immature
+   transfers feel like ownership transfers, not manual UTXO surgery.
+6. Prototype or specify canonical proof bundles for direct acquisition,
+   maturity, release, transfer, and value-record history.
+
 ## Suggested Discussion Order
 
 If we work through these one by one, the most leveraged order is probably:

@@ -1,0 +1,21 @@
+{
+  "scenario": {
+    "years": 30,
+    "directBondedNamesPerYear": 1000000,
+    "averageDirectBondBtc": 0.03,
+    "averageContestedAuctionBondBtc": 0.03,
+    "sponsorMaturityYears": 1,
+    "sponsorBondRetentionRate": 0.9,
+    "baseCreditsPerBtcYear": 100000,
+    "ageMultiplierExponent": 1.5,
+    "ageMultiplierCap": 10,
+    "creditCarryoverRate": 0,
+    "desiredSponsoredClaimsPerYear": 200000000000,
+    "desiredSponsoredClaimsGrowthRate": 0,
+    "cleanClaimCreditCost": 1,
+    "contestedClaimCreditCost": 100,
+    "contestRate": 0.01,
+    "contestedAuctionSettlementRate": 1,
+    "maxContestedAuctionSettlementsPerYear": 5000000
+  }
+}
