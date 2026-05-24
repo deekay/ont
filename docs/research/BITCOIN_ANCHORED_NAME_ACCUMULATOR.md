@@ -7,7 +7,7 @@ Status: candidate design + feasibility analysis. Judged against
 > now **publicly visible** at claim (only bid *amounts* are sealed), and
 > contention triggers a **second-price auction** rather than pure earliest-commit
 > first-come. The integrated, current design is in
-> [ONT_FLAT_NAMESPACE_DESIGN.md](./ONT_FLAT_NAMESPACE_DESIGN.md); the accumulator
+> [ONT_FLAT_NAMESPACE_DESIGN.md](./archive/ONT_FLAT_NAMESPACE_DESIGN.md); the accumulator
 > mechanics, DA rules, sequencer, and red-team below remain valid.
 
 ## What this is

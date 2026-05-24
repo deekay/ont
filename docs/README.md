@@ -12,6 +12,16 @@ works. If you read one thing, read that. Everything below is secondary to it.
 - **[design/README.md](./design/README.md)** — the curated design index: requirements,
   conformance, the data-availability rule, the scaling design, risks, and the signet prototype.
 
+## Launch & review (`docs/launch/`)
+
+Working material for getting to launch — internal, not the conceptual design:
+
+- Launch direction & spec: `LAUNCH_DIRECTION_STATUS`, `LAUNCH_SPEC_V0`, `UNIVERSAL_AUCTION_LAUNCH_MODEL`,
+  `ONT_LAUNCH_V1_BRIEF`, `PRELAUNCH_SCALING_CONFIDENCE_PLAN`, `ONT_IMPLEMENTATION_AND_VALIDATION`,
+  `ONT_PARAMETER_REVIEW_PACKET`.
+- Bitcoin review packets: `BITCOIN_EXPERT_*`, `BITCOIN_PROTOCOL_REVIEW_QUESTIONS`, `BITCOIN_REVIEW_*`.
+- Auction working docs: `AUCTION_*`.
+
 ## Running it (operational)
 
 How to run the prototype and demos — not conceptual reading.
@@ -20,14 +30,13 @@ How to run the prototype and demos — not conceptual reading.
   [core/TESTING.md](./core/TESTING.md), [core/NEW_USER_TESTING_GUIDE.md](./core/NEW_USER_TESTING_GUIDE.md)
 - Demo flows: [demo/](./demo/) · Operators: [operators/](./operators/)
 
-## Other docs (`docs/research/`) — being curated
+## Notes & explorations (`docs/research/`)
 
+- **`docs/research/`** — secondary notes not part of the core design: product/strategy/messaging
+  (`NARRATIVE_FRAMEWORK`, `USE_CASE_SCENES`, `NOSTR_STRATEGY`, …), forward-looking ideas
+  (`POST_QUANTUM_AND_SIGNATURE_AGILITY`, `FUTURE_EXPLORATIONS`), and assorted design notes.
 - **`docs/research/archive/`** — **superseded explorations**, isolated and kept only for provenance
-  (*not* the plan): sponsor credits, Ark/RGB, the "open collider" / public-log passes, the early
-  scaling survey, and the `ONT-v2-draft` / `ONT_EXPLAINER` overview drafts.
-- **`docs/research/`** — the remaining **uncurated working docs** not yet promoted or archived: launch
-  and review material (`LAUNCH_SPEC_V0`, `LAUNCH_DIRECTION_STATUS`, the `BITCOIN_*` review packet,
-  `ONT_IMPLEMENTATION_AND_VALIDATION`, `ONT_PARAMETER_REVIEW_PACKET`), the `AUCTION_*` set, and
-  product/strategy notes. Some may still be current; this folder is still being sorted.
+  (sponsor credits, Ark/RGB, the "open collider" / public-log passes, the early scaling survey, and
+  the `ONT_FLAT_NAMESPACE_DESIGN` / `ONT-v2-draft` / `ONT_EXPLAINER` overview drafts).
 
 **Authoritative: [ONT.md](./ONT.md) + [design/](./design/).**

@@ -25,27 +25,26 @@ founder pledges no name pre-grab and a sunset-bound data-availability server.
    design must meet.
 3. **[ONT_REQUIREMENTS_CONFORMANCE.md](./ONT_REQUIREMENTS_CONFORMANCE.md)** — design vs. every
    requirement; current status (no invariant violated, no open conflicts).
-4. **[ONT_FLAT_NAMESPACE_DESIGN.md](../research/ONT_FLAT_NAMESPACE_DESIGN.md)** — the plain-language scaling design.
-   *(Has known stale spots — claim visibility and "not yet prototyped"; the register/this index are
-   authoritative where they differ.)*
-5. **[BITCOIN_ANCHORED_NAME_ACCUMULATOR.md](../research/BITCOIN_ANCHORED_NAME_ACCUMULATOR.md)** — deep mechanics.
-   *(Its commit-reveal name-hiding is superseded — see the contests→L1 decision.)*
-6. **[ONT_DATA_AVAILABILITY_AGREEMENT.md](./ONT_DATA_AVAILABILITY_AGREEMENT.md)** — the convergence/DA
+4. **[ONT_DATA_AVAILABILITY_AGREEMENT.md](./ONT_DATA_AVAILABILITY_AGREEMENT.md)** — the convergence/DA
    rule (R1): how honest nodes agree under a withholding adversary.
-7. **[ONT_HARD_PROBLEMS.md](./ONT_HARD_PROBLEMS.md)** — R2 (leaderless chaining) and R4 (now resolved:
+5. **[ONT_HARD_PROBLEMS.md](./ONT_HARD_PROBLEMS.md)** — R2 (leaderless chaining) and R4 (now resolved:
    contests escalate to L1).
-8. **[ONT_MEV_ORDERING_ANALYSIS.md](./ONT_MEV_ORDERING_ANALYSIS.md)** — R9: you can't steal a name via
+6. **[ONT_MEV_ORDERING_ANALYSIS.md](./ONT_MEV_ORDERING_ANALYSIS.md)** — R9: you can't steal a name via
    ordering.
-9. **[ONT_LONG_TAIL_RECOVERY.md](./ONT_LONG_TAIL_RECOVERY.md)** — recovery for UTXO-less names (a
+7. **[ONT_LONG_TAIL_RECOVERY.md](./ONT_LONG_TAIL_RECOVERY.md)** — recovery for UTXO-less names (a
    committed feature; deferred out of the first accumulator freeze).
-10. **[ONT_SIGNET_PROTOTYPE_SCOPE.md](./ONT_SIGNET_PROTOTYPE_SCOPE.md)** — the empirical prototype plan +
-    what's been built/measured.
+8. **[ONT_SIGNET_PROTOTYPE_SCOPE.md](./ONT_SIGNET_PROTOTYPE_SCOPE.md)** — the empirical prototype plan +
+   what's been built/measured.
+
+*(Deeper, older mechanics live in [../research/BITCOIN_ANCHORED_NAME_ACCUMULATOR.md](../research/BITCOIN_ANCHORED_NAME_ACCUMULATOR.md)
+— predates these docs and has stale spots like commit-reveal name-hiding; ONT.md + this index are
+authoritative. The earlier `ONT_FLAT_NAMESPACE_DESIGN` summary is superseded by ONT.md and archived.)*
 
 ### Supporting / reference (current)
 - **[ONT_RISK_REGISTER.md](./ONT_RISK_REGISTER.md)** + **[ONT_RISKS_PLAIN_LANGUAGE.md](./ONT_RISKS_PLAIN_LANGUAGE.md)** — the living risk register and its jargon-free companion.
-- **[ONT_FLAT_NAMESPACE_ONE_PAGER.md](../research/ONT_FLAT_NAMESPACE_ONE_PAGER.md)** — modeled $-forward one-pager (some figures annotated with measured values).
-- **[PRELAUNCH_SCALING_CONFIDENCE_PLAN.md](../research/PRELAUNCH_SCALING_CONFIDENCE_PLAN.md)** — what v1 must preserve to keep scaling additive.
-- **[ONT_LAUNCH_V1_BRIEF.md](../research/ONT_LAUNCH_V1_BRIEF.md)** — v1 launch brief.
+- **[ONT_FLAT_NAMESPACE_ONE_PAGER.md](./ONT_FLAT_NAMESPACE_ONE_PAGER.md)** — modeled $-forward one-pager (some figures annotated with measured values).
+- **[PRELAUNCH_SCALING_CONFIDENCE_PLAN.md](../launch/PRELAUNCH_SCALING_CONFIDENCE_PLAN.md)** — what v1 must preserve to keep scaling additive.
+- **[ONT_LAUNCH_V1_BRIEF.md](../launch/ONT_LAUNCH_V1_BRIEF.md)** — v1 launch brief.
 
 ---
 

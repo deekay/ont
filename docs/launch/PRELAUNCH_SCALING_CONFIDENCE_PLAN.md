@@ -28,7 +28,7 @@ auctions do not scale to all humans, apps, agents, and devices.
 That concern is valid.
 
 The investigation behind the current scale hypothesis is recorded in
-[SCALABILITY_INVESTIGATION_AND_HYPOTHESES.md](./archive/SCALABILITY_INVESTIGATION_AND_HYPOTHESES.md).
+[SCALABILITY_INVESTIGATION_AND_HYPOTHESES.md](../research/archive/SCALABILITY_INVESTIGATION_AND_HYPOTHESES.md).
 
 The answer should not be "trust us, scaling later." It should be:
 

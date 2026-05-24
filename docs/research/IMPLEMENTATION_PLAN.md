@@ -14,7 +14,7 @@ to:
 - tighten the spec before any canonical mainnet launch
 
 For the current launch model, see
-[UNIVERSAL_AUCTION_LAUNCH_MODEL.md](./UNIVERSAL_AUCTION_LAUNCH_MODEL.md).
+[UNIVERSAL_AUCTION_LAUNCH_MODEL.md](../launch/UNIVERSAL_AUCTION_LAUNCH_MODEL.md).
 
 ## Build Goal
 

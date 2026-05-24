@@ -358,7 +358,7 @@ For decade-scale names or bonds, "we'll think about it later" is not a satisfyin
 
 ### Current Status
 
-Open. See [POST_QUANTUM_AND_SIGNATURE_AGILITY.md](./POST_QUANTUM_AND_SIGNATURE_AGILITY.md).
+Open. See [POST_QUANTUM_AND_SIGNATURE_AGILITY.md](../research/POST_QUANTUM_AND_SIGNATURE_AGILITY.md).
 
 ## 17. Implementation Simplification Before Wider Review
 

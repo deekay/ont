@@ -2,7 +2,7 @@
 
 This document is post-launch design space. It is not the ONT v1 launch spec.
 
-v1 review target: [ONT_LAUNCH_V1_BRIEF.md](./ONT_LAUNCH_V1_BRIEF.md)
+v1 review target: [ONT_LAUNCH_V1_BRIEF.md](../../launch/ONT_LAUNCH_V1_BRIEF.md)
 
 Public-notice relay and resolver-transparency details:
 [PUBLIC_NOTICE_RELAY_AND_RESOLVER_TRANSPARENCY.md](./PUBLIC_NOTICE_RELAY_AND_RESOLVER_TRANSPARENCY.md)

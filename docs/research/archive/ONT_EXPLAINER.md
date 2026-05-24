@@ -3,11 +3,11 @@
 Status note:
 
 - for the cleanest current intro, start with
-  [ONT_FROM_ZERO.md](../core/ONT_FROM_ZERO.md)
+  [ONT_FROM_ZERO.md](../../core/ONT_FROM_ZERO.md)
 - for what is implemented and validated, use
-  [ONT_IMPLEMENTATION_AND_VALIDATION.md](./ONT_IMPLEMENTATION_AND_VALIDATION.md)
+  [ONT_IMPLEMENTATION_AND_VALIDATION.md](../../launch/ONT_IMPLEMENTATION_AND_VALIDATION.md)
 - for the current launch direction, use
-  [UNIVERSAL_AUCTION_LAUNCH_MODEL.md](./UNIVERSAL_AUCTION_LAUNCH_MODEL.md)
+  [UNIVERSAL_AUCTION_LAUNCH_MODEL.md](../../launch/UNIVERSAL_AUCTION_LAUNCH_MODEL.md)
 
 ## The Problem With Payment Handles Today
 
