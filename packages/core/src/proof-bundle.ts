@@ -1,7 +1,10 @@
-import { normalizeName } from "@ont/protocol";
+import { normalizeName, sha256Hex, utf8ToBytes } from "@ont/protocol";
 
 export type ProofBundleSource =
+  // Current acquisition paths:
   | "bitcoin_l1_direct_auction"
+  | "accumulator_batch_claim"
+  // Experimental / research sources (superseded explorations — not the current launch path):
   | "ark_auction_transcript"
   | "ark_sponsored_claim"
   | "rgb_style_state_transition";
@@ -30,6 +33,7 @@ type JsonRecord = Record<string, unknown>;
 
 const PROOF_BUNDLE_SOURCES = new Set<string>([
   "bitcoin_l1_direct_auction",
+  "accumulator_batch_claim",
   "ark_auction_transcript",
   "ark_sponsored_claim",
   "rgb_style_state_transition"
@@ -93,6 +97,13 @@ export function verifyProofBundle(input: unknown): ProofBundleVerificationReport
           bundle,
           addCheck,
           currentOwnerPubkey
+        });
+        break;
+      case "accumulator_batch_claim":
+        validateAccumulatorBatchClaimBundle({
+          bundle,
+          addCheck,
+          normalizedName: normalizedFromName
         });
         break;
       case "ark_auction_transcript":
@@ -213,6 +224,39 @@ function validateDirectL1AuctionBundle(input: {
     currentBondValue !== null && requiredBondSats !== null && currentBondValue >= requiredBondSats,
     "current bond value satisfies the required bond amount"
   );
+}
+
+function validateAccumulatorBatchClaimBundle(input: {
+  readonly bundle: JsonRecord;
+  readonly addCheck: (id: string, condition: boolean, message: string) => void;
+  readonly normalizedName: string | null;
+}): void {
+  const { bundle, addCheck, normalizedName } = input;
+  const proof = getRecord(bundle, "accumulatorProof");
+  const root = getString(proof, "root");
+  const leaf = getString(proof, "leaf");
+  const value = getString(proof, "value");
+  const siblings = getRecordArray(proof, "siblings");
+  const batchAnchor = getRecord(bundle, "batchAnchor");
+  const expectedLeaf = normalizedName === null ? null : sha256Hex(utf8ToBytes(normalizedName));
+
+  addCheck("accumulator.proof.object", proof !== null, "accumulator inclusion proof is present");
+  addCheck("accumulator.root", isHexOfLength(root, 32), "accumulator root is 32-byte hex");
+  addCheck("accumulator.leaf", isHexOfLength(leaf, 32), "leaf key is 32-byte hex");
+  addCheck(
+    "accumulator.leaf.bindsName",
+    expectedLeaf !== null && leaf === expectedLeaf,
+    "leaf key equals H(name) — the proof is bound to this name"
+  );
+  addCheck("accumulator.value", isHexOfLength(value, 32), "owner value commitment is 32-byte hex");
+  addCheck("accumulator.siblings.array", Array.isArray(getField(proof, "siblings")), "membership proof siblings are an array");
+  for (const [index, sibling] of siblings.entries()) {
+    addCheck(`accumulator.siblings.${index}.level`, getNumber(sibling, "level") !== null, `sibling ${index + 1} has a level`);
+    addCheck(`accumulator.siblings.${index}.hash`, isHexOfLength(getString(sibling, "hash"), 32), `sibling ${index + 1} hash is 32-byte hex`);
+  }
+  addCheck("accumulator.anchor.object", batchAnchor !== null, "batch anchor metadata is present");
+  addCheck("accumulator.anchor.txid", isHexOfLength(getString(batchAnchor, "anchorTxid"), 32), "batch anchor txid is 32-byte hex");
+  addCheck("accumulator.anchor.height", getNumber(batchAnchor, "anchorHeight") !== null, "batch anchor height is present");
 }
 
 function validateArkAuctionBundle(input: {

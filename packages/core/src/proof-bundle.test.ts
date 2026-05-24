@@ -6,6 +6,7 @@ import { verifyProofBundle } from "./index.js";
 
 const PROOF_BUNDLE_FIXTURES = [
   "direct-l1-auction-proof.json",
+  "accumulator-batch-claim-proof.json",
   "ark-auction-transcript-proof.json",
   "ark-sponsored-claim-proof.json",
   "rgb-state-transition-proof.json"
@@ -22,6 +23,21 @@ describe("proof bundle verifier", () => {
       expect(report.passedCheckCount).toBeGreaterThan(0);
     });
   }
+
+  it("rejects an accumulator bundle whose leaf is not bound to the name", async () => {
+    const bundle = await loadProofBundleFixture("accumulator-batch-claim-proof.json");
+    const accumulatorProof = bundle.accumulatorProof as Record<string, unknown>;
+    accumulatorProof.leaf = "00".repeat(32); // not H("alice")
+
+    const report = verifyProofBundle(bundle);
+
+    expect(report.valid).toBe(false);
+    expect(report.checks).toContainEqual({
+      id: "accumulator.leaf.bindsName",
+      status: "failed",
+      message: "leaf key equals H(name) — the proof is bound to this name"
+    });
+  });
 
   it("rejects a direct L1 bundle whose winner amount does not match the winning bid", async () => {
     const bundle = await loadProofBundleFixture("direct-l1-auction-proof.json");
