@@ -5,6 +5,8 @@ dist
 .DS_Store
 .env
 .env.local
+# Local-only scripts / secrets (never committed)
+*.local.sh
 coverage
 *.log
 COMMERCIAL_IDEAS.md
