@@ -1889,8 +1889,8 @@ function printUsage(): void {
   console.log("  simulate-auction-market <scenario-json> [--policy <policy-json>] [--write <path>]");
   console.log("    Run a multi-auction market scenario with bidder budget constraints and capital lock carryover");
   console.log("");
-  console.log("  simulate-sponsored-issuance <scenario-json> [--write <path>]");
-  console.log("    Run a mature-bond sponsor credit scenario for flat-name issuance and auction fallback");
+  console.log("  simulate-sponsored-issuance <scenario-json> [--write <path>]  (research model)");
+  console.log("    Numerical model from the superseded sponsor-credit exploration; kept for research only");
   console.log("");
   console.log("  inspect-proof-bundle <proof-bundle-json>");
   console.log("    Run structural checks against a mock/research ONT ownership proof bundle");

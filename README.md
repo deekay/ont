@@ -4,6 +4,12 @@ Open Name Tags is a payment-handle system anchored to Bitcoin.
 
 An ONT name is a human-readable handle you can actually own. Its first job is simple: let a wallet or client resolve who should get paid before money moves. The owner can update signed off-chain destination records, so the same name can later carry other destinations if clients and applications decide to support them.
 
+> **[docs/ONT.md](./docs/ONT.md) is the single source of truth for the design.** In one line: you
+> claim a name for a small fixed amount of bitcoin (≈$1, paid to miners); if no one else wants it,
+> it's yours cheaply; if it's contested, it escalates to a bonded auction. The hosted prototype below
+> currently implements the bonded-auction path; the cheap long-tail claim path is prototyped and being
+> hardened. The detailed sections in this README describe the *running prototype*.
+
 The hosted website is mainly a tool surface:
 
 - browse names
@@ -21,14 +27,15 @@ Human-facing amounts in ONT use ₿ notation. Example: `₿0.0005`.
 
 If you want the shortest honest project orientation before touching the product surface, start with:
 
-1. [docs/research/BITCOIN_EXPERT_REVIEW_PACKET.md](./docs/research/BITCOIN_EXPERT_REVIEW_PACKET.md)
-2. [docs/core/ONT_FROM_ZERO.md](./docs/core/ONT_FROM_ZERO.md)
-3. [docs/core/NEW_USER_TESTING_GUIDE.md](./docs/core/NEW_USER_TESTING_GUIDE.md)
-4. [docs/research/ONT_IMPLEMENTATION_AND_VALIDATION.md](./docs/research/ONT_IMPLEMENTATION_AND_VALIDATION.md)
-5. [docs/research/UNIVERSAL_AUCTION_LAUNCH_MODEL.md](./docs/research/UNIVERSAL_AUCTION_LAUNCH_MODEL.md)
-6. [docs/research/LAUNCH_SPEC_V0.md](./docs/research/LAUNCH_SPEC_V0.md)
-7. [docs/research/BITCOIN_REVIEW_CLOSURE_MATRIX.md](./docs/research/BITCOIN_REVIEW_CLOSURE_MATRIX.md)
-8. [docs/core/TESTING.md](./docs/core/TESTING.md)
+1. [docs/ONT.md](./docs/ONT.md) — what ONT is and how it works (the single source of truth)
+2. [docs/design/](./docs/design/) — the design reference (sovereignty map, requirements, risks, scaling)
+3. [docs/core/ONT_FROM_ZERO.md](./docs/core/ONT_FROM_ZERO.md)
+4. [docs/core/NEW_USER_TESTING_GUIDE.md](./docs/core/NEW_USER_TESTING_GUIDE.md)
+5. [docs/core/TESTING.md](./docs/core/TESTING.md)
+
+Launch & review working material (current, internal) lives in [docs/launch/](./docs/launch/) — e.g.
+`BITCOIN_EXPERT_REVIEW_PACKET`, `ONT_IMPLEMENTATION_AND_VALIDATION`, `UNIVERSAL_AUCTION_LAUNCH_MODEL`,
+`LAUNCH_SPEC_V0`, `BITCOIN_REVIEW_CLOSURE_MATRIX`.
 
 If you want the fastest first walkthrough, use the hosted private demo:
 
@@ -410,17 +417,18 @@ This is a TypeScript monorepo using `npm` workspaces.
 
 Start here:
 
-- [docs/core/ONT_ONE_PAGER.md](./docs/core/ONT_ONE_PAGER.md): short overview of the design, economics, and blockspace footprint
-- [docs/README.md](./docs/README.md): documentation index
+- [docs/ONT.md](./docs/ONT.md): **the single source of truth** — what ONT is, why it matters, how it works
+- [docs/README.md](./docs/README.md): documentation index (design, launch, operational, research)
+- [docs/design/](./docs/design/): the design reference — sovereignty map, requirements, risks, scaling, prototype scope
 - [docs/core/SELF_HOSTING.md](./docs/core/SELF_HOSTING.md): run your own website + resolver stack
 - [docs/core/ARCHITECTURE.md](./docs/core/ARCHITECTURE.md): system structure, trust boundaries, and runtime modes
 - [docs/core/DECISIONS.md](./docs/core/DECISIONS.md): design decisions and open tradeoffs
 - [docs/core/NEW_USER_TESTING_GUIDE.md](./docs/core/NEW_USER_TESTING_GUIDE.md): friendly first-time testing guide for reviewers and friends
 - [docs/core/TESTING.md](./docs/core/TESTING.md): fixture, regtest, and private signet testing paths
-- [docs/research/TRANSFER_RELAY_OPTIONS.md](./docs/research/TRANSFER_RELAY_OPTIONS.md): why transfers are still policy-sensitive and what the real redesign options are
 - [CONTRIBUTING.md](./CONTRIBUTING.md): local setup and contribution workflow
 
-More exploratory and draft-oriented material lives under [`docs/research/`](./docs/research/).
+Launch & review material lives under [`docs/launch/`](./docs/launch/); secondary notes and superseded
+explorations under [`docs/research/`](./docs/research/).
 
 ## Status
 
