@@ -3,11 +3,15 @@ import { OntEventType, PROTOCOL_MAGIC, PROTOCOL_VERSION } from "./constants.js";
 import { bytesToUtf8, concatBytes, utf8ToBytes } from "./crypto.js";
 import {
   AUCTION_BID_FLAG_INCLUDES_NAME,
+  type AvailabilityMarkerEventPayload,
   createAuctionBidPayload,
+  createAvailabilityMarkerPayload,
   createRecoverOwnerPayload,
+  createRootAnchorPayload,
   createTransferPayload,
   type AuctionBidEventPayload,
   type RecoverOwnerEventPayload,
+  type RootAnchorEventPayload,
   type TransferEventPayload
 } from "./events.js";
 
@@ -17,6 +21,8 @@ export const TRANSFER_BODY_LENGTH = 32 + 32 + 1 + 1 + 64;
 export const RECOVER_OWNER_BODY_LENGTH = 32 + 32 + 1 + 1 + 4 + 32 + 64;
 export const AUCTION_BID_FIXED_PAYLOAD_LENGTH = 3 + 1 + 1 + 1 + 1 + 4 + 8 + 32 + 16 + 32 + 16;
 export const AUCTION_BID_NAMED_PAYLOAD_OVERHEAD = 4 + 1;
+export const ROOT_ANCHOR_BODY_LENGTH = 32 + 32 + 4; // prevRoot|newRoot|batchSize
+export const AVAILABILITY_MARKER_BODY_LENGTH = 32 + 4; // dataDigest|batchSize
 
 export type DecodedOntPayload =
   | { readonly type: OntEventType.Transfer; readonly payload: TransferEventPayload }
@@ -162,7 +168,9 @@ export function decodeOntPayload(payload: Uint8Array): DecodedOntPayload {
   }
 }
 
-export function peekEventType(payload: Uint8Array): OntEventType {
+export function peekEventType(
+  payload: Uint8Array
+): OntEventType.Transfer | OntEventType.AuctionBid | OntEventType.RecoverOwner {
   assertOntPrefix(payload);
 
   const type = payload[4];
@@ -176,6 +184,85 @@ export function peekEventType(payload: Uint8Array): OntEventType {
   }
 
   return type;
+}
+
+// --- Scaling-rail codecs (root anchor + availability marker) ---
+// These use the same magic+version+type framing but are decoded by their own functions, kept out of
+// the v1 `decodeOntPayload` dispatcher above.
+
+export function encodeRootAnchorBody(payload: RootAnchorEventPayload): Uint8Array {
+  const normalized = createRootAnchorPayload(payload);
+  return joinBytes(
+    hexToBytes(normalized.prevRoot),
+    hexToBytes(normalized.newRoot),
+    uint32ToBytes(normalized.batchSize)
+  );
+}
+
+export function decodeRootAnchorBody(body: Uint8Array): RootAnchorEventPayload {
+  if (body.length !== ROOT_ANCHOR_BODY_LENGTH) {
+    throw new Error(`root anchor body must be ${ROOT_ANCHOR_BODY_LENGTH} bytes`);
+  }
+  return createRootAnchorPayload({
+    prevRoot: bytesToHex(body.slice(0, 32)),
+    newRoot: bytesToHex(body.slice(32, 64)),
+    batchSize: uint32FromBytes(body.slice(64, 68))
+  });
+}
+
+export function encodeRootAnchorPayload(payload: RootAnchorEventPayload): Uint8Array {
+  return joinBytes(
+    MAGIC_BYTES,
+    Uint8Array.of(PROTOCOL_VERSION, OntEventType.RootAnchor),
+    encodeRootAnchorBody(payload)
+  );
+}
+
+export function decodeRootAnchorPayload(payload: Uint8Array): RootAnchorEventPayload {
+  const expected = 5 + ROOT_ANCHOR_BODY_LENGTH;
+  if (payload.length !== expected) {
+    throw new Error(`root anchor payload must be ${expected} bytes`);
+  }
+  assertOntPrefix(payload);
+  if (payload[4] !== OntEventType.RootAnchor) {
+    throw new Error("payload is not a root anchor");
+  }
+  return decodeRootAnchorBody(payload.slice(5));
+}
+
+export function encodeAvailabilityMarkerBody(payload: AvailabilityMarkerEventPayload): Uint8Array {
+  const normalized = createAvailabilityMarkerPayload(payload);
+  return joinBytes(hexToBytes(normalized.dataDigest), uint32ToBytes(normalized.batchSize));
+}
+
+export function decodeAvailabilityMarkerBody(body: Uint8Array): AvailabilityMarkerEventPayload {
+  if (body.length !== AVAILABILITY_MARKER_BODY_LENGTH) {
+    throw new Error(`availability marker body must be ${AVAILABILITY_MARKER_BODY_LENGTH} bytes`);
+  }
+  return createAvailabilityMarkerPayload({
+    dataDigest: bytesToHex(body.slice(0, 32)),
+    batchSize: uint32FromBytes(body.slice(32, 36))
+  });
+}
+
+export function encodeAvailabilityMarkerPayload(payload: AvailabilityMarkerEventPayload): Uint8Array {
+  return joinBytes(
+    MAGIC_BYTES,
+    Uint8Array.of(PROTOCOL_VERSION, OntEventType.AvailabilityMarker),
+    encodeAvailabilityMarkerBody(payload)
+  );
+}
+
+export function decodeAvailabilityMarkerPayload(payload: Uint8Array): AvailabilityMarkerEventPayload {
+  const expected = 5 + AVAILABILITY_MARKER_BODY_LENGTH;
+  if (payload.length !== expected) {
+    throw new Error(`availability marker payload must be ${expected} bytes`);
+  }
+  assertOntPrefix(payload);
+  if (payload[4] !== OntEventType.AvailabilityMarker) {
+    throw new Error("payload is not an availability marker");
+  }
+  return decodeAvailabilityMarkerBody(payload.slice(5));
 }
 
 export function encodeTransferPayload(payload: TransferEventPayload): Uint8Array {

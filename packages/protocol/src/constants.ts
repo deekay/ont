@@ -42,7 +42,10 @@ export const BOND_FLOOR_SATS = 50_000n;
 export enum OntEventType {
   Transfer = 0x03,
   AuctionBid = 0x07,
-  RecoverOwner = 0x09
+  RecoverOwner = 0x09,
+  // Scaling-rail messages (decoded by their own codecs, not the v1 event dispatcher).
+  RootAnchor = 0x0b,
+  AvailabilityMarker = 0x0d
 }
 
 export enum ValueType {

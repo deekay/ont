@@ -248,6 +248,9 @@ function applyEvent(
         },
         options
       );
+    default:
+      // Scaling-rail messages (RootAnchor / AvailabilityMarker) are not v1 events; ignore them here.
+      return { validationStatus: "ignored", reason: "unsupported_event_type", affectedName: null };
   }
 }
 

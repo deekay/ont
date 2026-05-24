@@ -84,6 +84,50 @@ export function createTransferPayload(input: {
   };
 }
 
+export interface RootAnchorEventPayload {
+  /** 32-byte hex root the anchor builds on (the prior confirmed tip). */
+  readonly prevRoot: string;
+  /** 32-byte hex root this batch derives. */
+  readonly newRoot: string;
+  /** Names inserted in this batch (metadata for observability). */
+  readonly batchSize: number;
+}
+
+export function createRootAnchorPayload(input: {
+  prevRoot: string;
+  newRoot: string;
+  batchSize: number;
+}): RootAnchorEventPayload {
+  if (!Number.isInteger(input.batchSize) || input.batchSize < 0 || input.batchSize > 0xffff_ffff) {
+    throw new Error("batchSize must fit in an unsigned 32-bit integer");
+  }
+  return {
+    prevRoot: assertHexBytes(input.prevRoot, 32, "prevRoot"),
+    newRoot: assertHexBytes(input.newRoot, 32, "newRoot"),
+    batchSize: input.batchSize
+  };
+}
+
+export interface AvailabilityMarkerEventPayload {
+  /** 32-byte hex digest of the batch's data that this marker attests is available. */
+  readonly dataDigest: string;
+  /** Names covered by the attested batch (metadata). */
+  readonly batchSize: number;
+}
+
+export function createAvailabilityMarkerPayload(input: {
+  dataDigest: string;
+  batchSize: number;
+}): AvailabilityMarkerEventPayload {
+  if (!Number.isInteger(input.batchSize) || input.batchSize < 0 || input.batchSize > 0xffff_ffff) {
+    throw new Error("batchSize must fit in an unsigned 32-bit integer");
+  }
+  return {
+    dataDigest: assertHexBytes(input.dataDigest, 32, "dataDigest"),
+    batchSize: input.batchSize
+  };
+}
+
 export function createRecoverOwnerPayload(input: {
   readonly prevStateTxid: string;
   readonly newOwnerPubkey: string;
@@ -270,6 +314,9 @@ export function getEventTypeName(
       return "AUCTION_BID";
     case OntEventType.RecoverOwner:
       return "RECOVER_OWNER";
+    default:
+      // Scaling-rail types (RootAnchor / AvailabilityMarker) are not v1 events and have no v1 name.
+      throw new Error(`event type ${type} has no v1 event name`);
   }
 }
 
