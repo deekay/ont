@@ -79,12 +79,13 @@ describe("production batch rail (signet prototype Phase 2)", () => {
     expect(verifyAccumulatorProof(result.confirmedRoot, absent)).toBe(true);
   });
 
-  it("resolves a same-name contest by commit priority, reflected in the provable state", () => {
+  it("escalates a contested name to L1 instead of resolving it on the accumulator", () => {
+    // Two publishers claim "coffee" within the notice window; each also claims a unique name.
     const early = delta("early", 12, 1, "ee", 12, 12, [
       { name: "coffee", valueHash: v("coffee-early") },
       { name: "earlyonly", valueHash: v("earlyonly") }
     ]);
-    const late = delta("late", 12, 9, "ll", 12, 12, [
+    const late = delta("late", 13, 9, "ll", 13, 13, [
       { name: "coffee", valueHash: v("coffee-late") },
       { name: "lateonly", valueHash: v("lateonly") }
     ]);
@@ -93,33 +94,42 @@ describe("production batch rail (signet prototype Phase 2)", () => {
       node: node("A", {}),
       deltas: [late, early],
       windows: WINDOWS,
-      now: 20,
-      rule: "proposed"
+      now: 30,
+      rule: "proposed",
+      noticeWindowBlocks: 6
     });
 
-    // Earlier commit (lower txIndex) wins the contested name; the loser's uncontested name still lands.
-    expect(result.ownerByName.get("coffee")).toBe(v("coffee-early"));
+    // The contested name does NOT land on the accumulator — it escalates to the L1 auction.
+    expect(result.ownerByName.has("coffee")).toBe(false);
+    const coffee = result.escalatedNames.find((e) => e.name === "coffee");
+    expect([...(coffee?.contestingDeltaIds ?? [])].sort()).toEqual(["early", "late"]);
+
+    // Each publisher's *uncontested* name still finalizes normally.
     expect(result.ownerByName.get("earlyonly")).toBe(v("earlyonly"));
     expect(result.ownerByName.get("lateonly")).toBe(v("lateonly"));
 
-    const proof = result.accumulator.proveMembership(accumulatorKeyForName("coffee"));
-    expect(proof.value).toBe(v("coffee-early"));
-    expect(verifyAccumulatorProof(result.confirmedRoot, proof)).toBe(true);
+    // The contested name is provably absent from the accumulator.
+    const absent = result.accumulator.proveNonMembership(accumulatorKeyForName("coffee"));
+    expect(absent.value).toBeNull();
+    expect(verifyAccumulatorProof(result.confirmedRoot, absent)).toBe(true);
   });
 
-  it("enforces cross-block uniqueness: a name claimed earlier cannot be re-taken later", () => {
+  it("a name claimed uncontested is owned; a later claim after the notice window is already-owned", () => {
     const first = delta("first", 10, 0, "f0", 10, 10, [{ name: "taken", valueHash: v("first-owner") }]);
-    const second = delta("second", 14, 0, "s0", 14, 14, [{ name: "taken", valueHash: v("second-owner") }]);
+    // The second claim arrives well after the notice window closed (10 + 6 = 16 < 24) -> not a contest.
+    const second = delta("second", 24, 0, "s0", 24, 24, [{ name: "taken", valueHash: v("second-owner") }]);
 
     const result = runBatchRail({
       node: node("A", {}),
       deltas: [first, second],
       windows: WINDOWS,
-      now: 30,
-      rule: "proposed"
+      now: 40,
+      rule: "proposed",
+      noticeWindowBlocks: 6
     });
 
     expect(result.ownerByName.get("taken")).toBe(v("first-owner"));
+    expect(result.escalatedNames.find((e) => e.name === "taken")).toBeUndefined();
     expect(result.includedDeltaIds).toContain("first");
     expect(result.includedDeltaIds).not.toContain("second");
   });

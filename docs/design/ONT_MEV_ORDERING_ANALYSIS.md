@@ -38,10 +38,14 @@ Worth extracting: (1) **front-running** a valuable name, (2) **manipulating an a
 
 ## 2. The structural defenses already in the design
 
-**D1 — Commit-reveal hides *which* name.** A claim is a commitment (hash of name+nonce+owner) first,
-revealed later, with **priority fixed at commit time**. An observer sees a commitment but not the
-name, so they cannot target `coffee` they can't see, and copying a commitment is useless (they lack
-the preimage and can't match the owner key). **This defeats classic name front-running.**
+**D1 — Front-running a claim only triggers an auction you must win by bidding.** *(Updated 2026-05-24.)*
+The accumulator rail's claims may be **public** (not commit-reveal-hidden), so a watcher can see
+`coffee` being claimed. But front-running it doesn't grant a free steal: a second claim makes the
+name **contested**, which (by the contests-escalate-to-L1 decision) routes it to the **L1 bonded
+auction** — the front-runner then has to *outbid*, not out-order. So name front-running is defused by
+contest-escalation, not by hiding names. (This supersedes the earlier reliance on commit-reveal name
+hiding; sealed-bid commitments still apply within the L1 auction itself, but the rail needs no
+name-hiding.)
 
 **D2 — Disjoint names commute, so ordering is irrelevant for the long tail.** A million people
 claiming a million *different* names don't compete; their insertions merge order-independently

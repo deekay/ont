@@ -1,6 +1,6 @@
 // --- v1 consensus + production ---
 // The sovereignty-critical rules and the v1 acquisition/indexing machinery.
-// See docs/research/ONT_SOVEREIGNTY_MAP.md for what is and isn't part of the trust surface.
+// See docs/design/ONT_SOVEREIGNTY_MAP.md for what is and isn't part of the trust surface.
 export * from "./engine.js";
 export * from "./state.js";
 export * from "./proof-bundle.js";

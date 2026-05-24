@@ -164,6 +164,13 @@ Bitcoin-height deadline if a higher settlement-eligible bid lands near close.
 it preserves the spectacle and adds no trust — with **Option C** reserved for the rare
 marquee name if "the drama must be the real bids." Drop Option D unless covenants arrive.
 
+> **Superseded (decided 2026-05-24): there is no off-chain auction on the accumulator rail.**
+> The rail is *uncontested-only*; a contested long-tail name escalates to the existing **L1 bonded
+> auction**. This removes the whole "visible + binding + cheap" tension from the rail (you only ever
+> auction on L1, the proven path), and it means commit-reveal name-hiding isn't needed on the rail —
+> front-running a claim just triggers an auction you'd have to win by bidding. The Option A/B/C analysis
+> above is retained only for the L1 auction's own bid mechanics, not for the rail.
+
 ---
 
 ## What changed in the risk register

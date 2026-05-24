@@ -187,6 +187,6 @@ If we want a reviewer-friendly summary right now, the strongest version is:
 For someone trying to evaluate the project without getting lost:
 
 1. [ONT_FROM_ZERO.md](../core/ONT_FROM_ZERO.md)
-2. [ONT_EXPLAINER.md](./ONT_EXPLAINER.md)
+2. [ONT_EXPLAINER.md](./archive/ONT_EXPLAINER.md)
 3. [TESTING.md](../core/TESTING.md)
 4. [UNIVERSAL_AUCTION_LAUNCH_MODEL.md](./UNIVERSAL_AUCTION_LAUNCH_MODEL.md)

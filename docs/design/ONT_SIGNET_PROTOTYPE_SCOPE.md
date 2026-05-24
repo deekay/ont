@@ -122,7 +122,7 @@ with serialized membership/non-membership proofs, and measure the proof sizes. I
 most foundational piece, everything else builds on it, and it immediately produces one of the most
 -cited unknown numbers (proof size) — a concrete confidence increment before the larger Phase 2 lift.
 
-See also: [`ONT_FLAT_NAMESPACE_ONE_PAGER.md`](./ONT_FLAT_NAMESPACE_ONE_PAGER.md) (the assumptions this
-measures), [`PRELAUNCH_SCALING_CONFIDENCE_PLAN.md`](./PRELAUNCH_SCALING_CONFIDENCE_PLAN.md),
+See also: [`ONT_FLAT_NAMESPACE_ONE_PAGER.md`](../research/ONT_FLAT_NAMESPACE_ONE_PAGER.md) (the assumptions this
+measures), [`PRELAUNCH_SCALING_CONFIDENCE_PLAN.md`](../research/PRELAUNCH_SCALING_CONFIDENCE_PLAN.md),
 [`ONT_DATA_AVAILABILITY_AGREEMENT.md`](./ONT_DATA_AVAILABILITY_AGREEMENT.md),
 [`ONT_REQUIREMENTS_CONFORMANCE.md`](./ONT_REQUIREMENTS_CONFORMANCE.md).
