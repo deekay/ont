@@ -15,7 +15,7 @@ import {
   extractRootAnchors,
   measureAnchorTxVsize,
   measureRootAnchorVsize
-} from "./index.js";
+} from "../index.js";
 
 function anchorTx(txid: string, anchor: RootAnchor): BitcoinTransaction {
   return {

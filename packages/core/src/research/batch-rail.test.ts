@@ -10,7 +10,7 @@ import {
   runBatchRail,
   valueHashForRecord,
   verifyAccumulatorProof
-} from "./index.js";
+} from "../index.js";
 
 const WINDOWS = createDefaultDaWindows(); // K=6, W=2, C=3
 

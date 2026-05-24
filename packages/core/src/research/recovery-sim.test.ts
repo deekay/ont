@@ -9,7 +9,7 @@ import {
   invokeRecovery,
   transferName,
   vetoRecovery
-} from "./index.js";
+} from "../index.js";
 
 // Keys are opaque labels; "holding" a key = being able to pass it as `signedBy`.
 const ALICE = "alice-main";

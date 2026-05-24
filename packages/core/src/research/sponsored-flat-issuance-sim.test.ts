@@ -4,7 +4,7 @@ import {
   createDefaultSponsoredFlatIssuanceScenario,
   parseSponsoredFlatIssuanceScenario,
   simulateSponsoredFlatIssuance
-} from "./index.js";
+} from "../index.js";
 
 describe("sponsored flat issuance simulator", () => {
   it("starts sponsor credits only after the maturity cliff", () => {

@@ -13,7 +13,7 @@ import {
   valueHashForRecord,
   verifyCheckpoint,
   verifyProof
-} from "./index.js";
+} from "../index.js";
 
 function valueHashFor(label: string): string {
   // Stand-in for an owner-record hash; any 32-byte hex works for the accumulator.
