@@ -59,14 +59,14 @@ Keep these distinctions in mind:
 One important testing/status distinction:
 
 - the hosted private demo is a **private signet** walkthrough and the active live environment we maintain
-- the leading launch model is public bonded auctions for every valid name
+- in the model, uncontested names are claimed cheaply for a small fixed fee; a contested name settles by public bonded auction — and the hosted demo currently exercises that contested/auction path end-to-end
 - the old shared **public signet** path has been retired from the active demo and validation story because faucet funding never became reliable
 
 ## Quick Map
 
 ```mermaid
 flowchart LR
-  A["Wallet Key"] -->|"signs"| B["Auction / Transfer Bitcoin Transactions"]
+  A["Wallet Key"] -->|"signs"| B["Claim / Auction / Transfer Bitcoin Transactions"]
   B -->|"records ownership on"| C["Bitcoin Chain"]
   C -->|"canonical state for"| D["Resolver / Website"]
   E["Owner Key"] -->|"signs"| F["Destination Record / Profile Bundle"]
@@ -232,7 +232,8 @@ What a name points to is intentionally off-chain.
 
 ONT tries to make namespace allocation as neutral as possible.
 
-It does that by using locked bitcoin bonds instead of:
+It does that with a small fixed claim fee paid to Bitcoin miners, plus locked
+bitcoin bonds for contested names — instead of:
 
 - registrar pricing tiers
 - recurring rent
@@ -240,16 +241,17 @@ It does that by using locked bitcoin bonds instead of:
 - whitelist access
 - protocol-level sales of names
 
-The current lead launch direction is intentionally simple:
+The allocation rule is intentionally simple and mechanical:
 
-- every valid name can be opened by a public bonded auction
+- any valid name can be claimed for a small fixed fee; if no one else wants it, it is yours
+- if more than one party wants the same name, it escalates to a public bonded auction
 - there is no semantic reserved-name list
 - there is no separate ordinary lane or direct-allocation path
 - there is no pre-launch reservation system
 
-Auctions discover the BTC amount. Length may still provide an objective
-opening-bond floor, but ONT should not decide which brands, people, companies,
-or words deserve special launch treatment.
+When a name is contested, the auction discovers the BTC amount. Length may still
+provide an objective opening-bond floor, but ONT should not decide which brands,
+people, companies, or words deserve special launch treatment.
 
 ### Bond Floors
 
@@ -259,9 +261,9 @@ The current legacy floor curve is:
 - each additional character halves the required bond
 - the bond floors at `₿0.0005` for names of length 12 and longer
 
-Under the universal-auction launch model, this kind of curve is best understood
-as an opening-bond / anti-spam floor. It is not the final price; the auction
-discovers that.
+When a name is contested, this kind of curve is best understood as an
+opening-bond / anti-spam floor for the auction. It is not the final price; the
+auction discovers that.
 
 ### Why The Namespace Remains Open
 
