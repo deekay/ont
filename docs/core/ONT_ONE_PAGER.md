@@ -21,8 +21,8 @@ Off-chain records stay lightweight, updateable, and portable across resolvers.
 
 There is a single way in, and it only branches if a name is contested:
 
-1. **Claim it.** Pay a small fixed amount of bitcoin — about $1, as a fee to Bitcoin miners — to
-   claim the name you want. A few thousand obviously-scarce names (very short ones) start higher.
+1. **Claim it.** Pay a small fixed amount of bitcoin — **₿1,000 (~$1)** — as a fee to Bitcoin miners
+   to claim the name you want. A few thousand obviously-scarce names (very short ones) start higher.
 2. **A short notice window opens.** If no one else claims the same name, it is simply yours — the
    common case, and it is cheap. Thousands of uncontested claims are bundled into a single Bitcoin
    commitment, which is how the system scales to billions of names.
@@ -39,7 +39,7 @@ alice
   -> Bitcoin anchor
      name: alice
      owner key: 8f3c...12ab
-     claimed: uncontested (~$1 fee to miners)
+     claimed: uncontested (₿1,000 ~$1, to miners)
 
   -> signed off-chain bundle
      name: alice

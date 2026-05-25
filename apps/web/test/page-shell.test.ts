@@ -83,7 +83,7 @@ describe("renderPageHtml", () => {
     expect(html).toContain("protocol-flow");
     expect(html).toContain("Claim It");
     expect(html).toContain("Claim <span class=\"mono\">alice</span> for a small fixed fee");
-    expect(html).toContain("~$1 in bitcoin");
+    expect(html).toContain("₿1,000 (~$1)");
     expect(html).toContain("Publish Off-Chain");
     expect(html).toContain("Resolvers store that signed record.");
     expect(html).toContain("<strong class=\"mono\">bc1qxy...0wlh</strong>");

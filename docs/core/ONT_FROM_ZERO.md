@@ -68,8 +68,8 @@ But the current story should start with:
 
 There is a single way in, and it only branches if a name is contested:
 
-1. **Claim it.** Pay a small fixed amount of bitcoin — about $1, as a fee to
-   Bitcoin miners — to claim the name. A few thousand obviously-scarce names
+1. **Claim it.** Pay a small fixed amount of bitcoin — ₿1,000 (~$1) — as a fee
+   to Bitcoin miners to claim the name. A few thousand obviously-scarce names
    (very short ones) start higher.
 2. **A short notice window opens.** If no one else claims the same name, it is
    simply yours. This is the common case, it is cheap, and thousands of these
@@ -83,7 +83,7 @@ one owner key.
 
 ## Fees And Bonds, Not Rent
 
-The common claim costs a small fixed **fee** paid to Bitcoin miners. It is not
+The common claim costs a small fixed **fee** — ₿1,000 (~$1) — paid to Bitcoin miners. It is not
 rent paid to a registrar, treasury, or operator — there is no one to pay, and
 nothing recurring. It keeps spam and squatting expensive while strengthening
 Bitcoin rather than enriching the project. The amount is fixed in bitcoin, so its
@@ -150,7 +150,7 @@ What is real today:
 
 Two honesty notes on maturity:
 
-- The cheap uncontested ~$1 claim path is prototyped and measured, but it is not
+- The cheap uncontested ₿1,000 (~$1) claim path is prototyped and measured, but it is not
   wired into the hosted demo yet — claiming there currently runs the
   bonded/contested (auction) path end-to-end.
 - An earlier two-lane idea (a separate direct-allocation lane sitting beside the

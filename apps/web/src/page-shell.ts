@@ -672,7 +672,7 @@ function renderHomeModelSection(): string {
           <p><span>name</span><strong class="mono">alice</strong></p>
           <p><span>claim</span><strong>uncontested</strong></p>
           <p><span>owner</span><strong class="mono">8f3c...12ab</strong></p>
-          <p><span>cost</span><strong>~$1 in bitcoin</strong></p>
+          <p><span>cost</span><strong>₿1,000 (~$1)</strong></p>
         </div>
       </article>
       <div class="protocol-flow-arrow" aria-hidden="true"></div>
@@ -790,7 +790,7 @@ function renderHomeDocsSection(): string {
       <article class="guide-card">
         <h3>Still Prototype</h3>
         <ul class="guide-list">
-          <li>The cheap uncontested ~$1 claim path is designed and measured, but not live here yet &mdash; claiming in this demo runs the bonded/contested path end-to-end.</li>
+          <li>The cheap uncontested ₿1,000 (~$1) claim path is designed and measured, but not live here yet &mdash; claiming in this demo runs the bonded/contested path end-to-end.</li>
           <li>Transfers still rely on external signer and CLI steps.</li>
           <li>Resolver availability is only partly decentralized in v1.</li>
           <li>The universal-auction launch flow is implemented as a prototype and still not mainnet-ready.</li>

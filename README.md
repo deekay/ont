@@ -5,7 +5,7 @@ Open Name Tags is a payment-handle system anchored to Bitcoin.
 An ONT name is a human-readable handle you can actually own. Its first job is simple: let a wallet or client resolve who should get paid before money moves. The owner can update signed off-chain destination records, so the same name can later carry other destinations if clients and applications decide to support them.
 
 > **[docs/ONT.md](./docs/ONT.md) is the single source of truth for the design.** In one line: you
-> claim a name for a small fixed amount of bitcoin (≈$1, paid to miners); if no one else wants it,
+> claim a name for a small fixed amount of bitcoin (₿1,000 ≈ $1, paid to miners); if no one else wants it,
 > it's yours cheaply; if it's contested, it escalates to a bonded auction. The hosted prototype below
 > currently implements the bonded-auction path; the cheap long-tail claim path is prototyped and being
 > hardened. The detailed sections in this README describe the *running prototype*.
