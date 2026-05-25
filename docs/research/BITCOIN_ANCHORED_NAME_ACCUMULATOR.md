@@ -264,12 +264,15 @@ Bitcoin only orders the anchor txs.
 6. Finality after `K` confirmations; reorgs re-run the rule from the reorg point,
    deterministically.
 
-**Publisher economics (why anyone bothers, and why it stays cheap).** A publisher
-collects issuance-gate fees from the `N` users in its batch, pays one Bitcoin tx
-fee, and keeps the spread. Competition among publishers drives per-name cost
-toward `tx_fee / N`. A user who can find no publisher (or is censored) posts their
-own anchor tx — a batch of one at full L1 cost — which is the universal fallback
-and the ceiling on what any publisher can charge.
+**Publisher economics (why anyone bothers, and why it stays cheap).** The per-name
+**gate is the anchor tx's miner fee**, not publisher revenue: the anchor is valid
+only if it pays `≥ Σ gᵢ` to miners, so a publisher can never pocket or compete away
+the gate (see [`ONT_ISSUANCE_FEE_MECHANICS.md`](../design/ONT_ISSUANCE_FEE_MECHANICS.md)).
+A publisher fronts that fee, aggregates `N` users, and keeps only a thin **service**
+margin on top of the gate + blockspace cost. Competition drives that service margin
+toward zero. A user who can find no publisher (or is censored) posts their own anchor
+tx — a batch of one paying its own `g` as fee — which is the universal fallback and
+the ceiling on what any publisher can charge.
 
 **Incentive-aligned data availability.** A publisher who withholds batch data gets
 its root rejected (fail-closed): its fee is wasted and its users' ops do not land.

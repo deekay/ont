@@ -41,6 +41,7 @@ founder pledges no name pre-grab and a sunset-bound data-availability server.
 authoritative. The earlier `ONT_FLAT_NAMESPACE_DESIGN` summary is superseded by ONT.md and archived.)*
 
 ### Supporting / reference (current)
+- **[ONT_ISSUANCE_FEE_MECHANICS.md](./ONT_ISSUANCE_FEE_MECHANICS.md)** — how the per-name claim gate reaches miners in the batched path (the gate *is* the anchor's miner fee); resolves the fee/security-budget inconsistency.
 - **[ONT_RISK_REGISTER.md](./ONT_RISK_REGISTER.md)** + **[ONT_RISKS_PLAIN_LANGUAGE.md](./ONT_RISKS_PLAIN_LANGUAGE.md)** — the living risk register and its jargon-free companion.
 - **[ONT_FLAT_NAMESPACE_ONE_PAGER.md](./ONT_FLAT_NAMESPACE_ONE_PAGER.md)** — modeled $-forward one-pager (some figures annotated with measured values).
 - **[PRELAUNCH_SCALING_CONFIDENCE_PLAN.md](../launch/PRELAUNCH_SCALING_CONFIDENCE_PLAN.md)** — what v1 must preserve to keep scaling additive.
