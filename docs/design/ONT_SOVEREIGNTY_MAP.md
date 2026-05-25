@@ -66,7 +66,15 @@ That's the whole trust surface: **~7 files.** A bad actor's only routes to "take
 
 ---
 
-This map defines the boundary for a proposed `@ont/consensus` package (the frozen core) vs.
-`@ont/research` (sims/experiments). See `feedback-freeze-minimal-auditable-core` and
-[`ONT_REQUIREMENTS_CONFORMANCE.md`](./ONT_REQUIREMENTS_CONFORMANCE.md) (the I1–I5 invariants this
-surface implements).
+This boundary is **enforced in code**, not just documented: `packages/core/src/trust-surface.test.ts`
+fails CI if the frozen core (`engine.ts`, `state.ts`, `proof-bundle.ts`) ever imports anything beyond
+the `@ont/protocol`/`@ont/bitcoin` primitives and the other core files — so it can never silently
+grow to depend on allocation (auctions), the indexer/resolver, or research/simulation code. The same
+test keeps research a leaf nothing else depends on. An audit of the trust surface is therefore an
+audit of those files plus the protocol-side rules above, and CI guarantees it stays that small.
+
+A separate `@ont/consensus` package (frozen core) vs. `@ont/research` (sims/experiments) remains an
+option, but the enforced in-package boundary already gives the audit guarantee without the extra
+workspace plumbing — consistent with `feedback-freeze-minimal-auditable-core` (minimize complexity).
+See also [`ONT_REQUIREMENTS_CONFORMANCE.md`](./ONT_REQUIREMENTS_CONFORMANCE.md) (the I1–I5 invariants
+this surface implements).
