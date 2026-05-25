@@ -1860,6 +1860,15 @@ function formatBtcDecimal(sats: bigint): string {
 function printUsage(): void {
   console.log(`${PRODUCT_NAME} CLI`);
   console.log("");
+  console.log("The model: you claim a human-readable name on Bitcoin for a small fixed fee. If no one");
+  console.log("else claims it, it's simply yours; if it's contested, it escalates to a bonded auction.");
+  console.log("Either way you end up with a name controlled by one owner key.");
+  console.log("");
+  console.log("This CLI operates the live prototype mechanics: building, signing, and broadcasting");
+  console.log("bonded bids (the contested-name path), transfers, off-chain value records, and recovery.");
+  console.log("The cheap uncontested-claim path is prototyped separately and not wired into these");
+  console.log("commands yet, so claiming a name here goes through the auction-bid commands.");
+  console.log("");
   console.log("Human-facing amounts use integer bitcoin notation alongside the conventional BTC equivalent here; for example, ₿50,000 (0.0005 BTC).");
   console.log("Legacy amount flags keep their *-sats names for compatibility.");
   console.log("");
