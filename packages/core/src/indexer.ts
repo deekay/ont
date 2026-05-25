@@ -20,9 +20,9 @@ import {
   type NameRecord,
   type ProvenanceEventRecord,
   type RecoveryWalletProofAvailabilityRequest,
-  refreshDerivedState
-} from "./engine.js";
-import { getClaimedNameStatus } from "./state.js";
+  refreshDerivedState,
+  getClaimedNameStatus
+} from "@ont/consensus";
 import {
   createExperimentalLaunchAuctionCatalogEntry,
   deriveExperimentalLaunchAuctionStates,

@@ -62,28 +62,12 @@ describe("sovereignty trust surface (docs/design/ONT_SOVEREIGNTY_MAP.md)", () =>
     });
   }
 
-  it("no production module outside src/research/ imports research/simulation code", () => {
-    const offenders: string[] = [];
-    for (const file of readdirSync(srcDir)) {
-      if (!file.endsWith(".ts") || file.endsWith(".test.ts")) {
-        continue;
-      }
-      // The package barrel intentionally re-exports research for convenience;
-      // consumers opt in, the consensus modules above never do.
-      if (file === "index.ts") {
-        continue;
-      }
-      for (const specifier of importSpecifiers(file)) {
-        if (/(^|\/)research\//.test(specifier)) {
-          offenders.push(`${file} -> ${specifier}`);
-        }
-      }
-    }
-
-    expect(
-      offenders,
-      `These production modules import research/simulation code, which must stay a leaf the ` +
-        `consensus and allocation surfaces never depend on:\n${offenders.join("\n")}`
-    ).toEqual([]);
+  it("every source file in the package is part of the documented frozen core", () => {
+    // @ont/consensus exists to BE the trust surface, so its production modules
+    // should be exactly the documented core files — nothing else slips in here.
+    const production = readdirSync(srcDir)
+      .filter((file) => file.endsWith(".ts") && !file.endsWith(".test.ts") && file !== "index.ts")
+      .sort();
+    expect(production).toEqual([...SOVEREIGNTY_CORE].sort());
   });
 });

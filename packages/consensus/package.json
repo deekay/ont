@@ -1,0 +1,24 @@
+{
+  "name": "@ont/consensus",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/consensus/src/index.d.ts",
+      "default": "./dist/consensus/src/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build -w @ont/protocol && npm run build -w @ont/bitcoin && vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@ont/bitcoin": "file:../bitcoin",
+    "@ont/protocol": "file:../protocol"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.4"
+  }
+}

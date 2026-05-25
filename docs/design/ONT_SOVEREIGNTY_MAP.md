@@ -66,15 +66,17 @@ That's the whole trust surface: **~7 files.** A bad actor's only routes to "take
 
 ---
 
-This boundary is **enforced in code**, not just documented: `packages/core/src/trust-surface.test.ts`
-fails CI if the frozen core (`engine.ts`, `state.ts`, `proof-bundle.ts`) ever imports anything beyond
-the `@ont/protocol`/`@ont/bitcoin` primitives and the other core files — so it can never silently
-grow to depend on allocation (auctions), the indexer/resolver, or research/simulation code. The same
-test keeps research a leaf nothing else depends on. An audit of the trust surface is therefore an
-audit of those files plus the protocol-side rules above, and CI guarantees it stays that small.
+The core-side trust surface now lives in its own package, **`@ont/consensus`** (`engine.ts`,
+`state.ts`, `proof-bundle.ts`), which depends only on `@ont/protocol` and `@ont/bitcoin`. A reviewer
+can audit the whole surface by reading that one small package plus the protocol-side rules above; its
+entire dependency footprint is visible in `packages/consensus/package.json`. `@ont/core` re-exports it
+for convenience, so allocation (auctions), the indexer, and research/simulation code can *consume* the
+core but the package boundary makes it physically impossible for the core to import them.
 
-A separate `@ont/consensus` package (frozen core) vs. `@ont/research` (sims/experiments) remains an
-option, but the enforced in-package boundary already gives the audit guarantee without the extra
-workspace plumbing — consistent with `feedback-freeze-minimal-auditable-core` (minimize complexity).
-See also [`ONT_REQUIREMENTS_CONFORMANCE.md`](./ONT_REQUIREMENTS_CONFORMANCE.md) (the I1–I5 invariants
-this surface implements).
+The boundary is also **enforced in code**: `packages/consensus/src/trust-surface.test.ts` fails CI if
+the frozen core imports anything beyond `@ont/protocol`/`@ont/bitcoin` and its own files, and
+`packages/core/src/research-quarantine.test.ts` keeps research a leaf nothing else depends on. So the
+trust surface a newcomer must audit cannot silently grow. This realizes
+`feedback-freeze-minimal-auditable-core`. See also
+[`ONT_REQUIREMENTS_CONFORMANCE.md`](./ONT_REQUIREMENTS_CONFORMANCE.md) (the I1–I5 invariants this
+surface implements).

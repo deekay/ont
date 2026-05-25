@@ -4,13 +4,11 @@
 // to depend on the groups beneath it.
 
 // --- Frozen sovereignty core (the trust surface) ---
-// These rules decide whether a name can be taken: a name moves only if its current
-// owner key signed it; uniqueness and finality come from deterministic Bitcoin replay;
-// ownership is provable to anyone. They depend only on @ont/protocol, @ont/bitcoin,
-// and each other — nothing below this line.
-export * from "./engine.js";
-export * from "./state.js";
-export * from "./proof-bundle.js";
+// Lives in its own package, @ont/consensus, so the rules that decide whether a name
+// can be taken depend only on @ont/protocol + @ont/bitcoin and can never import the
+// allocation, indexer, website, or research code below. Re-exported here for the
+// convenience of existing @ont/core consumers. See docs/design/ONT_SOVEREIGNTY_MAP.md.
+export * from "@ont/consensus";
 
 // --- Allocation (NOT the sovereignty core) ---
 // Decides WHO gets a contested or premium name, not whether ownership is sovereign
