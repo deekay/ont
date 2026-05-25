@@ -3235,7 +3235,7 @@ function renderAuctionFirstNameNotFound(name) {
       <a class="action-link secondary" href="#experimental-auction-feed">View live auction activity</a>
     \`
     : \`
-      <a class="action-link" href="\${escapeHtml(buildAuctionsPath(name))}">Build opening bid for \${escapeHtml(name)}</a>
+      <a class="action-link" href="\${escapeHtml(buildAuctionsPath(name))}">Claim \${escapeHtml(name)}</a>
       <a class="action-link secondary" href="\${escapeHtml(withBasePath("/setup"))}">Set up Sparrow</a>
     \`;
   const openingBidComposer = isAuctionsPage()
@@ -3263,11 +3263,11 @@ function renderAuctionFirstNameNotFound(name) {
         <span class="status-pill available">not owned</span>
       </div>
       <h3 class="lookup-result-name">\${escapeHtml(name)}</h3>
-      <p class="lookup-result-summary">No current owner was found in this resolver.</p>
+      <p class="lookup-result-summary">No current owner was found in this resolver &mdash; this name is claimable.</p>
     </div>
     <div class="lookup-next-step">
       <p class="search-state-label">Next step</p>
-      <p>Eligible names can be opened by a valid bonded bid. Required opening bond: \${escapeHtml(requiredOpeningBond)}. A name is not live in Explore until it settles into an owned name.</p>
+      <p>Claim it. In ONT's design an uncontested claim costs only a small fixed fee; this prototype runs the contested path, so claiming opens a bonded bid (required bond: \${escapeHtml(requiredOpeningBond)}). A name is not live in Explore until it settles into an owned name.</p>
     </div>
     <div class="hero-cta-row lookup-result-actions">
       \${actionLinks}

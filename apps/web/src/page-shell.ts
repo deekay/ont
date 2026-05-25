@@ -46,7 +46,7 @@ export function renderPageHtml(options: PageShellOptions): string {
       : pageKind === "advanced"
       ? `${PRODUCT_NAME} Advanced`
       : pageKind === "auctions"
-      ? `${PRODUCT_NAME} Auctions`
+      ? `${PRODUCT_NAME} — Claim a Name`
       : pageKind === "values"
         ? `${PRODUCT_NAME} Destinations`
       : pageKind === "transfer"
@@ -58,11 +58,11 @@ export function renderPageHtml(options: PageShellOptions): string {
           : `${PRODUCT_NAME} Explorer`;
   const description =
     pageKind === "home"
-      ? "Search a name, inspect ownership, and choose whether to bid, explore, or review the current Open Name Tags prototype."
+      ? "Search a name, inspect ownership, and choose whether to claim it, explore, or review the current Open Name Tags prototype."
       : pageKind === "advanced"
       ? "Advanced Open Name Tags surfaces for CLI-heavy workflows and review docs."
     : pageKind === "auctions"
-      ? "Auction bid prep and chain-derived bid activity."
+      ? "Claim a name in Open Name Tags. Contested names settle by bonded auction; build the bid and review chain-derived activity."
       : pageKind === "values"
         ? "Update the destinations for an owned Open Name Tags name by signing locally and publishing the signed update."
       : pageKind === "transfer"
@@ -215,12 +215,14 @@ function renderHeroSection(
   if (pageKind === "auctions") {
     return `<header class="hero hero-single hero-page hero-page-auctions">
       <div class="hero-copy">
-        <h1>Bid Builder</h1>
+        <h1>Claim A Name</h1>
         <p class="lede">
-          Check a name, build the unsigned Sparrow PSBT, and review live auction state.
+          Check a name, build the unsigned Sparrow PSBT, and review live state.
         </p>
         <p class="hero-status">
-          Website builds. Sparrow signs and broadcasts.
+          In ONT's design you claim a name for a small fixed fee, and it escalates to a bonded
+          auction only if someone else claims it too. This prototype runs the contested path
+          end-to-end, so claiming here builds an opening bid. Website builds; Sparrow signs and broadcasts.
         </p>
       </div>
     </header>`;
@@ -231,19 +233,20 @@ function renderHeroSection(
       <p class="hero-home-kicker">ONT tools</p>
       <h1 id="homeHeroTitle">Human-readable names you can actually own</h1>
       <p class="hero-home-lede">
-        Search a name, then jump into the workflow that matches its current state.
+        Claim a name, set what it points to, and prove you own it &mdash; secured by Bitcoin, with no
+        registrar, token, or rent.
       </p>
       <div class="hero-home-proof-row" aria-label="Core ONT model">
-        <span>Check</span>
-        <span>Bid</span>
-        <span>Manage</span>
+        <span>Claim</span>
+        <span>Own</span>
+        <span>Resolve</span>
       </div>
     </section>
     <section id="lookup" class="hero-home-lookup" aria-labelledby="homeLookupTitle">
       <div class="hero-home-lookup-head">
         <p class="hero-home-kicker">Name lookup</p>
         <h2 id="homeLookupTitle">Check a name</h2>
-        <p>See owner status, auction status, and the next available action.</p>
+        <p>See whether it is claimable or already owned, and the next step either way.</p>
       </div>
       <form id="searchForm" class="search-form hero-search-form">
         <label class="field-label" for="nameInput">Name</label>
@@ -253,10 +256,10 @@ function renderHeroSection(
         </div>
       </form>
       <div id="searchResult" class="result-card empty hero-search-result" hidden></div>
-      <div class="hero-lookup-status-grid" aria-label="Auction opening rule">
+      <div class="hero-lookup-status-grid" aria-label="What you can do with a name">
         <article>
-          <span>Available</span>
-          <strong>Build an opening bid</strong>
+          <span>Claimable</span>
+          <strong>Claim the name</strong>
         </article>
         <article>
           <span>Owned</span>
@@ -264,7 +267,7 @@ function renderHeroSection(
         </article>
       </div>
       <div class="hero-lookup-actions">
-        <a class="action-link secondary" href="${withBasePath("/auctions", configuredBasePath)}">Open auctions</a>
+        <a class="action-link secondary" href="${withBasePath("/auctions", configuredBasePath)}">Claim a name</a>
         <a class="action-link secondary" href="${withBasePath("/setup", configuredBasePath)}">Set up signing</a>
         <a class="action-link secondary" href="${withBasePath("/explainer", configuredBasePath)}">Read overview</a>
       </div>
@@ -276,7 +279,7 @@ function renderPrimaryNav(configuredBasePath: string, pageKind: PageKind, favico
   const links = [
     { href: withBasePath("/", configuredBasePath), label: "Home", active: pageKind === "home" },
     { href: withBasePath("/setup", configuredBasePath), label: "Setup", active: pageKind === "setup" },
-    { href: withBasePath("/auctions", configuredBasePath), label: "Auctions", active: pageKind === "auctions" },
+    { href: withBasePath("/auctions", configuredBasePath), label: "Claim", active: pageKind === "auctions" },
     { href: withBasePath("/explore", configuredBasePath), label: "Explore", active: pageKind === "explore" }
   ];
 
@@ -485,8 +488,8 @@ function renderExplainerPageSections(configuredBasePath: string): string {
 function renderAuctionStartSection(configuredBasePath: string): string {
   return `<section id="auction-start" class="panel panel-compose">
     ${renderPanelHead(
-      "Build A Bid",
-      "Start with a name. The page will show whether to open a new auction or bid in an active one."
+      "Claim A Name",
+      "Start with a name. The page shows whether it's claimable or already in a live contest, and prepares the right bid."
     )}
     <form id="searchForm" class="search-form tool-draft-form">
       <label class="field-label" for="nameInput">Name</label>
@@ -496,7 +499,7 @@ function renderAuctionStartSection(configuredBasePath: string): string {
       </div>
     </form>
     <div id="searchResult" class="result-card empty" hidden></div>
-    ${renderLinkStrip("Before bidding", [
+    ${renderLinkStrip("Before you claim", [
       { href: withBasePath("/setup", configuredBasePath), label: "Set up Sparrow" },
       { href: DOC_URLS.auctionSettlement, label: "Auction guide", external: true },
       { href: DOC_URLS.recovery, label: "Recovery kit guide", external: true }
@@ -619,11 +622,11 @@ function renderHomeStartSection(configuredBasePath: string): string {
         </div>
       </article>
       <article class="path-card">
-        <p class="path-card-kicker">Auction</p>
-        <h3>Build A Bid</h3>
-        <p>Check a name, save the recovery kit, and download a Sparrow PSBT.</p>
+        <p class="path-card-kicker">Claim</p>
+        <h3>Claim A Name</h3>
+        <p>Check a name, save the recovery kit, and download a Sparrow PSBT. Contested names settle by bonded auction.</p>
         <div class="path-card-actions">
-          <a class="action-link secondary" href="${withBasePath("/auctions", configuredBasePath)}">Open auctions</a>
+          <a class="action-link secondary" href="${withBasePath("/auctions", configuredBasePath)}">Claim a name</a>
         </div>
       </article>
       <article class="path-card">
@@ -655,7 +658,7 @@ function renderHomeModelSection(): string {
   return `<section id="how-ont-works" class="panel panel-guide">
     ${renderPanelHead(
       "How It Works",
-      "Follow one name from Bitcoin ownership to the destinations apps can use."
+      "Follow one name from a Bitcoin-secured claim to the destinations apps can use."
     )}
     <div class="protocol-flow" aria-label="ONT lifecycle for alice">
       <article class="protocol-flow-card protocol-flow-card-chain">
@@ -663,13 +666,13 @@ function renderHomeModelSection(): string {
           <p class="protocol-flow-number">01</p>
           <p class="protocol-flow-place">Bitcoin</p>
         </div>
-        <h3>Win At Auction</h3>
-        <p>Bitcoin establishes that <span class="mono">alice</span> is controlled by an owner key and backed by bonded bitcoin.</p>
-        <div class="protocol-example" aria-label="Auction ownership example">
+        <h3>Claim It</h3>
+        <p>Claim <span class="mono">alice</span> for a small fixed fee. If no one else wants it, it's simply yours; if it's contested, it escalates to a bonded auction. Either way Bitcoin records that an owner key controls it.</p>
+        <div class="protocol-example" aria-label="Claim ownership example">
           <p><span>name</span><strong class="mono">alice</strong></p>
-          <p><span>auction</span><strong>won</strong></p>
+          <p><span>claim</span><strong>uncontested</strong></p>
           <p><span>owner</span><strong class="mono">8f3c...12ab</strong></p>
-          <p><span>bond</span><strong>₿0.0005</strong></p>
+          <p><span>cost</span><strong>~$1 in bitcoin</strong></p>
         </div>
       </article>
       <div class="protocol-flow-arrow" aria-hidden="true"></div>
@@ -787,6 +790,7 @@ function renderHomeDocsSection(): string {
       <article class="guide-card">
         <h3>Still Prototype</h3>
         <ul class="guide-list">
+          <li>The cheap uncontested ~$1 claim path is designed and measured, but not live here yet &mdash; claiming in this demo runs the bonded/contested path end-to-end.</li>
           <li>Transfers still rely on external signer and CLI steps.</li>
           <li>Resolver availability is only partly decentralized in v1.</li>
           <li>The universal-auction launch flow is implemented as a prototype and still not mainnet-ready.</li>
@@ -822,8 +826,8 @@ function renderUsingOntSection(configuredBasePath: string): string {
         <p>Connect Sparrow to the hosted demo wallet server and fund the wallet you will use for bids.</p>
       </article>
       <article class="guide-card">
-        <h3>Auctions</h3>
-        <p>Check a name, prepare the unsigned PSBT, then review and sign it in Sparrow.</p>
+        <h3>Claim</h3>
+        <p>Check a name, prepare the unsigned PSBT, then review and sign it in Sparrow. A contested name settles by bonded auction.</p>
       </article>
       <article class="guide-card">
         <h3>Explore</h3>
@@ -836,7 +840,7 @@ function renderUsingOntSection(configuredBasePath: string): string {
     </div>
     <div class="hero-cta-row section-cta-row">
       <a class="action-link" href="${withBasePath("/setup", configuredBasePath)}">Start setup</a>
-      <a class="action-link" href="${withBasePath("/auctions", configuredBasePath)}">Bid on a name</a>
+      <a class="action-link" href="${withBasePath("/auctions", configuredBasePath)}">Claim a name</a>
       <a class="action-link secondary" href="${withBasePath("/explore", configuredBasePath)}">Open explorer</a>
     </div>
   </section>`;

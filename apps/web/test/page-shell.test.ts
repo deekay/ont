@@ -20,18 +20,18 @@ describe("renderPageHtml", () => {
     });
 
     expect(html).toContain("Human-readable names you can actually own");
-    expect(html).toContain("Search a name, then jump into the workflow");
+    expect(html).toContain("Claim a name, set what it points to, and prove you own it");
     expect(html).toContain("ONT tools");
-    expect(html).toContain(">Check<");
-    expect(html).toContain(">Bid<");
-    expect(html).toContain(">Manage<");
+    expect(html).toContain(">Claim<");
+    expect(html).toContain(">Own<");
+    expect(html).toContain(">Resolve<");
     expect(html).toContain("Check a name");
-    expect(html).toContain("See owner status, auction status, and the next available action.");
-    expect(html).toContain("Build an opening bid");
+    expect(html).toContain("See whether it is claimable or already owned, and the next step either way.");
+    expect(html).toContain("Claim the name");
     expect(html).toContain("Update or transfer");
     expect(html).toContain("Choose A Workflow");
     expect(html).toContain("Set Up Signing");
-    expect(html).toContain("Build A Bid");
+    expect(html).toContain("Claim A Name");
     expect(html).toContain("Inspect Live State");
     expect(html).toContain("Update A Name");
     expect(html).toContain("From Zero");
@@ -79,11 +79,11 @@ describe("renderPageHtml", () => {
     expect(html).toContain("Overview sections");
     expect(html).toContain("How it works");
     expect(html).toContain("How It Works");
-    expect(html).toContain("Follow one name from Bitcoin ownership to the destinations apps can use.");
+    expect(html).toContain("Follow one name from a Bitcoin-secured claim to the destinations apps can use.");
     expect(html).toContain("protocol-flow");
-    expect(html).toContain("Win At Auction");
-    expect(html).toContain("Bitcoin establishes that <span class=\"mono\">alice</span> is controlled by an owner key");
-    expect(html).toContain("₿0.0005");
+    expect(html).toContain("Claim It");
+    expect(html).toContain("Claim <span class=\"mono\">alice</span> for a small fixed fee");
+    expect(html).toContain("~$1 in bitcoin");
     expect(html).toContain("Publish Off-Chain");
     expect(html).toContain("Resolvers store that signed record.");
     expect(html).toContain("<strong class=\"mono\">bc1qxy...0wlh</strong>");
@@ -139,14 +139,15 @@ describe("renderPageHtml", () => {
       pageKind: "auctions"
     });
 
-    expect(html).toContain("Bid Builder");
-    expect(html).toContain(">Auctions<");
+    expect(html).toContain("Claim A Name");
+    expect(html).toContain(">Claim<");
     expect(html).toContain(">Advanced<");
-    expect(html).toContain("Build A Bid");
+    expect(html).toContain("claimable or already in a live contest");
     expect(html).toContain("Check name");
     expect(html).toContain("Live Auction Activity");
     expect(html).toContain("Check a name, build the unsigned Sparrow PSBT");
-    expect(html).toContain("Website builds. Sparrow signs and broadcasts.");
+    expect(html).toContain("so claiming here builds an opening bid");
+    expect(html).toContain("Website builds; Sparrow signs and broadcasts.");
     expect(html).toContain("experimentalAuctionList");
     expect(html).not.toContain("Auction State Gallery");
     expect(html).not.toContain("Auction Examples");
