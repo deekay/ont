@@ -7,6 +7,11 @@ context.
 
 Related notes:
 
+- [../ONT.md](../ONT.md) — the single source of truth. The allocation entries below
+  are now framed there as one path: a name is claimed for a small fixed fee and
+  escalates to a bonded auction *only when contested*. Older entries that read as
+  "auctions for every name" describe that contested path and the launch
+  implementation; they are not a separate model.
 - [LAUNCH_SPEC_V0.md](../launch/LAUNCH_SPEC_V0.md)
 - [UNIVERSAL_AUCTION_LAUNCH_MODEL.md](../launch/UNIVERSAL_AUCTION_LAUNCH_MODEL.md)
 - [BITCOIN_REVIEW_CLOSURE_MATRIX.md](../launch/BITCOIN_REVIEW_CLOSURE_MATRIX.md)
@@ -442,6 +447,12 @@ transfers, and value-publication flows.
 
 The current lead launch architecture is **public bonded auctions for every
 valid name**.
+
+> Reframed (see [`../ONT.md`](../ONT.md)): this universal-auction direction is now
+> expressed as the *contested-name* path of a single claim-then-escalate model — a
+> name is claimed for a small fixed fee and escalates to a bonded auction only when
+> contested. The neutrality properties below are unchanged; what changed is that the
+> common, uncontested case is a cheap claim rather than an auction.
 
 Current shape:
 - any valid name can be opened by a bonded public bid

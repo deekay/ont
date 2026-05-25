@@ -4,9 +4,11 @@ For a plain-English guide that is easier to hand to new testers, start with
 [NEW_USER_TESTING_GUIDE.md](./NEW_USER_TESTING_GUIDE.md). This file is the
 more technical command reference.
 
-This guide reflects the current ONT launch direction: public bonded auctions
-for every valid name, with no reserved list, direct-allocation lane, pre-launch
-reservation system, or short-name wave.
+This guide reflects the current ONT model (see [../ONT.md](../ONT.md)): a name is
+claimed for a small fixed fee and escalates to a bonded auction only when contested,
+with no reserved list, separate direct-allocation lane, pre-launch reservation system,
+or short-name wave. The hosted demo and most tests below exercise the bonded/contested
+(auction) path, which is what runs end-to-end today.
 
 ## Core Test Commands
 
