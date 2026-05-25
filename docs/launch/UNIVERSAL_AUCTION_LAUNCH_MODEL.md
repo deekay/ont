@@ -11,8 +11,14 @@ with one allocation rule:
 
 > every valid ONT name can be opened by public bonded auction.
 
-This is a working launch model, not a final protocol freeze. It is now the
-source-of-truth framing for launch docs and website copy.
+This is a working launch model, not a final protocol freeze.
+
+> Framing note: the single source of truth is now [`../ONT.md`](../ONT.md), which
+> expresses one path — a name is claimed for a small fixed fee and escalates to a
+> bonded auction *only when contested*. Read this document as the in-depth design of
+> that contested/auction path (the part that runs end-to-end today). "Every valid name
+> can be opened by auction" still holds in the sense that any name *can* be contested;
+> the common, uncontested case is now a cheap claim rather than an auction.
 
 ## Core Decision
 
