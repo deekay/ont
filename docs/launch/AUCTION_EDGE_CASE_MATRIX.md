@@ -278,8 +278,8 @@ Useful starting points:
 - `apps/web/test/client-script.test.ts`
 - `apps/web/test/page-shell.test.ts`
 - `docs/core/TESTING.md`
-- `docs/research/UNIVERSAL_AUCTION_LAUNCH_MODEL.md`
-- `docs/research/AUCTION_SETTLEMENT_AND_OWNERSHIP.md`
+- `docs/launch/UNIVERSAL_AUCTION_LAUNCH_MODEL.md`
+- `docs/launch/AUCTION_SETTLEMENT_AND_OWNERSHIP.md`
 
 ## How To Use This Document
 

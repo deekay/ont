@@ -10,7 +10,7 @@ import {
 /**
  * R2 (leaderless chaining) prototype — per-block delta-merge.
  *
- * The candidate fix in `docs/research/ONT_HARD_PROBLEMS.md` claims that publishers can
+ * The candidate fix in `docs/design/ONT_HARD_PROBLEMS.md` claims that publishers can
  * advance a shared name accumulator without any sequencer or inter-publisher coordination,
  * because **sparse-Merkle-tree insertions into distinct leaves are commutative**: the post
  * root depends only on the *set* of `(leaf -> value)` pairs, not the order they are applied.

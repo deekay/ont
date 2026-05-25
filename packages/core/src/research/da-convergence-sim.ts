@@ -10,7 +10,7 @@ import {
 /**
  * R1 (data-availability agreement) prototype — convergence under withholding.
  *
- * `docs/research/ONT_DATA_AVAILABILITY_AGREEMENT.md` argues that honest nodes can agree on one
+ * `docs/design/ONT_DATA_AVAILABILITY_AGREEMENT.md` argues that honest nodes can agree on one
  * canonical root from Bitcoin alone, despite the impossibility of proving data non-availability,
  * by deciding inclusion from **Bitcoin-witnessed facts** (an on-chain availability marker by a
  * height deadline) plus a **fail-closed challenge window** (the bytes must surface to the network
