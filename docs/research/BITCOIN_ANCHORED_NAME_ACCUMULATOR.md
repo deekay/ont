@@ -160,6 +160,7 @@ cannot decide ownership.
 | Censor (publisher) | Direct-L1 claim path is un-censorable (I5) | Pays L1 cost in the censored case |
 | Equivocator | Can't forge sigs; double-insert is a detectable invalid transition; conflicting roots resolved by Bitcoin order | None on safety |
 | Sybil | Issuance gate; publisher Sybil can't forge or double-insert | None on safety |
+| Publisher-griefer (submits a batch, never pays) | Publisher fronts the miner fee only for claims with a committed/locked payment; a non-payer is simply excluded — no money loss (see [`../design/ONT_ISSUANCE_FEE_MECHANICS.md`](../design/ONT_ISSUANCE_FEE_MECHANICS.md) §6) | Ordinary service-DoS (work/slots) → publisher admission cost (entry fee / payment-lock / PoW); L1 fallback means no one is denied a name |
 | Data-withholder | Fail-closed clients; owner-aligned DA; liveness-only damage | **The one real open problem** |
 
 ## Scoring against the invariants

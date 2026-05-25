@@ -97,7 +97,38 @@ publisher is just `N` users sharing one anchor whose fee is the sum of their gat
   the fee is checked from Bitcoin, not asserted by anyone.
 - **Self-sovereign (I5):** `N = 1` is the un-censorable fallback and the price ceiling on publishers.
 
-## 6. The numbers, corrected
+## 6. Griefing the publisher (economic safety vs. DoS)
+
+A natural attack: submit a large batch (say 10k names) to a publisher and never pay, so the publisher
+eats the fronted miner fee `Σ g`. The defense is one sequencing invariant:
+
+> **A claim enters the fronted batch only with a committed payment. The publisher fronts the miner fee
+> for nothing it hasn't already captured.**
+
+By tier:
+
+- **Pay-first / pay-upfront** (the launch path with reputable publishers): the non-payer is simply
+  **not included** — the publisher builds the anchor from paid claims only. Attacker gets nothing;
+  publisher loses nothing.
+- **Locked-payment swap** (HODL invoice / adaptor / PTLC): a claim enters the broadcast batch only with
+  a *live payment lock*, and **the act of broadcasting captures that lock.** There is no "have a live
+  lock and then not pay" — the lock *is* the payment, claimed by the broadcast. (This is why the swap
+  protects the publisher as much as the user.) The publisher's exposure is only ever `Σ g` against
+  claims with committed payment, captured atomically by the single anchor broadcast.
+
+So **economic safety is structural**: the "10k names, don't pay" attacker cannot make a publisher lose
+money — they just don't get included.
+
+**What remains is ordinary service-DoS**, and it's a different kind of thing: an attacker can send many
+*requests* (not payments) to force a publisher to do work / hold slots. That is **not a money loss and
+not a protocol-safety issue** — it's a publisher *admission-policy* concern, with the standard tools any
+service uses: a small non-refundable entry fee, a required payment-lock, or a cheap PoW token to occupy
+a batch slot. The publisher runs its own door. And the **L1 self-claim fallback caps the blast radius**:
+even against aggressive publisher defenses, a user posts their own anchor, so griefing a publisher can
+never *deny anyone a name* — worst case it pushes that user to L1. (This DoS-admission design folds into
+the still-open "concrete publisher fee/contention design" item; see R2 / the accumulator note.)
+
+## 7. The numbers, corrected
 
 The leverage is that **fee revenue is decoupled from blockspace.** One small anchor carries a fee of
 `N × ~$1`.
@@ -115,7 +146,7 @@ miners**, from **1% of blockspace.** That is comparable to — often exceeding �
 argument is precisely this decoupling: **ONT is a source of fee demand that barely consumes
 blockspace** — arguably the ideal shape of post-subsidy fee pressure.
 
-## 7. Known properties and residuals (honest)
+## 8. Known properties and residuals (honest)
 
 - **Miner self-issuance.** A miner can include its *own* anchor in a block it mines and recapture the
   fee — issuing names cheaply in proportion to its hashrate. This is the same property Bitcoin already
@@ -133,7 +164,7 @@ blockspace** — arguably the ideal shape of post-subsidy fee pressure.
 - **Reorg / fee finality.** The fee is spent when the anchor is mined; standard `K`-confirm finality
   and deterministic replay handle reorgs, same as the rest of the rail.
 
-## 8. Doc corrections this implies
+## 9. Doc corrections this implies
 
 - `ONT_FLAT_NAMESPACE_ONE_PAGER.md`: the "anchor fee ~$1.50, independent of batch size" line conflates
   blockspace cost with the gate. The anchor fee under the chosen (miner-fee) gate is `Σ g ≈ N × $1`;
