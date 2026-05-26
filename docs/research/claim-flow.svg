@@ -26,7 +26,7 @@
   <!-- C: gate -->
   <rect x="180" y="276" width="500" height="60" rx="11" fill="#fff7ec" stroke="#f7931a" stroke-width="2"/>
   <text x="430" y="302" text-anchor="middle" font-size="15.5" font-weight="700" fill="#92400e">Pay &#8383;1,000 (~$1) to Bitcoin miners</text>
-  <text x="430" y="323" text-anchor="middle" font-size="12.5" fill="#b45309">the anti-squat gate — fixed in bitcoin, paid to miners, not a company</text>
+  <text x="430" y="323" text-anchor="middle" font-size="12.5" fill="#b45309">a fixed anti-squat gate that supports Bitcoin&#8217;s security budget</text>
   <line x1="430" y1="336" x2="430" y2="360" stroke="#9aa4b2" stroke-width="1.6" marker-end="url(#arrow)"/>
 
   <!-- D: notice window -->
