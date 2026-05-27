@@ -34,7 +34,7 @@ import { bidPackageFromAuction } from "./bid-package.js";
 import { BroadcastClient, resolveBroadcastBaseUrl } from "./broadcast.js";
 import { isOntNetwork, type OntNetwork } from "./keys.js";
 import { WalletKeystore } from "./keystore.js";
-import { LexeSidecarLightningPayer } from "./lightning.js";
+import { LexeSidecarLightningPayer, type LightningPayer, StubLightningPayer } from "./lightning.js";
 import { ResolverClient } from "./resolver.js";
 import { signAuctionBidArtifacts, signTransferArtifacts } from "./signer.js";
 import { fetchAddressUtxos, sumUtxoValue } from "./utxos.js";
@@ -90,6 +90,9 @@ async function main(): Promise<void> {
       return;
     case "ln-info":
       await runLnInfo(rest[0]);
+      return;
+    case "pay":
+      await runPay(rest);
       return;
     default:
       printUsage();
@@ -512,6 +515,42 @@ async function runLnInfo(baseUrl: string | undefined): Promise<void> {
   }
 }
 
+/**
+ * Pay a Lightning payable through a Lexe node — the payment leg the cheap
+ * batched-claim rail will use (that rail isn't wired end-to-end yet). `--stub`
+ * runs an offline dry-run that records the payment without touching a node.
+ */
+async function runPay(args: readonly string[]): Promise<void> {
+  const flags = parseFlags(args);
+  const payable = required(flags.positionals[0] ?? flags.get("payable"), "payable (BOLT11/BOLT12/LNURL/address)");
+
+  const payer: LightningPayer = flags.has("stub")
+    ? new StubLightningPayer()
+    : new LexeSidecarLightningPayer(flags.get("ln-url"));
+
+  const input: Parameters<LightningPayer["pay"]>[0] = {
+    payable,
+    ...(flags.has("amount") ? { amountSats: Number(parseBigIntArg(flags.get("amount") as string, "amount")) } : {}),
+    ...(flags.has("note") ? { note: flags.get("note") as string } : {})
+  };
+
+  let result;
+  try {
+    result = await payer.pay(input);
+  } catch (error) {
+    throw new Error(
+      `${error instanceof Error ? error.message : String(error)} ` +
+        "(no Lexe sidecar? try --stub for an offline dry-run, or start one: " +
+        "curl -fsSL https://lexe.app/install-sidecar.sh | sh)"
+    );
+  }
+
+  console.log(`payment: ${result.status}${flags.has("stub") ? " (stub dry-run — no node was contacted)" : ""}`);
+  if (result.paymentId !== null) {
+    console.log(`payment id: ${result.paymentId}`);
+  }
+}
+
 function keystorePath(): string {
   return env.ONT_WALLET_KEYSTORE ?? DEFAULT_KEYSTORE_PATH;
 }
@@ -701,6 +740,8 @@ function printUsage(): void {
   console.log("        (claim/transfer take [--broadcast] [--broadcast-url <esplora-base>] to send)");
   console.log("  verify <proof.json>                    verify a portable ownership proof");
   console.log("  ln-info [baseUrl]                      query a Lexe sidecar");
+  console.log("  pay <payable> [--amount <n>] [--note <t>] [--ln-url <u>] [--stub]");
+  console.log("        pay a Lightning payable via a Lexe node (--stub = offline dry-run)");
   console.log("");
   console.log("env: ONT_WALLET_KEYSTORE (default ont-wallet.json), ONT_WALLET_STATE");
   console.log("     (default ont-wallet-state.json), ONT_WALLET_PASSWORD,");

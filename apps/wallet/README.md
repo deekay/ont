@@ -68,7 +68,12 @@ ONT_WALLET_PASSWORD=… npm run dev -w @ont/wallet -- transfer <name> --to <pubk
     --successor-bond-vout <0|1> --fee-sats <n> [--input <utxo>]    # build + sign a transfer
                        npm run dev -w @ont/wallet -- verify <proof.json>
                        npm run dev -w @ont/wallet -- ln-info [baseUrl]   # query a Lexe sidecar
+                       npm run dev -w @ont/wallet -- pay <payable> [--amount <n>] [--stub]
 ```
+
+`pay` sends a Lightning payment through a Lexe node — the payment leg the cheap batched-claim
+rail will use (that rail isn't wired end-to-end yet). `--stub` is an offline dry-run that
+records the payment without contacting a node, handy for demos and tests.
 
 `claim <name> --amount <n>` fetches the live auction from a resolver's `/experimental-auctions`
 and builds the bid package for you, committing this wallet's owner key. (You can still pass a
