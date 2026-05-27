@@ -64,9 +64,10 @@ ONT_WALLET_PASSWORD=… npm run dev -w @ont/wallet -- claim <name> --amount <n> 
     [--resolver <url>] [--bidder-id <id>]       # claim from a resolver's live auction
 ONT_WALLET_PASSWORD=… npm run dev -w @ont/wallet -- claim --bid-package <path> --fee-sats <n> \
     [--input <txid:vout:valueSats:address>]     # claim from a pre-built bid package
-ONT_WALLET_PASSWORD=… npm run dev -w @ont/wallet -- transfer <name> --to <pubkey> \
-    --prev-state-txid <txid> --bond-input <utxo> --successor-bond-sats <n> \
-    --successor-bond-vout <0|1> --fee-sats <n> [--input <utxo>]    # build + sign a transfer
+ONT_WALLET_PASSWORD=… npm run dev -w @ont/wallet -- transfer <name> --to <pubkey> --fee-sats <n> \
+    [--resolver <url>]                          # transfer; auto-sources prev-state + bond
+ONT_WALLET_PASSWORD=… npm run dev -w @ont/wallet -- transfer <name> --to <pubkey> --fee-sats <n> \
+    --prev-state-txid <txid> --bond-input <utxo> --successor-bond-sats <n>  # fully offline
                        npm run dev -w @ont/wallet -- verify <proof.json>
                        npm run dev -w @ont/wallet -- ln-info [baseUrl]   # query a Lexe sidecar
                        npm run dev -w @ont/wallet -- pay <payable> [--amount <n>] [--stub]
@@ -83,6 +84,12 @@ for offline use; the committed owner pubkey is checked against the keystore.) Ei
 builds the opening-bid PSBT (bond/change default to the funding address), signs the funding
 inputs, and prints a broadcastable transaction. This is the **on-chain auction path**, the
 acquisition route that works on signet today.
+
+`transfer <name> --to <pubkey>` mirrors that: it reads the name's current state txid and bond
+outpoint from the resolver (the bond address defaults to the funding address — where the
+wallet's own claims/transfers send it), reuses the current bond amount for the successor, and
+auto-funds the fee from the remaining UTXOs. Pass `--prev-state-txid`, `--bond-input` and
+`--successor-bond-sats` to run fully offline.
 
 When `--input` is omitted, `claim` auto-funds from the wallet's funding address by querying
 its UTXOs over the same Esplora API (`balance` shows them). `claim` and `transfer` build and

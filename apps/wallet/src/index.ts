@@ -37,6 +37,7 @@ import { WalletKeystore } from "./keystore.js";
 import { LexeSidecarLightningPayer, type LightningPayer, StubLightningPayer } from "./lightning.js";
 import { ResolverClient } from "./resolver.js";
 import { signAuctionBidArtifacts, signTransferArtifacts } from "./signer.js";
+import { transferBondPlanFromRecord } from "./transfer-plan.js";
 import { fetchAddressUtxos, sumUtxoValue } from "./utxos.js";
 import { WalletState } from "./wallet-state.js";
 
@@ -493,16 +494,9 @@ async function runTransfer(args: readonly string[]): Promise<void> {
   const flags = parseFlags(args);
   const name = required(flags.positionals[0], "name");
   const newOwnerPubkey = required(flags.get("to"), "--to (new owner pubkey)");
-  const prevStateTxid = required(flags.get("prev-state-txid"), "--prev-state-txid");
-  const bondInputSpec = required(flags.get("bond-input"), "--bond-input");
-  const successorBondSats = parseBigIntArg(
-    required(flags.get("successor-bond-sats"), "--successor-bond-sats"),
-    "successor-bond-sats"
-  );
-  const successorBondVout = parseByte(
-    required(flags.get("successor-bond-vout"), "--successor-bond-vout"),
-    "successor-bond-vout"
-  );
+  const successorBondVout = flags.has("successor-bond-vout")
+    ? parseByte(flags.get("successor-bond-vout") as string, "successor-bond-vout")
+    : 0;
   const feeSats = parseBigIntArg(required(flags.get("fee-sats"), "--fee-sats"), "fee-sats");
 
   const keystore = WalletKeystore.load(keystorePath(), requirePassword());
@@ -510,17 +504,18 @@ async function runTransfer(args: readonly string[]): Promise<void> {
     throw new Error("--to is this wallet's own owner key; a transfer must hand the name to a different key");
   }
 
+  const plan = await resolveTransferPlan(flags, keystore, name);
   const bondAddress = flags.get("bond-address") ?? keystore.fundingAddress;
   const changeAddress = flags.get("change-address") ?? keystore.fundingAddress;
 
   const artifacts = buildTransferArtifacts({
-    prevStateTxid,
+    prevStateTxid: plan.prevStateTxid,
     ownerPrivateKeyHex: keystore.ownerPrivateKeyHex(),
     newOwnerPubkey,
     successorBondVout,
-    successorBondSats,
-    currentBondInput: parseFundingInputDescriptor(bondInputSpec),
-    additionalFundingInputs: flags.getAll("input").map(parseFundingInputDescriptor),
+    successorBondSats: plan.successorBondSats,
+    currentBondInput: plan.bondInput,
+    additionalFundingInputs: plan.additionalFundingInputs,
     feeSats,
     network: keystore.network,
     bondAddress,
@@ -535,7 +530,7 @@ async function runTransfer(args: readonly string[]): Promise<void> {
 
   console.log(`name:           ${name}`);
   console.log(`new owner:      ${newOwnerPubkey}`);
-  console.log(`successor bond: ${successorBondSats} base units -> ${bondAddress} (vout ${successorBondVout})`);
+  console.log(`successor bond: ${plan.successorBondSats} base units -> ${bondAddress} (vout ${successorBondVout})`);
   console.log(`fee:            ${artifacts.feeSats} base units`);
   console.log(`change:         ${artifacts.changeValueSats} base units -> ${changeAddress}`);
   console.log(`transfer txid:  ${signed.signedTransactionId}`);
@@ -554,6 +549,109 @@ async function runTransfer(args: readonly string[]): Promise<void> {
   console.log("");
   console.log(`once this confirms, "${name}" belongs to ${newOwnerPubkey}.`);
   console.log(`this wallet keeps tracking it until you run: forget ${name}`);
+}
+
+interface ResolvedTransferPlan {
+  readonly prevStateTxid: string;
+  readonly bondInput: FundingInputDescriptor;
+  readonly successorBondSats: bigint;
+  readonly additionalFundingInputs: readonly FundingInputDescriptor[];
+}
+
+/**
+ * Resolve a transfer's prev-state txid, bond input, successor bond, and fee
+ * funding. Fully explicit flags run offline; otherwise the bond details come
+ * from the resolver's name record and the fee is auto-funded from the funding
+ * address (excluding the bond outpoint).
+ */
+async function resolveTransferPlan(
+  flags: ParsedFlags,
+  keystore: WalletKeystore,
+  name: string
+): Promise<ResolvedTransferPlan> {
+  const explicitPrev = flags.get("prev-state-txid");
+  const explicitBondSpec = flags.get("bond-input");
+  const explicitBond = explicitBondSpec === undefined ? undefined : parseFundingInputDescriptor(explicitBondSpec);
+  const explicitSuccessorBond = flags.has("successor-bond-sats")
+    ? parseBigIntArg(flags.get("successor-bond-sats") as string, "successor-bond-sats")
+    : undefined;
+  const explicitInputs = flags.getAll("input");
+
+  // Fully explicit → offline, no resolver call.
+  if (explicitPrev !== undefined && explicitBond !== undefined && explicitSuccessorBond !== undefined) {
+    return {
+      prevStateTxid: explicitPrev,
+      bondInput: explicitBond,
+      successorBondSats: explicitSuccessorBond,
+      additionalFundingInputs: explicitInputs.map(parseFundingInputDescriptor)
+    };
+  }
+
+  const client = new ResolverClient(resolverUrl(flags.get("resolver")));
+  const record = await client.getNameRecord(name);
+  if (record === null) {
+    throw new Error(
+      `resolver doesn't know "${name}" — pass --prev-state-txid, --bond-input and --successor-bond-sats to transfer offline`
+    );
+  }
+  if (record.currentOwnerPubkey !== keystore.ownerPubkey) {
+    throw new Error(`you don't own "${name}" (current owner is ${record.currentOwnerPubkey})`);
+  }
+
+  const plan = transferBondPlanFromRecord(record, {
+    bondInputAddress: flags.get("bond-input-address") ?? keystore.fundingAddress,
+    ...(explicitPrev !== undefined ? { explicitPrevStateTxid: explicitPrev } : {}),
+    ...(explicitBond !== undefined ? { explicitBondInput: explicitBond } : {}),
+    ...(explicitSuccessorBond !== undefined ? { explicitSuccessorBondSats: explicitSuccessorBond } : {})
+  });
+  console.log(
+    `name "${name}": prev state ${plan.prevStateTxid}, bond ${plan.bondInput.txid}:${plan.bondInput.vout} ` +
+      `(${plan.bondInput.valueSats} base units) via ${client.baseUrl}`
+  );
+
+  let additionalFundingInputs: readonly FundingInputDescriptor[];
+  if (explicitInputs.length > 0) {
+    additionalFundingInputs = explicitInputs.map(parseFundingInputDescriptor);
+  } else if (flags.has("no-extra-funding")) {
+    additionalFundingInputs = [];
+  } else {
+    additionalFundingInputs = await autoFundExcluding(flags, keystore, plan.bondInput);
+  }
+
+  return {
+    prevStateTxid: plan.prevStateTxid,
+    bondInput: plan.bondInput,
+    successorBondSats: plan.successorBondSats,
+    additionalFundingInputs
+  };
+}
+
+/** Auto-fund from the funding address, excluding the named outpoint (the bond). */
+async function autoFundExcluding(
+  flags: ParsedFlags,
+  keystore: WalletKeystore,
+  exclude: FundingInputDescriptor
+): Promise<readonly FundingInputDescriptor[]> {
+  const esploraBaseUrl = resolveBroadcastBaseUrl(
+    keystore.network,
+    flags.get("esplora-url") ?? flags.get("broadcast-url"),
+    env.ONT_BROADCAST_URL
+  );
+  const utxos = await fetchAddressUtxos({
+    esploraBaseUrl,
+    address: keystore.fundingAddress,
+    includeUnconfirmed: flags.has("include-unconfirmed")
+  });
+  const extra = utxos.filter((utxo) => !(utxo.txid === exclude.txid && utxo.vout === exclude.vout));
+  if (extra.length > 0) {
+    console.log(`auto-funding the fee from ${extra.length} UTXO(s) at ${keystore.fundingAddress} via ${esploraBaseUrl}`);
+  } else {
+    console.log(
+      `no spendable UTXOs at ${keystore.fundingAddress} beyond the bond — ` +
+        "the bond must cover the fee, or pass --input / --successor-bond-sats"
+    );
+  }
+  return extra;
 }
 
 function runVerify(path: string | undefined): void {
@@ -804,9 +902,9 @@ function printUsage(): void {
   console.log("    or  claim --bid-package <path> --fee-sats <n>");
   console.log("        [--input <utxo>] [--bond-address <a>] [--change-address <a>] [--bond-vout 0|1]");
   console.log("        build+sign an opening-bid claim (auto-funds when --input is omitted)");
-  console.log("  transfer <name> --to <pubkey> --prev-state-txid <txid> --bond-input <utxo>");
-  console.log("        --successor-bond-sats <n> --successor-bond-vout <0|1> --fee-sats <n>");
-  console.log("        [--input <utxo>] [--bond-address <a>] [--change-address <a>]  build+sign a transfer");
+  console.log("  transfer <name> --to <pubkey> --fee-sats <n> [--resolver <url>]");
+  console.log("        (auto-sources prev-state + bond from the resolver; or pass --prev-state-txid,");
+  console.log("         --bond-input <utxo>, --successor-bond-sats <n> to go fully offline)");
   console.log("        (claim/transfer take [--broadcast] [--broadcast-url <esplora-base>] to send)");
   console.log("  verify <proof.json>                    verify a portable ownership proof");
   console.log("  ln-info [baseUrl]                      query a Lexe sidecar");

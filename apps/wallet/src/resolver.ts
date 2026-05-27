@@ -16,6 +16,11 @@ export interface ResolverNameRecord {
   readonly lastStateTxid: string;
   readonly maturityHeight: number;
   readonly requiredBondSats: string;
+  // The name's current bond outpoint (the UTXO a transfer spends). Optional in
+  // case a resolver omits it; transfers need it (or an explicit --bond-input).
+  readonly currentBondTxid?: string;
+  readonly currentBondVout?: number;
+  readonly currentBondValueSats?: string;
 }
 
 export interface ResolverValueRecord {
