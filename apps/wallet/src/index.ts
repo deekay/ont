@@ -1,32 +1,52 @@
 // ONT reference client (work in progress).
 //
-// Wires the wallet's building blocks into a CLI: an on-device encrypted keystore
-// (owner + funding keys), and the Lexe sidecar Lightning adapter. The full claim
-// flow (assembling the @ont/* packages for build → sign → broadcast → verify) is
-// being added incrementally.
+// A CLI that assembles the existing @ont/* packages into a wallet flow:
+//  - an on-device encrypted keystore (owner + funding keys)
+//  - resolver lookups and owner-signed destination (value) records
+//  - portable proof verification
+//  - a Lexe sidecar adapter for the (future) cheap-claim Lightning payment
+// The on-chain claim flow is being added next.
+//
+// Keystore path comes from ONT_WALLET_KEYSTORE (default ont-wallet.json),
+// password from ONT_WALLET_PASSWORD, network from ONT_WALLET_NETWORK,
+// resolver from ONT_RESOLVER_URL (or a trailing arg).
 
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { argv, env, exit } from "node:process";
+
+import { verifyProofBundle } from "@ont/consensus";
+import { signValueRecord } from "@ont/protocol";
 
 import { isOntNetwork, type OntNetwork } from "./keys.js";
 import { WalletKeystore } from "./keystore.js";
 import { LexeSidecarLightningPayer } from "./lightning.js";
+import { ResolverClient } from "./resolver.js";
 
 const DEFAULT_KEYSTORE_PATH = "ont-wallet.json";
+const DEFAULT_RESOLVER_URL = "http://127.0.0.1:8787";
 
 async function main(): Promise<void> {
   const [command, ...rest] = argv.slice(2);
 
   switch (command) {
     case "init":
-      runInit(rest[0] ?? DEFAULT_KEYSTORE_PATH);
+      runInit();
       return;
     case "info":
     case "status":
-      runInfo(rest[0] ?? DEFAULT_KEYSTORE_PATH);
+      runInfo();
       return;
     case "address":
-      runAddress(rest[0] ?? DEFAULT_KEYSTORE_PATH);
+      runAddress();
+      return;
+    case "lookup":
+      await runLookup(rest);
+      return;
+    case "set-destination":
+      await runSetDestination(rest);
+      return;
+    case "verify":
+      runVerify(rest[0]);
       return;
     case "ln-info":
       await runLnInfo(rest[0]);
@@ -37,7 +57,8 @@ async function main(): Promise<void> {
   }
 }
 
-function runInit(path: string): void {
+function runInit(): void {
+  const path = keystorePath();
   if (existsSync(path)) {
     throw new Error(`refusing to overwrite an existing keystore at ${path}`);
   }
@@ -51,17 +72,89 @@ function runInit(path: string): void {
   console.log(`fund this address with ${network} coins to claim and transfer names.`);
 }
 
-function runInfo(path: string): void {
-  const keystore = WalletKeystore.load(path, requirePassword());
-  console.log(`keystore:        ${path}`);
+function runInfo(): void {
+  const keystore = WalletKeystore.load(keystorePath(), requirePassword());
+  console.log(`keystore:        ${keystorePath()}`);
   console.log(`network:         ${keystore.network}`);
   console.log(`owner pubkey:    ${keystore.ownerPubkey}`);
   console.log(`funding address: ${keystore.fundingAddress}`);
 }
 
-function runAddress(path: string): void {
-  const keystore = WalletKeystore.load(path, requirePassword());
-  console.log(keystore.fundingAddress);
+function runAddress(): void {
+  console.log(WalletKeystore.load(keystorePath(), requirePassword()).fundingAddress);
+}
+
+async function runLookup(args: readonly string[]): Promise<void> {
+  const name = required(args[0], "name");
+  const client = new ResolverClient(resolverUrl(args[1]));
+
+  const record = await client.getNameRecord(name);
+  if (record === null) {
+    console.log(`${name}: not found on ${client.baseUrl} (claimable, or unknown to this resolver)`);
+    return;
+  }
+
+  console.log(`name:        ${record.name}`);
+  console.log(`status:      ${record.status}`);
+  console.log(`owner:       ${record.currentOwnerPubkey}`);
+  console.log(`state txid:  ${record.lastStateTxid}`);
+
+  const value = await client.getValueRecord(name);
+  if (value === null) {
+    console.log("destination: (none published)");
+    return;
+  }
+  console.log(`destination: type ${value.valueType} -> ${decodePayload(value.payloadHex)} (seq ${value.sequence})`);
+}
+
+async function runSetDestination(args: readonly string[]): Promise<void> {
+  const name = required(args[0], "name");
+  const valueType = parseByte(required(args[1], "valueType"), "valueType");
+  const value = required(args[2], "value");
+  const client = new ResolverClient(resolverUrl(args[3]));
+
+  const keystore = WalletKeystore.load(keystorePath(), requirePassword());
+  const record = await client.getNameRecord(name);
+  if (record === null) {
+    throw new Error(`resolver doesn't know "${name}" yet — claim it first`);
+  }
+  if (record.currentOwnerPubkey !== keystore.ownerPubkey) {
+    throw new Error(`you don't own "${name}" (current owner is ${record.currentOwnerPubkey})`);
+  }
+
+  const current = await client.getValueRecord(name);
+  const sequence = current === null ? 1 : current.sequence + 1;
+  const previousRecordHash = current === null ? null : current.recordHash;
+
+  const signed = signValueRecord({
+    name,
+    ownerPrivateKeyHex: keystore.ownerPrivateKeyHex(),
+    ownershipRef: record.lastStateTxid,
+    sequence,
+    previousRecordHash,
+    valueType,
+    payloadHex: Buffer.from(value, "utf8").toString("hex")
+  });
+
+  await client.publishValueRecord(signed);
+  console.log(`published destination for "${name}" (type ${valueType}, seq ${sequence}) to ${client.baseUrl}`);
+}
+
+function runVerify(path: string | undefined): void {
+  const bundle = JSON.parse(readFileSync(required(path, "proof path"), "utf8")) as Record<string, unknown>;
+  const report = verifyProofBundle(bundle);
+
+  console.log(
+    `proof: ${report.valid ? "VALID" : "INVALID"} (${report.passedCheckCount} passed, ${report.failedCheckCount} failed)`
+  );
+  for (const check of report.checks) {
+    if (check.status === "failed") {
+      console.log(`  x ${check.id}: ${check.message}`);
+    }
+  }
+  if (!report.valid) {
+    exit(1);
+  }
 }
 
 async function runLnInfo(baseUrl: string | undefined): Promise<void> {
@@ -73,6 +166,14 @@ async function runLnInfo(baseUrl: string | undefined): Promise<void> {
       `could not reach a Lexe sidecar at ${payer.baseUrl} — is it running? (curl -fsSL https://lexe.app/install-sidecar.sh | sh)`
     );
   }
+}
+
+function keystorePath(): string {
+  return env.ONT_WALLET_KEYSTORE ?? DEFAULT_KEYSTORE_PATH;
+}
+
+function resolverUrl(explicit: string | undefined): string {
+  return (explicit ?? env.ONT_RESOLVER_URL ?? DEFAULT_RESOLVER_URL).replace(/\/+$/, "");
 }
 
 function resolveNetwork(): OntNetwork {
@@ -91,14 +192,45 @@ function requirePassword(): string {
   return password;
 }
 
+function required(value: string | undefined, label: string): string {
+  if (value === undefined || value.trim() === "") {
+    throw new Error(`missing required argument: ${label}`);
+  }
+  return value;
+}
+
+function parseByte(value: string, label: string): number {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 0 || parsed > 255) {
+    throw new Error(`${label} must be an integer 0-255`);
+  }
+  return parsed;
+}
+
+function decodePayload(payloadHex: string): string {
+  const text = Buffer.from(payloadHex, "hex").toString("utf8");
+  const roundTrips = Buffer.from(text, "utf8").toString("hex") === payloadHex.toLowerCase();
+  const printable = [...text].every((ch) => {
+    const code = ch.codePointAt(0) ?? 0;
+    return code >= 0x20 && code !== 0x7f;
+  });
+  return roundTrips && printable ? text : `0x${payloadHex}`;
+}
+
 function printUsage(): void {
   console.log("ONT wallet — reference client (work in progress)");
   console.log("");
   console.log("commands:");
-  console.log("  init [path]        create an encrypted keystore (ONT_WALLET_PASSWORD, ONT_WALLET_NETWORK)");
-  console.log("  info [path]        show network, owner pubkey, and funding address");
-  console.log("  address [path]     print the funding address (to receive coins)");
-  console.log("  ln-info [baseUrl]  query a Lexe sidecar (default http://localhost:5393)");
+  console.log("  init                                   create an encrypted keystore");
+  console.log("  info                                   show network, owner pubkey, funding address");
+  console.log("  address                                print the funding address");
+  console.log("  lookup <name> [resolver]               show a name's state + destination");
+  console.log("  set-destination <name> <type> <value>  publish an owner-signed destination");
+  console.log("  verify <proof.json>                    verify a portable ownership proof");
+  console.log("  ln-info [baseUrl]                      query a Lexe sidecar");
+  console.log("");
+  console.log("env: ONT_WALLET_KEYSTORE (default ont-wallet.json), ONT_WALLET_PASSWORD,");
+  console.log("     ONT_WALLET_NETWORK (default signet), ONT_RESOLVER_URL");
 }
 
 main().catch((error: unknown) => {

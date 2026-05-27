@@ -1,0 +1,123 @@
+// Thin client for an ONT resolver's HTTP API.
+//
+// A resolver serves data and answers lookups; it holds no authority over names
+// (we verify ownership against Bitcoin, not against it). The client only needs a
+// few endpoints: read a name's current state, read its current destination
+// record, and publish a new owner-signed destination record.
+
+import { normalizeName, type SignedValueRecord } from "@ont/protocol";
+
+export type NameStatus = "pending" | "immature" | "mature" | "invalid";
+
+export interface ResolverNameRecord {
+  readonly name: string;
+  readonly status: NameStatus;
+  readonly currentOwnerPubkey: string;
+  readonly lastStateTxid: string;
+  readonly maturityHeight: number;
+  readonly requiredBondSats: string;
+}
+
+export interface ResolverValueRecord {
+  readonly name: string;
+  readonly ownerPubkey: string;
+  readonly ownershipRef: string;
+  readonly sequence: number;
+  readonly valueType: number;
+  readonly payloadHex: string;
+  readonly recordHash: string;
+  readonly issuedAt: string;
+}
+
+export class ResolverError extends Error {
+  readonly status: number | null;
+
+  constructor(message: string, status: number | null) {
+    super(message);
+    this.status = status;
+  }
+}
+
+interface HttpResponse {
+  readonly ok: boolean;
+  readonly status: number;
+  text(): Promise<string>;
+}
+
+export class ResolverClient {
+  readonly baseUrl: string;
+
+  constructor(baseUrl: string) {
+    this.baseUrl = baseUrl.replace(/\/+$/, "");
+  }
+
+  /** Current ownership state for a name, or null if the resolver doesn't know it. */
+  async getNameRecord(name: string): Promise<ResolverNameRecord | null> {
+    return this.getOrNull<ResolverNameRecord>(`/name/${encodeURIComponent(normalizeName(name))}`);
+  }
+
+  /** Current owner-signed destination record, or null if none has been published. */
+  async getValueRecord(name: string): Promise<ResolverValueRecord | null> {
+    return this.getOrNull<ResolverValueRecord>(
+      `/name/${encodeURIComponent(normalizeName(name))}/value`
+    );
+  }
+
+  /** Publish a signed destination record to this resolver. */
+  async publishValueRecord(record: SignedValueRecord): Promise<void> {
+    const response = (await fetch(`${this.baseUrl}/values`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(record)
+    })) as HttpResponse;
+    if (!response.ok) {
+      throw new ResolverError(
+        `resolver rejected the value record (${response.status}): ${describe(await readJson(response))}`,
+        response.status
+      );
+    }
+  }
+
+  private async getOrNull<T>(path: string): Promise<T | null> {
+    let response: HttpResponse;
+    try {
+      response = (await fetch(`${this.baseUrl}${path}`)) as HttpResponse;
+    } catch (error) {
+      throw new ResolverError(
+        `could not reach resolver at ${this.baseUrl} — ${error instanceof Error ? error.message : String(error)}`,
+        null
+      );
+    }
+    if (response.status === 404) {
+      return null;
+    }
+    const raw = await readJson(response);
+    if (!response.ok) {
+      throw new ResolverError(`resolver returned HTTP ${response.status}: ${describe(raw)}`, response.status);
+    }
+    return raw as T;
+  }
+}
+
+async function readJson(response: HttpResponse): Promise<unknown> {
+  const text = await response.text();
+  if (text.trim() === "") {
+    return null;
+  }
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
+}
+
+function describe(raw: unknown): string {
+  if (typeof raw === "string") {
+    return raw;
+  }
+  try {
+    return JSON.stringify(raw);
+  } catch {
+    return String(raw);
+  }
+}
