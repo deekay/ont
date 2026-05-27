@@ -15,14 +15,21 @@ import { existsSync, readFileSync } from "node:fs";
 import { argv, env, exit } from "node:process";
 
 import { verifyProofBundle } from "@ont/consensus";
-import { signValueRecord } from "@ont/protocol";
+import {
+  computeRecoveryDescriptorHash,
+  computeValueRecordHash,
+  signRecoveryDescriptor,
+  signValueRecord
+} from "@ont/protocol";
 
 import { isOntNetwork, type OntNetwork } from "./keys.js";
 import { WalletKeystore } from "./keystore.js";
 import { LexeSidecarLightningPayer } from "./lightning.js";
 import { ResolverClient } from "./resolver.js";
+import { WalletState } from "./wallet-state.js";
 
 const DEFAULT_KEYSTORE_PATH = "ont-wallet.json";
+const DEFAULT_STATE_PATH = "ont-wallet-state.json";
 const DEFAULT_RESOLVER_URL = "http://127.0.0.1:8787";
 
 async function main(): Promise<void> {
@@ -44,6 +51,18 @@ async function main(): Promise<void> {
       return;
     case "set-destination":
       await runSetDestination(rest);
+      return;
+    case "names":
+      runNames();
+      return;
+    case "track":
+      await runTrack(rest);
+      return;
+    case "forget":
+      runForget(rest);
+      return;
+    case "arm-recovery":
+      await runArmRecovery(rest);
       return;
     case "verify":
       runVerify(rest[0]);
@@ -138,6 +157,113 @@ async function runSetDestination(args: readonly string[]): Promise<void> {
 
   await client.publishValueRecord(signed);
   console.log(`published destination for "${name}" (type ${valueType}, seq ${sequence}) to ${client.baseUrl}`);
+
+  const state = loadState(keystore.network);
+  state.track({ name, ownerPubkey: keystore.ownerPubkey, ownershipRef: record.lastStateTxid });
+  state.recordValue(name, { sequence, recordHash: computeValueRecordHash(signed) });
+  state.save(walletStatePath());
+}
+
+function runNames(): void {
+  const keystore = WalletKeystore.load(keystorePath(), requirePassword());
+  const names = loadState(keystore.network).list();
+  if (names.length === 0) {
+    console.log("no names tracked yet — claim one, then `track <name>`");
+    return;
+  }
+  for (const entry of names) {
+    const owned = entry.ownerPubkey === keystore.ownerPubkey ? "" : "  (owner pubkey differs from this keystore)";
+    console.log(`${entry.name}${owned}`);
+    console.log(`  ownership ref: ${entry.ownershipRef}`);
+    if (entry.lastValueSequence !== undefined) {
+      console.log(`  destination:   seq ${entry.lastValueSequence} (${entry.lastValueRecordHash ?? "?"})`);
+    }
+    if (entry.recovery !== undefined) {
+      console.log(
+        `  recovery:      armed seq ${entry.recovery.sequence} -> ${entry.recovery.recoveryAddress} ` +
+          `(${entry.recovery.challengeWindowBlocks}-block window)`
+      );
+    }
+  }
+}
+
+async function runTrack(args: readonly string[]): Promise<void> {
+  const name = required(args[0], "name");
+  const client = new ResolverClient(resolverUrl(args[1]));
+  const keystore = WalletKeystore.load(keystorePath(), requirePassword());
+
+  const record = await client.getNameRecord(name);
+  if (record === null) {
+    throw new Error(`resolver doesn't know "${name}" yet — claim it first`);
+  }
+  if (record.currentOwnerPubkey !== keystore.ownerPubkey) {
+    console.log(
+      `warning: "${name}" is owned by ${record.currentOwnerPubkey}, not this keystore (${keystore.ownerPubkey})`
+    );
+  }
+
+  const state = loadState(keystore.network);
+  state.track({ name, ownerPubkey: record.currentOwnerPubkey, ownershipRef: record.lastStateTxid });
+  state.save(walletStatePath());
+  console.log(`tracking "${name}" (${record.status}) in ${walletStatePath()}`);
+}
+
+function runForget(args: readonly string[]): void {
+  const name = required(args[0], "name");
+  const keystore = WalletKeystore.load(keystorePath(), requirePassword());
+  const state = loadState(keystore.network);
+  if (state.forget(name)) {
+    state.save(walletStatePath());
+    console.log(`stopped tracking "${name}" locally (ownership on Bitcoin is unchanged)`);
+  } else {
+    console.log(`"${name}" was not tracked`);
+  }
+}
+
+async function runArmRecovery(args: readonly string[]): Promise<void> {
+  const name = required(args[0], "name");
+  const recoveryAddress = required(args[1], "recoveryAddress");
+  const client = new ResolverClient(resolverUrl(args[2]));
+  const keystore = WalletKeystore.load(keystorePath(), requirePassword());
+
+  const record = await client.getNameRecord(name);
+  if (record === null) {
+    throw new Error(`resolver doesn't know "${name}" yet — claim it first`);
+  }
+  if (record.currentOwnerPubkey !== keystore.ownerPubkey) {
+    throw new Error(`you don't own "${name}" (current owner is ${record.currentOwnerPubkey})`);
+  }
+
+  const current = await client.getRecoveryDescriptor(name);
+  const sequence = current === null ? 1 : current.sequence + 1;
+  const previousDescriptorHash = current === null ? null : current.descriptorHash;
+
+  const descriptor = signRecoveryDescriptor({
+    name,
+    ownerPrivateKeyHex: keystore.ownerPrivateKeyHex(),
+    ownershipRef: record.lastStateTxid,
+    sequence,
+    previousDescriptorHash,
+    recoveryAddress
+  });
+
+  await client.publishRecoveryDescriptor(descriptor);
+  const descriptorHash = computeRecoveryDescriptorHash(descriptor);
+  console.log(
+    `armed recovery for "${name}" (seq ${sequence}) -> ${recoveryAddress} ` +
+      `(${descriptor.challengeWindowBlocks}-block challenge window) via ${client.baseUrl}`
+  );
+
+  const state = loadState(keystore.network);
+  state.track({ name, ownerPubkey: keystore.ownerPubkey, ownershipRef: record.lastStateTxid });
+  state.recordRecovery(name, {
+    recoveryAddress,
+    sequence,
+    descriptorHash,
+    challengeWindowBlocks: descriptor.challengeWindowBlocks,
+    armedAt: descriptor.issuedAt
+  });
+  state.save(walletStatePath());
 }
 
 function runVerify(path: string | undefined): void {
@@ -170,6 +296,14 @@ async function runLnInfo(baseUrl: string | undefined): Promise<void> {
 
 function keystorePath(): string {
   return env.ONT_WALLET_KEYSTORE ?? DEFAULT_KEYSTORE_PATH;
+}
+
+function walletStatePath(): string {
+  return env.ONT_WALLET_STATE ?? DEFAULT_STATE_PATH;
+}
+
+function loadState(network: OntNetwork): WalletState {
+  return WalletState.loadOrCreate(walletStatePath(), network);
 }
 
 function resolverUrl(explicit: string | undefined): string {
@@ -226,10 +360,15 @@ function printUsage(): void {
   console.log("  address                                print the funding address");
   console.log("  lookup <name> [resolver]               show a name's state + destination");
   console.log("  set-destination <name> <type> <value>  publish an owner-signed destination");
+  console.log("  names                                  list names this wallet tracks");
+  console.log("  track <name> [resolver]                start tracking a name you own");
+  console.log("  forget <name>                          stop tracking a name locally");
+  console.log("  arm-recovery <name> <address> [resolver]  arm owner recovery to an address");
   console.log("  verify <proof.json>                    verify a portable ownership proof");
   console.log("  ln-info [baseUrl]                      query a Lexe sidecar");
   console.log("");
-  console.log("env: ONT_WALLET_KEYSTORE (default ont-wallet.json), ONT_WALLET_PASSWORD,");
+  console.log("env: ONT_WALLET_KEYSTORE (default ont-wallet.json), ONT_WALLET_STATE");
+  console.log("     (default ont-wallet-state.json), ONT_WALLET_PASSWORD,");
   console.log("     ONT_WALLET_NETWORK (default signet), ONT_RESOLVER_URL");
 }
 

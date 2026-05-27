@@ -5,7 +5,7 @@
 // few endpoints: read a name's current state, read its current destination
 // record, and publish a new owner-signed destination record.
 
-import { normalizeName, type SignedValueRecord } from "@ont/protocol";
+import { normalizeName, type SignedRecoveryDescriptor, type SignedValueRecord } from "@ont/protocol";
 
 export type NameStatus = "pending" | "immature" | "mature" | "invalid";
 
@@ -26,6 +26,18 @@ export interface ResolverValueRecord {
   readonly valueType: number;
   readonly payloadHex: string;
   readonly recordHash: string;
+  readonly issuedAt: string;
+}
+
+export interface ResolverRecoveryDescriptor {
+  readonly name: string;
+  readonly ownerPubkey: string;
+  readonly ownershipRef: string;
+  readonly sequence: number;
+  readonly recoveryAddress: string;
+  readonly signingProfile: string;
+  readonly challengeWindowBlocks: number;
+  readonly descriptorHash: string;
   readonly issuedAt: string;
 }
 
@@ -63,16 +75,32 @@ export class ResolverClient {
     );
   }
 
+  /** Current owner-armed recovery descriptor, or null if none has been published. */
+  async getRecoveryDescriptor(name: string): Promise<ResolverRecoveryDescriptor | null> {
+    return this.getOrNull<ResolverRecoveryDescriptor>(
+      `/name/${encodeURIComponent(normalizeName(name))}/recovery`
+    );
+  }
+
   /** Publish a signed destination record to this resolver. */
   async publishValueRecord(record: SignedValueRecord): Promise<void> {
-    const response = (await fetch(`${this.baseUrl}/values`, {
+    await this.post("/values", record, "value record");
+  }
+
+  /** Publish a signed recovery descriptor (arm/refresh recovery) to this resolver. */
+  async publishRecoveryDescriptor(descriptor: SignedRecoveryDescriptor): Promise<void> {
+    await this.post("/recovery-descriptors", descriptor, "recovery descriptor");
+  }
+
+  private async post(path: string, body: unknown, label: string): Promise<void> {
+    const response = (await fetch(`${this.baseUrl}${path}`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify(record)
+      body: JSON.stringify(body)
     })) as HttpResponse;
     if (!response.ok) {
       throw new ResolverError(
-        `resolver rejected the value record (${response.status}): ${describe(await readJson(response))}`,
+        `resolver rejected the ${label} (${response.status}): ${describe(await readJson(response))}`,
         response.status
       );
     }
