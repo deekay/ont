@@ -1,10 +1,12 @@
-// On-device, password-encrypted store for the ONT owner key.
+// On-device, password-encrypted store for the ONT wallet's keys.
 //
 // The owner key controls a name permanently, so it lives here — in the client,
 // under the user's own password — never inside a Lightning node's credential or
 // a cloud backup we don't control. The file is encrypted client-side
 // (AES-256-GCM, key derived from the password via scrypt), so a copy of it is
-// *storage*, not *recovery authority*: without the password it's opaque.
+// *storage*, not *recovery authority*: without the password it's opaque. The
+// funding key (on-chain fees/bonds) is encrypted alongside it. Public material
+// (owner pubkey, funding address, network) is kept in the clear for display.
 
 import {
   createCipheriv,
@@ -15,23 +17,35 @@ import {
 } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 
-import * as tinysecp from "tiny-secp256k1";
+import {
+  fundingKeyFromWif,
+  generateFundingKey,
+  generateOwnerKey,
+  isOntNetwork,
+  ownerPubkeyForPrivateKey,
+  type FundingKey,
+  type OntNetwork,
+  type OwnerKey
+} from "./keys.js";
 
 const KEYSTORE_FORMAT = "ont-wallet-keystore";
-const KEYSTORE_VERSION = 1;
+const KEYSTORE_VERSION = 2;
 const SCRYPT_N = 1 << 15;
 const SCRYPT_KEYLEN = 32;
 const SCRYPT_MAXMEM = 64 * 1024 * 1024;
 
-export interface OwnerKey {
+interface KeystoreSecret {
   readonly ownerPrivateKeyHex: string;
-  readonly ownerPubkey: string;
+  readonly fundingWif: string;
 }
 
 interface KeystoreFile {
   readonly format: string;
   readonly version: number;
-  readonly ownerPubkey: string; // not secret — kept in the clear for display/verification
+  readonly network: string;
+  readonly ownerPubkey: string;
+  readonly fundingAddress: string;
+  readonly fundingPubkeyHex: string;
   readonly kdf: { readonly algorithm: "scrypt"; readonly saltHex: string; readonly n: number };
   readonly cipher: {
     readonly algorithm: "aes-256-gcm";
@@ -41,44 +55,44 @@ interface KeystoreFile {
   };
 }
 
-/** Generate a fresh ONT owner key (x-only Schnorr public key). */
-export function generateOwnerKey(): OwnerKey {
-  for (;;) {
-    const privateKey = randomBytes(32);
-    if (!tinysecp.isPrivate(privateKey)) {
-      continue;
-    }
-    const pub = tinysecp.xOnlyPointFromScalar(privateKey);
-    if (pub === null) {
-      continue;
-    }
-    return {
-      ownerPrivateKeyHex: Buffer.from(privateKey).toString("hex"),
-      ownerPubkey: Buffer.from(pub).toString("hex")
+export class WalletKeystore {
+  readonly network: OntNetwork;
+  readonly ownerPubkey: string;
+  readonly fundingAddress: string;
+  readonly fundingPubkeyHex: string;
+  readonly #secret: KeystoreSecret;
+
+  private constructor(input: {
+    readonly network: OntNetwork;
+    readonly owner: OwnerKey;
+    readonly funding: FundingKey;
+  }) {
+    this.network = input.network;
+    this.ownerPubkey = input.owner.ownerPubkey;
+    this.fundingAddress = input.funding.fundingAddress;
+    this.fundingPubkeyHex = input.funding.fundingPubkeyHex;
+    this.#secret = {
+      ownerPrivateKeyHex: input.owner.ownerPrivateKeyHex,
+      fundingWif: input.funding.fundingWif
     };
   }
-}
 
-export class WalletKeystore {
-  readonly ownerPubkey: string;
-  readonly #ownerPrivateKeyHex: string;
-
-  private constructor(ownerKey: OwnerKey) {
-    this.ownerPubkey = ownerKey.ownerPubkey;
-    this.#ownerPrivateKeyHex = ownerKey.ownerPrivateKeyHex;
-  }
-
-  static createNew(): WalletKeystore {
-    return new WalletKeystore(generateOwnerKey());
-  }
-
-  static fromOwnerKey(ownerKey: OwnerKey): WalletKeystore {
-    return new WalletKeystore(ownerKey);
+  static createNew(network: OntNetwork): WalletKeystore {
+    return new WalletKeystore({
+      network,
+      owner: generateOwnerKey(),
+      funding: generateFundingKey(network)
+    });
   }
 
   /** Sensitive: the decrypted owner private key, for signing ONT events. */
   ownerPrivateKeyHex(): string {
-    return this.#ownerPrivateKeyHex;
+    return this.#secret.ownerPrivateKeyHex;
+  }
+
+  /** Sensitive: the funding WIF, for signing on-chain transactions. */
+  fundingWif(): string {
+    return this.#secret.fundingWif;
   }
 
   /** Encrypt and write the keystore to disk (owner-readable only). */
@@ -88,7 +102,7 @@ export class WalletKeystore {
     const iv = randomBytes(12);
     const cipher = createCipheriv("aes-256-gcm", key, iv);
     const ciphertext = Buffer.concat([
-      cipher.update(Buffer.from(this.#ownerPrivateKeyHex, "hex")),
+      cipher.update(Buffer.from(JSON.stringify(this.#secret), "utf8")),
       cipher.final()
     ]);
     const authTag = cipher.getAuthTag();
@@ -96,7 +110,10 @@ export class WalletKeystore {
     const file: KeystoreFile = {
       format: KEYSTORE_FORMAT,
       version: KEYSTORE_VERSION,
+      network: this.network,
       ownerPubkey: this.ownerPubkey,
+      fundingAddress: this.fundingAddress,
+      fundingPubkeyHex: this.fundingPubkeyHex,
       kdf: { algorithm: "scrypt", saltHex: salt.toString("hex"), n: SCRYPT_N },
       cipher: {
         algorithm: "aes-256-gcm",
@@ -114,6 +131,9 @@ export class WalletKeystore {
     if (parsed.format !== KEYSTORE_FORMAT) {
       throw new KeystoreError(`not an ONT wallet keystore: ${String(parsed.format)}`);
     }
+    if (!isOntNetwork(parsed.network)) {
+      throw new KeystoreError(`unknown network in keystore: ${String(parsed.network)}`);
+    }
 
     const key = deriveKey(password, Buffer.from(parsed.kdf.saltHex, "hex"), parsed.kdf.n);
     const decipher = createDecipheriv("aes-256-gcm", key, Buffer.from(parsed.cipher.ivHex, "hex"));
@@ -129,13 +149,17 @@ export class WalletKeystore {
       throw new KeystoreError("could not decrypt keystore — wrong password or corrupted file");
     }
 
-    const pub = tinysecp.xOnlyPointFromScalar(plaintext);
-    const ownerPubkey = pub === null ? "" : Buffer.from(pub).toString("hex");
-    if (ownerPubkey === "" || !constantTimeEqualHex(ownerPubkey, parsed.ownerPubkey)) {
+    const secret = JSON.parse(plaintext.toString("utf8")) as KeystoreSecret;
+    const ownerPubkey = ownerPubkeyForPrivateKey(secret.ownerPrivateKeyHex);
+    if (ownerPubkey === null || !constantTimeEqualHex(ownerPubkey, parsed.ownerPubkey)) {
       throw new KeystoreError("decrypted key does not match the stored owner pubkey");
     }
 
-    return new WalletKeystore({ ownerPrivateKeyHex: plaintext.toString("hex"), ownerPubkey });
+    return new WalletKeystore({
+      network: parsed.network,
+      owner: { ownerPrivateKeyHex: secret.ownerPrivateKeyHex, ownerPubkey },
+      funding: fundingKeyFromWif(secret.fundingWif, parsed.network)
+    });
   }
 }
 

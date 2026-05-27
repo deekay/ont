@@ -1,13 +1,14 @@
 // ONT reference client (work in progress).
 //
-// Today this wires up the two genuinely-new pieces — an on-device encrypted
-// owner keystore and the Lexe sidecar Lightning adapter. The full claim flow
-// (which assembles the existing @ont/* packages for build → sign → broadcast →
-// verify) is the next step.
+// Wires the wallet's building blocks into a CLI: an on-device encrypted keystore
+// (owner + funding keys), and the Lexe sidecar Lightning adapter. The full claim
+// flow (assembling the @ont/* packages for build → sign → broadcast → verify) is
+// being added incrementally.
 
 import { existsSync } from "node:fs";
 import { argv, env, exit } from "node:process";
 
+import { isOntNetwork, type OntNetwork } from "./keys.js";
 import { WalletKeystore } from "./keystore.js";
 import { LexeSidecarLightningPayer } from "./lightning.js";
 
@@ -20,8 +21,12 @@ async function main(): Promise<void> {
     case "init":
       runInit(rest[0] ?? DEFAULT_KEYSTORE_PATH);
       return;
+    case "info":
     case "status":
-      runStatus(rest[0] ?? DEFAULT_KEYSTORE_PATH);
+      runInfo(rest[0] ?? DEFAULT_KEYSTORE_PATH);
+      return;
+    case "address":
+      runAddress(rest[0] ?? DEFAULT_KEYSTORE_PATH);
       return;
     case "ln-info":
       await runLnInfo(rest[0]);
@@ -36,22 +41,46 @@ function runInit(path: string): void {
   if (existsSync(path)) {
     throw new Error(`refusing to overwrite an existing keystore at ${path}`);
   }
-  const keystore = WalletKeystore.createNew();
+  const network = resolveNetwork();
+  const keystore = WalletKeystore.createNew(network);
   keystore.save(path, requirePassword());
-  console.log(`created ONT wallet keystore at ${path}`);
-  console.log(`owner pubkey: ${keystore.ownerPubkey}`);
+  console.log(`created ONT wallet keystore at ${path} (${network})`);
+  console.log(`owner pubkey:    ${keystore.ownerPubkey}`);
+  console.log(`funding address: ${keystore.fundingAddress}`);
+  console.log("");
+  console.log(`fund this address with ${network} coins to claim and transfer names.`);
 }
 
-function runStatus(path: string): void {
+function runInfo(path: string): void {
   const keystore = WalletKeystore.load(path, requirePassword());
-  console.log(`keystore:     ${path}`);
-  console.log(`owner pubkey: ${keystore.ownerPubkey}`);
+  console.log(`keystore:        ${path}`);
+  console.log(`network:         ${keystore.network}`);
+  console.log(`owner pubkey:    ${keystore.ownerPubkey}`);
+  console.log(`funding address: ${keystore.fundingAddress}`);
+}
+
+function runAddress(path: string): void {
+  const keystore = WalletKeystore.load(path, requirePassword());
+  console.log(keystore.fundingAddress);
 }
 
 async function runLnInfo(baseUrl: string | undefined): Promise<void> {
   const payer = new LexeSidecarLightningPayer(baseUrl);
-  const info = await payer.nodeInfo();
-  console.log(JSON.stringify(info, null, 2));
+  try {
+    console.log(JSON.stringify(await payer.nodeInfo(), null, 2));
+  } catch {
+    throw new Error(
+      `could not reach a Lexe sidecar at ${payer.baseUrl} — is it running? (curl -fsSL https://lexe.app/install-sidecar.sh | sh)`
+    );
+  }
+}
+
+function resolveNetwork(): OntNetwork {
+  const raw = env.ONT_WALLET_NETWORK ?? "signet";
+  if (!isOntNetwork(raw)) {
+    throw new Error(`unknown ONT_WALLET_NETWORK: ${raw} (use main|testnet|signet|regtest)`);
+  }
+  return raw;
 }
 
 function requirePassword(): string {
@@ -66,8 +95,9 @@ function printUsage(): void {
   console.log("ONT wallet — reference client (work in progress)");
   console.log("");
   console.log("commands:");
-  console.log("  init [path]        create an encrypted keystore (password via ONT_WALLET_PASSWORD)");
-  console.log("  status [path]      show the owner pubkey from a keystore");
+  console.log("  init [path]        create an encrypted keystore (ONT_WALLET_PASSWORD, ONT_WALLET_NETWORK)");
+  console.log("  info [path]        show network, owner pubkey, and funding address");
+  console.log("  address [path]     print the funding address (to receive coins)");
   console.log("  ln-info [baseUrl]  query a Lexe sidecar (default http://localhost:5393)");
 }
 
