@@ -48,12 +48,17 @@ build-on-top + upstream PRs, not a fork. See
 1. Does the SDK/sidecar expose **conditional payments / adaptor signatures bound to an external
    on-chain event** today? If not, would you take it as an upstream contribution? (decides
    build-on-top vs. upstream-PR for the trust-minimized swap)
-2. Can an ONT integration hold a **separate, on-device-only owner key entirely outside the Google-Drive
+2. On the on-chain (BDK) side, does the SDK expose **arbitrary PSBT construction / sign / broadcast** —
+   custom outputs, an OP_RETURN — or only high-level "send to address"? (decides whether the
+   contested-name bonded auction, transfers, recovery, and the self-claim L1 fallback — all on-chain —
+   can live in the app rather than bouncing to an external signer like Sparrow. This is a more
+   conventional ask than #1.)
+3. Can an ONT integration hold a **separate, on-device-only owner key entirely outside the Google-Drive
    backup flow** — i.e., *not* derived from the node's root seed? (the ONT owner key controls a name
    permanently; it must not ride the LN credential's convenience backup)
-3. At first login, exactly what lands in Google Drive — just the **password/client-side-encrypted**
+4. At first login, exactly what lands in Google Drive — just the **password/client-side-encrypted**
    root seed? What's your threat model for Google + a weak user password? (confirms "storage, not
    recovery authority")
-4. Your read on **PTLC vs. ECDSA-adaptor-today** for a bilateral user↔publisher swap. (You may be the
+5. Your read on **PTLC vs. ECDSA-adaptor-today** for a bilateral user↔publisher swap. (You may be the
    Lightning expert above, or adjacent.)
-5. Appetite to be the **flagship ONT-compatible wallet**, or do you prefer ONT builds entirely on top?
+6. Appetite to be the **flagship ONT-compatible wallet**, or do you prefer ONT builds entirely on top?

@@ -46,6 +46,13 @@ Rust + sidecar REST SDKs).
   Shipped as an **open `ont` client library + spec** so it's not tied to one wallet.
 - **Lightning rail (lean on Lexe):** the always-online non-custodial node solves the brutal part
   (reliable mobile LN, liquidity, being a swap counterparty). Integrate via the SDK/sidecar.
+- **On-chain rail (also already there):** running an LN node requires an on-chain wallet underneath
+  (Lexe uses BDK), so the on-chain side — bonds, bids, settlement, transfers, recovery, and the
+  self-claim L1 fallback — can live in the same app. That means the whole **claim → auction → own →
+  update → recover** experience could be one in-app flow, and it replaces the Sparrow PSBT crutch. The
+  on-chain bidding is the *conventional* half; the exotic part is the LN swap. Open: whether the SDK
+  exposes PSBT-level construction (custom outputs / OP_RETURN) or only high-level sends — see
+  [`OPEN_QUESTIONS_FOR_EXPERTS.md`](./OPEN_QUESTIONS_FOR_EXPERTS.md).
 - **Relationship to Lexe: build-on-top + upstream PRs, _not_ a fork.** Forking means inheriting their
   enclave + node code *and running your own enclave hosting* (losing their meganode hosting) and
   diverging forever. Contribute any missing primitives upstream; let Lexe be the flagship integrator.
