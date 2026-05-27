@@ -148,6 +148,12 @@ The new model leaves a better set of open questions:
 - how auction openings and bids should be batched for blockspace efficiency
 - how to present uncontested auctions so normal users understand the low-drama
   path without implying a separate direct-allocation lane
+- launch fairness / cold-start ([R7](../design/ONT_RISK_REGISTER.md)): keeping an
+  early whale from sweeping the premium 5–8 char names cheaply before the market
+  is liquid. leading option is a **decaying launch gate** (claim cost high at
+  genesis, decaying to the ₿1,000 floor), vs. a slow-drip supply cap, vs.
+  accepting the one-time land rush — must stay mechanical/uniform (no reserved
+  lists, no per-person caps)
 
 ## Test → Launch, And Who Runs The Bootstrap Infra
 
