@@ -41,6 +41,9 @@ export interface TrackedName {
   readonly lastValueRecordHash?: string;
   readonly recovery?: TrackedRecovery;
   readonly pendingClaim?: PendingClaim;
+  /** Resolver-reported status at the last `sync` (pending|immature|mature|invalid). */
+  readonly status?: string;
+  readonly lastSyncedAt?: string;
 }
 
 interface WalletStateDocument {
@@ -157,6 +160,23 @@ export class WalletState {
     const entry: TrackedName = { ...tracked, pendingClaim: claim };
     this.names.set(entry.name, entry);
     return entry;
+  }
+
+  /**
+   * Reconcile a tracked name against the resolver's confirmed on-chain state:
+   * adopt the real ownership ref, record the status, and clear any provisional
+   * pending-claim marker (the claim is now reflected on-chain).
+   */
+  recordSync(name: string, input: { ownershipRef: string; status: string }): void {
+    const entry = this.requireTracked(name);
+    const { pendingClaim: _pendingClaim, ...rest } = entry;
+    this.names.set(entry.name, {
+      ...rest,
+      ownershipRef: input.ownershipRef,
+      status: input.status,
+      lastSyncedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    });
   }
 
   /** Note the recovery descriptor we armed for a name. */

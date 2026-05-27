@@ -58,6 +58,7 @@ ONT_WALLET_PASSWORD=… npm run dev -w @ont/wallet -- set-destination <name> <ty
 ONT_WALLET_PASSWORD=… npm run dev -w @ont/wallet -- names            # names this wallet tracks
 ONT_WALLET_PASSWORD=… npm run dev -w @ont/wallet -- track <name>     # track a name you own
 ONT_WALLET_PASSWORD=… npm run dev -w @ont/wallet -- forget <name>    # stop tracking locally
+ONT_WALLET_PASSWORD=… npm run dev -w @ont/wallet -- sync [name]      # reconcile tracked names w/ resolver
 ONT_WALLET_PASSWORD=… npm run dev -w @ont/wallet -- arm-recovery <name> <address>
 ONT_WALLET_PASSWORD=… npm run dev -w @ont/wallet -- claim <name> --amount <n> --fee-sats <n> \
     [--resolver <url>] [--bidder-id <id>]       # claim from a resolver's live auction
@@ -89,14 +90,19 @@ sign locally and only send when you pass `--broadcast`. The Esplora base is memp
 default for signet/testnet/mainnet; set `ONT_BROADCAST_URL` or `--broadcast-url`/`--esplora-url`
 for your own node (required on regtest).
 
+`sync [name]` reconciles tracked names against a resolver: when it reports this wallet as the
+owner, the wallet adopts the confirmed ownership ref + status and clears a provisional
+pending-claim marker (so a `claim` that lands shows up as owned). It never grants the resolver
+authority — ownership is still a Bitcoin fact.
+
 Environment: `ONT_WALLET_KEYSTORE` (default `ont-wallet.json`), `ONT_WALLET_STATE`
 (default `ont-wallet-state.json`), `ONT_WALLET_PASSWORD`, `ONT_WALLET_NETWORK`
 (default `signet`), `ONT_RESOLVER_URL` (default `http://127.0.0.1:8787`).
 
 ## Next
 
-- watch a pending claim to maturity (poll the resolver) and reconcile the local
-  ownership ref once it confirms, then assemble a portable proof bundle to `verify`.
+- assemble a portable proof bundle from a synced name so it can be exported and `verify`-d
+  elsewhere (today `verify` checks a bundle; it can't yet produce one).
 - the **cheap batched-claim rail**: the small ₿1,000 gate paid over Lightning through the
   adapter above (a natural use-case for a Lexe node). Designed, not yet live.
 - exact Lexe sidecar `pay` request/response schema (confirm against docs.lexe.tech), and

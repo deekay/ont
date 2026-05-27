@@ -67,9 +67,28 @@ describe("WalletState", () => {
     expect(state.get("alice")?.recovery?.sequence).toBe(1);
   });
 
+  it("reconciles a pending claim on sync: adopts the ref + status, clears the marker", () => {
+    const state = WalletState.loadOrCreate(path, "signet");
+    state.recordPendingClaim(
+      { name: "alice", ownerPubkey: "ab".repeat(32) },
+      { bidTxid: "bid".padEnd(64, "0"), bidAmountSats: "20000", broadcast: true, claimedAt: new Date().toISOString() }
+    );
+    expect(state.get("alice")?.pendingClaim).toBeDefined();
+
+    state.recordSync("alice", { ownershipRef: "fe".repeat(32), status: "mature" });
+    const entry = state.get("alice");
+    expect(entry?.pendingClaim).toBeUndefined();
+    expect(entry?.ownershipRef).toBe("fe".repeat(32));
+    expect(entry?.status).toBe("mature");
+    expect(entry?.lastSyncedAt).toBeDefined();
+  });
+
   it("refuses to record against an untracked name", () => {
     const state = WalletState.loadOrCreate(path, "signet");
     expect(() => state.recordValue("ghost", { sequence: 1, recordHash: "00".repeat(32) })).toThrow(
+      WalletStateError
+    );
+    expect(() => state.recordSync("ghost", { ownershipRef: "00".repeat(32), status: "mature" })).toThrow(
       WalletStateError
     );
   });

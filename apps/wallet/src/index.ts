@@ -76,6 +76,9 @@ async function main(): Promise<void> {
     case "forget":
       runForget(rest);
       return;
+    case "sync":
+      await runSync(rest);
+      return;
     case "arm-recovery":
       await runArmRecovery(rest);
       return;
@@ -225,6 +228,9 @@ function runNames(): void {
     const owned = entry.ownerPubkey === keystore.ownerPubkey ? "" : "  (owner pubkey differs from this keystore)";
     console.log(`${entry.name}${owned}`);
     console.log(`  ownership ref: ${entry.ownershipRef}`);
+    if (entry.status !== undefined) {
+      console.log(`  status:        ${entry.status}${entry.lastSyncedAt ? ` (synced ${entry.lastSyncedAt})` : ""}`);
+    }
     if (entry.lastValueSequence !== undefined) {
       console.log(`  destination:   seq ${entry.lastValueSequence} (${entry.lastValueRecordHash ?? "?"})`);
     }
@@ -273,6 +279,69 @@ function runForget(args: readonly string[]): void {
     console.log(`stopped tracking "${name}" locally (ownership on Bitcoin is unchanged)`);
   } else {
     console.log(`"${name}" was not tracked`);
+  }
+}
+
+/**
+ * Reconcile tracked names against the resolver: for each name (or all tracked),
+ * adopt the resolver's confirmed ownership ref + status when this wallet owns
+ * it, clearing a provisional pending-claim marker once the claim lands.
+ */
+async function runSync(args: readonly string[]): Promise<void> {
+  const flags = parseFlags(args);
+  const keystore = WalletKeystore.load(keystorePath(), requirePassword());
+  const client = new ResolverClient(resolverUrl(flags.get("resolver")));
+  const state = loadState(keystore.network);
+
+  const onlyName = flags.positionals[0];
+  const targets = onlyName !== undefined ? [onlyName] : state.list().map((entry) => entry.name);
+  if (targets.length === 0) {
+    console.log("no names tracked yet — nothing to sync");
+    return;
+  }
+
+  let changed = false;
+  for (const name of targets) {
+    if (!state.has(name)) {
+      console.log(`${name}: not tracked locally (skipping)`);
+      continue;
+    }
+
+    let record;
+    try {
+      record = await client.getNameRecord(name);
+    } catch (error) {
+      console.log(`${name}: resolver error — ${error instanceof Error ? error.message : String(error)}`);
+      continue;
+    }
+
+    const tracked = state.get(name);
+    if (record === null) {
+      console.log(`${name}: not yet known to ${client.baseUrl}${tracked?.pendingClaim ? " (claim still pending)" : ""}`);
+      continue;
+    }
+
+    if (record.currentOwnerPubkey === keystore.ownerPubkey) {
+      const refChanged = tracked?.ownershipRef !== record.lastStateTxid;
+      const note = tracked?.pendingClaim !== undefined
+        ? " — claim confirmed"
+        : refChanged
+          ? " — ownership ref updated"
+          : "";
+      state.recordSync(name, { ownershipRef: record.lastStateTxid, status: record.status });
+      changed = true;
+      console.log(`${name}: you own it (${record.status})${note}`);
+    } else {
+      console.log(
+        `${name}: now owned by ${record.currentOwnerPubkey} — not this wallet` +
+          `${tracked?.pendingClaim ? " (claim did not win)" : ""}`
+      );
+    }
+  }
+
+  if (changed) {
+    state.save(walletStatePath());
+    console.log(`updated ${walletStatePath()}`);
   }
 }
 
@@ -729,6 +798,7 @@ function printUsage(): void {
   console.log("  names                                  list names this wallet tracks");
   console.log("  track <name> [resolver]                start tracking a name you own");
   console.log("  forget <name>                          stop tracking a name locally");
+  console.log("  sync [name] [--resolver <url>]         reconcile tracked names with the resolver");
   console.log("  arm-recovery <name> <address> [resolver]  arm owner recovery to an address");
   console.log("  claim <name> --amount <n> --fee-sats <n> [--resolver <url>] [--bidder-id <id>]");
   console.log("    or  claim --bid-package <path> --fee-sats <n>");
