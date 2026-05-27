@@ -24,6 +24,13 @@ export interface TrackedRecovery {
   readonly armedAt: string;
 }
 
+export interface PendingClaim {
+  readonly bidTxid: string;
+  readonly bidAmountSats: string;
+  readonly broadcast: boolean;
+  readonly claimedAt: string;
+}
+
 export interface TrackedName {
   readonly name: string;
   readonly ownerPubkey: string;
@@ -33,6 +40,7 @@ export interface TrackedName {
   readonly lastValueSequence?: number;
   readonly lastValueRecordHash?: string;
   readonly recovery?: TrackedRecovery;
+  readonly pendingClaim?: PendingClaim;
 }
 
 interface WalletStateDocument {
@@ -135,6 +143,20 @@ export class WalletState {
       lastValueRecordHash: value.recordHash,
       updatedAt: new Date().toISOString()
     });
+  }
+
+  /**
+   * Record a freshly built/broadcast opening-bid claim. The bid txid is the
+   * provisional on-chain ownership reference until the claim matures.
+   */
+  recordPendingClaim(
+    input: { name: string; ownerPubkey: string },
+    claim: PendingClaim
+  ): TrackedName {
+    const tracked = this.track({ ...input, ownershipRef: claim.bidTxid });
+    const entry: TrackedName = { ...tracked, pendingClaim: claim };
+    this.names.set(entry.name, entry);
+    return entry;
   }
 
   /** Note the recovery descriptor we armed for a name. */

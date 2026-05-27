@@ -19,10 +19,15 @@ cheap-claim Lightning payment.
 - **`wallet-state.ts`** — a local, plaintext cache of the names this wallet tracks (name,
   owner pubkey, on-chain ownership ref, last destination, armed recovery). Convenience, not
   authority: if it's lost, re-derive it from a resolver.
+- **`signer.ts`** — signs the funding (P2WPKH) inputs of an auction-bid PSBT with the
+  keystore's funding key, finalizes, and extracts the broadcastable transaction. The owner
+  key never signs here — it's committed in the bid's OP_RETURN payload.
 - **`lightning.ts`** — the Lightning payment adapter. `LexeSidecarLightningPayer` talks
   to a [Lexe](https://lexe.app) node through its local sidecar REST server
   (`http://localhost:5393`); `StubLightningPayer` is the offline stand-in for dev/tests.
-  The sidecar is language-agnostic, so this is plain HTTP — no Lexe SDK, no enclave.
+  The sidecar is language-agnostic, so this is plain HTTP — no Lexe SDK, no enclave. This
+  is the payment leg of the *cheap batched-claim rail* (designed, not yet live), not of the
+  on-chain auction path below.
 
 ## Run it
 
@@ -38,9 +43,19 @@ ONT_WALLET_PASSWORD=… npm run dev -w @ont/wallet -- names            # names t
 ONT_WALLET_PASSWORD=… npm run dev -w @ont/wallet -- track <name>     # track a name you own
 ONT_WALLET_PASSWORD=… npm run dev -w @ont/wallet -- forget <name>    # stop tracking locally
 ONT_WALLET_PASSWORD=… npm run dev -w @ont/wallet -- arm-recovery <name> <address>
+ONT_WALLET_PASSWORD=… npm run dev -w @ont/wallet -- claim --bid-package <path> \
+    --input <txid:vout:valueSats:address> --fee-sats <n> [--bond-address <a>] \
+    [--change-address <a>] [--bond-vout 0|1]    # build + sign an opening-bid claim
                        npm run dev -w @ont/wallet -- verify <proof.json>
                        npm run dev -w @ont/wallet -- ln-info [baseUrl]   # query a Lexe sidecar
 ```
+
+`claim` consumes a canonical auction-bid-package JSON (the format `@ont/cli`'s
+`create-auction-bid-package` emits), verifies its committed owner pubkey is this wallet's
+owner key, builds the opening-bid PSBT (bond/change default to the funding address), signs
+the funding inputs, and prints a broadcastable transaction — broadcast is left to your own
+node/explorer for now. This is the **on-chain auction path**, the acquisition route that
+works on signet today.
 
 Environment: `ONT_WALLET_KEYSTORE` (default `ont-wallet.json`), `ONT_WALLET_STATE`
 (default `ont-wallet-state.json`), `ONT_WALLET_PASSWORD`, `ONT_WALLET_NETWORK`
@@ -48,11 +63,13 @@ Environment: `ONT_WALLET_KEYSTORE` (default `ont-wallet.json`), `ONT_WALLET_STAT
 
 ## Next
 
-- the unified **claim flow** wiring the existing packages (`@ont/architect` PSBT build →
-  `@ont/cli` signer → `@ont/bitcoin` broadcast → `@ont/consensus` verify), with the
-  Lightning leg going through the adapter above. The on-chain auction-opening-bid is the
-  acquisition path that works on signet today; the cheap batched-claim rail is designed but
-  not yet live.
+- source auction state straight from a resolver's `/experimental-auctions` so `claim` can
+  build its own bid package (instead of taking a pre-built one), and look up funding UTXOs
+  via `/utxo/{txid}/{vout}`.
+- broadcast the signed claim (and transfers) directly — `@ont/bitcoin` / an esplora POST —
+  then verify the resulting ownership via `@ont/consensus`.
+- the **cheap batched-claim rail**: the small ₿1,000 gate paid over Lightning through the
+  adapter above (a natural use-case for a Lexe node). Designed, not yet live.
 - exact Lexe sidecar `pay` request/response schema (confirm against docs.lexe.tech), and
   wiring against a real node.
 

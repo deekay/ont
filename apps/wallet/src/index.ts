@@ -14,10 +14,12 @@
 import { existsSync, readFileSync } from "node:fs";
 import { argv, env, exit } from "node:process";
 
+import { buildAuctionBidArtifacts, parseFundingInputDescriptor } from "@ont/architect";
 import { verifyProofBundle } from "@ont/consensus";
 import {
   computeRecoveryDescriptorHash,
   computeValueRecordHash,
+  parseAuctionBidPackage,
   signRecoveryDescriptor,
   signValueRecord
 } from "@ont/protocol";
@@ -26,6 +28,7 @@ import { isOntNetwork, type OntNetwork } from "./keys.js";
 import { WalletKeystore } from "./keystore.js";
 import { LexeSidecarLightningPayer } from "./lightning.js";
 import { ResolverClient } from "./resolver.js";
+import { signAuctionBidArtifacts } from "./signer.js";
 import { WalletState } from "./wallet-state.js";
 
 const DEFAULT_KEYSTORE_PATH = "ont-wallet.json";
@@ -63,6 +66,9 @@ async function main(): Promise<void> {
       return;
     case "arm-recovery":
       await runArmRecovery(rest);
+      return;
+    case "claim":
+      runClaim(rest);
       return;
     case "verify":
       runVerify(rest[0]);
@@ -184,6 +190,12 @@ function runNames(): void {
           `(${entry.recovery.challengeWindowBlocks}-block window)`
       );
     }
+    if (entry.pendingClaim !== undefined) {
+      console.log(
+        `  pending claim: bid ${entry.pendingClaim.bidAmountSats} base units, txid ${entry.pendingClaim.bidTxid}` +
+          `${entry.pendingClaim.broadcast ? " (broadcast)" : " (not yet broadcast)"}`
+      );
+    }
   }
 }
 
@@ -266,6 +278,79 @@ async function runArmRecovery(args: readonly string[]): Promise<void> {
   state.save(walletStatePath());
 }
 
+function runClaim(args: readonly string[]): void {
+  const flags = parseFlags(args);
+  const bidPackagePath = required(flags.get("bid-package"), "--bid-package");
+  const inputSpecs = flags.getAll("input");
+  if (inputSpecs.length === 0) {
+    throw new Error("at least one --input <txid:vout:valueSats:address> is required to fund the bid");
+  }
+  const feeSats = parseBigIntArg(required(flags.get("fee-sats"), "--fee-sats"), "fee-sats");
+
+  const keystore = WalletKeystore.load(keystorePath(), requirePassword());
+  const bidPackage = parseAuctionBidPackage(
+    JSON.parse(readFileSync(bidPackagePath, "utf8")) as Record<string, unknown>
+  );
+
+  // The bid commits an owner pubkey on-chain; it must be this wallet's owner
+  // key, or the wallet won't control the name it's bidding for.
+  if (bidPackage.ownerPubkey !== keystore.ownerPubkey) {
+    throw new Error(
+      `bid package owner pubkey (${bidPackage.ownerPubkey}) is not this wallet's owner key (${keystore.ownerPubkey})`
+    );
+  }
+  if (bidPackage.previewStatus !== "currently_valid") {
+    console.log(`warning: bid preview status is "${bidPackage.previewStatus}" — ${bidPackage.previewSummary}`);
+  }
+
+  const bondAddress = flags.get("bond-address") ?? keystore.fundingAddress;
+  const changeAddress = flags.get("change-address") ?? keystore.fundingAddress;
+
+  const artifacts = buildAuctionBidArtifacts({
+    bidPackage,
+    fundingInputs: inputSpecs.map(parseFundingInputDescriptor),
+    feeSats,
+    network: keystore.network,
+    bondAddress,
+    changeAddress,
+    ...(flags.has("bond-vout") ? { bondVout: parseByte(flags.get("bond-vout") as string, "bond-vout") } : {})
+  });
+
+  const signed = signAuctionBidArtifacts({
+    artifacts,
+    fundingWif: keystore.fundingWif(),
+    network: keystore.network
+  });
+
+  console.log(`name:         ${bidPackage.name}`);
+  console.log(`bid amount:   ${bidPackage.bidAmountSats} base units`);
+  console.log(`fee:          ${artifacts.feeSats} base units`);
+  console.log(`bond -> ${artifacts.bondAddress} (vout ${artifacts.bondVout})`);
+  console.log(`change:       ${artifacts.changeValueSats} base units -> ${changeAddress}`);
+  console.log(`bid txid:     ${signed.signedTransactionId}`);
+  console.log(`signed ${signed.signedInputCount} input(s); transaction is ready to broadcast.`);
+  console.log("");
+  console.log("signed transaction (hex):");
+  console.log(signed.signedTransactionHex);
+  console.log("");
+  console.log("broadcast it with your own Bitcoin node or a signet explorer, e.g.:");
+  console.log(`  curl -s -X POST -d '${signed.signedTransactionHex}' https://mempool.space/signet/api/tx`);
+
+  const state = loadState(keystore.network);
+  state.recordPendingClaim(
+    { name: bidPackage.name, ownerPubkey: keystore.ownerPubkey },
+    {
+      bidTxid: signed.signedTransactionId,
+      bidAmountSats: bidPackage.bidAmountSats,
+      broadcast: false,
+      claimedAt: new Date().toISOString()
+    }
+  );
+  state.save(walletStatePath());
+  console.log("");
+  console.log(`recorded a pending claim for "${bidPackage.name}" in ${walletStatePath()}`);
+}
+
 function runVerify(path: string | undefined): void {
   const bundle = JSON.parse(readFileSync(required(path, "proof path"), "utf8")) as Record<string, unknown>;
   const report = verifyProofBundle(bundle);
@@ -341,6 +426,50 @@ function parseByte(value: string, label: string): number {
   return parsed;
 }
 
+function parseBigIntArg(value: string, label: string): bigint {
+  if (!/^[0-9]+$/.test(value)) {
+    throw new Error(`${label} must be a non-negative integer`);
+  }
+  return BigInt(value);
+}
+
+interface ParsedFlags {
+  get(key: string): string | undefined;
+  getAll(key: string): readonly string[];
+  has(key: string): boolean;
+  readonly positionals: readonly string[];
+}
+
+/** Minimal `--key value` parser supporting repeated keys (e.g. --input) and bare flags. */
+function parseFlags(args: readonly string[]): ParsedFlags {
+  const values = new Map<string, string[]>();
+  const positionals: string[] = [];
+
+  for (let i = 0; i < args.length; i += 1) {
+    const token = args[i] as string;
+    if (!token.startsWith("--")) {
+      positionals.push(token);
+      continue;
+    }
+    const key = token.slice(2);
+    const next = args[i + 1];
+    if (next === undefined || next.startsWith("--")) {
+      // bare flag (e.g. --broadcast)
+      values.set(key, [...(values.get(key) ?? []), "true"]);
+      continue;
+    }
+    values.set(key, [...(values.get(key) ?? []), next]);
+    i += 1;
+  }
+
+  return {
+    get: (key) => values.get(key)?.at(-1),
+    getAll: (key) => values.get(key) ?? [],
+    has: (key) => values.has(key),
+    positionals
+  };
+}
+
 function decodePayload(payloadHex: string): string {
   const text = Buffer.from(payloadHex, "hex").toString("utf8");
   const roundTrips = Buffer.from(text, "utf8").toString("hex") === payloadHex.toLowerCase();
@@ -364,6 +493,8 @@ function printUsage(): void {
   console.log("  track <name> [resolver]                start tracking a name you own");
   console.log("  forget <name>                          stop tracking a name locally");
   console.log("  arm-recovery <name> <address> [resolver]  arm owner recovery to an address");
+  console.log("  claim --bid-package <path> --input <utxo> --fee-sats <n> [--bond-address <a>]");
+  console.log("        [--change-address <a>] [--bond-vout 0|1]  build+sign an opening-bid claim");
   console.log("  verify <proof.json>                    verify a portable ownership proof");
   console.log("  ln-info [baseUrl]                      query a Lexe sidecar");
   console.log("");
