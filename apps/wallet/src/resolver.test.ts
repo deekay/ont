@@ -76,6 +76,26 @@ describe("ResolverClient", () => {
     expect(mock.mock.calls[0]?.[0]).toBe("http://r/name/alice/recovery");
   });
 
+  it("finds the auction for a name from /experimental-auctions", async () => {
+    const body = JSON.stringify({
+      currentBlockHeight: 200,
+      auctions: [
+        { auctionId: "a1", normalizedName: "alice" },
+        { auctionId: "a2", normalizedName: "satoshi" }
+      ]
+    });
+    const mock = stubFetch({ ok: true, status: 200, body });
+    const auction = await new ResolverClient("http://r").findAuctionForName("Satoshi");
+    expect(auction?.auctionId).toBe("a2");
+    expect(mock.mock.calls[0]?.[0]).toBe("http://r/experimental-auctions");
+  });
+
+  it("returns null when no auction matches the name", async () => {
+    const body = JSON.stringify({ currentBlockHeight: 1, auctions: [{ auctionId: "a1", normalizedName: "alice" }] });
+    stubFetch({ ok: true, status: 200, body });
+    expect(await new ResolverClient("http://r").findAuctionForName("bob")).toBeNull();
+  });
+
   it("POSTs a recovery descriptor to /recovery-descriptors", async () => {
     const mock = stubFetch({ ok: true, status: 201, body: "{}" });
     const client = new ResolverClient("http://r");

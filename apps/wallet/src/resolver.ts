@@ -41,6 +41,30 @@ export interface ResolverRecoveryDescriptor {
   readonly issuedAt: string;
 }
 
+/** A live launch auction as the resolver's /experimental-auctions endpoint reports it. */
+export interface ResolverAuctionState {
+  readonly auctionId: string;
+  readonly normalizedName: string;
+  readonly auctionClassId: string;
+  readonly classLabel: string;
+  readonly currentBlockHeight: number;
+  readonly phase: "pending_unlock" | "awaiting_opening_bid" | "live_bidding" | "soft_close" | "settled";
+  readonly unlockBlock: number;
+  readonly auctionCloseBlockAfter: number | null;
+  readonly openingMinimumBidSats: string;
+  readonly currentLeaderBidderCommitment: string | null;
+  readonly currentHighestBidSats: string | null;
+  readonly currentRequiredMinimumBidSats: string | null;
+  readonly settlementLockBlocks: number;
+  readonly blocksUntilUnlock: number;
+  readonly blocksUntilClose: number | null;
+}
+
+export interface ResolverAuctionsResponse {
+  readonly currentBlockHeight: number;
+  readonly auctions: readonly ResolverAuctionState[];
+}
+
 export class ResolverError extends Error {
   readonly status: number | null;
 
@@ -73,6 +97,22 @@ export class ResolverClient {
     return this.getOrNull<ResolverValueRecord>(
       `/name/${encodeURIComponent(normalizeName(name))}/value`
     );
+  }
+
+  /** All live launch auctions this resolver knows about. */
+  async getExperimentalAuctions(): Promise<ResolverAuctionsResponse> {
+    const result = await this.getOrNull<ResolverAuctionsResponse>("/experimental-auctions");
+    if (result === null) {
+      throw new ResolverError(`resolver at ${this.baseUrl} has no experimental-auctions endpoint`, 404);
+    }
+    return result;
+  }
+
+  /** The live auction for a name, or null if this resolver isn't running one. */
+  async findAuctionForName(name: string): Promise<ResolverAuctionState | null> {
+    const normalized = normalizeName(name);
+    const { auctions } = await this.getExperimentalAuctions();
+    return auctions.find((auction) => auction.normalizedName === normalized) ?? null;
   }
 
   /** Current owner-armed recovery descriptor, or null if none has been published. */

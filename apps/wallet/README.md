@@ -59,9 +59,10 @@ ONT_WALLET_PASSWORD=… npm run dev -w @ont/wallet -- names            # names t
 ONT_WALLET_PASSWORD=… npm run dev -w @ont/wallet -- track <name>     # track a name you own
 ONT_WALLET_PASSWORD=… npm run dev -w @ont/wallet -- forget <name>    # stop tracking locally
 ONT_WALLET_PASSWORD=… npm run dev -w @ont/wallet -- arm-recovery <name> <address>
-ONT_WALLET_PASSWORD=… npm run dev -w @ont/wallet -- claim --bid-package <path> \
-    --input <txid:vout:valueSats:address> --fee-sats <n> [--bond-address <a>] \
-    [--change-address <a>] [--bond-vout 0|1]    # build + sign an opening-bid claim
+ONT_WALLET_PASSWORD=… npm run dev -w @ont/wallet -- claim <name> --amount <n> --fee-sats <n> \
+    [--resolver <url>] [--bidder-id <id>]       # claim from a resolver's live auction
+ONT_WALLET_PASSWORD=… npm run dev -w @ont/wallet -- claim --bid-package <path> --fee-sats <n> \
+    [--input <txid:vout:valueSats:address>]     # claim from a pre-built bid package
 ONT_WALLET_PASSWORD=… npm run dev -w @ont/wallet -- transfer <name> --to <pubkey> \
     --prev-state-txid <txid> --bond-input <utxo> --successor-bond-sats <n> \
     --successor-bond-vout <0|1> --fee-sats <n> [--input <utxo>]    # build + sign a transfer
@@ -69,11 +70,13 @@ ONT_WALLET_PASSWORD=… npm run dev -w @ont/wallet -- transfer <name> --to <pubk
                        npm run dev -w @ont/wallet -- ln-info [baseUrl]   # query a Lexe sidecar
 ```
 
-`claim` consumes a canonical auction-bid-package JSON (the format `@ont/cli`'s
-`create-auction-bid-package` emits), verifies its committed owner pubkey is this wallet's
-owner key, builds the opening-bid PSBT (bond/change default to the funding address), signs
-the funding inputs, and prints a broadcastable transaction. This is the **on-chain auction
-path**, the acquisition route that works on signet today.
+`claim <name> --amount <n>` fetches the live auction from a resolver's `/experimental-auctions`
+and builds the bid package for you, committing this wallet's owner key. (You can still pass a
+pre-built `--bid-package` JSON — the format `@ont/cli`'s `create-auction-bid-package` emits —
+for offline use; the committed owner pubkey is checked against the keystore.) Either way it
+builds the opening-bid PSBT (bond/change default to the funding address), signs the funding
+inputs, and prints a broadcastable transaction. This is the **on-chain auction path**, the
+acquisition route that works on signet today.
 
 When `--input` is omitted, `claim` auto-funds from the wallet's funding address by querying
 its UTXOs over the same Esplora API (`balance` shows them). `claim` and `transfer` build and
@@ -87,11 +90,8 @@ Environment: `ONT_WALLET_KEYSTORE` (default `ont-wallet.json`), `ONT_WALLET_STAT
 
 ## Next
 
-- source auction state straight from a resolver's `/experimental-auctions` so `claim` can
-  build its own bid package (instead of taking a pre-built one), and look up funding UTXOs
-  via `/utxo/{txid}/{vout}`.
-- broadcast the signed claim (and transfers) directly — `@ont/bitcoin` / an esplora POST —
-  then verify the resulting ownership via `@ont/consensus`.
+- watch a pending claim to maturity (poll the resolver) and reconcile the local
+  ownership ref once it confirms, then assemble a portable proof bundle to `verify`.
 - the **cheap batched-claim rail**: the small ₿1,000 gate paid over Lightning through the
   adapter above (a natural use-case for a Lexe node). Designed, not yet live.
 - exact Lexe sidecar `pay` request/response schema (confirm against docs.lexe.tech), and

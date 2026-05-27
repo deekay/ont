@@ -22,6 +22,7 @@ import {
 } from "@ont/architect";
 import { verifyProofBundle } from "@ont/consensus";
 import {
+  type AuctionBidPackage,
   computeRecoveryDescriptorHash,
   computeValueRecordHash,
   parseAuctionBidPackage,
@@ -29,6 +30,7 @@ import {
   signValueRecord
 } from "@ont/protocol";
 
+import { bidPackageFromAuction } from "./bid-package.js";
 import { BroadcastClient, resolveBroadcastBaseUrl } from "./broadcast.js";
 import { isOntNetwork, type OntNetwork } from "./keys.js";
 import { WalletKeystore } from "./keystore.js";
@@ -317,18 +319,42 @@ async function runArmRecovery(args: readonly string[]): Promise<void> {
   state.save(walletStatePath());
 }
 
+/**
+ * The auction bid package to claim: either a hand-built `--bid-package` JSON
+ * (offline path), or one built from a resolver's live auction state for
+ * `claim <name> --amount <n>`.
+ */
+async function resolveBidPackage(flags: ParsedFlags, keystore: WalletKeystore): Promise<AuctionBidPackage> {
+  const bidPackagePath = flags.get("bid-package");
+  if (bidPackagePath !== undefined) {
+    return parseAuctionBidPackage(JSON.parse(readFileSync(bidPackagePath, "utf8")) as Record<string, unknown>);
+  }
+
+  const name = required(flags.positionals[0], "name (or --bid-package <path>)");
+  const bidAmountSats = parseBigIntArg(required(flags.get("amount"), "--amount"), "amount");
+  const client = new ResolverClient(resolverUrl(flags.get("resolver")));
+  const auction = await client.findAuctionForName(name);
+  if (auction === null) {
+    throw new Error(`no live auction for "${name}" at ${client.baseUrl} (check the name, or pass --bid-package)`);
+  }
+  console.log(`found auction ${auction.auctionId} for "${auction.normalizedName}" (phase ${auction.phase}) at ${client.baseUrl}`);
+  return bidPackageFromAuction(auction, {
+    ownerPubkey: keystore.ownerPubkey,
+    bidderId: flags.get("bidder-id") ?? keystore.ownerPubkey,
+    bidAmountSats
+  });
+}
+
 async function runClaim(args: readonly string[]): Promise<void> {
   const flags = parseFlags(args);
-  const bidPackagePath = required(flags.get("bid-package"), "--bid-package");
   const feeSats = parseBigIntArg(required(flags.get("fee-sats"), "--fee-sats"), "fee-sats");
 
   const keystore = WalletKeystore.load(keystorePath(), requirePassword());
-  const bidPackage = parseAuctionBidPackage(
-    JSON.parse(readFileSync(bidPackagePath, "utf8")) as Record<string, unknown>
-  );
+  const bidPackage = await resolveBidPackage(flags, keystore);
 
   // The bid commits an owner pubkey on-chain; it must be this wallet's owner
-  // key, or the wallet won't control the name it's bidding for.
+  // key, or the wallet won't control the name it's bidding for. (Always true on
+  // the resolver path, which sets it; this guards a hand-built --bid-package.)
   if (bidPackage.ownerPubkey !== keystore.ownerPubkey) {
     throw new Error(
       `bid package owner pubkey (${bidPackage.ownerPubkey}) is not this wallet's owner key (${keystore.ownerPubkey})`
@@ -665,9 +691,10 @@ function printUsage(): void {
   console.log("  track <name> [resolver]                start tracking a name you own");
   console.log("  forget <name>                          stop tracking a name locally");
   console.log("  arm-recovery <name> <address> [resolver]  arm owner recovery to an address");
-  console.log("  claim --bid-package <path> --fee-sats <n> [--input <utxo>] [--bond-address <a>]");
-  console.log("        [--change-address <a>] [--bond-vout 0|1]  build+sign an opening-bid claim");
-  console.log("        (auto-funds from the funding address when --input is omitted)");
+  console.log("  claim <name> --amount <n> --fee-sats <n> [--resolver <url>] [--bidder-id <id>]");
+  console.log("    or  claim --bid-package <path> --fee-sats <n>");
+  console.log("        [--input <utxo>] [--bond-address <a>] [--change-address <a>] [--bond-vout 0|1]");
+  console.log("        build+sign an opening-bid claim (auto-funds when --input is omitted)");
   console.log("  transfer <name> --to <pubkey> --prev-state-txid <txid> --bond-input <utxo>");
   console.log("        --successor-bond-sats <n> --successor-bond-vout <0|1> --fee-sats <n>");
   console.log("        [--input <utxo>] [--bond-address <a>] [--change-address <a>]  build+sign a transfer");
