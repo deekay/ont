@@ -29,6 +29,15 @@ cheap-claim Lightning payment.
   is the payment leg of the *cheap batched-claim rail* (designed, not yet live), not of the
   on-chain auction path below.
 
+## Try it
+
+```sh
+npm run demo -w @ont/wallet
+```
+
+walks the self-contained lifecycle on regtest (create keystore → build a bid package →
+build + sign an on-chain opening-bid claim → show tracked state) with no external services.
+
 ## Run it
 
 Run from source with `tsx` via the workspace `dev` script:

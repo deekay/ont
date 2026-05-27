@@ -9,6 +9,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "dev": "tsx src/index.ts",
+    "demo": "node scripts/demo.mjs",
     "test": "npm run build -w @ont/protocol && npm run build -w @ont/consensus && npm run build -w @ont/architect && vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
