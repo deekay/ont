@@ -9,6 +9,36 @@ Status: direction note, 2026-05-25. Captures a design conversation; decisions he
 
 ---
 
+## 0. What exists today (`apps/wallet`, updated 2026-05-27)
+
+A runnable reference client now exists as a TypeScript CLI (`@ont/wallet`), assembling the
+existing `@ont/*` packages. It is a prototype on signet/regtest, **not a mainnet wallet**, and
+it deliberately tracks the architecture below rather than getting ahead of it.
+
+- **Keys & custody split (§2 shape):** an on-device, password-encrypted keystore (AES-256-GCM
+  + scrypt) holds the **owner key** (controls the name) and a separate **funding key** (pays
+  fees/bonds). The owner key is generated locally and never derived from a Lightning credential.
+- **The lifecycle, build + sign locally:** `claim` (the on-chain opening-bid acquisition path —
+  sources live auction state from a resolver's `/experimental-auctions`, or takes a pre-built
+  bid package; auto-funds from the funding address; verifies the bid commits *this* wallet's
+  owner key), `transfer`, `set-destination` (owner-signed value records), `arm-recovery`
+  (owner-armed recovery descriptors). Plus `lookup`, `names`/`track`/`forget`, `balance`,
+  `verify` (portable proof bundles), and a one-command `demo`.
+- **Network I/O is opt-in and replaceable:** reads/publishes against any resolver (no authority
+  granted to it); broadcasts only with `--broadcast`, via an Esplora API (mempool.space by
+  default, your own node via `ONT_BROADCAST_URL`).
+- **The Lexe leg (§5):** `pay` sends a Lightning payment through a Lexe node's local sidecar
+  (plain HTTP, no SDK/enclave); `--stub` is an offline dry-run. This is the concrete integration
+  point — the payment leg the cheap batched-claim rail will use.
+
+**Honest gaps / tradeoffs:** it's a CLI, not the native-mobile app §4 envisions (no secure
+enclave yet); the **cheap batched-claim rail isn't wired end-to-end** — the live acquisition
+route is the on-chain auction path, and `pay` demonstrates the LN leg but isn't yet joined to a
+claim; proof-bundle *assembly* (vs. verification) and pending-claim maturity reconciliation are
+still to come. Everything here is the mutable client layer; the consensus core is untouched.
+
+---
+
 ## 1. Should ONT provide a default wallet? Yes — it's close to necessary
 
 Two things force it:
