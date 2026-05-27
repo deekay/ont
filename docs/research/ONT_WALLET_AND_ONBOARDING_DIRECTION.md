@@ -49,6 +49,11 @@ Rust + sidecar REST SDKs).
 - **Relationship to Lexe: build-on-top + upstream PRs, _not_ a fork.** Forking means inheriting their
   enclave + node code *and running your own enclave hosting* (losing their meganode hosting) and
   diverging forever. Contribute any missing primitives upstream; let Lexe be the flagship integrator.
+- **Preferred integration path (engagement status, 2026-05):** the hope is Lexe ships ONT as a
+  first-class entry in its app (an "ONT" tab), with us building the integration and submitting it to
+  merge. Fallback: an independent reference app, likely still built on Lexe's open-source node. This
+  depends on Lexe's appetite, which is still open — early conversations are encouraging (their founder
+  has engaged on the design), but nothing is committed.
 
 ### Key-custody split (the load-bearing rule)
 

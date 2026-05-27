@@ -5,6 +5,12 @@ This note captures the current launch direction in one place.
 It is not a final protocol freeze. It is the current working posture after
 moving away from the older two-lane / reserved-list design.
 
+> Framing note: where this doc says "universal auction" / "every valid name can be opened by a bonded
+> bid," read that as the **contested path** of the unified claim→escalate model in
+> [`../ONT.md`](../ONT.md): a name is claimed for a small fixed fee (₿1,000, ~$1), and a *contested*
+> name escalates to the bonded auction described here. The auction mechanics are unchanged; what
+> changed is that the common, uncontested case is a cheap claim rather than an auction.
+
 Related notes:
 
 - [UNIVERSAL_AUCTION_LAUNCH_MODEL.md](./UNIVERSAL_AUCTION_LAUNCH_MODEL.md)
@@ -142,6 +148,65 @@ The new model leaves a better set of open questions:
 - how auction openings and bids should be batched for blockspace efficiency
 - how to present uncontested auctions so normal users understand the low-drama
   path without implying a separate direct-allocation lane
+
+## Test → Launch, And Who Runs The Bootstrap Infra
+
+This separates what is running as a **test** today from what is **planned for launch**, and sketches
+who runs the supporting infrastructure. It is a plan, not a schedule or a freeze.
+
+### Now (test)
+
+ONT runs on **signet**, a Bitcoin test network. This is a prototype to settle the design and measure
+the numbers, not a live system. What the signet prototype exercises and measures is in
+[`../design/ONT_SIGNET_PROTOTYPE_SCOPE.md`](../design/ONT_SIGNET_PROTOTYPE_SCOPE.md). Treat anything on
+signet as "what works today," not as a mainnet commitment.
+
+### Launch (mainnet cutover)
+
+The intent is to cut over to **Bitcoin mainnet** eventually. This is **not soon**, and it is gated on
+the open items rather than a date:
+
+- the at-scale numbers confirmed — proof sizes, merge throughput, anchor costs at 10^8–10^9 names (the
+  R11 / signet measurement work)
+- the data-availability windows pinned and the availability-marker transaction specced
+- a live end-to-end broadcast on signet
+- outside review (Bitcoin / Lightning experts)
+
+Until those clear, signet stays the live environment and mainnet is the destination, not the current
+state.
+
+### The bootstrap-infra map (who runs what)
+
+Three supporting roles, **none of which hold authority over names** — ownership is decided by Bitcoin
+plus the rules, so these are infrastructure, not control:
+
+| Role | What it does | Who runs it |
+| --- | --- | --- |
+| **Resolver / archive** | stores batch data, serves lookups (1-of-N: any honest copy works) | project to start; over time professional orgs and institutions that already run Bitcoin infra, plus a long tail of independents |
+| **Publisher** | batches claims, writes the commitment to Bitcoin | project to start (seeds liveness); permissionless, so wallets/apps and others over time |
+| **Reference app / wallet** | the ONT-aware client (holds the owner key, builds claims, verifies) | project to start, ideally on a Lexe-style node — see below |
+
+Resource needs are modest: store plus some compute, closer to running an Electrum server or a
+block-explorer backend than a hyperscale operation (rough order: a small VPS at launch scale,
+low-single-digit TB at a billion names). The low bar is deliberate — it keeps the resolver set a broad
+1-of-N rather than a few large operators.
+
+The bootstrap posture: the project stands up the first resolver, publisher, and reference app to get
+the network going, but every piece is **replaceable and permissionless from day one**, and the goal is
+for others to run their own (a bootstrap operator that sunsets as the ecosystem fills in). ONT never
+depends on the project's infra — correctness always checks against Bitcoin, and any user can self-claim
+directly on L1 if no publisher will take them. Big orgs running resolvers is healthy (more honest
+archives strengthens the 1-of-N data-availability assumption) precisely because they get no power over
+ownership.
+
+### Reference app / Lexe
+
+The reference client is needed regardless, since it ships the ONT-aware logic. The architecture and
+key-custody plan live in
+[`../research/ONT_WALLET_AND_ONBOARDING_DIRECTION.md`](../research/ONT_WALLET_AND_ONBOARDING_DIRECTION.md).
+Preferred path: **Lexe integrates ONT** (e.g. an "ONT" entry in its app), with us building the
+integration and submitting it to merge. Fallback: an independent reference app, likely still on Lexe's
+open-source node. Depends on Lexe's appetite, which is still open.
 
 ## Current Best Summary
 
