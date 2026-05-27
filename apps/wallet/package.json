@@ -1,0 +1,21 @@
+{
+  "name": "@ont/wallet",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "ont-wallet": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx src/index.ts",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "tiny-secp256k1": "^2.2.4"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.4"
+  }
+}
