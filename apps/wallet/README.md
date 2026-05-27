@@ -19,9 +19,10 @@ cheap-claim Lightning payment.
 - **`wallet-state.ts`** — a local, plaintext cache of the names this wallet tracks (name,
   owner pubkey, on-chain ownership ref, last destination, armed recovery). Convenience, not
   authority: if it's lost, re-derive it from a resolver.
-- **`signer.ts`** — signs the funding (P2WPKH) inputs of an auction-bid PSBT with the
-  keystore's funding key, finalizes, and extracts the broadcastable transaction. The owner
-  key never signs here — it's committed in the bid's OP_RETURN payload.
+- **`signer.ts`** — signs the funding (P2WPKH) inputs of an auction-bid or transfer PSBT
+  with the keystore's funding key, finalizes, and extracts the broadcastable transaction.
+  The owner key never signs an *input* here — it's committed in the OP_RETURN payload (for a
+  transfer, that's the owner-signed authorization built by `@ont/architect`).
 - **`lightning.ts`** — the Lightning payment adapter. `LexeSidecarLightningPayer` talks
   to a [Lexe](https://lexe.app) node through its local sidecar REST server
   (`http://localhost:5393`); `StubLightningPayer` is the offline stand-in for dev/tests.
@@ -55,6 +56,9 @@ ONT_WALLET_PASSWORD=… npm run dev -w @ont/wallet -- arm-recovery <name> <addre
 ONT_WALLET_PASSWORD=… npm run dev -w @ont/wallet -- claim --bid-package <path> \
     --input <txid:vout:valueSats:address> --fee-sats <n> [--bond-address <a>] \
     [--change-address <a>] [--bond-vout 0|1]    # build + sign an opening-bid claim
+ONT_WALLET_PASSWORD=… npm run dev -w @ont/wallet -- transfer <name> --to <pubkey> \
+    --prev-state-txid <txid> --bond-input <utxo> --successor-bond-sats <n> \
+    --successor-bond-vout <0|1> --fee-sats <n> [--input <utxo>]    # build + sign a transfer
                        npm run dev -w @ont/wallet -- verify <proof.json>
                        npm run dev -w @ont/wallet -- ln-info [baseUrl]   # query a Lexe sidecar
 ```

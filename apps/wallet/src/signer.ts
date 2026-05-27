@@ -6,7 +6,7 @@
 // funding spend (bid amount + fee + bond), so it deliberately supports only
 // P2WPKH inputs, the kind our funding address produces.
 
-import type { AuctionBidArtifacts } from "@ont/architect";
+import type { AuctionBidArtifacts, TransferArtifacts } from "@ont/architect";
 import { initEccLib, Psbt } from "bitcoinjs-lib";
 import ECPairFactory from "ecpair";
 import * as tinysecp from "tiny-secp256k1";
@@ -30,17 +30,20 @@ export class SignerError extends Error {
 }
 
 /**
- * Sign every P2WPKH input of an auction-bid PSBT with the funding WIF, finalize,
- * and extract the broadcastable transaction. Throws if any input is a type we
- * don't support or if the funding key doesn't match an input.
+ * Sign every P2WPKH input of a PSBT with the funding WIF, finalize, and extract
+ * the broadcastable transaction. Throws if any input is a type we don't support
+ * or if the funding key doesn't match an input. When `expectedTxid` is given,
+ * verifies the signed transaction matches the unsigned artifact's txid.
  */
-export function signAuctionBidArtifacts(input: {
-  readonly artifacts: AuctionBidArtifacts;
+function signFundingInputs(input: {
+  readonly psbtBase64: string;
   readonly fundingWif: string;
   readonly network: OntNetwork;
+  readonly expectedTxid?: string;
+  readonly label: string;
 }): SignedBidTransaction {
   const network = toBitcoinjsNetwork(input.network);
-  const psbt = Psbt.fromBase64(input.artifacts.psbtBase64, { network });
+  const psbt = Psbt.fromBase64(input.psbtBase64, { network });
   const keyPair = ECPair.fromWIF(input.fundingWif, network);
 
   let signedInputCount = 0;
@@ -59,15 +62,15 @@ export function signAuctionBidArtifacts(input: {
   }
 
   if (signedInputCount === 0) {
-    throw new SignerError("auction-bid PSBT had no inputs to sign");
+    throw new SignerError(`${input.label} PSBT had no inputs to sign`);
   }
 
   psbt.finalizeAllInputs();
   const transaction = psbt.extractTransaction(true);
   const signedTransactionId = transaction.getId();
 
-  if (input.artifacts.bidTxid && input.artifacts.bidTxid !== signedTransactionId) {
-    throw new SignerError("signed auction-bid txid does not match the unsigned artifact");
+  if (input.expectedTxid && input.expectedTxid !== signedTransactionId) {
+    throw new SignerError(`signed ${input.label} txid does not match the unsigned artifact`);
   }
 
   return {
@@ -75,4 +78,38 @@ export function signAuctionBidArtifacts(input: {
     signedTransactionId,
     signedInputCount
   };
+}
+
+/** Sign the funding inputs of an auction opening-bid. */
+export function signAuctionBidArtifacts(input: {
+  readonly artifacts: AuctionBidArtifacts;
+  readonly fundingWif: string;
+  readonly network: OntNetwork;
+}): SignedBidTransaction {
+  return signFundingInputs({
+    psbtBase64: input.artifacts.psbtBase64,
+    fundingWif: input.fundingWif,
+    network: input.network,
+    ...(input.artifacts.bidTxid ? { expectedTxid: input.artifacts.bidTxid } : {}),
+    label: "auction-bid"
+  });
+}
+
+/**
+ * Sign the funding inputs of a transfer. The owner authorization is already
+ * committed in the transfer's OP_RETURN payload (signed by the owner key inside
+ * @ont/architect); this only authorizes the on-chain bond/funding spend.
+ */
+export function signTransferArtifacts(input: {
+  readonly artifacts: TransferArtifacts;
+  readonly fundingWif: string;
+  readonly network: OntNetwork;
+}): SignedBidTransaction {
+  return signFundingInputs({
+    psbtBase64: input.artifacts.psbtBase64,
+    fundingWif: input.fundingWif,
+    network: input.network,
+    ...(input.artifacts.transferTxid ? { expectedTxid: input.artifacts.transferTxid } : {}),
+    label: "transfer"
+  });
 }

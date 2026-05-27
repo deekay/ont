@@ -1,9 +1,13 @@
-import { buildAuctionBidArtifacts, parseFundingInputDescriptor } from "@ont/architect";
+import {
+  buildAuctionBidArtifacts,
+  buildTransferArtifacts,
+  parseFundingInputDescriptor
+} from "@ont/architect";
 import { createAuctionBidPackage } from "@ont/protocol";
 import { describe, expect, it } from "vitest";
 
 import { generateFundingKey, generateOwnerKey, type OntNetwork } from "./keys.js";
-import { signAuctionBidArtifacts, SignerError } from "./signer.js";
+import { signAuctionBidArtifacts, signTransferArtifacts, SignerError } from "./signer.js";
 
 const NETWORK: OntNetwork = "regtest";
 
@@ -64,5 +68,36 @@ describe("signAuctionBidArtifacts", () => {
         network: NETWORK
       })
     ).toThrow(SignerError);
+  });
+});
+
+describe("signTransferArtifacts", () => {
+  it("signs the bond input and extracts a transaction matching the unsigned txid", () => {
+    const owner = generateOwnerKey();
+    const funding = generateFundingKey(NETWORK);
+    const newOwner = generateOwnerKey();
+
+    const artifacts = buildTransferArtifacts({
+      prevStateTxid: "22".repeat(32),
+      ownerPrivateKeyHex: owner.ownerPrivateKeyHex,
+      newOwnerPubkey: newOwner.ownerPubkey,
+      successorBondVout: 0,
+      successorBondSats: 10_000n,
+      currentBondInput: parseFundingInputDescriptor(`${"33".repeat(32)}:0:50000:${funding.fundingAddress}`),
+      feeSats: 500n,
+      network: NETWORK,
+      bondAddress: funding.fundingAddress,
+      changeAddress: funding.fundingAddress
+    });
+
+    const signed = signTransferArtifacts({
+      artifacts,
+      fundingWif: funding.fundingWif,
+      network: NETWORK
+    });
+
+    expect(signed.signedInputCount).toBe(1);
+    expect(signed.signedTransactionId).toBe(artifacts.transferTxid);
+    expect(signed.signedTransactionHex).toMatch(/^[0-9a-f]+$/);
   });
 });

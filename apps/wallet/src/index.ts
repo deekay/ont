@@ -3,9 +3,9 @@
 // A CLI that assembles the existing @ont/* packages into a wallet flow:
 //  - an on-device encrypted keystore (owner + funding keys)
 //  - resolver lookups and owner-signed destination (value) records
+//  - on-chain opening-bid claims and transfers (build + sign)
 //  - portable proof verification
 //  - a Lexe sidecar adapter for the (future) cheap-claim Lightning payment
-// The on-chain claim flow is being added next.
 //
 // Keystore path comes from ONT_WALLET_KEYSTORE (default ont-wallet.json),
 // password from ONT_WALLET_PASSWORD, network from ONT_WALLET_NETWORK,
@@ -14,7 +14,11 @@
 import { existsSync, readFileSync } from "node:fs";
 import { argv, env, exit } from "node:process";
 
-import { buildAuctionBidArtifacts, parseFundingInputDescriptor } from "@ont/architect";
+import {
+  buildAuctionBidArtifacts,
+  buildTransferArtifacts,
+  parseFundingInputDescriptor
+} from "@ont/architect";
 import { verifyProofBundle } from "@ont/consensus";
 import {
   computeRecoveryDescriptorHash,
@@ -28,7 +32,7 @@ import { isOntNetwork, type OntNetwork } from "./keys.js";
 import { WalletKeystore } from "./keystore.js";
 import { LexeSidecarLightningPayer } from "./lightning.js";
 import { ResolverClient } from "./resolver.js";
-import { signAuctionBidArtifacts } from "./signer.js";
+import { signAuctionBidArtifacts, signTransferArtifacts } from "./signer.js";
 import { WalletState } from "./wallet-state.js";
 
 const DEFAULT_KEYSTORE_PATH = "ont-wallet.json";
@@ -69,6 +73,9 @@ async function main(): Promise<void> {
       return;
     case "claim":
       runClaim(rest);
+      return;
+    case "transfer":
+      runTransfer(rest);
       return;
     case "verify":
       runVerify(rest[0]);
@@ -351,6 +358,65 @@ function runClaim(args: readonly string[]): void {
   console.log(`recorded a pending claim for "${bidPackage.name}" in ${walletStatePath()}`);
 }
 
+function runTransfer(args: readonly string[]): void {
+  const flags = parseFlags(args);
+  const name = required(flags.positionals[0], "name");
+  const newOwnerPubkey = required(flags.get("to"), "--to (new owner pubkey)");
+  const prevStateTxid = required(flags.get("prev-state-txid"), "--prev-state-txid");
+  const bondInputSpec = required(flags.get("bond-input"), "--bond-input");
+  const successorBondSats = parseBigIntArg(
+    required(flags.get("successor-bond-sats"), "--successor-bond-sats"),
+    "successor-bond-sats"
+  );
+  const successorBondVout = parseByte(
+    required(flags.get("successor-bond-vout"), "--successor-bond-vout"),
+    "successor-bond-vout"
+  );
+  const feeSats = parseBigIntArg(required(flags.get("fee-sats"), "--fee-sats"), "fee-sats");
+
+  const keystore = WalletKeystore.load(keystorePath(), requirePassword());
+  if (newOwnerPubkey === keystore.ownerPubkey) {
+    throw new Error("--to is this wallet's own owner key; a transfer must hand the name to a different key");
+  }
+
+  const bondAddress = flags.get("bond-address") ?? keystore.fundingAddress;
+  const changeAddress = flags.get("change-address") ?? keystore.fundingAddress;
+
+  const artifacts = buildTransferArtifacts({
+    prevStateTxid,
+    ownerPrivateKeyHex: keystore.ownerPrivateKeyHex(),
+    newOwnerPubkey,
+    successorBondVout,
+    successorBondSats,
+    currentBondInput: parseFundingInputDescriptor(bondInputSpec),
+    additionalFundingInputs: flags.getAll("input").map(parseFundingInputDescriptor),
+    feeSats,
+    network: keystore.network,
+    bondAddress,
+    changeAddress
+  });
+
+  const signed = signTransferArtifacts({
+    artifacts,
+    fundingWif: keystore.fundingWif(),
+    network: keystore.network
+  });
+
+  console.log(`name:           ${name}`);
+  console.log(`new owner:      ${newOwnerPubkey}`);
+  console.log(`successor bond: ${successorBondSats} base units -> ${bondAddress} (vout ${successorBondVout})`);
+  console.log(`fee:            ${artifacts.feeSats} base units`);
+  console.log(`change:         ${artifacts.changeValueSats} base units -> ${changeAddress}`);
+  console.log(`transfer txid:  ${signed.signedTransactionId}`);
+  console.log(`signed ${signed.signedInputCount} input(s); transaction is ready to broadcast.`);
+  console.log("");
+  console.log("signed transaction (hex):");
+  console.log(signed.signedTransactionHex);
+  console.log("");
+  console.log(`once this confirms, "${name}" belongs to ${newOwnerPubkey}.`);
+  console.log(`this wallet keeps tracking it until you run: forget ${name}`);
+}
+
 function runVerify(path: string | undefined): void {
   const bundle = JSON.parse(readFileSync(required(path, "proof path"), "utf8")) as Record<string, unknown>;
   const report = verifyProofBundle(bundle);
@@ -495,6 +561,9 @@ function printUsage(): void {
   console.log("  arm-recovery <name> <address> [resolver]  arm owner recovery to an address");
   console.log("  claim --bid-package <path> --input <utxo> --fee-sats <n> [--bond-address <a>]");
   console.log("        [--change-address <a>] [--bond-vout 0|1]  build+sign an opening-bid claim");
+  console.log("  transfer <name> --to <pubkey> --prev-state-txid <txid> --bond-input <utxo>");
+  console.log("        --successor-bond-sats <n> --successor-bond-vout <0|1> --fee-sats <n>");
+  console.log("        [--input <utxo>] [--bond-address <a>] [--change-address <a>]  build+sign a transfer");
   console.log("  verify <proof.json>                    verify a portable ownership proof");
   console.log("  ln-info [baseUrl]                      query a Lexe sidecar");
   console.log("");
