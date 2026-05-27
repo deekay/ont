@@ -23,6 +23,9 @@ cheap-claim Lightning payment.
   with the keystore's funding key, finalizes, and extracts the broadcastable transaction.
   The owner key never signs an *input* here — it's committed in the OP_RETURN payload (for a
   transfer, that's the owner-signed authorization built by `@ont/architect`).
+- **`broadcast.ts`** — opt-in push of a signed transaction to an Esplora-style API
+  (mempool.space by default; your own node via `ONT_BROADCAST_URL`). The only place the
+  wallet sends bytes to the network, and never without `--broadcast`.
 - **`lightning.ts`** — the Lightning payment adapter. `LexeSidecarLightningPayer` talks
   to a [Lexe](https://lexe.app) node through its local sidecar REST server
   (`http://localhost:5393`); `StubLightningPayer` is the offline stand-in for dev/tests.
@@ -66,9 +69,12 @@ ONT_WALLET_PASSWORD=… npm run dev -w @ont/wallet -- transfer <name> --to <pubk
 `claim` consumes a canonical auction-bid-package JSON (the format `@ont/cli`'s
 `create-auction-bid-package` emits), verifies its committed owner pubkey is this wallet's
 owner key, builds the opening-bid PSBT (bond/change default to the funding address), signs
-the funding inputs, and prints a broadcastable transaction — broadcast is left to your own
-node/explorer for now. This is the **on-chain auction path**, the acquisition route that
-works on signet today.
+the funding inputs, and prints a broadcastable transaction. This is the **on-chain auction
+path**, the acquisition route that works on signet today.
+
+`claim` and `transfer` build and sign locally and only send when you pass `--broadcast`.
+Broadcasting uses an Esplora-style API (mempool.space by default for signet/testnet/mainnet;
+set `ONT_BROADCAST_URL` or `--broadcast-url` for your own node, required on regtest).
 
 Environment: `ONT_WALLET_KEYSTORE` (default `ont-wallet.json`), `ONT_WALLET_STATE`
 (default `ont-wallet-state.json`), `ONT_WALLET_PASSWORD`, `ONT_WALLET_NETWORK`

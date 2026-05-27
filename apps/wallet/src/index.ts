@@ -28,6 +28,7 @@ import {
   signValueRecord
 } from "@ont/protocol";
 
+import { BroadcastClient, resolveBroadcastBaseUrl } from "./broadcast.js";
 import { isOntNetwork, type OntNetwork } from "./keys.js";
 import { WalletKeystore } from "./keystore.js";
 import { LexeSidecarLightningPayer } from "./lightning.js";
@@ -72,10 +73,10 @@ async function main(): Promise<void> {
       await runArmRecovery(rest);
       return;
     case "claim":
-      runClaim(rest);
+      await runClaim(rest);
       return;
     case "transfer":
-      runTransfer(rest);
+      await runTransfer(rest);
       return;
     case "verify":
       runVerify(rest[0]);
@@ -285,7 +286,7 @@ async function runArmRecovery(args: readonly string[]): Promise<void> {
   state.save(walletStatePath());
 }
 
-function runClaim(args: readonly string[]): void {
+async function runClaim(args: readonly string[]): Promise<void> {
   const flags = parseFlags(args);
   const bidPackagePath = required(flags.get("bid-package"), "--bid-package");
   const inputSpecs = flags.getAll("input");
@@ -339,9 +340,13 @@ function runClaim(args: readonly string[]): void {
   console.log("");
   console.log("signed transaction (hex):");
   console.log(signed.signedTransactionHex);
-  console.log("");
-  console.log("broadcast it with your own Bitcoin node or a signet explorer, e.g.:");
-  console.log(`  curl -s -X POST -d '${signed.signedTransactionHex}' https://mempool.space/signet/api/tx`);
+
+  const broadcasted = await maybeBroadcast({
+    flags,
+    network: keystore.network,
+    signedTransactionHex: signed.signedTransactionHex,
+    expectedTxid: signed.signedTransactionId
+  });
 
   const state = loadState(keystore.network);
   state.recordPendingClaim(
@@ -349,7 +354,7 @@ function runClaim(args: readonly string[]): void {
     {
       bidTxid: signed.signedTransactionId,
       bidAmountSats: bidPackage.bidAmountSats,
-      broadcast: false,
+      broadcast: broadcasted,
       claimedAt: new Date().toISOString()
     }
   );
@@ -358,7 +363,7 @@ function runClaim(args: readonly string[]): void {
   console.log(`recorded a pending claim for "${bidPackage.name}" in ${walletStatePath()}`);
 }
 
-function runTransfer(args: readonly string[]): void {
+async function runTransfer(args: readonly string[]): Promise<void> {
   const flags = parseFlags(args);
   const name = required(flags.positionals[0], "name");
   const newOwnerPubkey = required(flags.get("to"), "--to (new owner pubkey)");
@@ -412,6 +417,14 @@ function runTransfer(args: readonly string[]): void {
   console.log("");
   console.log("signed transaction (hex):");
   console.log(signed.signedTransactionHex);
+
+  await maybeBroadcast({
+    flags,
+    network: keystore.network,
+    signedTransactionHex: signed.signedTransactionHex,
+    expectedTxid: signed.signedTransactionId
+  });
+
   console.log("");
   console.log(`once this confirms, "${name}" belongs to ${newOwnerPubkey}.`);
   console.log(`this wallet keeps tracking it until you run: forget ${name}`);
@@ -492,6 +505,35 @@ function parseByte(value: string, label: string): number {
   return parsed;
 }
 
+/**
+ * Broadcast the signed transaction when --broadcast is given; otherwise print
+ * how to send it yourself. Returns true if it was broadcast.
+ */
+async function maybeBroadcast(input: {
+  readonly flags: ParsedFlags;
+  readonly network: OntNetwork;
+  readonly signedTransactionHex: string;
+  readonly expectedTxid: string;
+}): Promise<boolean> {
+  if (!input.flags.has("broadcast")) {
+    console.log("");
+    console.log("not broadcast. send it with your own node/explorer, e.g.:");
+    console.log(`  curl -s -X POST --data '${input.signedTransactionHex}' <esplora-base>/tx`);
+    console.log("or re-run with --broadcast [--broadcast-url <esplora-base>] to send it now.");
+    return false;
+  }
+
+  const baseUrl = resolveBroadcastBaseUrl(input.network, input.flags.get("broadcast-url"), env.ONT_BROADCAST_URL);
+  const client = new BroadcastClient(baseUrl);
+  const txid = await client.broadcastTransaction(input.signedTransactionHex);
+  console.log("");
+  console.log(`broadcast via ${client.baseUrl}: ${txid}`);
+  if (txid !== input.expectedTxid) {
+    console.log(`warning: endpoint returned txid ${txid}, expected ${input.expectedTxid}`);
+  }
+  return true;
+}
+
 function parseBigIntArg(value: string, label: string): bigint {
   if (!/^[0-9]+$/.test(value)) {
     throw new Error(`${label} must be a non-negative integer`);
@@ -564,12 +606,13 @@ function printUsage(): void {
   console.log("  transfer <name> --to <pubkey> --prev-state-txid <txid> --bond-input <utxo>");
   console.log("        --successor-bond-sats <n> --successor-bond-vout <0|1> --fee-sats <n>");
   console.log("        [--input <utxo>] [--bond-address <a>] [--change-address <a>]  build+sign a transfer");
+  console.log("        (claim/transfer take [--broadcast] [--broadcast-url <esplora-base>] to send)");
   console.log("  verify <proof.json>                    verify a portable ownership proof");
   console.log("  ln-info [baseUrl]                      query a Lexe sidecar");
   console.log("");
   console.log("env: ONT_WALLET_KEYSTORE (default ont-wallet.json), ONT_WALLET_STATE");
   console.log("     (default ont-wallet-state.json), ONT_WALLET_PASSWORD,");
-  console.log("     ONT_WALLET_NETWORK (default signet), ONT_RESOLVER_URL");
+  console.log("     ONT_WALLET_NETWORK (default signet), ONT_RESOLVER_URL, ONT_BROADCAST_URL");
 }
 
 main().catch((error: unknown) => {
