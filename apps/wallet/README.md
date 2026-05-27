@@ -26,6 +26,8 @@ cheap-claim Lightning payment.
 - **`broadcast.ts`** — opt-in push of a signed transaction to an Esplora-style API
   (mempool.space by default; your own node via `ONT_BROADCAST_URL`). The only place the
   wallet sends bytes to the network, and never without `--broadcast`.
+- **`utxos.ts`** — looks up the funding address's spendable outputs over the same Esplora
+  API so `claim` can auto-fund and `balance` can report what's spendable.
 - **`lightning.ts`** — the Lightning payment adapter. `LexeSidecarLightningPayer` talks
   to a [Lexe](https://lexe.app) node through its local sidecar REST server
   (`http://localhost:5393`); `StubLightningPayer` is the offline stand-in for dev/tests.
@@ -50,6 +52,7 @@ Run from source with `tsx` via the workspace `dev` script:
 ONT_WALLET_PASSWORD=… npm run dev -w @ont/wallet -- init             # create a keystore
 ONT_WALLET_PASSWORD=… npm run dev -w @ont/wallet -- info             # network, pubkey, funding address
 ONT_WALLET_PASSWORD=… npm run dev -w @ont/wallet -- address          # print the funding address
+ONT_WALLET_PASSWORD=… npm run dev -w @ont/wallet -- balance          # spendable funding UTXOs (Esplora)
                        npm run dev -w @ont/wallet -- lookup <name>   # a name's state + destination
 ONT_WALLET_PASSWORD=… npm run dev -w @ont/wallet -- set-destination <name> <type> <value>
 ONT_WALLET_PASSWORD=… npm run dev -w @ont/wallet -- names            # names this wallet tracks
@@ -72,9 +75,11 @@ owner key, builds the opening-bid PSBT (bond/change default to the funding addre
 the funding inputs, and prints a broadcastable transaction. This is the **on-chain auction
 path**, the acquisition route that works on signet today.
 
-`claim` and `transfer` build and sign locally and only send when you pass `--broadcast`.
-Broadcasting uses an Esplora-style API (mempool.space by default for signet/testnet/mainnet;
-set `ONT_BROADCAST_URL` or `--broadcast-url` for your own node, required on regtest).
+When `--input` is omitted, `claim` auto-funds from the wallet's funding address by querying
+its UTXOs over the same Esplora API (`balance` shows them). `claim` and `transfer` build and
+sign locally and only send when you pass `--broadcast`. The Esplora base is mempool.space by
+default for signet/testnet/mainnet; set `ONT_BROADCAST_URL` or `--broadcast-url`/`--esplora-url`
+for your own node (required on regtest).
 
 Environment: `ONT_WALLET_KEYSTORE` (default `ont-wallet.json`), `ONT_WALLET_STATE`
 (default `ont-wallet-state.json`), `ONT_WALLET_PASSWORD`, `ONT_WALLET_NETWORK`

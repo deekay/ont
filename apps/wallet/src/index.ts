@@ -17,6 +17,7 @@ import { argv, env, exit } from "node:process";
 import {
   buildAuctionBidArtifacts,
   buildTransferArtifacts,
+  type FundingInputDescriptor,
   parseFundingInputDescriptor
 } from "@ont/architect";
 import { verifyProofBundle } from "@ont/consensus";
@@ -34,6 +35,7 @@ import { WalletKeystore } from "./keystore.js";
 import { LexeSidecarLightningPayer } from "./lightning.js";
 import { ResolverClient } from "./resolver.js";
 import { signAuctionBidArtifacts, signTransferArtifacts } from "./signer.js";
+import { fetchAddressUtxos, sumUtxoValue } from "./utxos.js";
 import { WalletState } from "./wallet-state.js";
 
 const DEFAULT_KEYSTORE_PATH = "ont-wallet.json";
@@ -53,6 +55,9 @@ async function main(): Promise<void> {
       return;
     case "address":
       runAddress();
+      return;
+    case "balance":
+      await runBalance(rest);
       return;
     case "lookup":
       await runLookup(rest);
@@ -115,6 +120,32 @@ function runInfo(): void {
 
 function runAddress(): void {
   console.log(WalletKeystore.load(keystorePath(), requirePassword()).fundingAddress);
+}
+
+async function runBalance(args: readonly string[]): Promise<void> {
+  const flags = parseFlags(args);
+  const keystore = WalletKeystore.load(keystorePath(), requirePassword());
+  const esploraBaseUrl = resolveBroadcastBaseUrl(
+    keystore.network,
+    flags.get("esplora-url") ?? flags.get("broadcast-url"),
+    env.ONT_BROADCAST_URL
+  );
+  const utxos = await fetchAddressUtxos({
+    esploraBaseUrl,
+    address: keystore.fundingAddress,
+    includeUnconfirmed: flags.has("include-unconfirmed")
+  });
+
+  console.log(`funding address: ${keystore.fundingAddress}`);
+  console.log(`endpoint:        ${esploraBaseUrl}`);
+  if (utxos.length === 0) {
+    console.log("spendable:       0 base units (no UTXOs — fund this address)");
+    return;
+  }
+  for (const utxo of utxos) {
+    console.log(`  ${utxo.valueSats} base units  ${utxo.txid}:${utxo.vout}`);
+  }
+  console.log(`spendable:       ${sumUtxoValue(utxos)} base units across ${utxos.length} UTXO(s)`);
 }
 
 async function runLookup(args: readonly string[]): Promise<void> {
@@ -289,10 +320,6 @@ async function runArmRecovery(args: readonly string[]): Promise<void> {
 async function runClaim(args: readonly string[]): Promise<void> {
   const flags = parseFlags(args);
   const bidPackagePath = required(flags.get("bid-package"), "--bid-package");
-  const inputSpecs = flags.getAll("input");
-  if (inputSpecs.length === 0) {
-    throw new Error("at least one --input <txid:vout:valueSats:address> is required to fund the bid");
-  }
   const feeSats = parseBigIntArg(required(flags.get("fee-sats"), "--fee-sats"), "fee-sats");
 
   const keystore = WalletKeystore.load(keystorePath(), requirePassword());
@@ -311,12 +338,13 @@ async function runClaim(args: readonly string[]): Promise<void> {
     console.log(`warning: bid preview status is "${bidPackage.previewStatus}" — ${bidPackage.previewSummary}`);
   }
 
+  const fundingInputs = await resolveFundingInputs(flags, keystore);
   const bondAddress = flags.get("bond-address") ?? keystore.fundingAddress;
   const changeAddress = flags.get("change-address") ?? keystore.fundingAddress;
 
   const artifacts = buildAuctionBidArtifacts({
     bidPackage,
-    fundingInputs: inputSpecs.map(parseFundingInputDescriptor),
+    fundingInputs,
     feeSats,
     network: keystore.network,
     bondAddress,
@@ -506,6 +534,41 @@ function parseByte(value: string, label: string): number {
 }
 
 /**
+ * Funding inputs for a claim: the explicit `--input` descriptors if given,
+ * otherwise auto-funded from the wallet's funding address via Esplora.
+ */
+async function resolveFundingInputs(
+  flags: ParsedFlags,
+  keystore: WalletKeystore
+): Promise<readonly FundingInputDescriptor[]> {
+  const explicit = flags.getAll("input");
+  if (explicit.length > 0) {
+    return explicit.map(parseFundingInputDescriptor);
+  }
+
+  const esploraBaseUrl = resolveBroadcastBaseUrl(
+    keystore.network,
+    flags.get("esplora-url") ?? flags.get("broadcast-url"),
+    env.ONT_BROADCAST_URL
+  );
+  const utxos = await fetchAddressUtxos({
+    esploraBaseUrl,
+    address: keystore.fundingAddress,
+    includeUnconfirmed: flags.has("include-unconfirmed")
+  });
+  if (utxos.length === 0) {
+    throw new Error(
+      `no UTXOs at funding address ${keystore.fundingAddress} — fund it first, or pass --input descriptors`
+    );
+  }
+  console.log(
+    `auto-funding from ${utxos.length} UTXO(s) at ${keystore.fundingAddress} ` +
+      `(${sumUtxoValue(utxos)} base units) via ${esploraBaseUrl}`
+  );
+  return utxos;
+}
+
+/**
  * Broadcast the signed transaction when --broadcast is given; otherwise print
  * how to send it yourself. Returns true if it was broadcast.
  */
@@ -595,14 +658,16 @@ function printUsage(): void {
   console.log("  init                                   create an encrypted keystore");
   console.log("  info                                   show network, owner pubkey, funding address");
   console.log("  address                                print the funding address");
+  console.log("  balance [--esplora-url <u>]            show spendable funding UTXOs");
   console.log("  lookup <name> [resolver]               show a name's state + destination");
   console.log("  set-destination <name> <type> <value>  publish an owner-signed destination");
   console.log("  names                                  list names this wallet tracks");
   console.log("  track <name> [resolver]                start tracking a name you own");
   console.log("  forget <name>                          stop tracking a name locally");
   console.log("  arm-recovery <name> <address> [resolver]  arm owner recovery to an address");
-  console.log("  claim --bid-package <path> --input <utxo> --fee-sats <n> [--bond-address <a>]");
+  console.log("  claim --bid-package <path> --fee-sats <n> [--input <utxo>] [--bond-address <a>]");
   console.log("        [--change-address <a>] [--bond-vout 0|1]  build+sign an opening-bid claim");
+  console.log("        (auto-funds from the funding address when --input is omitted)");
   console.log("  transfer <name> --to <pubkey> --prev-state-txid <txid> --bond-input <utxo>");
   console.log("        --successor-bond-sats <n> --successor-bond-vout <0|1> --fee-sats <n>");
   console.log("        [--input <utxo>] [--bond-address <a>] [--change-address <a>]  build+sign a transfer");
