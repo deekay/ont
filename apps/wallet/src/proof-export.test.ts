@@ -2,7 +2,7 @@ import { verifyProofBundle } from "@ont/consensus";
 import { describe, expect, it } from "vitest";
 
 import { assembleDirectAuctionProofBundle, ProofExportError } from "./proof-export.js";
-import type { ResolverAuctionState, ResolverNameRecord } from "./resolver.js";
+import type { ResolverAuctionState, ResolverNameRecord, ResolverValueHistory } from "./resolver.js";
 
 const WINNER_PUBKEY = "ab".repeat(32);
 const WINNING_TXID = "cd".repeat(32);
@@ -80,6 +80,31 @@ describe("assembleDirectAuctionProofBundle", () => {
         auction: auction({ visibleBidOutcomes: [] })
       })
     ).toThrow(ProofExportError);
+  });
+
+  it("includes a value-record chain when supplied, and it passes verification", () => {
+    const valueHistory: ResolverValueHistory = {
+      records: [
+        {
+          sequence: 1,
+          recordHash: "aa".repeat(32),
+          previousRecordHash: null,
+          ownerPubkey: WINNER_PUBKEY,
+          ownershipRef: WINNING_TXID
+        },
+        {
+          sequence: 2,
+          recordHash: "bb".repeat(32),
+          previousRecordHash: "aa".repeat(32),
+          ownerPubkey: WINNER_PUBKEY,
+          ownershipRef: WINNING_TXID
+        }
+      ]
+    };
+    const bundle = assembleDirectAuctionProofBundle({ record: record(), auction: auction(), valueHistory });
+    const report = verifyProofBundle(bundle);
+    expect(report.valid).toBe(true);
+    expect((bundle as { valueRecordChain?: { records: unknown[] } }).valueRecordChain?.records).toHaveLength(2);
   });
 
   it("throws when the resolver omitted the bond outpoint", () => {

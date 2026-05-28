@@ -34,6 +34,21 @@ export interface ResolverValueRecord {
   readonly issuedAt: string;
 }
 
+export interface ResolverValueHistoryRecord {
+  readonly recordHash: string;
+  readonly sequence: number;
+  readonly previousRecordHash: string | null;
+  readonly ownerPubkey: string;
+  readonly ownershipRef: string;
+  readonly valueType?: number;
+  readonly payloadHex?: string;
+  readonly issuedAt?: string;
+}
+
+export interface ResolverValueHistory {
+  readonly records: readonly ResolverValueHistoryRecord[];
+}
+
 export interface ResolverRecoveryDescriptor {
   readonly name: string;
   readonly ownerPubkey: string;
@@ -127,6 +142,13 @@ export class ResolverClient {
     const normalized = normalizeName(name);
     const { auctions } = await this.getExperimentalAuctions();
     return auctions.find((auction) => auction.normalizedName === normalized) ?? null;
+  }
+
+  /** Ordered chain of owner-signed value records for a name, or null if none. */
+  async getValueHistory(name: string): Promise<ResolverValueHistory | null> {
+    return this.getOrNull<ResolverValueHistory>(
+      `/name/${encodeURIComponent(normalizeName(name))}/value/history`
+    );
   }
 
   /** Current owner-armed recovery descriptor, or null if none has been published. */

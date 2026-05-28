@@ -676,10 +676,13 @@ async function runExportProof(args: readonly string[]): Promise<void> {
   if (auction === null) {
     throw new Error(`no auction found for "${name}" at ${client.baseUrl} — can only export L1-auction proofs for now`);
   }
+  // Value history is optional; fold it in if any records exist.
+  const valueHistory = flags.has("no-value-chain") ? null : await client.getValueHistory(name);
 
   const bundle = assembleDirectAuctionProofBundle({
     record,
     auction,
+    ...(valueHistory !== null && valueHistory.records.length > 0 ? { valueHistory } : {}),
     ...(flags.has("assurance-tier") ? { assuranceTier: flags.get("assurance-tier") as string } : {}),
     ...(flags.has("goal") ? { verificationGoal: flags.get("goal") as string } : {})
   });

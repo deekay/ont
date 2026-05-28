@@ -12,7 +12,7 @@
 
 import { normalizeName } from "@ont/protocol";
 
-import type { ResolverAuctionState, ResolverNameRecord } from "./resolver.js";
+import type { ResolverAuctionState, ResolverNameRecord, ResolverValueHistory } from "./resolver.js";
 
 export class ProofExportError extends Error {
   constructor(message: string) {
@@ -24,6 +24,8 @@ export class ProofExportError extends Error {
 export interface DirectAuctionProofInput {
   readonly record: ResolverNameRecord;
   readonly auction: ResolverAuctionState;
+  /** Owner-signed value records published since the auction; included as a chain in the bundle. */
+  readonly valueHistory?: ResolverValueHistory;
   readonly assuranceTier?: string;
   readonly verificationGoal?: string;
 }
@@ -59,7 +61,7 @@ export function assembleDirectAuctionProofBundle(input: DirectAuctionProofInput)
     );
   }
 
-  return {
+  const bundle: Record<string, unknown> = {
     format: "ont-proof-bundle",
     bundleVersion: 0,
     proofSource: "bitcoin_l1_direct_auction",
@@ -92,4 +94,22 @@ export function assembleDirectAuctionProofBundle(input: DirectAuctionProofInput)
       }
     }
   };
+
+  // Include the value-record chain when present — proves the destination history.
+  const valueRecords = input.valueHistory?.records ?? [];
+  if (valueRecords.length > 0) {
+    bundle.valueRecordChain = {
+      records: [...valueRecords]
+        .sort((a, b) => a.sequence - b.sequence)
+        .map((r) => ({
+          sequence: r.sequence,
+          recordHash: r.recordHash,
+          previousRecordHash: r.previousRecordHash,
+          ownerPubkey: r.ownerPubkey,
+          ownershipRef: r.ownershipRef
+        }))
+    };
+  }
+
+  return bundle;
 }
