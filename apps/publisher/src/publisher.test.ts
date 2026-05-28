@@ -1,0 +1,135 @@
+import { verifyAccumulatorProof } from "@ont/core";
+import { describe, expect, it } from "vitest";
+
+import { Publisher, PublisherError } from "./publisher.js";
+
+const OWNER = "ab".repeat(32);
+
+function fresh(): Publisher {
+  return new Publisher({ network: "regtest" });
+}
+
+describe("Publisher quote → submit → confirmed flow", () => {
+  it("issues a quote for an available name with the right shape", () => {
+    const publisher = fresh();
+    const quote = publisher.quote({ name: "Satoshi", ownerPubkey: OWNER, paymentRail: "lightning" });
+    expect(quote.available).toBe(true);
+    expect(quote.name).toBe("satoshi"); // normalized
+    expect(quote.leaf).toMatch(/^[0-9a-f]{64}$/);
+    expect(quote.ownerCommitment).toBe(OWNER);
+    expect(quote.lightningInvoice).toContain(quote.quoteId);
+    expect(quote.totalBaseSats).toBe((1000n + 200n).toString());
+  });
+
+  it("rejects a non-hex owner pubkey", () => {
+    const publisher = fresh();
+    expect(() => publisher.quote({ name: "alice", ownerPubkey: "nope", paymentRail: "lightning" }))
+      .toThrow(PublisherError);
+  });
+
+  it("returns unavailable for a name reserved by a live quote", () => {
+    const publisher = fresh();
+    publisher.quote({ name: "alice", ownerPubkey: OWNER, paymentRail: "lightning" });
+    const second = publisher.quote({ name: "alice", ownerPubkey: OWNER, paymentRail: "lightning" });
+    expect(second.available).toBe(false);
+    expect(second.reason).toBe("reserved");
+  });
+
+  it("walks quoted → confirmed on submit, producing a verifying inclusion proof", async () => {
+    const publisher = fresh();
+    const quote = publisher.quote({ name: "alice", ownerPubkey: OWNER, paymentRail: "lightning" });
+    const receipt = await publisher.submit({
+      quoteId: quote.quoteId,
+      paymentProof: { rail: "lightning", paymentHash: "deadbeef" }
+    });
+    expect(receipt.status).toBe("confirmed");
+    expect(receipt.anchorTxid).toMatch(/^[0-9a-f]{64}$/);
+    expect(receipt.inclusionProof).toBeDefined();
+
+    const proof = receipt.inclusionProof!;
+    expect(proof.leaf).toBe(quote.leaf);
+    expect(proof.value).toBe(OWNER);
+    // The proof must verify against its own root using @ont/core's verifier.
+    expect(
+      verifyAccumulatorProof(proof.root, {
+        keyHex: proof.leaf,
+        value: proof.value,
+        siblings: proof.siblings
+      })
+    ).toBe(true);
+  });
+
+  it("treats the name as taken after a confirmed claim", async () => {
+    const publisher = fresh();
+    const first = publisher.quote({ name: "alice", ownerPubkey: OWNER, paymentRail: "lightning" });
+    await publisher.submit({ quoteId: first.quoteId, paymentProof: { rail: "lightning" } });
+    const second = publisher.quote({ name: "alice", ownerPubkey: OWNER, paymentRail: "lightning" });
+    expect(second.available).toBe(false);
+    expect(second.reason).toBe("taken");
+  });
+
+  it("idempotent status lookup", async () => {
+    const publisher = fresh();
+    const quote = publisher.quote({ name: "alice", ownerPubkey: OWNER, paymentRail: "lightning" });
+    await publisher.submit({ quoteId: quote.quoteId, paymentProof: { rail: "lightning" } });
+    const first = publisher.status(quote.quoteId);
+    const second = publisher.status(quote.quoteId);
+    expect(first.status).toBe("confirmed");
+    expect(second.status).toBe("confirmed");
+    expect(first.anchorTxid).toBe(second.anchorTxid);
+  });
+
+  it("exposes batch data for data-availability checks", async () => {
+    const publisher = fresh();
+    const quote = publisher.quote({ name: "alice", ownerPubkey: OWNER, paymentRail: "lightning" });
+    const receipt = await publisher.submit({
+      quoteId: quote.quoteId,
+      paymentProof: { rail: "lightning" }
+    });
+    const batch = publisher.batch(receipt.batchId!);
+    expect(batch.leaves).toHaveLength(1);
+    expect(batch.leaves[0]?.name).toBe("alice");
+    expect(batch.leaves[0]?.ownerPubkey).toBe(OWNER);
+    expect(batch.anchorTxid).toBe(receipt.anchorTxid);
+  });
+
+  it("rejects an unknown quoteId", () => {
+    const publisher = fresh();
+    expect(() => publisher.status("nope")).toThrow(PublisherError);
+  });
+
+  it("refuses an unsupported payment rail in v0", () => {
+    const publisher = fresh();
+    expect(() =>
+      publisher.quote({ name: "alice", ownerPubkey: OWNER, paymentRail: "l1" })
+    ).toThrow(PublisherError);
+  });
+
+  it("expires a quote whose TTL has passed before submit", async () => {
+    let now = new Date("2030-01-01T00:00:00Z").getTime();
+    const publisher = new Publisher({
+      network: "regtest",
+      quoteTtlSeconds: 60,
+      clock: () => new Date(now)
+    });
+    const quote = publisher.quote({ name: "alice", ownerPubkey: OWNER, paymentRail: "lightning" });
+    now += 120 * 1000;
+    const receipt = await publisher.submit({
+      quoteId: quote.quoteId,
+      paymentProof: { rail: "lightning" }
+    });
+    expect(receipt.status).toBe("expired");
+    const after = publisher.quote({ name: "alice", ownerPubkey: OWNER, paymentRail: "lightning" });
+    expect(after.available).toBe(true); // reservation released
+  });
+});
+
+describe("Publisher info + health", () => {
+  it("reports info and health", () => {
+    const publisher = fresh();
+    expect(publisher.info().network).toBe("regtest");
+    const health = publisher.health();
+    expect(health.status).toBe("ok");
+    expect(health.anchorBacklog).toBe(0);
+  });
+});
