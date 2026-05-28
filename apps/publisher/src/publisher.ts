@@ -50,6 +50,10 @@ export interface PublisherSnapshot {
   readonly accumulator: { readonly [keyHex: string]: string };
   readonly quotes: ReadonlyArray<SerializedQuote>;
   readonly batches: ReadonlyArray<SerializedBatch>;
+  readonly pendingPaid?: {
+    readonly quoteIds: ReadonlyArray<string>;
+    readonly since: string | null;
+  };
 }
 
 interface SerializedQuote {
@@ -115,6 +119,8 @@ export class Publisher {
   private readonly quotes = new Map<string, InternalQuote>();
   private readonly batches = new Map<string, InternalBatch>();
   private readonly leafToQuote = new Map<string, string>(); // active reservations
+  private pendingPaid: InternalQuote[] = []; // paid claims waiting to be sealed
+  private pendingPaidSince: Date | null = null;
   private readonly paymentVerifier: PaymentVerifier;
   private readonly anchorBroadcaster: AnchorBroadcaster;
   private readonly clock: () => Date;
@@ -134,8 +140,11 @@ export class Publisher {
       contact: options.contact ?? "",
       gateBaseSats: options.gateBaseSats ?? 1000n,
       serviceBaseSats: options.serviceBaseSats ?? 200n,
-      maxBatchSize: options.maxBatchSize ?? 1024,
-      maxBatchAgeSeconds: options.maxBatchAgeSeconds ?? 600,
+      // Default to immediate single-claim batches so the dev/regtest paths
+      // (and the existing smokes) stay fast. Operators opt into real
+      // batching by setting maxBatchSize > 1 + maxBatchAgeSeconds > 0.
+      maxBatchSize: options.maxBatchSize ?? 1,
+      maxBatchAgeSeconds: options.maxBatchAgeSeconds ?? 0,
       expectedAnchorIntervalSeconds: options.expectedAnchorIntervalSeconds ?? 600,
       quoteTtlSeconds: options.quoteTtlSeconds ?? 300
     };
@@ -281,9 +290,46 @@ export class Publisher {
     }
 
     quote.status = "paid";
-    await this.sealBatch([quote]);
+    this.pendingPaid.push(quote);
+    if (this.pendingPaidSince === null) {
+      this.pendingPaidSince = this.clock();
+    }
+    await this.maybeSealBatch();
     this.onChange();
     return this.receiptFor(quote);
+  }
+
+  /**
+   * Try to seal pending paid claims if either the size or age threshold has
+   * been reached. Operators call this on a timer (or after a known burst of
+   * activity); the entry point wires a setInterval when configured for real
+   * batching.
+   */
+  async tick(): Promise<void> {
+    await this.maybeSealBatch();
+    this.onChange();
+  }
+
+  /** Open queue length — useful for telemetry. */
+  pendingCount(): number {
+    return this.pendingPaid.length;
+  }
+
+  private async maybeSealBatch(): Promise<void> {
+    if (this.pendingPaid.length === 0) {
+      return;
+    }
+    const sizeReached = this.pendingPaid.length >= this.options.maxBatchSize;
+    const ageMs =
+      this.pendingPaidSince === null ? 0 : this.clock().getTime() - this.pendingPaidSince.getTime();
+    const ageReached = this.options.maxBatchAgeSeconds > 0 && ageMs >= this.options.maxBatchAgeSeconds * 1000;
+    if (!sizeReached && !ageReached) {
+      return;
+    }
+    const toSeal = this.pendingPaid;
+    this.pendingPaid = [];
+    this.pendingPaidSince = null;
+    await this.sealBatch(toSeal);
   }
 
   /** Serializable snapshot of all state needed to restart with continuity. */
@@ -317,7 +363,11 @@ export class Publisher {
           anchorTxid: b.anchorTxid,
           anchorHeight: b.anchorHeight,
           anchoredAt: b.anchoredAt.toISOString()
-        }))
+        })),
+      pendingPaid: {
+        quoteIds: this.pendingPaid.map((q) => q.quoteId),
+        since: this.pendingPaidSince?.toISOString() ?? null
+      }
     };
   }
 
@@ -330,6 +380,8 @@ export class Publisher {
     this.quotes.clear();
     this.batches.clear();
     this.leafToQuote.clear();
+    this.pendingPaid = [];
+    this.pendingPaidSince = null;
 
     const sortedBatches = [...snapshot.batches].sort((a, b) => a.anchoredAt.localeCompare(b.anchoredAt));
     for (const sb of sortedBatches) {
@@ -368,6 +420,17 @@ export class Publisher {
       if (quote.status === "quoted" && quote.expiresAt.getTime() > now) {
         this.leafToQuote.set(quote.leaf, quote.quoteId);
       }
+    }
+
+    // Rebuild the pending-paid queue in its persisted order.
+    if (snapshot.pendingPaid !== undefined) {
+      for (const quoteId of snapshot.pendingPaid.quoteIds) {
+        const quote = this.quotes.get(quoteId);
+        if (quote !== undefined && quote.status === "paid") {
+          this.pendingPaid.push(quote);
+        }
+      }
+      this.pendingPaidSince = snapshot.pendingPaid.since !== null ? new Date(snapshot.pendingPaid.since) : null;
     }
   }
 

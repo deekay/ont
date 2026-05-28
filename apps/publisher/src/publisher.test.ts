@@ -134,6 +134,72 @@ describe("Publisher info + health", () => {
   });
 });
 
+describe("Publisher batching policy", () => {
+  it("seals immediately when maxBatchSize === 1 (default)", async () => {
+    const publisher = fresh();
+    const quote = publisher.quote({ name: "alice", ownerPubkey: OWNER, paymentRail: "lightning" });
+    const receipt = await publisher.submit({ quoteId: quote.quoteId, paymentProof: { rail: "lightning" } });
+    expect(receipt.status).toBe("confirmed");
+    expect(publisher.pendingCount()).toBe(0);
+  });
+
+  it("queues until maxBatchSize is reached, then seals all at once", async () => {
+    const publisher = new Publisher({ network: "regtest", maxBatchSize: 3 });
+    const q1 = publisher.quote({ name: "a", ownerPubkey: OWNER, paymentRail: "lightning" });
+    const q2 = publisher.quote({ name: "b", ownerPubkey: OWNER, paymentRail: "lightning" });
+    const q3 = publisher.quote({ name: "c", ownerPubkey: OWNER, paymentRail: "lightning" });
+
+    const r1 = await publisher.submit({ quoteId: q1.quoteId, paymentProof: { rail: "lightning" } });
+    expect(r1.status).toBe("paid");
+    expect(publisher.pendingCount()).toBe(1);
+
+    const r2 = await publisher.submit({ quoteId: q2.quoteId, paymentProof: { rail: "lightning" } });
+    expect(r2.status).toBe("paid");
+    expect(publisher.pendingCount()).toBe(2);
+
+    const r3 = await publisher.submit({ quoteId: q3.quoteId, paymentProof: { rail: "lightning" } });
+    expect(r3.status).toBe("confirmed");
+    expect(publisher.pendingCount()).toBe(0);
+
+    // All three should now show confirmed via status() — same batch.
+    expect(publisher.status(q1.quoteId).status).toBe("confirmed");
+    expect(publisher.status(q2.quoteId).status).toBe("confirmed");
+    expect(publisher.status(q3.quoteId).status).toBe("confirmed");
+    expect(publisher.status(q1.quoteId).batchId).toBe(publisher.status(q3.quoteId).batchId);
+  });
+
+  it("seals when maxBatchAgeSeconds elapses (via tick)", async () => {
+    let now = new Date("2030-01-01T00:00:00Z").getTime();
+    const publisher = new Publisher({
+      network: "regtest",
+      maxBatchSize: 10,
+      maxBatchAgeSeconds: 30,
+      clock: () => new Date(now)
+    });
+    const quote = publisher.quote({ name: "alice", ownerPubkey: OWNER, paymentRail: "lightning" });
+    const submitted = await publisher.submit({ quoteId: quote.quoteId, paymentProof: { rail: "lightning" } });
+    expect(submitted.status).toBe("paid"); // not yet sealed
+
+    // Advance past the age threshold and tick.
+    now += 31_000;
+    await publisher.tick();
+    expect(publisher.status(quote.quoteId).status).toBe("confirmed");
+    expect(publisher.pendingCount()).toBe(0);
+  });
+
+  it("preserves the pending queue across snapshot/restore", async () => {
+    const publisher = new Publisher({ network: "regtest", maxBatchSize: 3 });
+    const q = publisher.quote({ name: "alice", ownerPubkey: OWNER, paymentRail: "lightning" });
+    await publisher.submit({ quoteId: q.quoteId, paymentProof: { rail: "lightning" } });
+    expect(publisher.pendingCount()).toBe(1);
+
+    const restored = new Publisher({ network: "regtest", maxBatchSize: 3 });
+    restored.restore(publisher.snapshot());
+    expect(restored.pendingCount()).toBe(1);
+    expect(restored.status(q.quoteId).status).toBe("paid");
+  });
+});
+
 describe("Publisher snapshot + restore", () => {
   it("round-trips a confirmed claim through snapshot/restore", async () => {
     const original = fresh();
