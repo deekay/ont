@@ -18,12 +18,20 @@ it deliberately tracks the architecture below rather than getting ahead of it.
 - **Keys & custody split (§2 shape):** an on-device, password-encrypted keystore (AES-256-GCM
   + scrypt) holds the **owner key** (controls the name) and a separate **funding key** (pays
   fees/bonds). The owner key is generated locally and never derived from a Lightning credential.
-- **The lifecycle, build + sign locally:** `claim` (the on-chain opening-bid acquisition path —
-  sources live auction state from a resolver's `/experimental-auctions`, or takes a pre-built
-  bid package; auto-funds from the funding address; verifies the bid commits *this* wallet's
-  owner key), `transfer`, `set-destination` (owner-signed value records), `arm-recovery`
-  (owner-armed recovery descriptors). Plus `lookup`, `names`/`track`/`forget`, `balance`,
-  `verify` (portable proof bundles), and a one-command `demo`.
+- **The lifecycle, one-liner UX:** `claim <name> --amount <n>` and
+  `transfer <name> --to <pubkey> --fee-sats <n>` both auto-source what they need from a
+  resolver (live auction state for claim; current state-txid + bond outpoint for transfer) and
+  auto-fund from the wallet's funding address via Esplora. The bid commits *this* wallet's
+  owner key (checked locally). `set-destination` publishes owner-signed value records,
+  `arm-recovery` publishes owner-armed recovery descriptors, and `sync` reconciles tracked
+  names with the resolver (claim → confirmed once it lands). Fully-explicit flags still let
+  every command run offline. Plus `lookup`, `names`/`track`/`forget`, `balance`, and a
+  one-command `demo`.
+- **Portable, self-verifying proofs:** `export-proof <name>` assembles a
+  `bitcoin_l1_direct_auction` proof bundle from resolver data (winning L1 bid, its bond,
+  current owner) and runs `@ont/consensus`' `verifyProofBundle` locally before emitting — so
+  it never hands out a bundle it knows is invalid. The result verifies offline without
+  trusting the resolver that served it.
 - **Network I/O is opt-in and replaceable:** reads/publishes against any resolver (no authority
   granted to it); broadcasts only with `--broadcast`, via an Esplora API (mempool.space by
   default, your own node via `ONT_BROADCAST_URL`).
@@ -34,8 +42,9 @@ it deliberately tracks the architecture below rather than getting ahead of it.
 **Honest gaps / tradeoffs:** it's a CLI, not the native-mobile app §4 envisions (no secure
 enclave yet); the **cheap batched-claim rail isn't wired end-to-end** — the live acquisition
 route is the on-chain auction path, and `pay` demonstrates the LN leg but isn't yet joined to a
-claim; proof-bundle *assembly* (vs. verification) and pending-claim maturity reconciliation are
-still to come. Everything here is the mutable client layer; the consensus core is untouched.
+claim; `export-proof` covers names still held by their original auction winner — extending it
+to the transfer chain + value record chain is a follow-up. Everything here is the mutable
+client layer; the consensus core is untouched.
 
 ---
 
