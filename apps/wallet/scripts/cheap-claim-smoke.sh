@@ -18,8 +18,16 @@ WALLET_CLI="${REPO_ROOT}/apps/wallet/src/index.ts"
 
 cleanup() {
   if [[ -n "${PUBLISHER_PID}" ]]; then
+    # Kill the subshell and its descendants — `npx tsx` spawns a node grandchild
+    # that outlives a bare `kill` on the wrapper, which would orphan a publisher
+    # on PORT and make the next run hit stale state.
+    pkill -P "${PUBLISHER_PID}" 2>/dev/null || true
     kill "${PUBLISHER_PID}" 2>/dev/null || true
     wait "${PUBLISHER_PID}" 2>/dev/null || true
+  fi
+  # Belt-and-suspenders: free PORT regardless of how the publisher was spawned.
+  if command -v lsof >/dev/null 2>&1; then
+    lsof -ti "tcp:${PORT}" 2>/dev/null | xargs kill 2>/dev/null || true
   fi
   rm -rf "${WORKDIR}"
 }
@@ -74,12 +82,13 @@ expect_substring "claim cheap: requested a quote" "requesting quote" "${OUT}"
 expect_substring "claim cheap: got an available quote" "quote " "${OUT}"
 expect_substring "claim cheap: paid via stub" "stub" "${OUT}"
 expect_substring "claim cheap: receipt confirmed" "inclusion proof verifies locally" "${OUT}"
-expect_substring "claim cheap: recorded ownership" "recorded as owned" "${OUT}"
+expect_substring "claim cheap: recorded provisional claim" "provisional cheap-rail claim" "${OUT}"
 
 # ---- test 2: state reflects ownership ----
-bold "2) names reflects the new ownership"
+bold "2) names reflects the new provisional cheap-rail claim"
 OUT="$(npx tsx "${WALLET_CLI}" names 2>&1)"
 expect_substring "names: lists alice" "alice" "${OUT}"
+expect_substring "names: shows provisional claim status" "provisional" "${OUT}"
 
 # ---- test 3: a second claim for the same name is rejected ----
 bold "3) re-claiming the same name fails"

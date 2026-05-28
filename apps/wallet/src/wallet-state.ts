@@ -46,6 +46,27 @@ export interface BatchInclusion {
   readonly claimedAt: string;
 }
 
+export type CheapClaimStatus = "provisional" | "final" | "contested";
+
+/**
+ * Lifecycle of a cheap-rail (batched) claim, per ONT.md's one-path model. A
+ * fresh cheap claim is **not** final on the publisher's confirmation: anchoring
+ * opens a *notice window*, and the claim only finalizes if no competing claim
+ * for the same name lands during it. So the wallet records the claim as
+ * `provisional` and only treats it as `final` once it has observed canonical
+ * state (via `sync`) accept it after the window closes. A competing claim
+ * escalates the name to the bonded auction, which the wallet marks `contested`.
+ */
+export interface CheapRailClaim {
+  readonly status: CheapClaimStatus;
+  /** Bitcoin height at which the notice window closes (0 = anchor height not yet known). */
+  readonly noticeWindowCloseHeight: number;
+  /** Notice-window length in blocks used to derive the close height. */
+  readonly noticeWindowBlocks: number;
+  readonly recordedAt: string;
+  readonly updatedAt: string;
+}
+
 /**
  * An in-flight or recently-resolved auction bid. The bond UTXO lives at the
  * funding address as a plain P2WPKH — but spending it before its release is a
@@ -99,6 +120,8 @@ export interface TrackedName {
   readonly lastSyncedAt?: string;
   /** Cheap-rail (batched) inclusion data — for re-emitting an accumulator_batch_claim proof. */
   readonly batchInclusion?: BatchInclusion;
+  /** Cheap-rail notice-window lifecycle — provisional until the window closes uncontested. */
+  readonly cheapClaim?: CheapRailClaim;
 }
 
 interface WalletStateDocument {
@@ -252,6 +275,67 @@ export class WalletState {
       batchInclusion: inclusion,
       updatedAt: new Date().toISOString()
     });
+  }
+
+  /**
+   * Record (or refresh) the notice-window lifecycle for a cheap-rail claim.
+   * Always (re)sets the claim to `provisional` — call `reconcileCheapClaim` to
+   * advance it once canonical state is observed. `noticeWindowCloseHeight` of 0
+   * means the anchor height wasn't known yet (e.g. freshly broadcast).
+   */
+  recordCheapClaim(
+    name: string,
+    input: { noticeWindowCloseHeight: number; noticeWindowBlocks: number }
+  ): TrackedName {
+    const entry = this.requireTracked(name);
+    const now = new Date().toISOString();
+    const cheapClaim: CheapRailClaim = {
+      status: "provisional",
+      noticeWindowCloseHeight: input.noticeWindowCloseHeight,
+      noticeWindowBlocks: input.noticeWindowBlocks,
+      recordedAt: entry.cheapClaim?.recordedAt ?? now,
+      updatedAt: now
+    };
+    const updated: TrackedName = { ...entry, cheapClaim, updatedAt: now };
+    this.names.set(entry.name, updated);
+    return updated;
+  }
+
+  /**
+   * Reconcile a provisional cheap-rail claim against observed canonical state.
+   * Returns the resulting status, or `undefined` if the name has no cheap claim.
+   *   - `contested === true`              -> contested (escalated to the auction)
+   *   - `chainHeight >= closeHeight > 0`  -> final (notice window passed uncontested)
+   *   - otherwise                         -> unchanged (window still open / height unknown)
+   * Never downgrades a `final`/`contested` claim back to `provisional`.
+   */
+  reconcileCheapClaim(
+    name: string,
+    input: { chainHeight: number; contested?: boolean }
+  ): CheapClaimStatus | undefined {
+    const entry = this.requireTracked(name);
+    const current = entry.cheapClaim;
+    if (current === undefined) {
+      return undefined;
+    }
+    let status: CheapClaimStatus = current.status;
+    if (input.contested === true) {
+      status = "contested";
+    } else if (current.status === "provisional") {
+      if (current.noticeWindowCloseHeight > 0 && input.chainHeight >= current.noticeWindowCloseHeight) {
+        status = "final";
+      }
+    }
+    if (status === current.status) {
+      return status;
+    }
+    const now = new Date().toISOString();
+    this.names.set(entry.name, {
+      ...entry,
+      cheapClaim: { ...current, status, updatedAt: now },
+      updatedAt: now
+    });
+    return status;
   }
 
   /** Note the recovery descriptor we armed for a name. */

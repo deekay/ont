@@ -21,7 +21,7 @@ import {
   parseFundingInputDescriptor
 } from "@ont/architect";
 import { verifyProofBundle } from "@ont/consensus";
-import { accumulatorKeyForName, verifyAccumulatorProof } from "@ont/core";
+import { DEFAULT_NOTICE_WINDOW_BLOCKS, accumulatorKeyForName, verifyAccumulatorProof } from "@ont/core";
 import {
   type AuctionBidPackage,
   computeRecoveryDescriptorHash,
@@ -293,12 +293,20 @@ function runNames(): void {
     return;
   }
 
-  // Summary roll-up so a glance tells you where the wallet stands.
-  const owned = names.filter((n) => n.ownerPubkey === keystore.ownerPubkey && n.pendingClaim === undefined).length;
+  // Summary roll-up so a glance tells you where the wallet stands. A cheap-rail
+  // claim that is still provisional (or was contested) is NOT counted as owned —
+  // it only finalizes once its notice window closes uncontested.
+  const isUnsettledCheap = (n: (typeof names)[number]): boolean =>
+    n.cheapClaim?.status === "provisional" || n.cheapClaim?.status === "contested";
+  const owned = names.filter(
+    (n) => n.ownerPubkey === keystore.ownerPubkey && n.pendingClaim === undefined && !isUnsettledCheap(n)
+  ).length;
   const pending = names.filter((n) => n.pendingClaim !== undefined).length;
   const cheapRail = names.filter((n) => n.batchInclusion !== undefined).length;
+  const provisional = names.filter((n) => n.cheapClaim?.status === "provisional").length;
+  const cheapRailNote = cheapRail > 0 ? `${cheapRail} via cheap rail (${provisional} provisional)` : "0 via cheap rail";
   console.log(
-    `tracked: ${names.length} name(s) — ${owned} owned, ${pending} pending, ${cheapRail} via cheap rail; ${bids.length} bid(s) in flight`
+    `tracked: ${names.length} name(s) — ${owned} owned, ${pending} pending, ${cheapRailNote}; ${bids.length} bid(s) in flight`
   );
   console.log("");
 
@@ -314,6 +322,18 @@ function runNames(): void {
         `  cheap rail:    anchored at ${entry.batchInclusion.anchorTxid}` +
           (entry.batchInclusion.anchorHeight > 0 ? ` (height ${entry.batchInclusion.anchorHeight})` : "")
       );
+    }
+    if (entry.cheapClaim !== undefined) {
+      const c = entry.cheapClaim;
+      const detail =
+        c.status === "provisional"
+          ? c.noticeWindowCloseHeight > 0
+            ? ` — notice window closes ~block ${c.noticeWindowCloseHeight}; finalizes if uncontested`
+            : ` — notice window ${c.noticeWindowBlocks} blocks; finalizes if uncontested (anchor height pending)`
+          : c.status === "contested"
+            ? " — contested; escalated to the bonded auction"
+            : " — notice window closed uncontested";
+      console.log(`  claim status:  ${c.status}${detail}`);
     }
     if (entry.lastValueSequence !== undefined) {
       console.log(`  destination:   seq ${entry.lastValueSequence} (${entry.lastValueRecordHash ?? "?"})`);
@@ -435,6 +455,25 @@ async function runSync(args: readonly string[]): Promise<void> {
       state.recordSync(name, { ownershipRef: record.lastStateTxid, status: record.status });
       changed = true;
       console.log(`${name}: you own it (${record.status})${note}`);
+      // The resolver is the canonical authority the wallet defers to: if it now
+      // reports this wallet as the mature owner, a provisional cheap-rail claim
+      // has resolved in our favor (the notice window closed uncontested).
+      if (tracked?.cheapClaim?.status === "provisional" && record.status === "mature") {
+        const resolved = state.reconcileCheapClaim(name, {
+          chainHeight: tracked.cheapClaim.noticeWindowCloseHeight
+        });
+        if (resolved === "final") {
+          console.log(`  cheap-rail claim finalized — notice window closed uncontested`);
+        }
+      }
+    } else if (tracked?.cheapClaim?.status === "provisional") {
+      // A different owner on a name we hold a provisional cheap claim for means
+      // the name was contested and our claim did not win it.
+      state.reconcileCheapClaim(name, { chainHeight: 0, contested: true });
+      changed = true;
+      console.log(
+        `${name}: now owned by ${record.currentOwnerPubkey} — your provisional cheap-rail claim was contested and did not win`
+      );
     } else {
       console.log(
         `${name}: now owned by ${record.currentOwnerPubkey} — not this wallet` +
@@ -884,6 +923,7 @@ async function runClaimCheap(flags: ParsedFlags): Promise<void> {
   console.log(`inclusion proof verifies locally; anchored at ${receipt.anchorTxid}` +
     (receipt.anchorHeight !== undefined ? ` (height ${receipt.anchorHeight})` : ""));
 
+  const anchorHeight = receipt.anchorHeight ?? 0;
   const state = loadState(keystore.network);
   state.track({ name: quote.name, ownerPubkey: keystore.ownerPubkey, ownershipRef: receipt.anchorTxid });
   state.recordBatchInclusion(quote.name, {
@@ -892,11 +932,29 @@ async function runClaimCheap(flags: ParsedFlags): Promise<void> {
     value: receipt.inclusionProof.value,
     siblings: receipt.inclusionProof.siblings,
     anchorTxid: receipt.anchorTxid,
-    anchorHeight: receipt.anchorHeight ?? 0,
+    anchorHeight,
     claimedAt: new Date().toISOString()
   });
+  // A cheap claim is NOT final on the publisher's receipt: anchoring opens a
+  // notice window, and the claim only finalizes if no competing claim lands
+  // during it (ONT.md, "Claiming a name — one path"). Record it as provisional
+  // and let `sync` advance it once canonical state confirms the window closed.
+  const noticeWindowCloseHeight = anchorHeight > 0 ? anchorHeight + DEFAULT_NOTICE_WINDOW_BLOCKS : 0;
+  state.recordCheapClaim(quote.name, { noticeWindowCloseHeight, noticeWindowBlocks: DEFAULT_NOTICE_WINDOW_BLOCKS });
   state.save(walletStatePath());
-  console.log(`"${quote.name}" recorded as owned in ${walletStatePath()}`);
+  if (noticeWindowCloseHeight > 0) {
+    console.log(
+      `"${quote.name}" recorded as a provisional cheap-rail claim in ${walletStatePath()} — ` +
+        `finalizes if uncontested once its notice window closes (~block ${noticeWindowCloseHeight}); ` +
+        `run \`sync\` after that height to confirm`
+    );
+  } else {
+    console.log(
+      `"${quote.name}" recorded as a provisional cheap-rail claim in ${walletStatePath()} — ` +
+        `finalizes if uncontested after the ${DEFAULT_NOTICE_WINDOW_BLOCKS}-block notice window; ` +
+        `run \`sync\` once the anchor confirms to track it`
+    );
+  }
 }
 
 async function runTransfer(args: readonly string[]): Promise<void> {

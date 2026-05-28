@@ -59,6 +59,10 @@ async function startPublisher() {
         ONT_PUBLISHER_PORT: publisherPort,
         ONT_PUBLISHER_NETWORK: "regtest"
       },
+      // Detached so the publisher becomes a process-group leader: `npx tsx`
+      // forks a node grandchild that a bare kill on the wrapper would orphan,
+      // leaving a publisher bound to the port for the next run.
+      detached: true,
       stdio: ["ignore", "pipe", "pipe"]
     }
   );
@@ -74,8 +78,23 @@ async function startPublisher() {
       // not up yet
     }
   }
-  proc.kill();
+  killPublisher(proc);
   throw new Error("publisher did not start within 15s");
+}
+
+// Kill the publisher's whole process group (it was spawned detached), falling
+// back to a plain kill if the group signal isn't available.
+function killPublisher(proc) {
+  if (!proc || proc.pid === undefined) return;
+  try {
+    process.kill(-proc.pid, "SIGTERM");
+  } catch {
+    try {
+      proc.kill();
+    } catch {
+      // already gone
+    }
+  }
 }
 
 let publisher;
@@ -94,7 +113,7 @@ try {
   step("claim alice via the cheap rail (publisher + stub Lightning)");
   wallet("claim", "alice", "--rail", "cheap");
 
-  step("names — alice is now owned via the cheap rail");
+  step("names — alice is now a provisional cheap-rail claim (final once its notice window closes)");
   wallet("names");
 
   // ---- Rail 2: on-chain auction (synthetic funding) ----
@@ -139,13 +158,15 @@ try {
       "",
       "Next:",
       "  - the on-chain claim's signed tx is ready to broadcast (--broadcast).",
-      "  - the cheap-rail claim is already 'confirmed' against the publisher's stub anchor.",
+      "  - the cheap-rail claim is provisional: it finalizes only if its notice window closes",
+      "    uncontested (a competing claim would escalate it to the bonded auction). Run `sync`",
+      "    after the window to confirm.",
       "  - run `export-proof <name>` to produce a portable ownership proof anyone can verify."
     ].join("\n")
   );
 } finally {
   if (publisher) {
-    publisher.kill();
+    killPublisher(publisher);
   }
   rmSync(workdir, { recursive: true, force: true });
 }

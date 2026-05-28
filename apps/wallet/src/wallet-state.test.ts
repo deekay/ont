@@ -83,6 +83,67 @@ describe("WalletState", () => {
     expect(entry?.lastSyncedAt).toBeDefined();
   });
 
+  it("records a cheap-rail claim as provisional with its notice-window close height", () => {
+    const state = WalletState.loadOrCreate(path, "signet");
+    state.track({ name: "alice", ownerPubkey: "ab".repeat(32), ownershipRef: "cd".repeat(32) });
+    const updated = state.recordCheapClaim("alice", { noticeWindowCloseHeight: 816, noticeWindowBlocks: 6 });
+    expect(updated.cheapClaim?.status).toBe("provisional");
+    expect(updated.cheapClaim?.noticeWindowCloseHeight).toBe(816);
+    expect(updated.cheapClaim?.noticeWindowBlocks).toBe(6);
+  });
+
+  it("finalizes a provisional cheap claim once the chain reaches the close height", () => {
+    const state = WalletState.loadOrCreate(path, "signet");
+    state.track({ name: "alice", ownerPubkey: "ab".repeat(32), ownershipRef: "cd".repeat(32) });
+    state.recordCheapClaim("alice", { noticeWindowCloseHeight: 816, noticeWindowBlocks: 6 });
+
+    expect(state.reconcileCheapClaim("alice", { chainHeight: 815 })).toBe("provisional");
+    expect(state.get("alice")?.cheapClaim?.status).toBe("provisional");
+
+    expect(state.reconcileCheapClaim("alice", { chainHeight: 816 })).toBe("final");
+    expect(state.get("alice")?.cheapClaim?.status).toBe("final");
+  });
+
+  it("marks a provisional cheap claim contested and never downgrades it", () => {
+    const state = WalletState.loadOrCreate(path, "signet");
+    state.track({ name: "alice", ownerPubkey: "ab".repeat(32), ownershipRef: "cd".repeat(32) });
+    state.recordCheapClaim("alice", { noticeWindowCloseHeight: 816, noticeWindowBlocks: 6 });
+
+    expect(state.reconcileCheapClaim("alice", { chainHeight: 0, contested: true })).toBe("contested");
+    expect(state.get("alice")?.cheapClaim?.status).toBe("contested");
+    // A later height-based reconcile must not silently flip contested back to final.
+    expect(state.reconcileCheapClaim("alice", { chainHeight: 99999 })).toBe("contested");
+    expect(state.get("alice")?.cheapClaim?.status).toBe("contested");
+  });
+
+  it("never finalizes a cheap claim whose anchor height is unknown (close height 0)", () => {
+    const state = WalletState.loadOrCreate(path, "signet");
+    state.track({ name: "alice", ownerPubkey: "ab".repeat(32), ownershipRef: "cd".repeat(32) });
+    state.recordCheapClaim("alice", { noticeWindowCloseHeight: 0, noticeWindowBlocks: 6 });
+    expect(state.reconcileCheapClaim("alice", { chainHeight: 1_000_000 })).toBe("provisional");
+  });
+
+  it("returns undefined when reconciling a name without a cheap claim", () => {
+    const state = WalletState.loadOrCreate(path, "signet");
+    state.track({ name: "alice", ownerPubkey: "ab".repeat(32), ownershipRef: "cd".repeat(32) });
+    expect(state.reconcileCheapClaim("alice", { chainHeight: 10 })).toBeUndefined();
+  });
+
+  it("preserves a cheap claim through recordSync and the state file", () => {
+    const state = WalletState.loadOrCreate(path, "signet");
+    state.track({ name: "alice", ownerPubkey: "ab".repeat(32), ownershipRef: "cd".repeat(32) });
+    state.recordCheapClaim("alice", { noticeWindowCloseHeight: 816, noticeWindowBlocks: 6 });
+    // recordSync clears only the pending-claim marker — the cheap claim survives.
+    state.recordSync("alice", { ownershipRef: "fe".repeat(32), status: "mature" });
+    expect(state.get("alice")?.cheapClaim?.status).toBe("provisional");
+
+    state.save(path);
+    const reloaded = WalletState.loadOrCreate(path, "signet");
+    const entry = reloaded.get("alice");
+    expect(entry?.cheapClaim?.status).toBe("provisional");
+    expect(entry?.cheapClaim?.noticeWindowCloseHeight).toBe(816);
+  });
+
   it("refuses to record against an untracked name", () => {
     const state = WalletState.loadOrCreate(path, "signet");
     expect(() => state.recordValue("ghost", { sequence: 1, recordHash: "00".repeat(32) })).toThrow(
