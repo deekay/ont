@@ -13,6 +13,7 @@
 import { normalizeName } from "@ont/protocol";
 
 import type { ResolverAuctionState, ResolverNameRecord, ResolverValueHistory } from "./resolver.js";
+import type { BatchInclusion } from "./wallet-state.js";
 
 export class ProofExportError extends Error {
   constructor(message: string) {
@@ -112,4 +113,48 @@ export function assembleDirectAuctionProofBundle(input: DirectAuctionProofInput)
   }
 
   return bundle;
+}
+
+export interface BatchClaimProofInput {
+  readonly name: string;
+  readonly ownerPubkey: string;
+  readonly inclusion: BatchInclusion;
+  readonly assuranceTier?: string;
+  readonly verificationGoal?: string;
+}
+
+/**
+ * Assemble an `accumulator_batch_claim` proof bundle for a name claimed via
+ * the cheap rail. The wallet already verified this proof against the
+ * accumulator when it received the publisher's receipt; here we just lay it
+ * out in the form consensus' verifyProofBundle expects.
+ */
+export function assembleAccumulatorBatchClaimBundle(
+  input: BatchClaimProofInput
+): Record<string, unknown> {
+  return {
+    format: "ont-proof-bundle",
+    bundleVersion: 0,
+    proofSource: "accumulator_batch_claim",
+    name: input.name,
+    normalizedName: normalizeName(input.name),
+    assuranceTier: input.assuranceTier ?? "bitcoin_anchored_accumulator",
+    verificationGoal:
+      input.verificationGoal ??
+      "Prove current ownership of the name via inclusion in a Bitcoin-anchored accumulator batch.",
+    ownershipProof: {
+      currentOwnerPubkey: input.ownerPubkey,
+      ownershipRef: input.inclusion.anchorTxid
+    },
+    accumulatorProof: {
+      root: input.inclusion.root,
+      leaf: input.inclusion.leaf,
+      value: input.inclusion.value,
+      siblings: [...input.inclusion.siblings]
+    },
+    batchAnchor: {
+      anchorTxid: input.inclusion.anchorTxid,
+      anchorHeight: input.inclusion.anchorHeight
+    }
+  };
 }

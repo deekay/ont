@@ -32,6 +32,21 @@ export interface PendingClaim {
 }
 
 /**
+ * The publisher-issued inclusion proof for a name claimed via the cheap rail.
+ * Stored locally so the wallet can re-emit a portable proof bundle later
+ * without needing to ask any publisher again.
+ */
+export interface BatchInclusion {
+  readonly root: string;
+  readonly leaf: string;
+  readonly value: string;
+  readonly siblings: ReadonlyArray<{ readonly level: number; readonly hash: string }>;
+  readonly anchorTxid: string;
+  readonly anchorHeight: number;
+  readonly claimedAt: string;
+}
+
+/**
  * An in-flight or recently-resolved auction bid. The bond UTXO lives at the
  * funding address as a plain P2WPKH — but spending it before its release is a
  * consensus-level slashing condition, so the wallet must track which bond
@@ -82,6 +97,8 @@ export interface TrackedName {
   /** Resolver-reported status at the last `sync` (pending|immature|mature|invalid). */
   readonly status?: string;
   readonly lastSyncedAt?: string;
+  /** Cheap-rail (batched) inclusion data — for re-emitting an accumulator_batch_claim proof. */
+  readonly batchInclusion?: BatchInclusion;
 }
 
 interface WalletStateDocument {
@@ -220,6 +237,19 @@ export class WalletState {
       ownershipRef: input.ownershipRef,
       status: input.status,
       lastSyncedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    });
+  }
+
+  /**
+   * Note a publisher-issued accumulator inclusion proof for a cheap-rail
+   * claim, so `export-proof` can later re-emit the bundle without re-asking.
+   */
+  recordBatchInclusion(name: string, inclusion: BatchInclusion): void {
+    const entry = this.requireTracked(name);
+    this.names.set(entry.name, {
+      ...entry,
+      batchInclusion: inclusion,
       updatedAt: new Date().toISOString()
     });
   }

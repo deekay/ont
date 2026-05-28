@@ -1,7 +1,12 @@
 import { verifyProofBundle } from "@ont/consensus";
+import { Accumulator, accumulatorKeyForName } from "@ont/core";
 import { describe, expect, it } from "vitest";
 
-import { assembleDirectAuctionProofBundle, ProofExportError } from "./proof-export.js";
+import {
+  assembleAccumulatorBatchClaimBundle,
+  assembleDirectAuctionProofBundle,
+  ProofExportError
+} from "./proof-export.js";
 import type { ResolverAuctionState, ResolverNameRecord, ResolverValueHistory } from "./resolver.js";
 
 const WINNER_PUBKEY = "ab".repeat(32);
@@ -112,5 +117,53 @@ describe("assembleDirectAuctionProofBundle", () => {
     expect(() =>
       assembleDirectAuctionProofBundle({ record: withoutBond, auction: auction() })
     ).toThrow(ProofExportError);
+  });
+});
+
+describe("assembleAccumulatorBatchClaimBundle", () => {
+  function buildInclusion(name: string, ownerPubkey: string) {
+    const acc = new Accumulator();
+    const leaf = accumulatorKeyForName(name);
+    // Insert a few decoy leaves alongside so the proof has real siblings.
+    acc.insert(accumulatorKeyForName("decoy1"), "11".repeat(32));
+    acc.insert(leaf, ownerPubkey);
+    acc.insert(accumulatorKeyForName("decoy2"), "22".repeat(32));
+    const proof = acc.proveMembership(leaf);
+    return {
+      root: acc.root(),
+      leaf: proof.keyHex,
+      value: proof.value as string,
+      siblings: proof.siblings,
+      anchorTxid: "33".repeat(32),
+      anchorHeight: 1_000_001,
+      claimedAt: new Date().toISOString()
+    };
+  }
+
+  it("assembles a bundle that passes verifyProofBundle", () => {
+    const owner = "ab".repeat(32);
+    const inclusion = buildInclusion("alice", owner);
+    const bundle = assembleAccumulatorBatchClaimBundle({
+      name: "alice",
+      ownerPubkey: owner,
+      inclusion
+    });
+    const report = verifyProofBundle(bundle);
+    expect(report.valid).toBe(true);
+    expect(report.proofSource).toBe("accumulator_batch_claim");
+    expect(report.normalizedName).toBe("alice");
+  });
+
+  it("fails verification when the leaf doesn't bind the name", () => {
+    const owner = "ab".repeat(32);
+    const inclusion = buildInclusion("alice", owner);
+    const bundle = assembleAccumulatorBatchClaimBundle({
+      name: "alice",
+      ownerPubkey: owner,
+      inclusion: { ...inclusion, leaf: "00".repeat(32) }
+    });
+    const report = verifyProofBundle(bundle);
+    expect(report.valid).toBe(false);
+    expect(report.checks.some((c) => c.id === "accumulator.leaf.bindsName" && c.status === "failed")).toBe(true);
   });
 });

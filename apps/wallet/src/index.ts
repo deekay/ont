@@ -37,7 +37,7 @@ import { isOntNetwork, type OntNetwork } from "./keys.js";
 import { WalletKeystore } from "./keystore.js";
 import { LexeSidecarLightningPayer, type LightningPayer, StubLightningPayer } from "./lightning.js";
 import { PublisherClient } from "./publisher-client.js";
-import { assembleDirectAuctionProofBundle } from "./proof-export.js";
+import { assembleAccumulatorBatchClaimBundle, assembleDirectAuctionProofBundle } from "./proof-export.js";
 import { ResolverClient } from "./resolver.js";
 import { signAuctionBidArtifacts, signTransferArtifacts } from "./signer.js";
 import { transferBondPlanFromRecord } from "./transfer-plan.js";
@@ -860,6 +860,15 @@ async function runClaimCheap(flags: ParsedFlags): Promise<void> {
 
   const state = loadState(keystore.network);
   state.track({ name: quote.name, ownerPubkey: keystore.ownerPubkey, ownershipRef: receipt.anchorTxid });
+  state.recordBatchInclusion(quote.name, {
+    root: receipt.inclusionProof.root,
+    leaf: receipt.inclusionProof.leaf,
+    value: receipt.inclusionProof.value,
+    siblings: receipt.inclusionProof.siblings,
+    anchorTxid: receipt.anchorTxid,
+    anchorHeight: receipt.anchorHeight ?? 0,
+    claimedAt: new Date().toISOString()
+  });
   state.save(walletStatePath());
   console.log(`"${quote.name}" recorded as owned in ${walletStatePath()}`);
 }
@@ -1050,6 +1059,24 @@ async function autoFundExcluding(
 async function runExportProof(args: readonly string[]): Promise<void> {
   const flags = parseFlags(args);
   const name = required(flags.positionals[0], "name");
+  const keystore = WalletKeystore.load(keystorePath(), requirePassword());
+
+  // Cheap-rail names carry their inclusion proof locally — emit that bundle
+  // source without going back to a resolver.
+  const tracked = loadState(keystore.network).get(name);
+  if (tracked?.batchInclusion !== undefined) {
+    const bundle = assembleAccumulatorBatchClaimBundle({
+      name: tracked.name,
+      ownerPubkey: tracked.ownerPubkey,
+      inclusion: tracked.batchInclusion,
+      ...(flags.has("assurance-tier") ? { assuranceTier: flags.get("assurance-tier") as string } : {}),
+      ...(flags.has("goal") ? { verificationGoal: flags.get("goal") as string } : {})
+    });
+    emitProofBundle(bundle, flags, tracked.name);
+    return;
+  }
+
+  // Otherwise, go the resolver/auction route.
   const client = new ResolverClient(resolverUrl(flags.get("resolver")));
 
   const record = await client.getNameRecord(name);
@@ -1071,17 +1098,20 @@ async function runExportProof(args: readonly string[]): Promise<void> {
     ...(flags.has("goal") ? { verificationGoal: flags.get("goal") as string } : {})
   });
 
-  // Verify before emitting, so we never hand out a bundle we know is invalid.
+  emitProofBundle(bundle, flags, record.name);
+}
+
+/** Verify, write or print, and surface a non-zero exit on an invalid bundle. */
+function emitProofBundle(bundle: Record<string, unknown>, flags: ParsedFlags, name: string): void {
   const report = verifyProofBundle(bundle);
   const json = `${JSON.stringify(bundle, null, 2)}\n`;
   const out = flags.get("out");
   if (out !== undefined) {
     writeFileSync(out, json, "utf8");
-    console.log(`wrote proof bundle for "${record.name}" to ${out}`);
+    console.log(`wrote proof bundle for "${name}" to ${out}`);
   } else {
     process.stdout.write(json);
   }
-
   console.log(
     `proof: ${report.valid ? "VALID" : "INVALID"} (${report.passedCheckCount} passed, ${report.failedCheckCount} failed)`
   );
@@ -1091,7 +1121,6 @@ async function runExportProof(args: readonly string[]): Promise<void> {
         console.log(`  x ${check.id}: ${check.message}`);
       }
     }
-    console.log("(a name transferred since its auction can't be proven by an L1-auction bundle yet)");
     exit(1);
   }
 }
