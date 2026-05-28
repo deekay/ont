@@ -116,6 +116,26 @@ describe("WalletState", () => {
     expect(state.get("alice")?.cheapClaim?.status).toBe("contested");
   });
 
+  it("corrects an optimistically-final cheap claim to contested when a later sync sees the contest", () => {
+    // The wallet finalizes a provisional claim on chain height alone — it does NOT
+    // independently re-confirm the notice window stayed uncontested before flipping
+    // to `final`. So local `final` is optimistic. A later sync that *does* observe a
+    // real contest (canonical state escalated the name) must be able to correct that
+    // optimistic `final` to `contested`. This asymmetry is deliberate: `contested`
+    // always wins, but a claim is never downgraded to `provisional`.
+    const state = WalletState.loadOrCreate(path, "signet");
+    state.track({ name: "alice", ownerPubkey: "ab".repeat(32), ownershipRef: "cd".repeat(32) });
+    state.recordCheapClaim("alice", { noticeWindowCloseHeight: 816, noticeWindowBlocks: 6 });
+
+    // Optimistically finalize on height alone.
+    expect(state.reconcileCheapClaim("alice", { chainHeight: 816 })).toBe("final");
+    expect(state.get("alice")?.cheapClaim?.status).toBe("final");
+
+    // A subsequent sync reveals the name was actually contested — correct it.
+    expect(state.reconcileCheapClaim("alice", { chainHeight: 900, contested: true })).toBe("contested");
+    expect(state.get("alice")?.cheapClaim?.status).toBe("contested");
+  });
+
   it("never finalizes a cheap claim whose anchor height is unknown (close height 0)", () => {
     const state = WalletState.loadOrCreate(path, "signet");
     state.track({ name: "alice", ownerPubkey: "ab".repeat(32), ownershipRef: "cd".repeat(32) });

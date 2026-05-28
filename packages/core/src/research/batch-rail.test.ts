@@ -300,3 +300,144 @@ describe("name lifecycle classification (provisional / contested / final)", () =
     expect(map.size).toBe(3);
   });
 });
+
+describe("batch rail — adversarial edge cases", () => {
+  it("a competitor landing exactly at the notice-window close height contests (boundary is inclusive)", () => {
+    // earliest at 10, window 6 -> closes at 16. A distinct claimant at exactly 16 is still in-window.
+    const first = delta("first", 10, 0, "f0", 10, 10, [{ name: "edge", valueHash: v("edge-1") }]);
+    const atClose = delta("rival", 16, 0, "r0", 16, 16, [{ name: "edge", valueHash: v("edge-2") }]);
+    const result = classifyName({
+      name: "edge",
+      node: node("A", {}),
+      deltas: [first, atClose],
+      windows: WINDOWS,
+      now: 30,
+      rule: "proposed",
+      noticeWindowBlocks: 6
+    });
+    expect(result.status).toBe("contested");
+    if (result.status !== "contested") throw new Error("unreachable");
+    expect([...result.contestingDeltaIds].sort()).toEqual(["first", "rival"]);
+    expect(result.windowCloseHeight).toBe(16);
+  });
+
+  it("a competitor one block past the close height does not contest: name is final to the first owner", () => {
+    const first = delta("first", 10, 0, "f0", 10, 10, [{ name: "edge", valueHash: v("edge-1") }]);
+    const pastClose = delta("rival", 17, 0, "r0", 17, 17, [{ name: "edge", valueHash: v("edge-2") }]);
+    const result = classifyName({
+      name: "edge",
+      node: node("A", {}),
+      deltas: [first, pastClose],
+      windows: WINDOWS,
+      now: 30,
+      rule: "proposed",
+      noticeWindowBlocks: 6
+    });
+    expect(result.status).toBe("final");
+    if (result.status !== "final") throw new Error("unreachable");
+    expect(result.owner).toBe(v("edge-1"));
+  });
+
+  it("the same publisher resubmitting a name (same delta id) is one claimant, not a self-contest", () => {
+    // A publisher that anchors the same name twice (e.g. after a perceived timeout) must not contest itself.
+    const firstTry = delta("pub-1", 10, 0, "a0", 10, 10, [{ name: "resub", valueHash: v("resub-1") }]);
+    const secondTry = delta("pub-1", 12, 0, "b0", 12, 12, [{ name: "resub", valueHash: v("resub-2") }]);
+    const result = classifyName({
+      name: "resub",
+      node: node("A", {}),
+      deltas: [firstTry, secondTry],
+      windows: WINDOWS,
+      now: 30,
+      rule: "proposed",
+      noticeWindowBlocks: 6
+    });
+    expect(result.status).toBe("final");
+    if (result.status !== "final") throw new Error("unreachable");
+    expect(result.owner).toBe(v("resub-1")); // earliest in-window claim wins
+    expect(result.windowCloseHeight).toBe(16);
+  });
+
+  it("a single delta listing the same name twice finalizes once to its first insertion, never contested", () => {
+    const dupeDelta = delta("pub-1", 10, 0, "d0", 10, 10, [
+      { name: "dup", valueHash: v("dup-a") },
+      { name: "dup", valueHash: v("dup-b") }
+    ]);
+    const result = classifyName({
+      name: "dup",
+      node: node("A", {}),
+      deltas: [dupeDelta],
+      windows: WINDOWS,
+      now: 30,
+      rule: "proposed",
+      noticeWindowBlocks: 6
+    });
+    expect(result.status).toBe("final");
+    if (result.status !== "final") throw new Error("unreachable");
+    expect(result.owner).toBe(v("dup-a"));
+
+    // And the production rail agrees: it finalizes once, does not escalate.
+    const rail = runBatchRail({
+      node: node("A", {}),
+      deltas: [dupeDelta],
+      windows: WINDOWS,
+      now: 30,
+      rule: "proposed",
+      noticeWindowBlocks: 6
+    });
+    expect(rail.ownerByName.get("dup")).toBe(v("dup-a"));
+    expect(rail.escalatedNames.find((e) => e.name === "dup")).toBeUndefined();
+  });
+
+  it("a withheld competing claim cannot force a contest: the name stays final to the available owner", () => {
+    // Adversary anchors a competing claim but withholds its data. Fail-closed DA means it is never
+    // counted, so it cannot grief the honest claim into a bonded L1 auction by anchoring alone.
+    const available = delta("honest", 10, 0, "h0", 10, 10, [{ name: "target", valueHash: v("target-honest") }]);
+    const withheld = delta("griefer", 12, 0, "g0", null, null, [{ name: "target", valueHash: v("target-grief") }]);
+    const result = classifyName({
+      name: "target",
+      node: node("A", {}),
+      deltas: [available, withheld],
+      windows: WINDOWS,
+      now: 30,
+      rule: "proposed",
+      noticeWindowBlocks: 6
+    });
+    expect(result.status).toBe("final");
+    if (result.status !== "final") throw new Error("unreachable");
+    expect(result.owner).toBe(v("target-honest"));
+  });
+
+  it("runBatchRail on an empty delta set yields the empty accumulator and no escalations", () => {
+    const result = runBatchRail({ node: node("A", {}), deltas: [], windows: WINDOWS, now: 30, rule: "proposed" });
+    expect(result.ownerByName.size).toBe(0);
+    expect(result.escalatedNames).toHaveLength(0);
+    expect(result.includedDeltaIds).toHaveLength(0);
+    expect(result.daDroppedDeltaIds).toHaveLength(0);
+    expect(result.anchoredRoots).toBe(0);
+    expect(result.confirmedRoot).toBe(emptyAccumulatorRoot());
+  });
+
+  it("classifyNames over an empty delta set is an empty map", () => {
+    const map = classifyNames({ node: node("A", {}), deltas: [], windows: WINDOWS, now: 30, rule: "proposed" });
+    expect(map.size).toBe(0);
+  });
+
+  it("escalation keys on distinct delta ids, so a Sybil claimant can force a provisional name to L1", () => {
+    // Documents a real denial vector: contesting is permissionless and the "distinct claimant" check is
+    // by delta id, not by real-world identity. One actor anchoring a second claim under a throwaway id
+    // forces the name to the bonded auction. The cost is the extra anchor fee plus having to actually
+    // win the auction by bidding (not a free steal) — see ONT_ADVERSARIAL_ANALYSIS.md.
+    const honest = delta("honest", 10, 0, "h0", 10, 10, [{ name: "victim", valueHash: v("victim-honest") }]);
+    const sybil = delta("throwaway", 11, 0, "t0", 11, 11, [{ name: "victim", valueHash: v("victim-sybil") }]);
+    const result = classifyName({
+      name: "victim",
+      node: node("A", {}),
+      deltas: [honest, sybil],
+      windows: WINDOWS,
+      now: 30,
+      rule: "proposed",
+      noticeWindowBlocks: 6
+    });
+    expect(result.status).toBe("contested");
+  });
+});
