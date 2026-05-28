@@ -30,11 +30,10 @@ describe("transferBondPlanFromRecord", () => {
   });
 
   it("falls back to requiredBondSats when the bond value is absent", () => {
+    // Drop the bond value (omit it, don't set it to undefined) and supply an
+    // explicit bond input so the plan can still be built.
     const { currentBondValueSats: _omit, ...withoutValue } = RECORD;
-    // keep the outpoint so it doesn't throw, but drop the value
-    const record = { ...withoutValue, currentBondValueSats: undefined } as ResolverNameRecord;
-    // provide an explicit bond input since the value is needed to build one
-    const plan = transferBondPlanFromRecord(record, {
+    const plan = transferBondPlanFromRecord(withoutValue, {
       bondInputAddress: "x",
       explicitBondInput: parseFundingInputDescriptor(`${"11".repeat(32)}:0:9000:bcrt1qx`)
     });
@@ -55,12 +54,7 @@ describe("transferBondPlanFromRecord", () => {
   });
 
   it("throws when the record has no bond outpoint and none is supplied", () => {
-    const record = {
-      ...RECORD,
-      currentBondTxid: undefined,
-      currentBondVout: undefined,
-      currentBondValueSats: undefined
-    } as ResolverNameRecord;
-    expect(() => transferBondPlanFromRecord(record, { bondInputAddress: "x" })).toThrow(TransferPlanError);
+    const { currentBondTxid: _t, currentBondVout: _v, currentBondValueSats: _val, ...withoutBond } = RECORD;
+    expect(() => transferBondPlanFromRecord(withoutBond, { bondInputAddress: "x" })).toThrow(TransferPlanError);
   });
 });

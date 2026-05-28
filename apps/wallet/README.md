@@ -68,6 +68,7 @@ ONT_WALLET_PASSWORD=… npm run dev -w @ont/wallet -- transfer <name> --to <pubk
     [--resolver <url>]                          # transfer; auto-sources prev-state + bond
 ONT_WALLET_PASSWORD=… npm run dev -w @ont/wallet -- transfer <name> --to <pubkey> --fee-sats <n> \
     --prev-state-txid <txid> --bond-input <utxo> --successor-bond-sats <n>  # fully offline
+ONT_WALLET_PASSWORD=… npm run dev -w @ont/wallet -- export-proof <name> [--out <path>]
                        npm run dev -w @ont/wallet -- verify <proof.json>
                        npm run dev -w @ont/wallet -- ln-info [baseUrl]   # query a Lexe sidecar
                        npm run dev -w @ont/wallet -- pay <payable> [--amount <n>] [--stub]
@@ -102,14 +103,21 @@ owner, the wallet adopts the confirmed ownership ref + status and clears a provi
 pending-claim marker (so a `claim` that lands shows up as owned). It never grants the resolver
 authority — ownership is still a Bitcoin fact.
 
+`export-proof <name>` assembles a portable ownership proof bundle from resolver data (the
+winning L1 auction bid, its bond, the current owner) and verifies it locally with
+`@ont/consensus` before emitting — so it never hands out a bundle it knows is invalid. The
+result is self-verifying: anyone can `verify` it offline without trusting the resolver that
+served it. (A name transferred since its auction can't be proven by an L1-auction bundle yet —
+that needs the transfer chain.)
+
 Environment: `ONT_WALLET_KEYSTORE` (default `ont-wallet.json`), `ONT_WALLET_STATE`
 (default `ont-wallet-state.json`), `ONT_WALLET_PASSWORD`, `ONT_WALLET_NETWORK`
 (default `signet`), `ONT_RESOLVER_URL` (default `http://127.0.0.1:8787`).
 
 ## Next
 
-- assemble a portable proof bundle from a synced name so it can be exported and `verify`-d
-  elsewhere (today `verify` checks a bundle; it can't yet produce one).
+- extend `export-proof` to cover transferred names (include the transfer chain) and the value
+  record chain, so a proof reflects post-auction history.
 - the **cheap batched-claim rail**: the small ₿1,000 gate paid over Lightning through the
   adapter above (a natural use-case for a Lexe node). Designed, not yet live.
 - exact Lexe sidecar `pay` request/response schema (confirm against docs.lexe.tech), and

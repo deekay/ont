@@ -11,7 +11,7 @@
 // password from ONT_WALLET_PASSWORD, network from ONT_WALLET_NETWORK,
 // resolver from ONT_RESOLVER_URL (or a trailing arg).
 
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { argv, env, exit } from "node:process";
 
 import {
@@ -35,6 +35,7 @@ import { BroadcastClient, resolveBroadcastBaseUrl } from "./broadcast.js";
 import { isOntNetwork, type OntNetwork } from "./keys.js";
 import { WalletKeystore } from "./keystore.js";
 import { LexeSidecarLightningPayer, type LightningPayer, StubLightningPayer } from "./lightning.js";
+import { assembleDirectAuctionProofBundle } from "./proof-export.js";
 import { ResolverClient } from "./resolver.js";
 import { signAuctionBidArtifacts, signTransferArtifacts } from "./signer.js";
 import { transferBondPlanFromRecord } from "./transfer-plan.js";
@@ -88,6 +89,9 @@ async function main(): Promise<void> {
       return;
     case "transfer":
       await runTransfer(rest);
+      return;
+    case "export-proof":
+      await runExportProof(rest);
       return;
     case "verify":
       runVerify(rest[0]);
@@ -654,6 +658,57 @@ async function autoFundExcluding(
   return extra;
 }
 
+/**
+ * Assemble a portable ownership proof bundle for a name from resolver data,
+ * verify it locally with @ont/consensus, and emit it. The bundle is
+ * self-verifying — anyone can check it offline without trusting the resolver.
+ */
+async function runExportProof(args: readonly string[]): Promise<void> {
+  const flags = parseFlags(args);
+  const name = required(flags.positionals[0], "name");
+  const client = new ResolverClient(resolverUrl(flags.get("resolver")));
+
+  const record = await client.getNameRecord(name);
+  if (record === null) {
+    throw new Error(`resolver doesn't know "${name}" — nothing to prove`);
+  }
+  const auction = await client.findAuctionForName(name);
+  if (auction === null) {
+    throw new Error(`no auction found for "${name}" at ${client.baseUrl} — can only export L1-auction proofs for now`);
+  }
+
+  const bundle = assembleDirectAuctionProofBundle({
+    record,
+    auction,
+    ...(flags.has("assurance-tier") ? { assuranceTier: flags.get("assurance-tier") as string } : {}),
+    ...(flags.has("goal") ? { verificationGoal: flags.get("goal") as string } : {})
+  });
+
+  // Verify before emitting, so we never hand out a bundle we know is invalid.
+  const report = verifyProofBundle(bundle);
+  const json = `${JSON.stringify(bundle, null, 2)}\n`;
+  const out = flags.get("out");
+  if (out !== undefined) {
+    writeFileSync(out, json, "utf8");
+    console.log(`wrote proof bundle for "${record.name}" to ${out}`);
+  } else {
+    process.stdout.write(json);
+  }
+
+  console.log(
+    `proof: ${report.valid ? "VALID" : "INVALID"} (${report.passedCheckCount} passed, ${report.failedCheckCount} failed)`
+  );
+  if (!report.valid) {
+    for (const check of report.checks) {
+      if (check.status === "failed") {
+        console.log(`  x ${check.id}: ${check.message}`);
+      }
+    }
+    console.log("(a name transferred since its auction can't be proven by an L1-auction bundle yet)");
+    exit(1);
+  }
+}
+
 function runVerify(path: string | undefined): void {
   const bundle = JSON.parse(readFileSync(required(path, "proof path"), "utf8")) as Record<string, unknown>;
   const report = verifyProofBundle(bundle);
@@ -906,6 +961,7 @@ function printUsage(): void {
   console.log("        (auto-sources prev-state + bond from the resolver; or pass --prev-state-txid,");
   console.log("         --bond-input <utxo>, --successor-bond-sats <n> to go fully offline)");
   console.log("        (claim/transfer take [--broadcast] [--broadcast-url <esplora-base>] to send)");
+  console.log("  export-proof <name> [--out <path>] [--resolver <url>]  build a portable ownership proof");
   console.log("  verify <proof.json>                    verify a portable ownership proof");
   console.log("  ln-info [baseUrl]                      query a Lexe sidecar");
   console.log("  pay <payable> [--amount <n>] [--note <t>] [--ln-url <u>] [--stub]");

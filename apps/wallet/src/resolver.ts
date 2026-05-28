@@ -46,6 +46,14 @@ export interface ResolverRecoveryDescriptor {
   readonly issuedAt: string;
 }
 
+/** One observed bid in an auction, as reported by /experimental-auctions. */
+export interface ResolverAuctionBidOutcome {
+  readonly txid: string;
+  readonly ownerPubkey: string | null;
+  readonly amountSats: string;
+  readonly status: "accepted" | "rejected";
+}
+
 /** A live launch auction as the resolver's /experimental-auctions endpoint reports it. */
 export interface ResolverAuctionState {
   readonly auctionId: string;
@@ -63,6 +71,7 @@ export interface ResolverAuctionState {
   readonly settlementLockBlocks: number;
   readonly blocksUntilUnlock: number;
   readonly blocksUntilClose: number | null;
+  readonly visibleBidOutcomes?: readonly ResolverAuctionBidOutcome[];
 }
 
 export interface ResolverAuctionsResponse {
