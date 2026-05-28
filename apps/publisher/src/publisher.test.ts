@@ -133,3 +133,52 @@ describe("Publisher info + health", () => {
     expect(health.anchorBacklog).toBe(0);
   });
 });
+
+describe("Publisher snapshot + restore", () => {
+  it("round-trips a confirmed claim through snapshot/restore", async () => {
+    const original = fresh();
+    const quote = original.quote({ name: "alice", ownerPubkey: OWNER, paymentRail: "lightning" });
+    await original.submit({ quoteId: quote.quoteId, paymentProof: { rail: "lightning" } });
+
+    const snapshot = original.snapshot();
+    const restored = fresh();
+    restored.restore(snapshot);
+
+    // The restored publisher reports the same confirmed status.
+    const status = restored.status(quote.quoteId);
+    expect(status.status).toBe("confirmed");
+    expect(status.inclusionProof?.leaf).toBe(quote.leaf);
+
+    // And it still treats the name as taken.
+    const secondQuote = restored.quote({ name: "alice", ownerPubkey: OWNER, paymentRail: "lightning" });
+    expect(secondQuote.available).toBe(false);
+    expect(secondQuote.reason).toBe("taken");
+  });
+
+  it("preserves a live reservation across restore", () => {
+    const original = fresh();
+    const quote = original.quote({ name: "bob", ownerPubkey: OWNER, paymentRail: "lightning" });
+
+    const restored = fresh();
+    restored.restore(original.snapshot());
+
+    const second = restored.quote({ name: "bob", ownerPubkey: OWNER, paymentRail: "lightning" });
+    expect(second.available).toBe(false);
+    expect(second.reason).toBe("reserved");
+    expect(restored.status(quote.quoteId).status).toBe("quoted");
+  });
+
+  it("fires onChange after each mutation", async () => {
+    let count = 0;
+    const publisher = new Publisher({ network: "regtest", onChange: () => (count += 1) });
+    const before = count;
+    publisher.quote({ name: "alice", ownerPubkey: OWNER, paymentRail: "lightning" });
+    expect(count).toBeGreaterThan(before);
+    const mid = count;
+    const quote = publisher.quote({ name: "bob", ownerPubkey: OWNER, paymentRail: "lightning" });
+    expect(count).toBeGreaterThan(mid);
+    const beforeSubmit = count;
+    await publisher.submit({ quoteId: quote.quoteId, paymentProof: { rail: "lightning" } });
+    expect(count).toBeGreaterThan(beforeSubmit);
+  });
+});

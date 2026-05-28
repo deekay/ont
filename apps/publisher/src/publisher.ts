@@ -40,6 +40,47 @@ export interface PublisherOptions {
   readonly paymentVerifier?: PaymentVerifier;
   readonly anchorBroadcaster?: AnchorBroadcaster;
   readonly clock?: () => Date;
+  /** Fired after any state-changing operation so a store can persist. */
+  readonly onChange?: () => void;
+}
+
+export interface PublisherSnapshot {
+  readonly format: "ont-publisher-snapshot";
+  readonly version: 1;
+  readonly accumulator: { readonly [keyHex: string]: string };
+  readonly quotes: ReadonlyArray<SerializedQuote>;
+  readonly batches: ReadonlyArray<SerializedBatch>;
+}
+
+interface SerializedQuote {
+  readonly quoteId: string;
+  readonly name: string;
+  readonly ownerPubkey: string;
+  readonly leaf: string;
+  readonly value: string;
+  readonly gateBaseSats: string;
+  readonly serviceBaseSats: string;
+  readonly paymentRail: PaymentRail;
+  readonly paymentReference: string;
+  readonly expiresAt: string;
+  readonly status: ClaimStatus;
+  readonly rejectionReason?: string;
+  readonly batchId?: string;
+}
+
+interface SerializedBatch {
+  readonly batchId: string;
+  readonly prevRoot: string;
+  readonly newRoot: string;
+  readonly leaves: ReadonlyArray<{
+    readonly name: string;
+    readonly ownerPubkey: string;
+    readonly leaf: string;
+    readonly value: string;
+  }>;
+  readonly anchorTxid: string;
+  readonly anchorHeight: number;
+  readonly anchoredAt: string;
 }
 
 interface InternalQuote {
@@ -70,15 +111,16 @@ interface InternalBatch {
 
 export class Publisher {
   readonly network: PublisherInfo["network"];
-  private readonly accumulator = new Accumulator();
+  private accumulator = new Accumulator();
   private readonly quotes = new Map<string, InternalQuote>();
   private readonly batches = new Map<string, InternalBatch>();
   private readonly leafToQuote = new Map<string, string>(); // active reservations
   private readonly paymentVerifier: PaymentVerifier;
   private readonly anchorBroadcaster: AnchorBroadcaster;
   private readonly clock: () => Date;
+  private readonly onChange: () => void;
   private readonly options: Required<
-    Omit<PublisherOptions, "paymentVerifier" | "anchorBroadcaster" | "clock" | "network">
+    Omit<PublisherOptions, "paymentVerifier" | "anchorBroadcaster" | "clock" | "network" | "onChange">
   >;
 
   constructor(options: PublisherOptions) {
@@ -86,6 +128,7 @@ export class Publisher {
     this.paymentVerifier = options.paymentVerifier ?? new StubPaymentVerifier();
     this.anchorBroadcaster = options.anchorBroadcaster ?? new StubAnchorBroadcaster();
     this.clock = options.clock ?? (() => new Date());
+    this.onChange = options.onChange ?? (() => {});
     this.options = {
       operatorName: options.operatorName ?? "unnamed publisher",
       contact: options.contact ?? "",
@@ -181,6 +224,7 @@ export class Publisher {
     };
     this.quotes.set(quoteId, quote);
     this.leafToQuote.set(leaf, quoteId);
+    this.onChange();
 
     return {
       kind: "ont-publisher-quote",
@@ -211,6 +255,7 @@ export class Publisher {
     if (quote.status === "expired" || quote.expiresAt.getTime() < this.clock().getTime()) {
       quote.status = "expired";
       this.leafToQuote.delete(quote.leaf);
+      this.onChange();
       return this.receiptFor(quote);
     }
     if (quote.status !== "quoted") {
@@ -231,12 +276,99 @@ export class Publisher {
       quote.status = "rejected";
       quote.rejectionReason = verification.reason ?? "payment not accepted";
       this.leafToQuote.delete(quote.leaf);
+      this.onChange();
       return this.receiptFor(quote);
     }
 
     quote.status = "paid";
     await this.sealBatch([quote]);
+    this.onChange();
     return this.receiptFor(quote);
+  }
+
+  /** Serializable snapshot of all state needed to restart with continuity. */
+  snapshot(): PublisherSnapshot {
+    return {
+      format: "ont-publisher-snapshot",
+      version: 1,
+      accumulator: {}, // reconstructed from batches on restore
+      quotes: [...this.quotes.values()].map((q) => ({
+        quoteId: q.quoteId,
+        name: q.name,
+        ownerPubkey: q.ownerPubkey,
+        leaf: q.leaf,
+        value: q.value,
+        gateBaseSats: q.gateBaseSats.toString(),
+        serviceBaseSats: q.serviceBaseSats.toString(),
+        paymentRail: q.paymentRail,
+        paymentReference: q.paymentReference,
+        expiresAt: q.expiresAt.toISOString(),
+        status: q.status,
+        ...(q.rejectionReason !== undefined ? { rejectionReason: q.rejectionReason } : {}),
+        ...(q.batchId !== undefined ? { batchId: q.batchId } : {})
+      })),
+      batches: [...this.batches.values()]
+        .sort((a, b) => a.anchoredAt.getTime() - b.anchoredAt.getTime())
+        .map((b) => ({
+          batchId: b.batchId,
+          prevRoot: b.prevRoot,
+          newRoot: b.newRoot,
+          leaves: b.leaves,
+          anchorTxid: b.anchorTxid,
+          anchorHeight: b.anchorHeight,
+          anchoredAt: b.anchoredAt.toISOString()
+        }))
+    };
+  }
+
+  /** Replace this publisher's state with a previously-captured snapshot. */
+  restore(snapshot: PublisherSnapshot): void {
+    if (snapshot.format !== "ont-publisher-snapshot" || snapshot.version !== 1) {
+      throw new Error("unsupported publisher snapshot format/version");
+    }
+    this.accumulator = new Accumulator();
+    this.quotes.clear();
+    this.batches.clear();
+    this.leafToQuote.clear();
+
+    const sortedBatches = [...snapshot.batches].sort((a, b) => a.anchoredAt.localeCompare(b.anchoredAt));
+    for (const sb of sortedBatches) {
+      for (const leaf of sb.leaves) {
+        this.accumulator.insert(leaf.leaf, leaf.value);
+      }
+      this.batches.set(sb.batchId, {
+        batchId: sb.batchId,
+        prevRoot: sb.prevRoot,
+        newRoot: sb.newRoot,
+        leaves: sb.leaves,
+        anchorTxid: sb.anchorTxid,
+        anchorHeight: sb.anchorHeight,
+        anchoredAt: new Date(sb.anchoredAt)
+      });
+    }
+
+    const now = this.clock().getTime();
+    for (const sq of snapshot.quotes) {
+      const quote: InternalQuote = {
+        quoteId: sq.quoteId,
+        name: sq.name,
+        ownerPubkey: sq.ownerPubkey,
+        leaf: sq.leaf,
+        value: sq.value,
+        gateBaseSats: BigInt(sq.gateBaseSats),
+        serviceBaseSats: BigInt(sq.serviceBaseSats),
+        paymentRail: sq.paymentRail,
+        paymentReference: sq.paymentReference,
+        expiresAt: new Date(sq.expiresAt),
+        status: sq.status,
+        ...(sq.rejectionReason !== undefined ? { rejectionReason: sq.rejectionReason } : {}),
+        ...(sq.batchId !== undefined ? { batchId: sq.batchId } : {})
+      };
+      this.quotes.set(quote.quoteId, quote);
+      if (quote.status === "quoted" && quote.expiresAt.getTime() > now) {
+        this.leafToQuote.set(quote.leaf, quote.quoteId);
+      }
+    }
   }
 
   /** Idempotent status lookup. */
