@@ -8,6 +8,8 @@
 import { env } from "node:process";
 
 import { EsploraAnchorBroadcaster, type EsploraNetwork } from "./esplora-anchor.js";
+import { LexeSidecarInvoiceProvider } from "./invoice.js";
+import { LexeSidecarPaymentVerifier } from "./payment.js";
 import { Publisher, type PublisherSnapshot } from "./publisher.js";
 import { startPublisherServer } from "./server.js";
 import { FilePublisherStore, type PublisherStore } from "./store.js";
@@ -19,6 +21,14 @@ async function main(): Promise<void> {
   const store: PublisherStore | null = storePath ? new FilePublisherStore(storePath) : null;
 
   const anchorBroadcaster = configureAnchorBroadcaster(network);
+  const lexeSidecarUrl = env.ONT_PUBLISHER_LEXE_SIDECAR_URL;
+  const invoiceProvider = lexeSidecarUrl !== undefined ? new LexeSidecarInvoiceProvider(lexeSidecarUrl) : null;
+  const paymentVerifier = lexeSidecarUrl !== undefined ? new LexeSidecarPaymentVerifier(lexeSidecarUrl) : null;
+  if (lexeSidecarUrl !== undefined) {
+    console.log(`payment + invoice: real Lexe sidecar at ${lexeSidecarUrl}`);
+  } else {
+    console.log("payment + invoice: stub (set ONT_PUBLISHER_LEXE_SIDECAR_URL for real Lightning)");
+  }
 
   // Build the publisher with a deferred-binding onChange so we can wire the
   // store *after* construction (the publisher needs to exist before we can
@@ -29,6 +39,8 @@ async function main(): Promise<void> {
     operatorName: env.ONT_PUBLISHER_OPERATOR_NAME ?? "dev publisher",
     contact: env.ONT_PUBLISHER_CONTACT ?? "",
     ...(anchorBroadcaster !== null ? { anchorBroadcaster } : {}),
+    ...(invoiceProvider !== null ? { invoiceProvider } : {}),
+    ...(paymentVerifier !== null ? { paymentVerifier } : {}),
     onChange: () => {
       if (store === null) return;
       // Debounce: a burst of mutations only writes once.

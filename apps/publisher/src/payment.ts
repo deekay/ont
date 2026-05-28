@@ -42,3 +42,74 @@ export class StubPaymentVerifier implements PaymentVerifier {
     return Promise.resolve({ accepted: true });
   }
 }
+
+/**
+ * Verifies a payment by querying a Lexe node's local sidecar for the payment
+ * record associated with the wallet-supplied paymentHash. Accepted iff the
+ * sidecar reports the payment as succeeded and the received amount covers the
+ * expected total. Field names parsed permissively because the sidecar schema
+ * still needs confirming against docs.lexe.tech.
+ */
+export class LexeSidecarPaymentVerifier implements PaymentVerifier {
+  readonly baseUrl: string;
+
+  constructor(baseUrl = "http://localhost:5393") {
+    this.baseUrl = baseUrl.replace(/\/+$/, "");
+  }
+
+  async verify(input: PaymentVerifierInput): Promise<PaymentVerification> {
+    const hash = input.paymentProof.paymentHash;
+    if (hash === undefined || hash === "") {
+      return { accepted: false, reason: "paymentProof.paymentHash is required" };
+    }
+    const res = await fetch(`${this.baseUrl}/v2/node/payment?hash=${encodeURIComponent(hash)}`);
+    if (!res.ok) {
+      return { accepted: false, reason: `lexe payment lookup returned HTTP ${res.status}` };
+    }
+    const raw = (await res.json()) as unknown;
+    const status = pickString(raw, "status", "state")?.toLowerCase() ?? "";
+    const settled = ["succeeded", "completed", "paid", "settled"].includes(status);
+    if (!settled) {
+      return { accepted: false, reason: `payment status is "${status}"` };
+    }
+    const amountSatsField = pickNumber(raw, "amount_sats", "amountSats", "amount") ?? 0;
+    if (BigInt(amountSatsField) < input.expectedSats) {
+      return {
+        accepted: false,
+        reason: `received ${amountSatsField} sats, expected ${input.expectedSats}`
+      };
+    }
+    return { accepted: true };
+  }
+}
+
+function pickString(raw: unknown, ...keys: string[]): string | null {
+  if (raw === null || typeof raw !== "object" || Array.isArray(raw)) {
+    return null;
+  }
+  const record = raw as Record<string, unknown>;
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === "string" && value !== "") {
+      return value;
+    }
+  }
+  return null;
+}
+
+function pickNumber(raw: unknown, ...keys: string[]): number | null {
+  if (raw === null || typeof raw !== "object" || Array.isArray(raw)) {
+    return null;
+  }
+  const record = raw as Record<string, unknown>;
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return value;
+    }
+    if (typeof value === "string" && /^\d+$/.test(value)) {
+      return Number(value);
+    }
+  }
+  return null;
+}

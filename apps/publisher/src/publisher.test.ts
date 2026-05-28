@@ -10,9 +10,9 @@ function fresh(): Publisher {
 }
 
 describe("Publisher quote → submit → confirmed flow", () => {
-  it("issues a quote for an available name with the right shape", () => {
+  it("issues a quote for an available name with the right shape", async () => {
     const publisher = fresh();
-    const quote = publisher.quote({ name: "Satoshi", ownerPubkey: OWNER, paymentRail: "lightning" });
+    const quote = await publisher.quote({ name: "Satoshi", ownerPubkey: OWNER, paymentRail: "lightning" });
     expect(quote.available).toBe(true);
     expect(quote.name).toBe("satoshi"); // normalized
     expect(quote.leaf).toMatch(/^[0-9a-f]{64}$/);
@@ -21,23 +21,23 @@ describe("Publisher quote → submit → confirmed flow", () => {
     expect(quote.totalBaseSats).toBe((1000n + 200n).toString());
   });
 
-  it("rejects a non-hex owner pubkey", () => {
+  it("rejects a non-hex owner pubkey", async () => {
     const publisher = fresh();
-    expect(() => publisher.quote({ name: "alice", ownerPubkey: "nope", paymentRail: "lightning" }))
-      .toThrow(PublisherError);
+    await expect(publisher.quote({ name: "alice", ownerPubkey: "nope", paymentRail: "lightning" }))
+      .rejects.toThrow(PublisherError);
   });
 
-  it("returns unavailable for a name reserved by a live quote", () => {
+  it("returns unavailable for a name reserved by a live quote", async () => {
     const publisher = fresh();
-    publisher.quote({ name: "alice", ownerPubkey: OWNER, paymentRail: "lightning" });
-    const second = publisher.quote({ name: "alice", ownerPubkey: OWNER, paymentRail: "lightning" });
+    await publisher.quote({ name: "alice", ownerPubkey: OWNER, paymentRail: "lightning" });
+    const second = await publisher.quote({ name: "alice", ownerPubkey: OWNER, paymentRail: "lightning" });
     expect(second.available).toBe(false);
     expect(second.reason).toBe("reserved");
   });
 
   it("walks quoted → confirmed on submit, producing a verifying inclusion proof", async () => {
     const publisher = fresh();
-    const quote = publisher.quote({ name: "alice", ownerPubkey: OWNER, paymentRail: "lightning" });
+    const quote = await publisher.quote({ name: "alice", ownerPubkey: OWNER, paymentRail: "lightning" });
     const receipt = await publisher.submit({
       quoteId: quote.quoteId,
       paymentProof: { rail: "lightning", paymentHash: "deadbeef" }
@@ -61,16 +61,16 @@ describe("Publisher quote → submit → confirmed flow", () => {
 
   it("treats the name as taken after a confirmed claim", async () => {
     const publisher = fresh();
-    const first = publisher.quote({ name: "alice", ownerPubkey: OWNER, paymentRail: "lightning" });
+    const first = await publisher.quote({ name: "alice", ownerPubkey: OWNER, paymentRail: "lightning" });
     await publisher.submit({ quoteId: first.quoteId, paymentProof: { rail: "lightning" } });
-    const second = publisher.quote({ name: "alice", ownerPubkey: OWNER, paymentRail: "lightning" });
+    const second = await publisher.quote({ name: "alice", ownerPubkey: OWNER, paymentRail: "lightning" });
     expect(second.available).toBe(false);
     expect(second.reason).toBe("taken");
   });
 
   it("idempotent status lookup", async () => {
     const publisher = fresh();
-    const quote = publisher.quote({ name: "alice", ownerPubkey: OWNER, paymentRail: "lightning" });
+    const quote = await publisher.quote({ name: "alice", ownerPubkey: OWNER, paymentRail: "lightning" });
     await publisher.submit({ quoteId: quote.quoteId, paymentProof: { rail: "lightning" } });
     const first = publisher.status(quote.quoteId);
     const second = publisher.status(quote.quoteId);
@@ -81,7 +81,7 @@ describe("Publisher quote → submit → confirmed flow", () => {
 
   it("exposes batch data for data-availability checks", async () => {
     const publisher = fresh();
-    const quote = publisher.quote({ name: "alice", ownerPubkey: OWNER, paymentRail: "lightning" });
+    const quote = await publisher.quote({ name: "alice", ownerPubkey: OWNER, paymentRail: "lightning" });
     const receipt = await publisher.submit({
       quoteId: quote.quoteId,
       paymentProof: { rail: "lightning" }
@@ -98,11 +98,11 @@ describe("Publisher quote → submit → confirmed flow", () => {
     expect(() => publisher.status("nope")).toThrow(PublisherError);
   });
 
-  it("refuses an unsupported payment rail in v0", () => {
+  it("refuses an unsupported payment rail in v0", async () => {
     const publisher = fresh();
-    expect(() =>
+    await expect(
       publisher.quote({ name: "alice", ownerPubkey: OWNER, paymentRail: "l1" })
-    ).toThrow(PublisherError);
+    ).rejects.toThrow(PublisherError);
   });
 
   it("expires a quote whose TTL has passed before submit", async () => {
@@ -112,14 +112,14 @@ describe("Publisher quote → submit → confirmed flow", () => {
       quoteTtlSeconds: 60,
       clock: () => new Date(now)
     });
-    const quote = publisher.quote({ name: "alice", ownerPubkey: OWNER, paymentRail: "lightning" });
+    const quote = await publisher.quote({ name: "alice", ownerPubkey: OWNER, paymentRail: "lightning" });
     now += 120 * 1000;
     const receipt = await publisher.submit({
       quoteId: quote.quoteId,
       paymentProof: { rail: "lightning" }
     });
     expect(receipt.status).toBe("expired");
-    const after = publisher.quote({ name: "alice", ownerPubkey: OWNER, paymentRail: "lightning" });
+    const after = await publisher.quote({ name: "alice", ownerPubkey: OWNER, paymentRail: "lightning" });
     expect(after.available).toBe(true); // reservation released
   });
 });
@@ -137,7 +137,7 @@ describe("Publisher info + health", () => {
 describe("Publisher batching policy", () => {
   it("seals immediately when maxBatchSize === 1 (default)", async () => {
     const publisher = fresh();
-    const quote = publisher.quote({ name: "alice", ownerPubkey: OWNER, paymentRail: "lightning" });
+    const quote = await publisher.quote({ name: "alice", ownerPubkey: OWNER, paymentRail: "lightning" });
     const receipt = await publisher.submit({ quoteId: quote.quoteId, paymentProof: { rail: "lightning" } });
     expect(receipt.status).toBe("confirmed");
     expect(publisher.pendingCount()).toBe(0);
@@ -145,9 +145,9 @@ describe("Publisher batching policy", () => {
 
   it("queues until maxBatchSize is reached, then seals all at once", async () => {
     const publisher = new Publisher({ network: "regtest", maxBatchSize: 3 });
-    const q1 = publisher.quote({ name: "a", ownerPubkey: OWNER, paymentRail: "lightning" });
-    const q2 = publisher.quote({ name: "b", ownerPubkey: OWNER, paymentRail: "lightning" });
-    const q3 = publisher.quote({ name: "c", ownerPubkey: OWNER, paymentRail: "lightning" });
+    const q1 = await publisher.quote({ name: "a", ownerPubkey: OWNER, paymentRail: "lightning" });
+    const q2 = await publisher.quote({ name: "b", ownerPubkey: OWNER, paymentRail: "lightning" });
+    const q3 = await publisher.quote({ name: "c", ownerPubkey: OWNER, paymentRail: "lightning" });
 
     const r1 = await publisher.submit({ quoteId: q1.quoteId, paymentProof: { rail: "lightning" } });
     expect(r1.status).toBe("paid");
@@ -176,7 +176,7 @@ describe("Publisher batching policy", () => {
       maxBatchAgeSeconds: 30,
       clock: () => new Date(now)
     });
-    const quote = publisher.quote({ name: "alice", ownerPubkey: OWNER, paymentRail: "lightning" });
+    const quote = await publisher.quote({ name: "alice", ownerPubkey: OWNER, paymentRail: "lightning" });
     const submitted = await publisher.submit({ quoteId: quote.quoteId, paymentProof: { rail: "lightning" } });
     expect(submitted.status).toBe("paid"); // not yet sealed
 
@@ -189,7 +189,7 @@ describe("Publisher batching policy", () => {
 
   it("preserves the pending queue across snapshot/restore", async () => {
     const publisher = new Publisher({ network: "regtest", maxBatchSize: 3 });
-    const q = publisher.quote({ name: "alice", ownerPubkey: OWNER, paymentRail: "lightning" });
+    const q = await publisher.quote({ name: "alice", ownerPubkey: OWNER, paymentRail: "lightning" });
     await publisher.submit({ quoteId: q.quoteId, paymentProof: { rail: "lightning" } });
     expect(publisher.pendingCount()).toBe(1);
 
@@ -203,7 +203,7 @@ describe("Publisher batching policy", () => {
 describe("Publisher snapshot + restore", () => {
   it("round-trips a confirmed claim through snapshot/restore", async () => {
     const original = fresh();
-    const quote = original.quote({ name: "alice", ownerPubkey: OWNER, paymentRail: "lightning" });
+    const quote = await original.quote({ name: "alice", ownerPubkey: OWNER, paymentRail: "lightning" });
     await original.submit({ quoteId: quote.quoteId, paymentProof: { rail: "lightning" } });
 
     const snapshot = original.snapshot();
@@ -216,19 +216,19 @@ describe("Publisher snapshot + restore", () => {
     expect(status.inclusionProof?.leaf).toBe(quote.leaf);
 
     // And it still treats the name as taken.
-    const secondQuote = restored.quote({ name: "alice", ownerPubkey: OWNER, paymentRail: "lightning" });
+    const secondQuote = await restored.quote({ name: "alice", ownerPubkey: OWNER, paymentRail: "lightning" });
     expect(secondQuote.available).toBe(false);
     expect(secondQuote.reason).toBe("taken");
   });
 
-  it("preserves a live reservation across restore", () => {
+  it("preserves a live reservation across restore", async () => {
     const original = fresh();
-    const quote = original.quote({ name: "bob", ownerPubkey: OWNER, paymentRail: "lightning" });
+    const quote = await original.quote({ name: "bob", ownerPubkey: OWNER, paymentRail: "lightning" });
 
     const restored = fresh();
     restored.restore(original.snapshot());
 
-    const second = restored.quote({ name: "bob", ownerPubkey: OWNER, paymentRail: "lightning" });
+    const second = await restored.quote({ name: "bob", ownerPubkey: OWNER, paymentRail: "lightning" });
     expect(second.available).toBe(false);
     expect(second.reason).toBe("reserved");
     expect(restored.status(quote.quoteId).status).toBe("quoted");
@@ -238,10 +238,10 @@ describe("Publisher snapshot + restore", () => {
     let count = 0;
     const publisher = new Publisher({ network: "regtest", onChange: () => (count += 1) });
     const before = count;
-    publisher.quote({ name: "alice", ownerPubkey: OWNER, paymentRail: "lightning" });
+    await publisher.quote({ name: "alice", ownerPubkey: OWNER, paymentRail: "lightning" });
     expect(count).toBeGreaterThan(before);
     const mid = count;
-    const quote = publisher.quote({ name: "bob", ownerPubkey: OWNER, paymentRail: "lightning" });
+    const quote = await publisher.quote({ name: "bob", ownerPubkey: OWNER, paymentRail: "lightning" });
     expect(count).toBeGreaterThan(mid);
     const beforeSubmit = count;
     await publisher.submit({ quoteId: quote.quoteId, paymentProof: { rail: "lightning" } });

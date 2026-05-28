@@ -13,6 +13,7 @@ import { createRootAnchorPayload, normalizeName } from "@ont/protocol";
 import { randomBytes } from "node:crypto";
 
 import { type AnchorBroadcaster, StubAnchorBroadcaster } from "./anchor.js";
+import { type InvoiceProvider, StubInvoiceProvider } from "./invoice.js";
 import { type PaymentVerifier, StubPaymentVerifier } from "./payment.js";
 import type {
   BatchData,
@@ -38,6 +39,7 @@ export interface PublisherOptions {
   readonly expectedAnchorIntervalSeconds?: number;
   readonly quoteTtlSeconds?: number;
   readonly paymentVerifier?: PaymentVerifier;
+  readonly invoiceProvider?: InvoiceProvider;
   readonly anchorBroadcaster?: AnchorBroadcaster;
   readonly clock?: () => Date;
   /** Fired after any state-changing operation so a store can persist. */
@@ -66,6 +68,8 @@ interface SerializedQuote {
   readonly serviceBaseSats: string;
   readonly paymentRail: PaymentRail;
   readonly paymentReference: string;
+  /** Optional for legacy snapshots written before the invoice-provider split. */
+  readonly paymentHash?: string;
   readonly expiresAt: string;
   readonly status: ClaimStatus;
   readonly rejectionReason?: string;
@@ -96,6 +100,7 @@ interface InternalQuote {
   readonly gateBaseSats: bigint;
   readonly serviceBaseSats: bigint;
   readonly paymentRail: PaymentRail;
+  readonly paymentHash: string;
   readonly paymentReference: string;
   readonly expiresAt: Date;
   status: ClaimStatus;
@@ -122,16 +127,18 @@ export class Publisher {
   private pendingPaid: InternalQuote[] = []; // paid claims waiting to be sealed
   private pendingPaidSince: Date | null = null;
   private readonly paymentVerifier: PaymentVerifier;
+  private readonly invoiceProvider: InvoiceProvider;
   private readonly anchorBroadcaster: AnchorBroadcaster;
   private readonly clock: () => Date;
   private readonly onChange: () => void;
   private readonly options: Required<
-    Omit<PublisherOptions, "paymentVerifier" | "anchorBroadcaster" | "clock" | "network" | "onChange">
+    Omit<PublisherOptions, "paymentVerifier" | "invoiceProvider" | "anchorBroadcaster" | "clock" | "network" | "onChange">
   >;
 
   constructor(options: PublisherOptions) {
     this.network = options.network;
     this.paymentVerifier = options.paymentVerifier ?? new StubPaymentVerifier();
+    this.invoiceProvider = options.invoiceProvider ?? new StubInvoiceProvider();
     this.anchorBroadcaster = options.anchorBroadcaster ?? new StubAnchorBroadcaster();
     this.clock = options.clock ?? (() => new Date());
     this.onChange = options.onChange ?? (() => {});
@@ -182,7 +189,7 @@ export class Publisher {
    * Issue a quote for a name. Reserves the leaf for the quote's TTL so a
    * race between quoting and submitting doesn't double-promise the same name.
    */
-  quote(request: QuoteRequest): Quote {
+  async quote(request: QuoteRequest): Promise<Quote> {
     const name = normalizeName(request.name);
     if (!/^[0-9a-fA-F]{64}$/.test(request.ownerPubkey)) {
       throw new PublisherError("ownerPubkey must be 32-byte hex", 400);
@@ -217,7 +224,12 @@ export class Publisher {
 
     const quoteId = randomBytes(16).toString("hex");
     const expiresAt = new Date(this.clock().getTime() + this.options.quoteTtlSeconds * 1000);
-    const paymentReference = synthInvoice(quoteId);
+    const total = this.options.gateBaseSats + this.options.serviceBaseSats;
+    const invoice = await this.invoiceProvider.create({
+      quoteId,
+      amountSats: total,
+      description: `ONT claim: ${name}`
+    });
     const quote: InternalQuote = {
       quoteId,
       name,
@@ -227,7 +239,8 @@ export class Publisher {
       gateBaseSats: this.options.gateBaseSats,
       serviceBaseSats: this.options.serviceBaseSats,
       paymentRail: request.paymentRail,
-      paymentReference,
+      paymentReference: invoice.bolt11,
+      paymentHash: invoice.paymentHash,
       expiresAt,
       status: "quoted"
     };
@@ -245,7 +258,7 @@ export class Publisher {
       totalBaseSats: (quote.gateBaseSats + quote.serviceBaseSats).toString(),
       expiresAt: expiresAt.toISOString(),
       paymentRail: quote.paymentRail,
-      lightningInvoice: paymentReference,
+      lightningInvoice: invoice.bolt11,
       ownerCommitment: value,
       leaf
     };
@@ -348,6 +361,7 @@ export class Publisher {
         serviceBaseSats: q.serviceBaseSats.toString(),
         paymentRail: q.paymentRail,
         paymentReference: q.paymentReference,
+        paymentHash: q.paymentHash,
         expiresAt: q.expiresAt.toISOString(),
         status: q.status,
         ...(q.rejectionReason !== undefined ? { rejectionReason: q.rejectionReason } : {}),
@@ -411,6 +425,7 @@ export class Publisher {
         serviceBaseSats: BigInt(sq.serviceBaseSats),
         paymentRail: sq.paymentRail,
         paymentReference: sq.paymentReference,
+        paymentHash: sq.paymentHash ?? `legacy-${sq.quoteId}`,
         expiresAt: new Date(sq.expiresAt),
         status: sq.status,
         ...(sq.rejectionReason !== undefined ? { rejectionReason: sq.rejectionReason } : {}),
@@ -562,7 +577,3 @@ export class PublisherError extends Error {
   }
 }
 
-/** Stand-in for a real BOLT11 invoice — deterministic given a quoteId. */
-function synthInvoice(quoteId: string): string {
-  return `lnbcrt:stub:${quoteId}`;
-}

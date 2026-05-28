@@ -53,7 +53,7 @@ async function handle(publisher: Publisher, req: IncomingMessage, res: ServerRes
   }
   if (method === "POST" && url.pathname === "/claim/quote") {
     const body = await readJsonBody<QuoteRequest>(req);
-    return writeJson(res, 200, publisher.quote(body));
+    return writeJson(res, 200, await publisher.quote(body));
   }
   if (method === "POST" && url.pathname === "/claim/submit") {
     const body = await readJsonBody<ClaimSubmission>(req);
