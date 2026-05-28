@@ -153,12 +153,14 @@ Concrete changes to `apps/publisher` once B is the target:
    leaves. Three outcomes per leaf:
    - *applied* — the leaf is present with this claimant's value. Deliver the
      inclusion proof (against the canonical root) as today.
-   - *dropped_existing* — the name was already taken on a prior canonical
+   - *dropped_existing* — the name was already final on a prior canonical
      root. The publisher should have caught this at quote time, but a race
      between quote and anchor can still produce it. Refund.
-   - *dropped_conflict* — another anchor inserted the same leaf with earlier
-     commit priority. This is the contested case (below). Refund the service
-     portion; the gate is already spent as miner fee.
+   - *contested* — another claim for the same leaf landed inside the shared
+     notice window. Per `ONT.md`'s one-path model this does *not* silently
+     resolve by first-writer-wins; it escalates the name to a bonded auction
+     (see "Contested claims" below). The publisher's job is to surface the
+     contention to the claimant, not to declare a loser.
 
 4. **Rebatch is rarely needed.** Because distinct-leaf inserts commute and
    the merge re-applies winners against the *current* canonical root, a
@@ -175,47 +177,69 @@ sha256(name), ownerCommitment === owner key, inclusion proof via
 `verifyAccumulatorProof`). Multi-publisher adds one more check it must do
 *against the canonical root*, not the publisher's claimed root:
 
-- After finalization, fetch the canonical accumulator state (from a resolver)
-  and confirm the leaf for the claimed name commits *this wallet's* owner
-  key. If it commits someone else's key, the wallet lost a same-name conflict
-  — it does not own the name, regardless of what the publisher's receipt said.
+- After the notice window closes, fetch the canonical accumulator state (from
+  a resolver) and confirm the leaf for the claimed name commits *this wallet's*
+  owner key. Three outcomes: the leaf commits this wallet's key (owned); a
+  competing claim landed in the window (contested — the name is in auction, and
+  the wallet must decide whether to bid); or the name was already final on a
+  prior root (taken — the publisher should have caught this at quote time).
 
 This is the case that matters: a wallet must never record a name as owned on
-the strength of a publisher receipt alone, because the publisher cannot know
-at submit time whether its anchor will win the leaf.
+the strength of a publisher receipt alone, because the receipt is issued
+before the notice window closes and the publisher cannot know at submit time
+whether the name will be contested.
 
-## The contested-claim collision with the one-path model
+## Contested claims: the notice window
 
-This is the part that needs a human decision, because it touches the core
-"uncontested = cheap claim, contested = bonded auction" model directly.
+This is settled canonically and I had wrongly flagged it as open. `ONT.md`
+("Claiming a name — one path", lines 37–54) already defines it: a cheap claim
+is **not** final on confirmation. Anchoring opens a **notice window**; if no
+competing claim for the same name lands during it, the claim finalizes (the
+common, cheap, batched case). If a competing claim *does* land in the window,
+the name is **contested** and escalates to a bonded second-price auction —
+which is the *only* way an auction ever starts. The cheap claim is the sole
+entry path; the auction is an escalation of it, not a parallel rail.
+`docs/launch/UNIVERSAL_AUCTION_LAUNCH_MODEL.md` is the in-depth design of that
+escalated path (≈7-day window, soft close, returnable bonds).
 
-The cheap rail's failure mode is a same-name conflict: two claimants pay the
-₿1,000 gate for the same name in the same window; commit priority picks one;
-the other loses the name and the gate (the service fee is refundable, but the
-gate is already spent as the miner fee on the anchor that happened to lose).
-For a ₿1,000 (~$1) gate that is a fine anti-spam outcome in the abstract. But
-it sits awkwardly with the promise that contested names route to an auction
-rather than a first-confirmed-wins race.
+The mechanical consequence for the convergence layer is the important part,
+because it corrects how `mergeBlock` behaves today:
 
-The unresolved question: **is a fresh cheap-rail claim final on first
-confirmation, or provisional for a challenge window during which a competing
-demand escalates it to the bonded L1 auction?**
+- **First-writer-wins does not apply inside an open notice window.**
+  `commitPriority` in `delta-merge-sim.ts` currently resolves a same-leaf
+  conflict by picking the earliest commit and marking the rest
+  `dropped_conflict`. Under the one-path model that is wrong for two claims
+  that *both* land while the window is open: neither is dropped — the leaf is
+  flagged contested and its resolution is deferred to the auction outcome.
+- **Commit priority still governs the other cases.** A claim whose leaf is
+  already final on a prior canonical root is `dropped_existing` (the name is
+  taken; no auction). And commit priority is still the deterministic order in
+  which uncontested winners fold in (commutativity makes that order moot for
+  distinct leaves, but it keeps checkpoints reproducible).
+- **The accumulator needs a provisional state.** A leaf claimed-but-inside-its-
+  window is not yet ownable. The canonical accumulator should not hand out a
+  final inclusion proof for it until the window closes uncontested (or the
+  auction settles). Inclusion proofs therefore gain a provisional-vs-final
+  distinction, and the resolver tracks per-leaf window deadlines.
 
-- *First-confirmed-wins final.* Simplest. "Contested → auction" then only
-  means "if you both try at once, the gate race decides it, and the loser
-  re-tries elsewhere." But there is no elsewhere once the name is owned — so
-  this quietly removes the auction's role for cold-start contention.
-- *Provisional + challenge window.* A fresh claim is tentative for W blocks;
-  a competing claimant who shows up in the window forces a second-price
-  auction between them; absent a challenger it finalizes. This is what makes
-  "contested → auction" real, but it adds a window where a name is not yet
-  settled, complicates inclusion proofs (provisional vs final), and needs the
-  auction and cheap rails to share state.
+Remaining sub-questions (implementation shape, not protocol shape):
+
+- **Window relationship.** The notice window (detect contention) and the
+  auction window (≈7 days, once contested) are distinct. Notice-window length
+  is a parameter; it must be long enough that an honest competitor can observe
+  a claim and respond, and is bounded above by the DA finalization depth `K`.
+- **How the escalation seats bidders.** Does the original claimant's claim
+  auto-seat as the opening bid, or must they re-enter by posting a bond like
+  any challenger? Is the auction open to anyone, or only to the claimants who
+  appeared in the notice window? The neutral default is "open to anyone; the
+  in-window claimants are simply the first bidders," but this is worth a call.
+- **Gate disposition on escalation.** The ₿1,000 gates were already paid to
+  miners on the claim anchors. On escalation they are sunk for both sides
+  (they are neither bond nor refundable), which is fine as anti-spam but
+  should be stated so the auction's bond accounting does not double-count them.
 
 `docs/design/ONT_MEV_ORDERING_ANALYSIS.md` is the right neighbor for the
-ordering/fairness half of this; the auction mechanics live with the L1
-auction rail. I do not think this should be decided unilaterally — it is a
-protocol-shape decision, not an implementation detail.
+ordering/fairness half of the notice window.
 
 ## Neutrality tradeoffs (the decisions that need you)
 
@@ -231,11 +255,14 @@ protocol-shape decision, not an implementation detail.
    + recomputable; the choice among piggyback / public-good / fee-market is
    open.
 
-3. **Sunk-fee griefing bound.** A griefer can pay gates to lose name races on
-   purpose, burning a victim publisher's L1 anchor fee. The bound is "griefer
-   pays the gate too," which for ₿1,000 is real money per attempt and scales
-   linearly with the griefing. Probably acceptable; worth naming as a known
-   cost rather than discovering it later.
+3. **Griefing bound under escalation.** Because contested claims go to auction
+   rather than a silent race, a griefer cannot cheaply void a victim's claim —
+   they can only *force an auction* by claiming the same name in the notice
+   window, which costs them their own ₿1,000 gate and then a returnable bond to
+   actually compete. For ₿1,000 plus bonded capital per attempt that is real
+   skin in the game and scales linearly with the griefing; the residual harm is
+   the victim's time and auction friction, not a lost name. Worth naming as a
+   known cost rather than discovering it later.
 
 ## Recommended path (phased, low-risk first)
 
@@ -251,9 +278,11 @@ protocol-shape decision, not an implementation detail.
 4. **Add the canonical-root re-check to the wallet** before it records a name
    as owned.
 5. **Checkpoints** once 2–4 are real, to restore cheap light-client follow.
-6. **Decide the contested-claim question** (final vs provisional+challenge)
-   before the cheap rail is exposed to genuinely contested names; until then
-   the cheap rail is honestly an uncontested-names-only path and should say so.
+6. **Implement the notice window + auction escalation** per `ONT.md`: a
+   provisional leaf state, per-leaf window deadlines in the resolver, and the
+   merge-layer correction above (same-leaf-in-window → contested, not
+   first-writer-wins). Until that exists the cheap rail is honestly an
+   uncontested-names-only path and should say so.
 
 ## Why this is worth doing now
 
