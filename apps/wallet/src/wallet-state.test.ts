@@ -101,6 +101,78 @@ describe("WalletState", () => {
     expect(state.list()).toEqual([]);
   });
 
+  it("records a bid and treats an unsynced bond as locked", () => {
+    const state = WalletState.loadOrCreate(path, "signet");
+    state.recordBid({
+      bidTxid: "aa".repeat(32),
+      bondVout: 0,
+      bondAmountSats: "20000",
+      name: "Alice",
+      auctionId: "opening-alice",
+      bidderId: "ab".repeat(32),
+      broadcast: true
+    });
+    const bid = state.getBid("aa".repeat(32));
+    expect(bid?.name).toBe("alice");
+    expect(state.lockedBondOutpoints().has(`${"aa".repeat(32)}:0`)).toBe(true);
+  });
+
+  it("releases a bond from the locked set once sync reports losing_bid_releasable", () => {
+    const state = WalletState.loadOrCreate(path, "signet");
+    state.recordBid({
+      bidTxid: "bb".repeat(32),
+      bondVout: 0,
+      bondAmountSats: "20000",
+      name: "bob",
+      auctionId: "a",
+      bidderId: "b",
+      broadcast: true
+    });
+    state.recordBidSync("bb".repeat(32), {
+      bondStatus: "losing_bid_releasable",
+      bondReleaseBlock: 500,
+      bondSpendStatus: "unspent"
+    });
+    expect(state.lockedBondOutpoints().size).toBe(0);
+    expect(state.getBid("bb".repeat(32))?.bondReleaseBlock).toBe(500);
+  });
+
+  it("keeps a leading_locked bond in the locked set after sync", () => {
+    const state = WalletState.loadOrCreate(path, "signet");
+    state.recordBid({
+      bidTxid: "cc".repeat(32),
+      bondVout: 0,
+      bondAmountSats: "20000",
+      name: "claire",
+      auctionId: "a",
+      bidderId: "b",
+      broadcast: true
+    });
+    state.recordBidSync("cc".repeat(32), {
+      bondStatus: "leading_locked",
+      bondReleaseBlock: null,
+      bondSpendStatus: "unspent"
+    });
+    expect(state.lockedBondOutpoints().has(`${"cc".repeat(32)}:0`)).toBe(true);
+  });
+
+  it("round-trips tracked bids through the file", () => {
+    const state = WalletState.loadOrCreate(path, "signet");
+    state.recordBid({
+      bidTxid: "dd".repeat(32),
+      bondVout: 1,
+      bondAmountSats: "30000",
+      name: "dave",
+      auctionId: "a",
+      bidderId: "b",
+      broadcast: false
+    });
+    state.save(path);
+    const reloaded = WalletState.loadOrCreate(path, "signet");
+    expect(reloaded.listBids()).toHaveLength(1);
+    expect(reloaded.getBid("dd".repeat(32))?.bondVout).toBe(1);
+  });
+
   it("rejects a file with an unexpected format", () => {
     const state = WalletState.loadOrCreate(path, "signet");
     state.track({ name: "alice", ownerPubkey: "ab".repeat(32), ownershipRef: "cd".repeat(32) });

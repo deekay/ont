@@ -34,7 +34,7 @@ import { bidPackageFromAuction } from "./bid-package.js";
 import { BroadcastClient, resolveBroadcastBaseUrl } from "./broadcast.js";
 import { isOntNetwork, type OntNetwork } from "./keys.js";
 import { WalletKeystore } from "./keystore.js";
-import { LexeSidecarLightningPayer, type LightningPayer, StubLightningPayer } from "./lightning.js";
+import { LexeSidecarLightningPayer } from "./lightning.js";
 import { assembleDirectAuctionProofBundle } from "./proof-export.js";
 import { ResolverClient } from "./resolver.js";
 import { signAuctionBidArtifacts, signTransferArtifacts } from "./signer.js";
@@ -63,6 +63,9 @@ async function main(): Promise<void> {
     case "balance":
       await runBalance(rest);
       return;
+    case "auctions":
+      await runAuctions(rest);
+      return;
     case "lookup":
       await runLookup(rest);
       return;
@@ -81,6 +84,9 @@ async function main(): Promise<void> {
     case "sync":
       await runSync(rest);
       return;
+    case "bids":
+      runBids();
+      return;
     case "arm-recovery":
       await runArmRecovery(rest);
       return;
@@ -98,9 +104,6 @@ async function main(): Promise<void> {
       return;
     case "ln-info":
       await runLnInfo(rest[0]);
-      return;
-    case "pay":
-      await runPay(rest);
       return;
     default:
       printUsage();
@@ -159,6 +162,51 @@ async function runBalance(args: readonly string[]): Promise<void> {
     console.log(`  ${utxo.valueSats} base units  ${utxo.txid}:${utxo.vout}`);
   }
   console.log(`spendable:       ${sumUtxoValue(utxos)} base units across ${utxos.length} UTXO(s)`);
+}
+
+/**
+ * List live auctions a resolver knows about. With `--name <n>`, show just that
+ * one (or report it's not auctioning). With `--phase <p>`, filter by phase.
+ * Read-only — discovery for what's claimable / bidding-eligible.
+ */
+async function runAuctions(args: readonly string[]): Promise<void> {
+  const flags = parseFlags(args);
+  const client = new ResolverClient(resolverUrl(flags.get("resolver")));
+  const { currentBlockHeight, auctions } = await client.getExperimentalAuctions();
+
+  const nameFilter = flags.get("name") ?? flags.positionals[0];
+  const phaseFilter = flags.get("phase");
+  const filtered = auctions.filter((auction) => {
+    if (nameFilter !== undefined && auction.normalizedName !== nameFilter.toLowerCase()) {
+      return false;
+    }
+    if (phaseFilter !== undefined && auction.phase !== phaseFilter) {
+      return false;
+    }
+    return true;
+  });
+
+  console.log(`resolver:        ${client.baseUrl}`);
+  console.log(`block height:    ${currentBlockHeight}`);
+  console.log(`auctions:        ${filtered.length} of ${auctions.length}`);
+  if (filtered.length === 0) {
+    if (nameFilter !== undefined) {
+      console.log(`  "${nameFilter}" has no live auction at this resolver`);
+    }
+    return;
+  }
+
+  for (const auction of filtered) {
+    const minimum = auction.currentRequiredMinimumBidSats ?? auction.openingMinimumBidSats;
+    const close = auction.blocksUntilClose !== null ? `${auction.blocksUntilClose} blocks to close` : "no close yet";
+    const leader = auction.currentHighestBidSats !== null
+      ? ` — leader at ${auction.currentHighestBidSats} base units`
+      : "";
+    console.log(`  ${auction.normalizedName}  [${auction.phase}]`);
+    console.log(`    class:    ${auction.classLabel} (${auction.auctionClassId})`);
+    console.log(`    minimum:  ${minimum} base units${leader}`);
+    console.log(`    timing:   unlock at ${auction.unlockBlock} (${auction.blocksUntilUnlock} to go), ${close}`);
+  }
 }
 
 async function runLookup(args: readonly string[]): Promise<void> {
@@ -287,6 +335,26 @@ function runForget(args: readonly string[]): void {
   }
 }
 
+function runBids(): void {
+  const keystore = WalletKeystore.load(keystorePath(), requirePassword());
+  const bids = loadState(keystore.network).listBids();
+  if (bids.length === 0) {
+    console.log("no auction bids tracked");
+    return;
+  }
+  for (const bid of bids) {
+    const status = bid.bondStatus ?? "unknown (run sync)";
+    const release = bid.bondReleaseBlock !== undefined && bid.bondReleaseBlock !== null
+      ? `, release ${bid.bondReleaseBlock}`
+      : "";
+    const spend = bid.bondSpendStatus !== undefined ? `, spend ${bid.bondSpendStatus}` : "";
+    const broadcast = bid.broadcast ? "broadcast" : "not broadcast";
+    console.log(`${bid.name}  ${bid.bidTxid}:${bid.bondVout}`);
+    console.log(`  ${bid.bondAmountSats} base units, ${broadcast}, auction ${bid.auctionId}`);
+    console.log(`  bond: ${status}${release}${spend}`);
+  }
+}
+
 /**
  * Reconcile tracked names against the resolver: for each name (or all tracked),
  * adopt the resolver's confirmed ownership ref + status when this wallet owns
@@ -342,6 +410,39 @@ async function runSync(args: readonly string[]): Promise<void> {
           `${tracked?.pendingClaim ? " (claim did not win)" : ""}`
       );
     }
+  }
+
+  // Also reconcile any tracked auction bids against the resolver's auction
+  // state — this is what tells the wallet a bond has become releasable and is
+  // safe for auto-fund to spend.
+  const bidsToSync = state.listBids().filter((bid) => onlyName === undefined || bid.name === onlyName.toLowerCase());
+  const auctionCache = new Map<string, Awaited<ReturnType<ResolverClient["findAuctionForName"]>>>();
+  for (const bid of bidsToSync) {
+    if (!auctionCache.has(bid.name)) {
+      try {
+        auctionCache.set(bid.name, await client.findAuctionForName(bid.name));
+      } catch (error) {
+        console.log(`bid ${bid.bidTxid.slice(0, 12)}…: resolver error — ${error instanceof Error ? error.message : String(error)}`);
+        continue;
+      }
+    }
+    const auction = auctionCache.get(bid.name) ?? null;
+    if (auction === null) {
+      console.log(`bid ${bid.bidTxid.slice(0, 12)}… for "${bid.name}": no live auction (the bid may have been rejected or settled-out)`);
+      continue;
+    }
+    const outcome = (auction.visibleBidOutcomes ?? []).find((o) => o.txid === bid.bidTxid);
+    if (outcome === undefined || outcome.bondStatus === undefined || outcome.bondSpendStatus === undefined) {
+      console.log(`bid ${bid.bidTxid.slice(0, 12)}… for "${bid.name}": resolver has no bond status yet`);
+      continue;
+    }
+    state.recordBidSync(bid.bidTxid, {
+      bondStatus: outcome.bondStatus,
+      bondReleaseBlock: outcome.bondReleaseBlock ?? null,
+      bondSpendStatus: outcome.bondSpendStatus
+    });
+    changed = true;
+    console.log(`bid ${bid.bidTxid.slice(0, 12)}… for "${bid.name}": bond ${outcome.bondStatus} (spend: ${outcome.bondSpendStatus})`);
   }
 
   if (changed) {
@@ -438,7 +539,17 @@ async function runClaim(args: readonly string[]): Promise<void> {
     );
   }
   if (bidPackage.previewStatus !== "currently_valid") {
-    console.log(`warning: bid preview status is "${bidPackage.previewStatus}" — ${bidPackage.previewSummary}`);
+    // Building a bid the auction will reject burns a tx for nothing. Refuse
+    // unless the user explicitly opts in (e.g., for testing rejection paths).
+    const detail =
+      bidPackage.previewRequiredMinimumBidSats !== null
+        ? ` (current minimum is ${bidPackage.previewRequiredMinimumBidSats} base units)`
+        : "";
+    const message = `bid preview is "${bidPackage.previewStatus}" — ${bidPackage.previewSummary}${detail}`;
+    if (!flags.has("allow-rejected")) {
+      throw new Error(`${message}\n(pass --allow-rejected to build it anyway)`);
+    }
+    console.log(`warning: ${message}`);
   }
 
   const fundingInputs = await resolveFundingInputs(flags, keystore);
@@ -489,9 +600,19 @@ async function runClaim(args: readonly string[]): Promise<void> {
       claimedAt: new Date().toISOString()
     }
   );
+  state.recordBid({
+    bidTxid: signed.signedTransactionId,
+    bondVout: artifacts.bondVout,
+    bondAmountSats: bidPackage.bidAmountSats,
+    name: bidPackage.name,
+    auctionId: bidPackage.auctionId,
+    bidderId: bidPackage.bidderId,
+    broadcast: broadcasted
+  });
   state.save(walletStatePath());
   console.log("");
   console.log(`recorded a pending claim for "${bidPackage.name}" in ${walletStatePath()}`);
+  console.log(`bond outpoint ${signed.signedTransactionId}:${artifacts.bondVout} is locked until \`sync\` confirms its release`);
 }
 
 async function runTransfer(args: readonly string[]): Promise<void> {
@@ -630,7 +751,10 @@ async function resolveTransferPlan(
   };
 }
 
-/** Auto-fund from the funding address, excluding the named outpoint (the bond). */
+/**
+ * Auto-fund from the funding address, excluding the named outpoint (the bond
+ * being spent) and any tracked locked bid bonds (which mustn't be spent yet).
+ */
 async function autoFundExcluding(
   flags: ParsedFlags,
   keystore: WalletKeystore,
@@ -646,13 +770,24 @@ async function autoFundExcluding(
     address: keystore.fundingAddress,
     includeUnconfirmed: flags.has("include-unconfirmed")
   });
-  const extra = utxos.filter((utxo) => !(utxo.txid === exclude.txid && utxo.vout === exclude.vout));
+  const locked = loadState(keystore.network).lockedBondOutpoints();
+  const extra = utxos.filter((utxo) => {
+    if (utxo.txid === exclude.txid && utxo.vout === exclude.vout) {
+      return false;
+    }
+    return !locked.has(`${utxo.txid}:${utxo.vout}`);
+  });
+  const skippedLocked = utxos.filter((utxo) => locked.has(`${utxo.txid}:${utxo.vout}`)).length;
   if (extra.length > 0) {
-    console.log(`auto-funding the fee from ${extra.length} UTXO(s) at ${keystore.fundingAddress} via ${esploraBaseUrl}`);
+    console.log(
+      `auto-funding the fee from ${extra.length} UTXO(s) at ${keystore.fundingAddress} via ${esploraBaseUrl}` +
+        (skippedLocked > 0 ? ` — excluded ${skippedLocked} locked bid bond(s)` : "")
+    );
   } else {
     console.log(
-      `no spendable UTXOs at ${keystore.fundingAddress} beyond the bond — ` +
-        "the bond must cover the fee, or pass --input / --successor-bond-sats"
+      `no spendable UTXOs at ${keystore.fundingAddress} beyond the bond` +
+        (skippedLocked > 0 ? ` (${skippedLocked} locked bid bond(s) excluded; run \`sync\`)` : "") +
+        " — the bond must cover the fee, or pass --input / --successor-bond-sats"
     );
   }
   return extra;
@@ -740,42 +875,6 @@ async function runLnInfo(baseUrl: string | undefined): Promise<void> {
   }
 }
 
-/**
- * Pay a Lightning payable through a Lexe node — the payment leg the cheap
- * batched-claim rail will use (that rail isn't wired end-to-end yet). `--stub`
- * runs an offline dry-run that records the payment without touching a node.
- */
-async function runPay(args: readonly string[]): Promise<void> {
-  const flags = parseFlags(args);
-  const payable = required(flags.positionals[0] ?? flags.get("payable"), "payable (BOLT11/BOLT12/LNURL/address)");
-
-  const payer: LightningPayer = flags.has("stub")
-    ? new StubLightningPayer()
-    : new LexeSidecarLightningPayer(flags.get("ln-url"));
-
-  const input: Parameters<LightningPayer["pay"]>[0] = {
-    payable,
-    ...(flags.has("amount") ? { amountSats: Number(parseBigIntArg(flags.get("amount") as string, "amount")) } : {}),
-    ...(flags.has("note") ? { note: flags.get("note") as string } : {})
-  };
-
-  let result;
-  try {
-    result = await payer.pay(input);
-  } catch (error) {
-    throw new Error(
-      `${error instanceof Error ? error.message : String(error)} ` +
-        "(no Lexe sidecar? try --stub for an offline dry-run, or start one: " +
-        "curl -fsSL https://lexe.app/install-sidecar.sh | sh)"
-    );
-  }
-
-  console.log(`payment: ${result.status}${flags.has("stub") ? " (stub dry-run — no node was contacted)" : ""}`);
-  if (result.paymentId !== null) {
-    console.log(`payment id: ${result.paymentId}`);
-  }
-}
-
 function keystorePath(): string {
   return env.ONT_WALLET_KEYSTORE ?? DEFAULT_KEYSTORE_PATH;
 }
@@ -825,7 +924,9 @@ function parseByte(value: string, label: string): number {
 
 /**
  * Funding inputs for a claim: the explicit `--input` descriptors if given,
- * otherwise auto-funded from the wallet's funding address via Esplora.
+ * otherwise auto-funded from the wallet's funding address via Esplora, with
+ * any tracked locked bid bonds filtered out (spending one before its release
+ * is a consensus-level slashing condition).
  */
 async function resolveFundingInputs(
   flags: ParsedFlags,
@@ -846,16 +947,20 @@ async function resolveFundingInputs(
     address: keystore.fundingAddress,
     includeUnconfirmed: flags.has("include-unconfirmed")
   });
-  if (utxos.length === 0) {
+  const locked = loadState(keystore.network).lockedBondOutpoints();
+  const spendable = utxos.filter((utxo) => !locked.has(`${utxo.txid}:${utxo.vout}`));
+  const skipped = utxos.length - spendable.length;
+  if (spendable.length === 0) {
     throw new Error(
-      `no UTXOs at funding address ${keystore.fundingAddress} — fund it first, or pass --input descriptors`
+      `no spendable UTXOs at funding address ${keystore.fundingAddress}${skipped > 0 ? ` (${skipped} locked bid bond(s) excluded; run \`sync\`)` : ""} — fund it first, or pass --input descriptors`
     );
   }
   console.log(
-    `auto-funding from ${utxos.length} UTXO(s) at ${keystore.fundingAddress} ` +
-      `(${sumUtxoValue(utxos)} base units) via ${esploraBaseUrl}`
+    `auto-funding from ${spendable.length} UTXO(s) at ${keystore.fundingAddress} ` +
+      `(${sumUtxoValue(spendable)} base units) via ${esploraBaseUrl}` +
+      (skipped > 0 ? ` — excluded ${skipped} locked bid bond(s)` : "")
   );
-  return utxos;
+  return spendable;
 }
 
 /**
@@ -949,12 +1054,14 @@ function printUsage(): void {
   console.log("  info                                   show network, owner pubkey, funding address");
   console.log("  address                                print the funding address");
   console.log("  balance [--esplora-url <u>]            show spendable funding UTXOs");
+  console.log("  auctions [--name <n>] [--phase <p>] [--resolver <u>]  list live auctions");
   console.log("  lookup <name> [resolver]               show a name's state + destination");
   console.log("  set-destination <name> <type> <value>  publish an owner-signed destination");
   console.log("  names                                  list names this wallet tracks");
   console.log("  track <name> [resolver]                start tracking a name you own");
   console.log("  forget <name>                          stop tracking a name locally");
-  console.log("  sync [name] [--resolver <url>]         reconcile tracked names with the resolver");
+  console.log("  sync [name] [--resolver <url>]         reconcile names + bid bonds with the resolver");
+  console.log("  bids                                   list tracked auction bids + bond status");
   console.log("  arm-recovery <name> <address> [resolver]  arm owner recovery to an address");
   console.log("  claim <name> --amount <n> --fee-sats <n> [--resolver <url>] [--bidder-id <id>]");
   console.log("    or  claim --bid-package <path> --fee-sats <n>");
@@ -966,9 +1073,7 @@ function printUsage(): void {
   console.log("        (claim/transfer take [--broadcast] [--broadcast-url <esplora-base>] to send)");
   console.log("  export-proof <name> [--out <path>] [--resolver <url>]  build a portable ownership proof");
   console.log("  verify <proof.json>                    verify a portable ownership proof");
-  console.log("  ln-info [baseUrl]                      query a Lexe sidecar");
-  console.log("  pay <payable> [--amount <n>] [--note <t>] [--ln-url <u>] [--stub]");
-  console.log("        pay a Lightning payable via a Lexe node (--stub = offline dry-run)");
+  console.log("  ln-info [baseUrl]                      query a Lexe sidecar (cheap-claim rail is WIP)");
   console.log("");
   console.log("env: ONT_WALLET_KEYSTORE (default ont-wallet.json), ONT_WALLET_STATE");
   console.log("     (default ont-wallet-state.json), ONT_WALLET_PASSWORD,");

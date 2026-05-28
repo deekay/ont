@@ -54,11 +54,13 @@ ONT_WALLET_PASSWORD=… npm run dev -w @ont/wallet -- info             # network
 ONT_WALLET_PASSWORD=… npm run dev -w @ont/wallet -- address          # print the funding address
 ONT_WALLET_PASSWORD=… npm run dev -w @ont/wallet -- balance          # spendable funding UTXOs (Esplora)
                        npm run dev -w @ont/wallet -- lookup <name>   # a name's state + destination
+                       npm run dev -w @ont/wallet -- auctions [--name <n>] [--phase <p>]  # discover live auctions
 ONT_WALLET_PASSWORD=… npm run dev -w @ont/wallet -- set-destination <name> <type> <value>
 ONT_WALLET_PASSWORD=… npm run dev -w @ont/wallet -- names            # names this wallet tracks
+ONT_WALLET_PASSWORD=… npm run dev -w @ont/wallet -- bids             # tracked auction bids + bond status
 ONT_WALLET_PASSWORD=… npm run dev -w @ont/wallet -- track <name>     # track a name you own
 ONT_WALLET_PASSWORD=… npm run dev -w @ont/wallet -- forget <name>    # stop tracking locally
-ONT_WALLET_PASSWORD=… npm run dev -w @ont/wallet -- sync [name]      # reconcile tracked names w/ resolver
+ONT_WALLET_PASSWORD=… npm run dev -w @ont/wallet -- sync [name]      # reconcile names + bid bonds w/ resolver
 ONT_WALLET_PASSWORD=… npm run dev -w @ont/wallet -- arm-recovery <name> <address>
 ONT_WALLET_PASSWORD=… npm run dev -w @ont/wallet -- claim <name> --amount <n> --fee-sats <n> \
     [--resolver <url>] [--bidder-id <id>]       # claim from a resolver's live auction
@@ -71,12 +73,13 @@ ONT_WALLET_PASSWORD=… npm run dev -w @ont/wallet -- transfer <name> --to <pubk
 ONT_WALLET_PASSWORD=… npm run dev -w @ont/wallet -- export-proof <name> [--out <path>]
                        npm run dev -w @ont/wallet -- verify <proof.json>
                        npm run dev -w @ont/wallet -- ln-info [baseUrl]   # query a Lexe sidecar
-                       npm run dev -w @ont/wallet -- pay <payable> [--amount <n>] [--stub]
 ```
 
-`pay` sends a Lightning payment through a Lexe node — the payment leg the cheap batched-claim
-rail will use (that rail isn't wired end-to-end yet). `--stub` is an offline dry-run that
-records the payment without contacting a node, handy for demos and tests.
+The wallet talks to a Lightning node only for the cheap-claim rail's payment leg (not yet wired
+end-to-end). The `LightningPayer` adapter (`lightning.ts` — Lexe sidecar + offline stub) is the
+integration point that future `claim --rail cheap` will use; we don't expose a standalone `pay`
+command because the wallet isn't a general-purpose Lightning wallet — any LN wallet can pay an
+invoice, the value of the integration is making a name claim atomic with its payment.
 
 `claim <name> --amount <n>` fetches the live auction from a resolver's `/experimental-auctions`
 and builds the bid package for you, committing this wallet's owner key. (You can still pass a
@@ -84,9 +87,21 @@ pre-built `--bid-package` JSON — the format `@ont/cli`'s `create-auction-bid-p
 for offline use; the committed owner pubkey is checked against the keystore.) Either way it
 builds the opening-bid PSBT (bond/change default to the funding address), signs the funding
 inputs, and prints a broadcastable transaction. This is the **on-chain auction path**, the
-acquisition route that works on signet today.
+acquisition route that works on signet today. `claim` works in any live auction phase —
+opening, live bidding, soft close — and hard-fails (rather than burning a tx) when the bid
+preview says the consensus would reject it (below current minimum, too early, closed).
 
-`transfer <name> --to <pubkey>` mirrors that: it reads the name's current state txid and bond
+`auctions [--name <n>] [--phase <p>]` lists live auctions a resolver knows about — what's
+biddable, the current required minimum, blocks to close. The starting point for discovering a
+name you want.
+
+**Bid bonds are tracked.** Every bid the wallet builds records its bond outpoint in local
+state, marked locked until `sync` reads the resolver's auction state and reports
+`losing_bid_releasable` / `winner_releasable` / `rejected_not_tracked`. Auto-fund (for both
+`claim` and `transfer`) excludes locked or unknown bid bonds — spending one before its release
+is a consensus-level slashing condition. `bids` shows everything you have in flight.
+
+`transfer <name> --to <pubkey>` mirrors `claim`: it reads the name's current state txid and bond
 outpoint from the resolver (the bond address defaults to the funding address — where the
 wallet's own claims/transfers send it), reuses the current bond amount for the successor, and
 auto-funds the fee from the remaining UTXOs. Pass `--prev-state-txid`, `--bond-input` and

@@ -67,6 +67,10 @@ export interface ResolverAuctionBidOutcome {
   readonly ownerPubkey: string | null;
   readonly amountSats: string;
   readonly status: "accepted" | "rejected";
+  readonly bondStatus?: string;
+  readonly bondReleaseBlock?: number | null;
+  readonly bondSpendStatus?: string;
+  readonly bondVout?: number;
 }
 
 /** A live launch auction as the resolver's /experimental-auctions endpoint reports it. */

@@ -31,6 +31,44 @@ export interface PendingClaim {
   readonly claimedAt: string;
 }
 
+/**
+ * An in-flight or recently-resolved auction bid. The bond UTXO lives at the
+ * funding address as a plain P2WPKH — but spending it before its release is a
+ * consensus-level slashing condition, so the wallet must track which bond
+ * outpoints are locked and keep auto-fund away from them.
+ */
+export interface TrackedBid {
+  readonly bidTxid: string;
+  readonly bondVout: number;
+  readonly bondAmountSats: string;
+  readonly name: string;
+  readonly auctionId: string;
+  readonly bidderId: string;
+  readonly broadcast: boolean;
+  readonly builtAt: string;
+  // Reconciled by `sync` against the resolver's visibleBidOutcomes:
+  readonly bondStatus?: string;
+  readonly bondReleaseBlock?: number | null;
+  readonly bondSpendStatus?: string;
+  readonly lastSyncedAt?: string;
+}
+
+/**
+ * Bond statuses where the UTXO must NOT be spent — spending before the bond is
+ * released is a consensus-level slashing condition (`spent_before_allowed_release`).
+ * Conservatively, an unknown status (no resolver sync yet) also counts as locked.
+ */
+export function isBidBondLocked(bid: TrackedBid): boolean {
+  if (bid.bondStatus === undefined) {
+    return true;
+  }
+  return (
+    bid.bondStatus === "leading_locked" ||
+    bid.bondStatus === "superseded_locked_until_settlement" ||
+    bid.bondStatus === "winner_locked"
+  );
+}
+
 export interface TrackedName {
   readonly name: string;
   readonly ownerPubkey: string;
@@ -51,6 +89,7 @@ interface WalletStateDocument {
   readonly version: typeof WALLET_STATE_VERSION;
   readonly network: string;
   readonly names: Record<string, TrackedName>;
+  readonly bids?: Record<string, TrackedBid>;
 }
 
 export class WalletStateError extends Error {
@@ -68,16 +107,18 @@ export class WalletStateError extends Error {
 export class WalletState {
   readonly network: string;
   private readonly names: Map<string, TrackedName>;
+  private readonly bids: Map<string, TrackedBid>;
 
-  private constructor(network: string, names: Map<string, TrackedName>) {
+  private constructor(network: string, names: Map<string, TrackedName>, bids: Map<string, TrackedBid>) {
     this.network = network;
     this.names = names;
+    this.bids = bids;
   }
 
   /** Load the state file, or start an empty one if it doesn't exist yet. */
   static loadOrCreate(path: string, network: OntNetwork): WalletState {
     if (!existsSync(path)) {
-      return new WalletState(network, new Map());
+      return new WalletState(network, new Map(), new Map());
     }
 
     let parsed: unknown;
@@ -101,7 +142,11 @@ export class WalletState {
     for (const [key, value] of Object.entries(doc.names ?? {})) {
       names.set(normalizeName(key), value);
     }
-    return new WalletState(doc.network ?? network, names);
+    const bids = new Map<string, TrackedBid>();
+    for (const [key, value] of Object.entries(doc.bids ?? {})) {
+      bids.set(key, value);
+    }
+    return new WalletState(doc.network ?? network, names, bids);
   }
 
   /** Tracked names, sorted alphabetically for stable output. */
@@ -194,16 +239,93 @@ export class WalletState {
     return this.names.delete(normalizeName(name));
   }
 
+  /** Tracked bids, newest-built first. */
+  listBids(): readonly TrackedBid[] {
+    return [...this.bids.values()].sort((a, b) => b.builtAt.localeCompare(a.builtAt));
+  }
+
+  getBid(bidTxid: string): TrackedBid | undefined {
+    return this.bids.get(bidTxid);
+  }
+
+  /** Record (or refresh) an auction bid. Idempotent on the bid txid. */
+  recordBid(input: {
+    bidTxid: string;
+    bondVout: number;
+    bondAmountSats: string;
+    name: string;
+    auctionId: string;
+    bidderId: string;
+    broadcast: boolean;
+  }): TrackedBid {
+    const existing = this.bids.get(input.bidTxid);
+    const entry: TrackedBid = {
+      ...existing,
+      bidTxid: input.bidTxid,
+      bondVout: input.bondVout,
+      bondAmountSats: input.bondAmountSats,
+      name: normalizeName(input.name),
+      auctionId: input.auctionId,
+      bidderId: input.bidderId,
+      broadcast: input.broadcast,
+      builtAt: existing?.builtAt ?? new Date().toISOString()
+    };
+    this.bids.set(entry.bidTxid, entry);
+    return entry;
+  }
+
+  /** Update bond status fields from a resolver sync. */
+  recordBidSync(
+    bidTxid: string,
+    update: { bondStatus: string; bondReleaseBlock: number | null; bondSpendStatus: string }
+  ): void {
+    const entry = this.bids.get(bidTxid);
+    if (entry === undefined) {
+      throw new WalletStateError(`bid ${bidTxid} is not tracked by this wallet`);
+    }
+    this.bids.set(bidTxid, {
+      ...entry,
+      bondStatus: update.bondStatus,
+      bondReleaseBlock: update.bondReleaseBlock,
+      bondSpendStatus: update.bondSpendStatus,
+      lastSyncedAt: new Date().toISOString()
+    });
+  }
+
+  /** Stop tracking a bid locally (e.g., after its bond has been spent). */
+  forgetBid(bidTxid: string): boolean {
+    return this.bids.delete(bidTxid);
+  }
+
+  /**
+   * Outpoints (txid:vout) of tracked bid bonds the wallet must not auto-spend —
+   * locked statuses, plus any unknown-status bid (conservative: sync first).
+   */
+  lockedBondOutpoints(): ReadonlySet<string> {
+    const locked = new Set<string>();
+    for (const bid of this.bids.values()) {
+      if (isBidBondLocked(bid)) {
+        locked.add(`${bid.bidTxid}:${bid.bondVout}`);
+      }
+    }
+    return locked;
+  }
+
   save(path: string): void {
     const names: Record<string, TrackedName> = {};
     for (const entry of this.list()) {
       names[entry.name] = entry;
     }
+    const bids: Record<string, TrackedBid> = {};
+    for (const entry of this.listBids()) {
+      bids[entry.bidTxid] = entry;
+    }
     const doc: WalletStateDocument = {
       format: WALLET_STATE_FORMAT,
       version: WALLET_STATE_VERSION,
       network: this.network,
-      names
+      names,
+      ...(Object.keys(bids).length > 0 ? { bids } : {})
     };
     writeFileSync(path, `${JSON.stringify(doc, null, 2)}\n`, "utf8");
   }

@@ -9,7 +9,7 @@ Status: direction note, 2026-05-25. Captures a design conversation; decisions he
 
 ---
 
-## 0. What exists today (`apps/wallet`, updated 2026-05-27)
+## 0. What exists today (`apps/wallet`)
 
 A runnable reference client now exists as a TypeScript CLI (`@ont/wallet`), assembling the
 existing `@ont/*` packages. It is a prototype on signet/regtest, **not a mainnet wallet**, and
@@ -18,15 +18,19 @@ it deliberately tracks the architecture below rather than getting ahead of it.
 - **Keys & custody split (§2 shape):** an on-device, password-encrypted keystore (AES-256-GCM
   + scrypt) holds the **owner key** (controls the name) and a separate **funding key** (pays
   fees/bonds). The owner key is generated locally and never derived from a Lightning credential.
-- **The lifecycle, one-liner UX:** `claim <name> --amount <n>` and
-  `transfer <name> --to <pubkey> --fee-sats <n>` both auto-source what they need from a
-  resolver (live auction state for claim; current state-txid + bond outpoint for transfer) and
-  auto-fund from the wallet's funding address via Esplora. The bid commits *this* wallet's
-  owner key (checked locally). `set-destination` publishes owner-signed value records,
-  `arm-recovery` publishes owner-armed recovery descriptors, and `sync` reconciles tracked
-  names with the resolver (claim → confirmed once it lands). Fully-explicit flags still let
-  every command run offline. Plus `lookup`, `names`/`track`/`forget`, `balance`, and a
-  one-command `demo`.
+- **Claim / bid / bond:** `claim <name> --amount <n>` auto-sources live auction state from the
+  resolver and works in any phase (opening, live bidding, soft close). It hard-fails when the
+  bid preview says the consensus would reject the bid (below minimum, too early, closed) so it
+  never burns a tx. Every bid the wallet builds records its bond outpoint locally; auto-fund
+  refuses to spend a locked bond (spending one before its release is a consensus-level
+  slashing condition). `sync` reconciles bond statuses from the resolver's auction outcomes;
+  `bids` shows what's in flight; `auctions` lists what's live on the resolver.
+- **The lifecycle:** `transfer <name> --to <pubkey> --fee-sats <n>` mirrors claim
+  (auto-sources prev-state-txid + bond outpoint, auto-funds the fee minus locked bonds).
+  `set-destination` publishes owner-signed value records, `arm-recovery` publishes owner-armed
+  recovery descriptors, and `sync` reconciles tracked names + bid bonds against the resolver.
+  Fully-explicit flags let every command run offline. Plus `lookup`, `names`/`track`/`forget`,
+  `balance`, and a one-command `demo`.
 - **Portable, self-verifying proofs:** `export-proof <name>` assembles a
   `bitcoin_l1_direct_auction` proof bundle from resolver data (winning L1 bid, its bond,
   current owner) and runs `@ont/consensus`' `verifyProofBundle` locally before emitting — so
@@ -35,16 +39,19 @@ it deliberately tracks the architecture below rather than getting ahead of it.
 - **Network I/O is opt-in and replaceable:** reads/publishes against any resolver (no authority
   granted to it); broadcasts only with `--broadcast`, via an Esplora API (mempool.space by
   default, your own node via `ONT_BROADCAST_URL`).
-- **The Lexe leg (§5):** `pay` sends a Lightning payment through a Lexe node's local sidecar
-  (plain HTTP, no SDK/enclave); `--stub` is an offline dry-run. This is the concrete integration
-  point — the payment leg the cheap batched-claim rail will use.
+- **The Lexe leg (§5):** the wallet's `LightningPayer` adapter (Lexe sidecar over local HTTP,
+  plus an offline stub) is the integration point that future `claim --rail cheap` will use.
+  There's no standalone `pay` command — the wallet isn't a general-purpose LN wallet; the
+  whole point of integrating LN is making a name claim atomic with its payment.
 
-**Honest gaps / tradeoffs:** it's a CLI, not the native-mobile app §4 envisions (no secure
-enclave yet); the **cheap batched-claim rail isn't wired end-to-end** — the live acquisition
-route is the on-chain auction path, and `pay` demonstrates the LN leg but isn't yet joined to a
-claim; `export-proof` covers names still held by their original auction winner — extending it
-to the transfer chain + value record chain is a follow-up. Everything here is the mutable
-client layer; the consensus core is untouched.
+**Honest gaps / tradeoffs:** it's a CLI, not the native-mobile app §4 envisions (the phone's
+secure element is a hardening upgrade, not a requirement); the **cheap batched-claim rail
+isn't wired end-to-end** — the live acquisition route is the on-chain auction path, and the LN
+adapter is the integration point but not yet joined to a claim; `export-proof` covers names
+still held by their original auction winner — extending it to the transfer chain + value
+record chain is a follow-up; **recovery invoke** (the on-chain `RECOVER_OWNER` after the
+challenge window) is also a follow-up. Everything here is the mutable client layer; the
+consensus core is untouched.
 
 ---
 
