@@ -224,17 +224,25 @@ async function runLookup(args: readonly string[]): Promise<void> {
     return;
   }
 
-  console.log(`name:        ${record.name}`);
-  console.log(`status:      ${record.status}`);
-  console.log(`owner:       ${record.currentOwnerPubkey}`);
-  console.log(`state txid:  ${record.lastStateTxid}`);
+  console.log(`name:           ${record.name}`);
+  console.log(`status:         ${record.status}`);
+  console.log(`owner:          ${record.currentOwnerPubkey}`);
+  console.log(`state txid:     ${record.lastStateTxid}`);
+  console.log(`maturity:       block ${record.maturityHeight}`);
+  console.log(`required bond:  ${record.requiredBondSats} base units`);
+  if (record.currentBondTxid !== undefined && record.currentBondVout !== undefined) {
+    console.log(
+      `current bond:   ${record.currentBondTxid}:${record.currentBondVout}` +
+        (record.currentBondValueSats !== undefined ? ` (${record.currentBondValueSats} base units)` : "")
+    );
+  }
 
   const value = await client.getValueRecord(name);
   if (value === null) {
-    console.log("destination: (none published)");
+    console.log("destination:    (none published)");
     return;
   }
-  console.log(`destination: type ${value.valueType} -> ${decodePayload(value.payloadHex)} (seq ${value.sequence})`);
+  console.log(`destination:    type ${value.valueType} -> ${decodePayload(value.payloadHex)} (seq ${value.sequence})`);
 }
 
 async function runSetDestination(args: readonly string[]): Promise<void> {
@@ -277,17 +285,35 @@ async function runSetDestination(args: readonly string[]): Promise<void> {
 
 function runNames(): void {
   const keystore = WalletKeystore.load(keystorePath(), requirePassword());
-  const names = loadState(keystore.network).list();
-  if (names.length === 0) {
+  const state = loadState(keystore.network);
+  const names = state.list();
+  const bids = state.listBids();
+  if (names.length === 0 && bids.length === 0) {
     console.log("no names tracked yet — claim one, then `track <name>`");
     return;
   }
+
+  // Summary roll-up so a glance tells you where the wallet stands.
+  const owned = names.filter((n) => n.ownerPubkey === keystore.ownerPubkey && n.pendingClaim === undefined).length;
+  const pending = names.filter((n) => n.pendingClaim !== undefined).length;
+  const cheapRail = names.filter((n) => n.batchInclusion !== undefined).length;
+  console.log(
+    `tracked: ${names.length} name(s) — ${owned} owned, ${pending} pending, ${cheapRail} via cheap rail; ${bids.length} bid(s) in flight`
+  );
+  console.log("");
+
   for (const entry of names) {
     const owned = entry.ownerPubkey === keystore.ownerPubkey ? "" : "  (owner pubkey differs from this keystore)";
     console.log(`${entry.name}${owned}`);
     console.log(`  ownership ref: ${entry.ownershipRef}`);
     if (entry.status !== undefined) {
       console.log(`  status:        ${entry.status}${entry.lastSyncedAt ? ` (synced ${entry.lastSyncedAt})` : ""}`);
+    }
+    if (entry.batchInclusion !== undefined) {
+      console.log(
+        `  cheap rail:    anchored at ${entry.batchInclusion.anchorTxid}` +
+          (entry.batchInclusion.anchorHeight > 0 ? ` (height ${entry.batchInclusion.anchorHeight})` : "")
+      );
     }
     if (entry.lastValueSequence !== undefined) {
       console.log(`  destination:   seq ${entry.lastValueSequence} (${entry.lastValueRecordHash ?? "?"})`);
