@@ -7,6 +7,7 @@
 
 import { env } from "node:process";
 
+import { EsploraAnchorBroadcaster, type EsploraNetwork } from "./esplora-anchor.js";
 import { Publisher, type PublisherSnapshot } from "./publisher.js";
 import { startPublisherServer } from "./server.js";
 import { FilePublisherStore, type PublisherStore } from "./store.js";
@@ -17,6 +18,8 @@ async function main(): Promise<void> {
   const storePath = env.ONT_PUBLISHER_STORE_PATH;
   const store: PublisherStore | null = storePath ? new FilePublisherStore(storePath) : null;
 
+  const anchorBroadcaster = configureAnchorBroadcaster(network);
+
   // Build the publisher with a deferred-binding onChange so we can wire the
   // store *after* construction (the publisher needs to exist before we can
   // call publisher.snapshot()).
@@ -25,6 +28,7 @@ async function main(): Promise<void> {
     network,
     operatorName: env.ONT_PUBLISHER_OPERATOR_NAME ?? "dev publisher",
     contact: env.ONT_PUBLISHER_CONTACT ?? "",
+    ...(anchorBroadcaster !== null ? { anchorBroadcaster } : {}),
     onChange: () => {
       if (store === null) return;
       // Debounce: a burst of mutations only writes once.
@@ -52,6 +56,19 @@ async function main(): Promise<void> {
   console.log(
     "env: ONT_PUBLISHER_PORT (default 7878), ONT_PUBLISHER_NETWORK (default regtest), ONT_PUBLISHER_STORE_PATH"
   );
+}
+
+function configureAnchorBroadcaster(network: EsploraNetwork): EsploraAnchorBroadcaster | null {
+  const esploraBaseUrl = env.ONT_PUBLISHER_ESPLORA_URL;
+  const fundingWif = env.ONT_PUBLISHER_FUNDING_WIF;
+  if (esploraBaseUrl === undefined || fundingWif === undefined) {
+    console.log("anchor: stub (set ONT_PUBLISHER_ESPLORA_URL + ONT_PUBLISHER_FUNDING_WIF for real broadcast)");
+    return null;
+  }
+  const feeSats = BigInt(env.ONT_PUBLISHER_FEE_SATS ?? "500");
+  const broadcaster = new EsploraAnchorBroadcaster({ esploraBaseUrl, network, fundingWif, feeSats });
+  console.log(`anchor: real broadcast via ${broadcaster.baseUrl} from ${broadcaster.fundingAddress} (fee ${feeSats})`);
+  return broadcaster;
 }
 
 function parseNetwork(value: string): "main" | "signet" | "testnet" | "regtest" {

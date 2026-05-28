@@ -11,7 +11,10 @@
   },
   "dependencies": {
     "@ont/core": "file:../../packages/core",
-    "@ont/protocol": "file:../../packages/protocol"
+    "@ont/protocol": "file:../../packages/protocol",
+    "bitcoinjs-lib": "^7.0.1",
+    "ecpair": "^3.0.1",
+    "tiny-secp256k1": "^2.2.4"
   },
   "devDependencies": {
     "vitest": "^3.2.4"
