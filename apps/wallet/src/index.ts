@@ -87,6 +87,9 @@ async function main(): Promise<void> {
     case "bids":
       runBids();
       return;
+    case "watch":
+      await runWatch(rest);
+      return;
     case "arm-recovery":
       await runArmRecovery(rest);
       return;
@@ -449,6 +452,143 @@ async function runSync(args: readonly string[]): Promise<void> {
     state.save(walletStatePath());
     console.log(`updated ${walletStatePath()}`);
   }
+}
+
+/**
+ * Long-running watcher: poll the resolver every N seconds for tracked names
+ * and bid bonds, logging only when something changes (name status flips,
+ * ownership transfers, bond status flips). Useful for live testing — leave
+ * it running in a terminal while you bid/claim/transfer from another.
+ */
+async function runWatch(args: readonly string[]): Promise<void> {
+  const flags = parseFlags(args);
+  const intervalSeconds = flags.has("interval")
+    ? Number(parseBigIntArg(flags.get("interval") as string, "interval"))
+    : 60;
+  if (intervalSeconds < 1) {
+    throw new Error("--interval must be at least 1 second");
+  }
+  const keystore = WalletKeystore.load(keystorePath(), requirePassword());
+  const client = new ResolverClient(resolverUrl(flags.get("resolver")));
+  const once = flags.has("once");
+
+  console.log(`watching ${client.baseUrl} every ${intervalSeconds}s (Ctrl+C to stop)`);
+
+  // Track what we last reported per entity, so we only log on changes.
+  const lastName = new Map<string, string>();
+  const lastBid = new Map<string, string>();
+
+  // Graceful interrupt — finish the in-flight tick, then exit cleanly.
+  let stop = false;
+  const interrupt = (): void => {
+    stop = true;
+    console.log("\nstopping after this tick...");
+  };
+  process.on("SIGINT", interrupt);
+
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    await watchTick(client, keystore, lastName, lastBid);
+    if (once || stop) {
+      break;
+    }
+    await new Promise<void>((resolve) => setTimeout(resolve, intervalSeconds * 1000));
+  }
+  process.off("SIGINT", interrupt);
+}
+
+/** A single polling pass; mutates the last-seen maps and the wallet state. */
+async function watchTick(
+  client: ResolverClient,
+  keystore: WalletKeystore,
+  lastName: Map<string, string>,
+  lastBid: Map<string, string>
+): Promise<void> {
+  const state = loadState(keystore.network);
+  let changed = false;
+
+  for (const tracked of state.list()) {
+    let record;
+    try {
+      record = await client.getNameRecord(tracked.name);
+    } catch (error) {
+      logIfChanged(`name ${tracked.name}`, lastName, `error: ${error instanceof Error ? error.message : String(error)}`);
+      continue;
+    }
+    if (record === null) {
+      logIfChanged(`name ${tracked.name}`, lastName, "not yet known to resolver");
+      continue;
+    }
+    const fingerprint = `${record.status}|${record.lastStateTxid}|${record.currentOwnerPubkey}`;
+    if (record.currentOwnerPubkey === keystore.ownerPubkey) {
+      if (lastName.get(tracked.name) !== fingerprint) {
+        console.log(
+          `[${timestamp()}] ${tracked.name}: owned by you, status ${record.status}, state ${record.lastStateTxid.slice(0, 12)}…`
+        );
+        lastName.set(tracked.name, fingerprint);
+      }
+      state.recordSync(tracked.name, { ownershipRef: record.lastStateTxid, status: record.status });
+      changed = true;
+    } else if (lastName.get(tracked.name) !== fingerprint) {
+      console.log(`[${timestamp()}] ${tracked.name}: now owned by ${record.currentOwnerPubkey} (not you)`);
+      lastName.set(tracked.name, fingerprint);
+    }
+  }
+
+  const auctionCache = new Map<string, Awaited<ReturnType<ResolverClient["findAuctionForName"]>>>();
+  for (const bid of state.listBids()) {
+    if (!auctionCache.has(bid.name)) {
+      try {
+        auctionCache.set(bid.name, await client.findAuctionForName(bid.name));
+      } catch (error) {
+        logIfChanged(
+          `bid ${bid.bidTxid.slice(0, 12)}…`,
+          lastBid,
+          `resolver error: ${error instanceof Error ? error.message : String(error)}`
+        );
+        continue;
+      }
+    }
+    const auction = auctionCache.get(bid.name) ?? null;
+    if (auction === null) {
+      logIfChanged(`bid ${bid.bidTxid.slice(0, 12)}…`, lastBid, `no live auction for "${bid.name}"`);
+      continue;
+    }
+    const outcome = (auction.visibleBidOutcomes ?? []).find((o) => o.txid === bid.bidTxid);
+    if (outcome === undefined || outcome.bondStatus === undefined || outcome.bondSpendStatus === undefined) {
+      logIfChanged(`bid ${bid.bidTxid.slice(0, 12)}…`, lastBid, "no bond status from resolver");
+      continue;
+    }
+    const fingerprint = `${outcome.bondStatus}|${outcome.bondSpendStatus}|${outcome.bondReleaseBlock ?? ""}`;
+    if (lastBid.get(bid.bidTxid) !== fingerprint) {
+      console.log(
+        `[${timestamp()}] bid ${bid.bidTxid.slice(0, 12)}… ("${bid.name}"): bond ${outcome.bondStatus}, ` +
+          `spend ${outcome.bondSpendStatus}${outcome.bondReleaseBlock ? `, release ${outcome.bondReleaseBlock}` : ""}`
+      );
+      lastBid.set(bid.bidTxid, fingerprint);
+    }
+    state.recordBidSync(bid.bidTxid, {
+      bondStatus: outcome.bondStatus,
+      bondReleaseBlock: outcome.bondReleaseBlock ?? null,
+      bondSpendStatus: outcome.bondSpendStatus
+    });
+    changed = true;
+  }
+
+  if (changed) {
+    state.save(walletStatePath());
+  }
+}
+
+function logIfChanged(label: string, last: Map<string, string>, line: string): void {
+  if (last.get(label) !== line) {
+    console.log(`[${timestamp()}] ${label}: ${line}`);
+    last.set(label, line);
+  }
+}
+
+function timestamp(): string {
+  return new Date().toISOString().slice(11, 19); // HH:MM:SSZ-ish
 }
 
 async function runArmRecovery(args: readonly string[]): Promise<void> {
@@ -1062,6 +1202,7 @@ function printUsage(): void {
   console.log("  forget <name>                          stop tracking a name locally");
   console.log("  sync [name] [--resolver <url>]         reconcile names + bid bonds with the resolver");
   console.log("  bids                                   list tracked auction bids + bond status");
+  console.log("  watch [--interval <s>] [--once] [--resolver <u>]  poll resolver, log state changes");
   console.log("  arm-recovery <name> <address> [resolver]  arm owner recovery to an address");
   console.log("  claim <name> --amount <n> --fee-sats <n> [--resolver <url>] [--bidder-id <id>]");
   console.log("    or  claim --bid-package <path> --fee-sats <n>");
