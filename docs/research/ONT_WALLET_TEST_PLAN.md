@@ -98,6 +98,17 @@ npm run dev -w @ont/wallet -- bids                    # shows the bid bond as un
 
 Expected: every command exits 0, no warnings or stack traces.
 
+### 5b-pre. Live-resolver smoke (automated)
+
+```sh
+npm run smoke:live -w @ont/wallet
+```
+
+Spins up the resolver in fixture mode on port 8989 (no Bitcoin RPC required),
+runs the wallet's resolver-backed commands against it, and asserts each. Best
+single command to verify the wallet's typed interfaces actually match the
+real resolver's JSON shapes.
+
 ### 5b. Resolver-backed (needs `npm run dev:resolver` in another terminal)
 
 ```sh
