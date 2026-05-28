@@ -21,6 +21,7 @@ import {
   parseFundingInputDescriptor
 } from "@ont/architect";
 import { verifyProofBundle } from "@ont/consensus";
+import { accumulatorKeyForName, verifyAccumulatorProof } from "@ont/core";
 import {
   type AuctionBidPackage,
   computeRecoveryDescriptorHash,
@@ -34,7 +35,8 @@ import { bidPackageFromAuction } from "./bid-package.js";
 import { BroadcastClient, resolveBroadcastBaseUrl } from "./broadcast.js";
 import { isOntNetwork, type OntNetwork } from "./keys.js";
 import { WalletKeystore } from "./keystore.js";
-import { LexeSidecarLightningPayer } from "./lightning.js";
+import { LexeSidecarLightningPayer, type LightningPayer, StubLightningPayer } from "./lightning.js";
+import { PublisherClient } from "./publisher-client.js";
 import { assembleDirectAuctionProofBundle } from "./proof-export.js";
 import { ResolverClient } from "./resolver.js";
 import { signAuctionBidArtifacts, signTransferArtifacts } from "./signer.js";
@@ -665,6 +667,14 @@ async function resolveBidPackage(flags: ParsedFlags, keystore: WalletKeystore): 
 
 async function runClaim(args: readonly string[]): Promise<void> {
   const flags = parseFlags(args);
+  const rail = flags.get("rail") ?? "auction";
+  if (rail === "cheap") {
+    await runClaimCheap(flags);
+    return;
+  }
+  if (rail !== "auction") {
+    throw new Error(`unknown --rail "${rail}" (use "auction" or "cheap")`);
+  }
   const feeSats = parseBigIntArg(required(flags.get("fee-sats"), "--fee-sats"), "fee-sats");
 
   const keystore = WalletKeystore.load(keystorePath(), requirePassword());
@@ -753,6 +763,105 @@ async function runClaim(args: readonly string[]): Promise<void> {
   console.log("");
   console.log(`recorded a pending claim for "${bidPackage.name}" in ${walletStatePath()}`);
   console.log(`bond outpoint ${signed.signedTransactionId}:${artifacts.bondVout} is locked until \`sync\` confirms its release`);
+}
+
+/**
+ * The cheap batched-claim rail: pay a small Lightning invoice to a publisher,
+ * receive an inclusion proof anchored to Bitcoin, verify it locally. No L1
+ * auction, no bond, no PSBT — the publisher does the on-chain anchoring on
+ * the wallet's behalf. The publisher gets no authority: every promise it
+ * makes is verified against @ont/core's accumulator before we trust it.
+ */
+async function runClaimCheap(flags: ParsedFlags): Promise<void> {
+  const name = required(flags.positionals[0], "name");
+  const keystore = WalletKeystore.load(keystorePath(), requirePassword());
+
+  const publisherBaseUrl = flags.get("publisher") ?? env.ONT_PUBLISHER_URL ?? "http://127.0.0.1:7878";
+  const client = new PublisherClient(publisherBaseUrl);
+
+  console.log(`requesting quote for "${name}" from ${client.baseUrl}`);
+  const quote = await client.quote({
+    name,
+    ownerPubkey: keystore.ownerPubkey,
+    paymentRail: "lightning"
+  });
+
+  if (!quote.available) {
+    throw new Error(`publisher reports "${name}" unavailable (${quote.reason ?? "no reason given"})`);
+  }
+  // Verify the publisher isn't lying about what leaf/value will be inserted.
+  // These are deterministic; the wallet should never pay a quote that promises
+  // anything else.
+  const expectedLeaf = accumulatorKeyForName(name);
+  if (quote.leaf !== expectedLeaf) {
+    throw new Error(`publisher quote leaf does not match sha256(name) (got ${quote.leaf}, expected ${expectedLeaf})`);
+  }
+  if (quote.ownerCommitment.toLowerCase() !== keystore.ownerPubkey.toLowerCase()) {
+    throw new Error("publisher quote ownerCommitment does not match this wallet's owner key");
+  }
+  if (quote.lightningInvoice === undefined || quote.lightningInvoice === "") {
+    throw new Error("publisher did not return a lightning invoice");
+  }
+  console.log(
+    `quote ${quote.quoteId}: ${quote.totalBaseSats} base units` +
+      ` (gate ${quote.gateBaseSats} + service ${quote.serviceBaseSats}), expires ${quote.expiresAt}`
+  );
+
+  const lnUrl = flags.get("ln-url");
+  const payer: LightningPayer = lnUrl !== undefined
+    ? new LexeSidecarLightningPayer(lnUrl)
+    : new StubLightningPayer();
+  console.log(`paying via ${lnUrl !== undefined ? `Lexe sidecar at ${lnUrl}` : "stub (offline dry-run — no node was contacted)"}`);
+
+  const payment = await payer.pay({
+    payable: quote.lightningInvoice,
+    amountSats: Number(quote.totalBaseSats),
+    note: `ONT cheap-claim: ${quote.name}`
+  });
+  if (payment.status !== "succeeded") {
+    throw new Error(`payment did not succeed: ${payment.status}`);
+  }
+  console.log(`payment: ${payment.status}, id ${payment.paymentId ?? "(none)"}`);
+
+  const receipt = await client.submit({
+    quoteId: quote.quoteId,
+    paymentProof: {
+      rail: "lightning",
+      ...(payment.paymentId !== null ? { paymentHash: payment.paymentId } : {})
+    }
+  });
+
+  if (receipt.status !== "confirmed") {
+    console.log(`receipt: ${receipt.status} — poll with \`/claim/${quote.quoteId}\` to wait for confirmation`);
+    return;
+  }
+  if (receipt.inclusionProof === undefined || receipt.anchorTxid === undefined) {
+    throw new Error("publisher reported confirmed status without an inclusion proof + anchor txid");
+  }
+
+  // The whole point of the local verification: we don't trust the publisher's
+  // word. The proof must verify against its own committed root.
+  const proofOk = verifyAccumulatorProof(receipt.inclusionProof.root, {
+    keyHex: receipt.inclusionProof.leaf,
+    value: receipt.inclusionProof.value,
+    siblings: receipt.inclusionProof.siblings
+  });
+  if (!proofOk) {
+    throw new Error("publisher's inclusion proof does not verify — refusing to record this claim");
+  }
+  if (receipt.inclusionProof.leaf !== expectedLeaf) {
+    throw new Error("publisher's inclusion proof is for a different leaf than the quoted name");
+  }
+  if (receipt.inclusionProof.value.toLowerCase() !== keystore.ownerPubkey.toLowerCase()) {
+    throw new Error("publisher's inclusion proof commits a different owner pubkey than this wallet");
+  }
+  console.log(`inclusion proof verifies locally; anchored at ${receipt.anchorTxid}` +
+    (receipt.anchorHeight !== undefined ? ` (height ${receipt.anchorHeight})` : ""));
+
+  const state = loadState(keystore.network);
+  state.track({ name: quote.name, ownerPubkey: keystore.ownerPubkey, ownershipRef: receipt.anchorTxid });
+  state.save(walletStatePath());
+  console.log(`"${quote.name}" recorded as owned in ${walletStatePath()}`);
 }
 
 async function runTransfer(args: readonly string[]): Promise<void> {
@@ -1208,6 +1317,8 @@ function printUsage(): void {
   console.log("    or  claim --bid-package <path> --fee-sats <n>");
   console.log("        [--input <utxo>] [--bond-address <a>] [--change-address <a>] [--bond-vout 0|1]");
   console.log("        build+sign an opening-bid claim (auto-funds when --input is omitted)");
+  console.log("  claim <name> --rail cheap [--publisher <url>] [--ln-url <u>]");
+  console.log("        cheap rail: pay a publisher over Lightning for a batched claim");
   console.log("  transfer <name> --to <pubkey> --fee-sats <n> [--resolver <url>]");
   console.log("        (auto-sources prev-state + bond from the resolver; or pass --prev-state-txid,");
   console.log("         --bond-input <utxo>, --successor-bond-sats <n> to go fully offline)");
