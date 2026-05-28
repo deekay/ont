@@ -5,6 +5,8 @@ import {
   type NodeView,
   accumulatorKeyForName,
   batchRailConvergence,
+  classifyName,
+  classifyNames,
   createDefaultDaWindows,
   emptyAccumulatorRoot,
   runBatchRail,
@@ -145,5 +147,156 @@ describe("production batch rail (signet prototype Phase 2)", () => {
     // Three non-empty blocks merged -> three anchored roots, ending at the confirmed root.
     expect(result.anchoredRoots).toBe(3);
     expect(result.ownerByName.size).toBe(3);
+  });
+});
+
+describe("name lifecycle classification (provisional / contested / final)", () => {
+  it("reports absent for a name with no DA-eligible claim", () => {
+    const result = classifyName({
+      name: "nobody",
+      node: node("A", {}),
+      deltas: [delta("d", 10, 0, "d0", 10, 10, [{ name: "elsewhere", valueHash: v("elsewhere") }])],
+      windows: WINDOWS,
+      now: 30,
+      rule: "proposed"
+    });
+    expect(result.status).toBe("absent");
+    expect(result.name).toBe("nobody");
+  });
+
+  it("reports provisional while the notice window is still open", () => {
+    const claim = delta("c", 10, 0, "c0", 10, 10, [{ name: "Alice", valueHash: v("alice") }]);
+    const result = classifyName({
+      name: "alice",
+      node: node("A", {}),
+      deltas: [claim],
+      windows: WINDOWS,
+      now: 13, // anchored (>=10) but window (10 + 6 = 16) still open
+      rule: "proposed",
+      noticeWindowBlocks: 6
+    });
+    expect(result.status).toBe("provisional");
+    if (result.status !== "provisional") throw new Error("unreachable");
+    expect(result.owner).toBe(v("alice"));
+    expect(result.claimDeltaId).toBe("c");
+    expect(result.claimHeight).toBe(10);
+    expect(result.windowCloseHeight).toBe(16);
+  });
+
+  it("reports final once the notice window has closed uncontested", () => {
+    const claim = delta("c", 10, 0, "c0", 10, 10, [{ name: "alice", valueHash: v("alice") }]);
+    const result = classifyName({
+      name: "alice",
+      node: node("A", {}),
+      deltas: [claim],
+      windows: WINDOWS,
+      now: 16, // window 10 + 6 = 16 just closed
+      rule: "proposed",
+      noticeWindowBlocks: 6
+    });
+    expect(result.status).toBe("final");
+    if (result.status !== "final") throw new Error("unreachable");
+    expect(result.owner).toBe(v("alice"));
+    expect(result.windowCloseHeight).toBe(16);
+  });
+
+  it("reports contested when two distinct claimants land within the window", () => {
+    const early = delta("early", 12, 1, "ee", 12, 12, [{ name: "coffee", valueHash: v("coffee-early") }]);
+    const late = delta("late", 13, 9, "ll", 13, 13, [{ name: "coffee", valueHash: v("coffee-late") }]);
+    const result = classifyName({
+      name: "coffee",
+      node: node("A", {}),
+      deltas: [late, early],
+      windows: WINDOWS,
+      now: 30,
+      rule: "proposed",
+      noticeWindowBlocks: 6
+    });
+    expect(result.status).toBe("contested");
+    if (result.status !== "contested") throw new Error("unreachable");
+    expect([...result.contestingDeltaIds].sort()).toEqual(["early", "late"]);
+    expect(result.windowCloseHeight).toBe(18); // earliest 12 + 6
+  });
+
+  it("fails closed: a withheld (un-served) claim is not counted, so the name is absent", () => {
+    const withheld = delta("ghost", 10, 0, "g0", null, null, [{ name: "ghost", valueHash: v("ghost") }]);
+    const result = classifyName({
+      name: "ghost",
+      node: node("A", { ghost: 10 }),
+      deltas: [withheld],
+      windows: WINDOWS,
+      now: 30,
+      rule: "proposed"
+    });
+    expect(result.status).toBe("absent");
+  });
+
+  it("ignores a not-yet-mined competitor: name stays provisional, not contested", () => {
+    const earliest = delta("first", 10, 0, "f0", 10, 10, [{ name: "alice", valueHash: v("alice") }]);
+    // Competitor is in-window (14 <= 16) but anchored above `now` (14 > 13) -> not mined yet.
+    const future = delta("second", 14, 0, "s0", 14, 14, [{ name: "alice", valueHash: v("alice2") }]);
+    const result = classifyName({
+      name: "alice",
+      node: node("A", {}),
+      deltas: [earliest, future],
+      windows: WINDOWS,
+      now: 13,
+      rule: "proposed",
+      noticeWindowBlocks: 6
+    });
+    expect(result.status).toBe("provisional");
+    if (result.status !== "provisional") throw new Error("unreachable");
+    expect(result.owner).toBe(v("alice"));
+  });
+
+  it("a later claim after the window closed does not contest: name is final to the first owner", () => {
+    const first = delta("first", 10, 0, "f0", 10, 10, [{ name: "taken", valueHash: v("first-owner") }]);
+    const second = delta("second", 24, 0, "s0", 24, 24, [{ name: "taken", valueHash: v("second-owner") }]);
+    const result = classifyName({
+      name: "taken",
+      node: node("A", {}),
+      deltas: [first, second],
+      windows: WINDOWS,
+      now: 40,
+      rule: "proposed",
+      noticeWindowBlocks: 6
+    });
+    expect(result.status).toBe("final");
+    if (result.status !== "final") throw new Error("unreachable");
+    expect(result.owner).toBe(v("first-owner"));
+  });
+
+  it("agrees with runBatchRail at the same `now` (final <-> finalized, contested <-> escalated)", () => {
+    const early = delta("early", 12, 1, "ee", 12, 12, [
+      { name: "coffee", valueHash: v("coffee-early") },
+      { name: "earlyonly", valueHash: v("earlyonly") }
+    ]);
+    const late = delta("late", 13, 9, "ll", 13, 13, [{ name: "coffee", valueHash: v("coffee-late") }]);
+    const deltas = [late, early];
+    const args = { node: node("A", {}), deltas, windows: WINDOWS, now: 30, rule: "proposed" as const, noticeWindowBlocks: 6 };
+
+    const rail = runBatchRail(args);
+    expect(rail.escalatedNames.find((e) => e.name === "coffee")).toBeDefined();
+    expect(rail.ownerByName.get("earlyonly")).toBe(v("earlyonly"));
+
+    expect(classifyName({ name: "coffee", ...args }).status).toBe("contested");
+    const earlyonly = classifyName({ name: "earlyonly", ...args });
+    expect(earlyonly.status).toBe("final");
+    if (earlyonly.status !== "final") throw new Error("unreachable");
+    expect(earlyonly.owner).toBe(v("earlyonly"));
+  });
+
+  it("classifyNames covers every claimed name with its status", () => {
+    const deltas = [
+      delta("d1", 10, 0, "01", 10, 10, [{ name: "settled", valueHash: v("settled") }]), // window 16, final at now=30
+      delta("c1", 26, 0, "c1", 26, 26, [{ name: "fresh", valueHash: v("fresh") }]), // window 32, provisional at now=30
+      delta("e1", 12, 1, "e1", 12, 12, [{ name: "fight", valueHash: v("fight-a") }]),
+      delta("e2", 13, 2, "e2", 13, 13, [{ name: "fight", valueHash: v("fight-b") }]) // contested
+    ];
+    const map = classifyNames({ node: node("A", {}), deltas, windows: WINDOWS, now: 30, rule: "proposed", noticeWindowBlocks: 6 });
+    expect(map.get("settled")?.status).toBe("final");
+    expect(map.get("fresh")?.status).toBe("provisional");
+    expect(map.get("fight")?.status).toBe("contested");
+    expect(map.size).toBe(3);
   });
 });

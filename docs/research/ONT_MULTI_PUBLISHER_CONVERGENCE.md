@@ -57,15 +57,31 @@ plus the bytes surfacing to the network by `+ W + C`), fail-closed, so a
 withheld or late-revealed delta is excluded rather than fatal — which is what
 defeats withhold-then-reveal name theft.
 
-Model B is the right answer for a permissionless, neutral system. **It is
-also not wired into anything.** The resolver has no merge code (grep
-`apps/resolver/src` for `mergeBlock`/`confirmedStateForNode` — nothing). The
-publisher emits Model-A anchors. So today the project has a correct
-multi-publisher design living only as a simulator, and a single-writer
-validator living in the path that real software would actually call.
+Model B is the right answer for a permissionless, neutral system, and more of
+it is built than I first credited. `packages/core/src/research/batch-rail.ts`
+(`runBatchRail`) already composes the pieces into a runnable rail: it
+DA-filters deltas (`isCanonical`), groups claims by name, **escalates a name
+with ≥2 distinct in-window claimants to the L1 bonded auction instead of
+first-writer-wins**, finalizes uncontested names on a real `Accumulator`, and
+its convergence + escalation + already-owned cases are covered by
+`batch-rail.test.ts`. So the notice-window/contested logic this note worried
+was missing is, in fact, implemented and tested.
 
-The first job of any convergence work is to **pick B and retire A from the
-canonical path** (A can survive as a single-publisher / regtest fast path).
+What is *not* wired is the consumption. The resolver has no rail code (grep
+`apps/resolver/src` for `runBatchRail`/`mergeBlock` — nothing), so no live
+component derives canonical name state from the cheap rail. And the publisher
+emits Model-A anchors off its *own* private accumulator (`sealBatch()`), which
+is the wrong base in a multi-publisher world. So the real gap is narrower than
+"Model B is unbuilt": it is **(1) consume `runBatchRail` in the resolver,
+(2) point the publisher's `prevRoot` at the canonical root, and (3) teach the
+wallet the provisional/contested/final lifecycle** — not re-deriving the merge
+logic, which exists.
+
+The first job of any convergence work is still to **pick B and retire A from
+the canonical path** (A — `RootChain`'s strict single-writer chaining — can
+survive as a single-publisher / regtest fast path; note `runBatchRail` itself
+uses `RootChain` internally, but only to chain a *single node's already-merged*
+per-height roots, which is a sound use, not the multi-writer hazard).
 Everything below assumes that decision.
 
 ## What "canonical root" means under Model B
@@ -202,25 +218,37 @@ entry path; the auction is an escalation of it, not a parallel rail.
 `docs/launch/UNIVERSAL_AUCTION_LAUNCH_MODEL.md` is the in-depth design of that
 escalated path (≈7-day window, soft close, returnable bonds).
 
-The mechanical consequence for the convergence layer is the important part,
-because it corrects how `mergeBlock` behaves today:
+The mechanical consequence for the convergence layer is mostly already built.
+`runBatchRail` in `batch-rail.ts` implements the notice-window escalation
+correctly today and is covered by `batch-rail.test.ts`: it DA-filters the
+deltas, groups same-name claims, and for each name checks whether two or more
+distinct claimants land within `noticeWindowBlocks` of the earliest claim. If
+so the name is pushed to `escalatedNames` (→ auction); if not the earliest
+claim finalizes. So the escalation logic is real, not aspirational. The
+remaining work is narrower than I first stated:
 
-- **First-writer-wins does not apply inside an open notice window.**
-  `commitPriority` in `delta-merge-sim.ts` currently resolves a same-leaf
-  conflict by picking the earliest commit and marking the rest
-  `dropped_conflict`. Under the one-path model that is wrong for two claims
-  that *both* land while the window is open: neither is dropped — the leaf is
-  flagged contested and its resolution is deferred to the auction outcome.
-- **Commit priority still governs the other cases.** A claim whose leaf is
-  already final on a prior canonical root is `dropped_existing` (the name is
-  taken; no auction). And commit priority is still the deterministic order in
+- **`mergeBlock` is the low-level primitive, not the contested-claims policy.**
+  `commitPriority` in `delta-merge-sim.ts` resolves a same-leaf conflict by
+  picking the earliest commit and marking the rest `dropped_conflict`. That is
+  the raw first-writer-wins merge step; it is *correct as a primitive*.
+  `runBatchRail` is the layer that applies the one-path policy on top — it does
+  not blindly drop the loser inside an open window, it escalates the name. The
+  resolver should therefore consume `runBatchRail`, not `mergeBlock` /
+  `confirmedStateForNode` directly.
+- **Commit priority still governs the settled cases.** A claim whose leaf is
+  already final on a prior canonical root is reported as already-owned (the name
+  is taken; no auction). And commit priority is still the deterministic order in
   which uncontested winners fold in (commutativity makes that order moot for
   distinct leaves, but it keeps checkpoints reproducible).
-- **The accumulator needs a provisional state.** A leaf claimed-but-inside-its-
-  window is not yet ownable. The canonical accumulator should not hand out a
-  final inclusion proof for it until the window closes uncontested (or the
-  auction settles). Inclusion proofs therefore gain a provisional-vs-final
-  distinction, and the resolver tracks per-leaf window deadlines.
+- **The one true gap is provisional status.** `runBatchRail` only processes
+  finalized-deep deltas, so it can report a name as *final* or *escalated* but
+  not as *provisional* — claimed-and-anchored, notice window still open relative
+  to `now`. A leaf inside its window is not yet ownable, and the canonical
+  accumulator should not hand out a final inclusion proof for it until the
+  window closes uncontested (or the auction settles). The missing capability is
+  a per-name lifecycle classifier (absent / provisional / contested / final)
+  that the resolver and wallet can both read; that is the next concrete build
+  step, not a rewrite of the merge.
 
 Remaining sub-questions (implementation shape, not protocol shape):
 
@@ -269,20 +297,26 @@ ordering/fairness half of the notice window.
 1. **Decide A-vs-B explicitly and write it down.** Retire `RootChain` from the
    canonical path; keep it as a single-publisher/regtest fast path with a
    comment pointing here. (Doc + small code comment. No behavior change yet.)
-2. **Lift `mergeBlock`/`confirmedStateForNode` out of research and into the
-   resolver** as the canonical-root deriver, behind the DA windows from
-   `da-convergence-sim.ts`. This is the load-bearing wiring and the most
-   valuable single step. It is mostly promotion of already-tested code.
+2. **Consume `runBatchRail` in the resolver** as the canonical-root deriver,
+   behind the DA windows from `da-convergence-sim.ts`. `runBatchRail` already
+   composes the merge (`mergeBlock`), the DA filter (`confirmedStateForNode`),
+   and the notice-window escalation; the resolver should call it rather than
+   re-implementing those pieces. This is the load-bearing wiring and the most
+   valuable single step. It is mostly promotion of already-tested code, plus the
+   provisional/lifecycle classifier from the contested-claims section above.
 3. **Point the publisher's `prevRoot` at the canonical root** (resolver
    client) and add per-leaf loss detection + refund.
 4. **Add the canonical-root re-check to the wallet** before it records a name
    as owned.
 5. **Checkpoints** once 2–4 are real, to restore cheap light-client follow.
-6. **Implement the notice window + auction escalation** per `ONT.md`: a
-   provisional leaf state, per-leaf window deadlines in the resolver, and the
-   merge-layer correction above (same-leaf-in-window → contested, not
-   first-writer-wins). Until that exists the cheap rail is honestly an
-   uncontested-names-only path and should say so.
+6. **Finish the notice window + auction escalation** per `ONT.md`. The
+   escalation itself is already implemented and tested in `runBatchRail`
+   (same-name, ≥2 distinct claimants in window → `escalatedNames`); what remains
+   is the provisional leaf state — a per-name lifecycle classifier
+   (absent / provisional / contested / final) with per-leaf window deadlines —
+   so the resolver and wallet can distinguish "anchored but window still open"
+   from "final." Until that exists the wallet records claims as owned on the
+   publisher receipt alone, which is the honest correctness gap to close first.
 
 ## Why this is worth doing now
 

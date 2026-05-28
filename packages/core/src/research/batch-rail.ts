@@ -60,6 +60,11 @@ interface Claim {
   readonly txid: string;
 }
 
+/** DA-eligibility only (fail-closed availability), independent of finalization depth. */
+function eligibleByDa(delta: AnchoredDelta, node: NodeView, windows: DaWindows, rule: InclusionRule): boolean {
+  return rule === "proposed" ? isCanonical(delta, windows) : isLocallyIncluded(delta, node, windows);
+}
+
 function isEligible(
   delta: AnchoredDelta,
   node: NodeView,
@@ -70,7 +75,7 @@ function isEligible(
   if (delta.anchorHeight > finalizedThrough) {
     return false;
   }
-  return rule === "proposed" ? isCanonical(delta, windows) : isLocallyIncluded(delta, node, windows);
+  return eligibleByDa(delta, node, windows, rule);
 }
 
 /** Run the batch rail for one node's view, returning the confirmed accumulator and derived root chain. */
@@ -160,6 +165,154 @@ export function runBatchRail(input: {
     escalatedNames,
     accumulator
   };
+}
+
+/**
+ * A name's lifecycle relative to chain height `now`, per the ONT.md one-path model.
+ *
+ *   - `absent`      — no DA-eligible claim for this name.
+ *   - `provisional` — exactly one in-window claimant so far and the notice window is still open
+ *                     (`now < windowCloseHeight`): the claim is anchored and available, but a
+ *                     competitor could still land and contest it. NOT yet ownable.
+ *   - `contested`   — two or more distinct claimants landed within the notice window; the name
+ *                     escalates to the L1 bonded auction (it never resolves on the accumulator).
+ *   - `final`       — exactly one in-window claimant and the notice window has closed; ownable.
+ */
+export type NameLifecycle =
+  | { readonly status: "absent"; readonly name: string }
+  | {
+      readonly status: "provisional";
+      readonly name: string;
+      readonly owner: string;
+      readonly claimDeltaId: string;
+      readonly claimHeight: number;
+      readonly windowCloseHeight: number;
+    }
+  | {
+      readonly status: "contested";
+      readonly name: string;
+      readonly contestingDeltaIds: readonly string[];
+      readonly windowCloseHeight: number;
+    }
+  | {
+      readonly status: "final";
+      readonly name: string;
+      readonly owner: string;
+      readonly claimDeltaId: string;
+      readonly claimHeight: number;
+      readonly windowCloseHeight: number;
+    };
+
+/**
+ * Classify a single name's lifecycle relative to chain height `now`.
+ *
+ * This is the capability `runBatchRail` cannot provide: `runBatchRail` only processes
+ * finalized-deep deltas (`anchorHeight <= now - K`), so it can report a name as final or escalated
+ * but never as *provisional* (anchored, available, notice window still open). The classifier keeps
+ * the same fail-closed DA filter — a claim is never counted until its availability is
+ * Bitcoin-witnessed — but drops the K-depth requirement, deciding provisional-vs-final from whether
+ * the notice window has closed relative to `now`. Claims anchored in blocks above `now` are ignored
+ * (not yet mined).
+ *
+ * Cross-consistency with `runBatchRail` (defaults, where `noticeWindow <= K`): any name it finalizes
+ * classifies `final`; any name it escalates classifies `contested`.
+ */
+export function classifyName(input: {
+  readonly name: string;
+  readonly node: NodeView;
+  readonly deltas: readonly AnchoredDelta[];
+  readonly windows: DaWindows;
+  readonly now: number;
+  readonly rule: InclusionRule;
+  readonly noticeWindowBlocks?: number;
+}): NameLifecycle {
+  const { name, node, deltas, windows, now, rule } = input;
+  if (windows.confirmDepthK < windows.availabilityWindowW + windows.challengeWindowC) {
+    throw new Error("confirmDepthK must be >= availabilityWindowW + challengeWindowC");
+  }
+  const noticeWindow = input.noticeWindowBlocks ?? DEFAULT_NOTICE_WINDOW_BLOCKS;
+  const target = normalizeName(name);
+
+  const claims: Claim[] = [];
+  for (const delta of deltas) {
+    if (delta.anchorHeight > now) {
+      continue; // anchored in a block that has not been mined yet
+    }
+    if (!eligibleByDa(delta, node, windows, rule)) {
+      continue; // DA fail-closed: not available, so not counted
+    }
+    for (const insertion of delta.insertions) {
+      if (normalizeName(insertion.name) !== target) {
+        continue;
+      }
+      claims.push({
+        name: target,
+        valueHash: insertion.valueHash,
+        deltaId: delta.id,
+        height: delta.anchorHeight,
+        txIndex: delta.anchorTxIndex,
+        txid: delta.anchorTxid
+      });
+    }
+  }
+
+  if (claims.length === 0) {
+    return { status: "absent", name: target };
+  }
+
+  const ordered = [...claims].sort(
+    (a, b) => a.height - b.height || a.txIndex - b.txIndex || a.txid.localeCompare(b.txid)
+  );
+  const earliest = ordered[0] as Claim;
+  const windowCloseHeight = earliest.height + noticeWindow;
+  const inWindow = ordered.filter((claim) => claim.height <= windowCloseHeight);
+  const distinctClaimants = new Set(inWindow.map((claim) => claim.deltaId));
+
+  if (distinctClaimants.size >= 2) {
+    return { status: "contested", name: target, contestingDeltaIds: [...distinctClaimants], windowCloseHeight };
+  }
+
+  if (now < windowCloseHeight) {
+    return {
+      status: "provisional",
+      name: target,
+      owner: earliest.valueHash,
+      claimDeltaId: earliest.deltaId,
+      claimHeight: earliest.height,
+      windowCloseHeight
+    };
+  }
+
+  return {
+    status: "final",
+    name: target,
+    owner: earliest.valueHash,
+    claimDeltaId: earliest.deltaId,
+    claimHeight: earliest.height,
+    windowCloseHeight
+  };
+}
+
+/** Classify every name claimed by any delta. Convenience wrapper over `classifyName`. */
+export function classifyNames(input: {
+  readonly node: NodeView;
+  readonly deltas: readonly AnchoredDelta[];
+  readonly windows: DaWindows;
+  readonly now: number;
+  readonly rule: InclusionRule;
+  readonly noticeWindowBlocks?: number;
+}): ReadonlyMap<string, NameLifecycle> {
+  const names = new Set<string>();
+  for (const delta of input.deltas) {
+    for (const insertion of delta.insertions) {
+      names.add(normalizeName(insertion.name));
+    }
+  }
+  const out = new Map<string, NameLifecycle>();
+  for (const name of names) {
+    out.set(name, classifyName({ name, ...input }));
+  }
+  return out;
 }
 
 export interface BatchRailConvergenceReport {
