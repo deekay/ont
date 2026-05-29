@@ -5,6 +5,7 @@
   "dependencies": {
     "@bitcoinerlab/secp256k1": "^1.2.0",
     "@expo/vector-icons": "^15.0.2",
+    "@noble/ciphers": "^1.3.0",
     "@noble/curves": "^1.9.7",
     "@noble/hashes": "^1.8.0",
     "@react-navigation/bottom-tabs": "^7.16.2",

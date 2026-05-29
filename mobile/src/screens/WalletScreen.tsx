@@ -210,6 +210,10 @@ export default function WalletScreen() {
           </View>
 
           <View style={{ marginTop: spacing.md }}>
+            <Button title="Back up / restore" variant="secondary" onPress={() => nav.navigate("Backup")} />
+          </View>
+
+          <View style={{ marginTop: spacing.md }}>
             <Button title="Remove wallet" variant="danger" onPress={confirmRemove} loading={busy} />
           </View>
         </>
@@ -264,6 +268,7 @@ export default function WalletScreen() {
             <View style={styles.formActions}>
               <Button title="Create wallet" onPress={() => createWallet()} loading={busy} />
               <Button title="Import keys" variant="secondary" onPress={() => setMode("import")} />
+              <Button title="Restore from backup" variant="secondary" onPress={() => nav.navigate("Backup")} />
             </View>
           </Card>
         </>
