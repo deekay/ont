@@ -1,12 +1,8 @@
-// Value-record WRITE flow: the owner key asserting a name's current value.
-//
-// This is the second crypto pillar made interactive — the wallet signs a
-// canonical, length-prefixed value record (BIP340 Schnorr, see
-// wallet/value-record.ts) and publishes it to the resolver. The screen refuses
-// to sign unless this wallet is the resolver's current owner of the name, and
-// the record is self-verified locally before it is sent; the resolver then
-// independently re-checks signature, owner, ownershipRef, and exact-next
-// sequence. See wallet/value-write.ts for the orchestration.
+// Recovery-descriptor write flow: the owner key designating a recovery wallet
+// (address) for a name it owns — ONT's protocol-native recovery path. Mirrors
+// SetValueScreen; signs locally (BIP340 Schnorr, recovery-descriptor.ts),
+// self-verifies, then publishes. The resolver re-checks owner + ownershipRef +
+// exact-next sequence before recording.
 import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
 import React, { useState } from "react";
 import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
@@ -17,44 +13,36 @@ import { shortHex } from "../format";
 import type { RootNav, RootStackParamList } from "../navigation/types";
 import { colors, font, radius, spacing } from "../theme";
 import { isValidName, normalizeName } from "../wallet/accumulator";
-import { useWallet } from "../wallet/WalletContext";
 import {
-  publishNameValue,
-  readValueState,
-  type PublishValueResult,
-  type ValueState,
-} from "../wallet/value-write";
+  publishNameRecovery,
+  readRecoveryState,
+  type PublishRecoveryResult,
+  type RecoveryState,
+} from "../wallet/recovery-write";
+import { useWallet } from "../wallet/WalletContext";
 
 type Step = "input" | "checked" | "done";
 
-function parseValueType(raw: string): number | null {
-  if (!/^\d{1,3}$/.test(raw.trim())) return null;
-  const n = Number.parseInt(raw.trim(), 10);
-  return n >= 0 && n <= 255 ? n : null;
-}
-
-export default function SetValueScreen() {
+export default function RecoveryScreen() {
   const insets = useSafeAreaInsets();
   const nav = useNavigation<RootNav>();
-  const route = useRoute<RouteProp<RootStackParamList, "SetValue">>();
+  const route = useRoute<RouteProp<RootStackParamList, "Recovery">>();
   const { wallet } = useWallet();
   const { demo } = useDemoMode();
   const ownerPubkey = wallet?.owner.ownerPubkey ?? null;
   const ownerPrivateKeyHex = wallet?.owner.ownerPrivateKeyHex ?? null;
 
   const [name, setName] = useState(route.params?.name ?? "");
-  const [valueTypeStr, setValueTypeStr] = useState("2");
-  const [value, setValue] = useState("");
+  const [recoveryAddress, setRecoveryAddress] = useState("");
   const [step, setStep] = useState<Step>("input");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [state, setState] = useState<ValueState | null>(null);
-  const [result, setResult] = useState<PublishValueResult | null>(null);
+  const [state, setState] = useState<RecoveryState | null>(null);
+  const [result, setResult] = useState<PublishRecoveryResult | null>(null);
 
   const trimmed = normalizeName(name);
   const nameOk = isValidName(trimmed);
-  const valueType = parseValueType(valueTypeStr);
-  const valueOk = value.trim().length > 0;
+  const addrOk = recoveryAddress.trim().length > 0;
   const owns =
     state != null &&
     ownerPubkey != null &&
@@ -71,7 +59,7 @@ export default function SetValueScreen() {
     setBusy(true);
     setError(null);
     try {
-      const s = await readValueState(trimmed);
+      const s = await readRecoveryState(trimmed);
       if (s === null) {
         setError(`The resolver doesn't know "${trimmed}" yet — it has to be claimed first.`);
         setState(null);
@@ -79,6 +67,7 @@ export default function SetValueScreen() {
         return;
       }
       setState(s);
+      if (s.currentRecoveryAddress && !recoveryAddress) setRecoveryAddress(s.currentRecoveryAddress);
       setStep("checked");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not read the name's current state.");
@@ -88,12 +77,12 @@ export default function SetValueScreen() {
   }
 
   async function publish() {
-    if (!ownerPrivateKeyHex || valueType === null) return;
+    if (!ownerPrivateKeyHex) return;
     setBusy(true);
     setError(null);
     try {
-      const r = await publishNameValue(
-        { name: trimmed, ownerPrivateKeyHex, valueType, payloadUtf8: value.trim() },
+      const r = await publishNameRecovery(
+        { name: trimmed, ownerPrivateKeyHex, recoveryAddress: recoveryAddress.trim() },
         { simulate: demo },
       );
       setResult(r);
@@ -111,14 +100,14 @@ export default function SetValueScreen() {
       contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.sm }]}
       keyboardShouldPersistTaps="handled"
     >
-      <Text style={styles.title}>Set a name's value</Text>
-      <Text style={styles.subtitle}>Owner-signed value record · published to the resolver</Text>
+      <Text style={styles.title}>Set a recovery wallet</Text>
+      <Text style={styles.subtitle}>Owner-signed recovery descriptor · recovers the name if your key is lost</Text>
 
       {!ownerPubkey ? (
         <Card style={styles.spaced}>
           <Text style={styles.cardLabel}>No owner key on this device</Text>
           <Text style={styles.cardHint}>
-            A value record is signed by the name's owner key. Create or import a wallet first.
+            A recovery descriptor is signed by the name's owner key. Create or import a wallet first.
           </Text>
           <View style={styles.actions}>
             <Button title="Go to Wallet" onPress={() => nav.navigate("Tabs")} />
@@ -146,7 +135,6 @@ export default function SetValueScreen() {
         ) : null}
       </Card>
 
-      {/* Current resolver state for the name: who owns it, the chain head. */}
       {step !== "input" && state ? (
         <>
           <SectionTitle>Current state</SectionTitle>
@@ -156,59 +144,43 @@ export default function SetValueScreen() {
               <Badge label={owns ? "✓ owned by this wallet" : "not owned here"} tone={owns ? "success" : "warn"} />
             </View>
             <KV label="Status" value={state.status} />
-            {state.ownershipRef ? (
-              <KV label="Ownership ref" value={shortHex(state.ownershipRef, 10, 8)} mono />
-            ) : null}
+            {state.ownershipRef ? <KV label="Ownership ref" value={shortHex(state.ownershipRef, 10, 8)} mono /> : null}
             <KV
-              label="Value chain"
+              label="Recovery chain"
               value={
                 state.currentSequence === null
-                  ? "no value yet → next is seq 1"
+                  ? "none set → next is seq 1"
                   : `head seq ${state.currentSequence} → next is seq ${state.nextSequence}`
               }
             />
+            {state.currentRecoveryAddress ? (
+              <KV label="Current recovery" value={state.currentRecoveryAddress} />
+            ) : null}
             {!owns ? (
               <Text style={[styles.cardHint, { marginTop: spacing.sm }]}>
-                Only the current owner key can publish a value for this name. The resolver rejects a
-                record signed by any other key.
+                Only the current owner key can set recovery for this name.
               </Text>
             ) : null}
           </Card>
         </>
       ) : null}
 
-      {/* Value entry + publish (only when this wallet owns the name). */}
       {ownerPubkey ? (
         <>
-          <SectionTitle>Value</SectionTitle>
+          <SectionTitle>Recovery wallet address</SectionTitle>
           <Card>
-            <Text style={styles.cardLabel}>Value type</Text>
-            <Text style={styles.cardHint}>A single byte (0–255). By convention, 2 is a URL.</Text>
+            <Text style={styles.cardHint}>
+              The address that can recover this name through the challenge window if the owner key is lost.
+              Use an address you control from a separate, safe wallet.
+            </Text>
             <TextInput
               style={styles.input}
-              value={valueTypeStr}
+              value={recoveryAddress}
               onChangeText={(t) => {
-                setValueTypeStr(t);
+                setRecoveryAddress(t);
                 if (step === "done") reset();
               }}
-              placeholder="2"
-              placeholderTextColor={colors.textFaint}
-              keyboardType="number-pad"
-              editable={step !== "done"}
-            />
-            {valueTypeStr.trim().length > 0 && valueType === null ? (
-              <Text style={styles.inlineError}>Value type must be an integer from 0 to 255.</Text>
-            ) : null}
-
-            <Text style={[styles.cardLabel, { marginTop: spacing.md }]}>Value</Text>
-            <TextInput
-              style={styles.input}
-              value={value}
-              onChangeText={(t) => {
-                setValue(t);
-                if (step === "done") reset();
-              }}
-              placeholder="https://example.com"
+              placeholder="tb1q… (signet)"
               placeholderTextColor={colors.textFaint}
               autoCapitalize="none"
               autoCorrect={false}
@@ -218,7 +190,6 @@ export default function SetValueScreen() {
         </>
       ) : null}
 
-      {/* Actions */}
       {ownerPubkey && step === "input" ? (
         <View style={styles.actions}>
           <Button title="Check name" onPress={checkName} disabled={!nameOk} loading={busy} />
@@ -227,24 +198,18 @@ export default function SetValueScreen() {
 
       {ownerPubkey && step === "checked" ? (
         <View style={styles.actions}>
-          <Button
-            title="Sign & publish value"
-            onPress={publish}
-            disabled={!owns || !valueOk || valueType === null}
-            loading={busy}
-          />
+          <Button title="Sign & publish recovery" onPress={publish} disabled={!owns || !addrOk} loading={busy} />
           <Button title="Start over" variant="secondary" onPress={reset} />
         </View>
       ) : null}
 
-      {/* Result */}
       {step === "done" && result ? (
         <>
           <SectionTitle>Published</SectionTitle>
           <Card style={{ borderColor: colors.success }}>
             <View style={styles.row}>
               <Text style={[styles.cardLabel, { color: colors.success }]}>
-                {result.simulated ? "Value record signed (demo)" : "Value record published"}
+                {result.simulated ? "Recovery descriptor signed (demo)" : "Recovery descriptor published"}
               </Text>
               <Badge label={result.simulated ? "demo · seq " + result.sequence : `seq ${result.sequence}`} tone={result.simulated ? "warn" : "success"} />
             </View>
@@ -253,10 +218,8 @@ export default function SetValueScreen() {
                 ? "Signed locally with your owner key and self-verified — not published in demo mode. Turn demo off on the Wallet screen to publish to the resolver."
                 : "Signed locally with your owner key and verified by the resolver against the name's current owner and chain head before it was recorded."}
             </Text>
-            <KV label="Type" value={String(result.valueType)} />
-            <KV label="Value" value={value.trim()} />
-            <KV label="Record hash" value={shortHex(result.recordHash, 12, 8)} mono />
-            <KV label="Ownership ref" value={shortHex(result.ownershipRef, 10, 8)} mono />
+            <KV label="Recovery address" value={result.recoveryAddress} />
+            <KV label="Descriptor hash" value={shortHex(result.descriptorHash, 12, 8)} mono />
             <View style={styles.actions}>
               {nameOk ? (
                 <Button

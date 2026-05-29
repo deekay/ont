@@ -210,6 +210,10 @@ export default function WalletScreen() {
           </View>
 
           <View style={{ marginTop: spacing.md }}>
+            <Button title="Set a recovery wallet" variant="secondary" onPress={() => nav.navigate("Recovery")} />
+          </View>
+
+          <View style={{ marginTop: spacing.md }}>
             <Button title="Back up / restore" variant="secondary" onPress={() => nav.navigate("Backup")} />
           </View>
 

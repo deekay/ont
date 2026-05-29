@@ -10,6 +10,7 @@ import BackupScreen from "../screens/BackupScreen";
 import ClaimScreen from "../screens/ClaimScreen";
 import ExploreScreen from "../screens/ExploreScreen";
 import NameDetailScreen from "../screens/NameDetailScreen";
+import RecoveryScreen from "../screens/RecoveryScreen";
 import SetValueScreen from "../screens/SetValueScreen";
 import WalletScreen from "../screens/WalletScreen";
 import { colors } from "../theme";
@@ -72,6 +73,7 @@ export function RootNavigator() {
         <RootStack.Screen name="AuctionDetail" component={AuctionDetailScreen} options={{ title: "Auction" }} />
         <RootStack.Screen name="Claim" component={ClaimScreen} options={{ title: "Claim a name" }} />
         <RootStack.Screen name="SetValue" component={SetValueScreen} options={{ title: "Set a name's value" }} />
+        <RootStack.Screen name="Recovery" component={RecoveryScreen} options={{ title: "Set a recovery wallet" }} />
         <RootStack.Screen name="Backup" component={BackupScreen} options={{ title: "Back up / restore" }} />
       </RootStack.Navigator>
     </NavigationContainer>

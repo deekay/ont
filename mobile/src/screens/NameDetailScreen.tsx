@@ -73,11 +73,10 @@ export default function NameDetailScreen() {
         {ownedHere ? (
           <View style={styles.ownerActions}>
             <Badge label="✓ owned by this wallet" tone="success" />
-            <Button
-              title="Set value"
-              variant="secondary"
-              onPress={() => nav.navigate("SetValue", { name: r.name })}
-            />
+            <View style={styles.ownerButtons}>
+              <Button title="Set value" variant="secondary" onPress={() => nav.navigate("SetValue", { name: r.name })} />
+              <Button title="Set recovery" variant="secondary" onPress={() => nav.navigate("Recovery", { name: r.name })} />
+            </View>
           </View>
         ) : null}
       </Card>
@@ -181,6 +180,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
     flexWrap: "wrap",
   },
+  ownerButtons: { flexDirection: "row", gap: spacing.sm, flexWrap: "wrap" },
   valueHead: { flexDirection: "row", justifyContent: "space-between", marginBottom: spacing.xs },
   valueSeq: { fontWeight: "700", color: colors.text },
   valueHash: { fontFamily: font.mono, fontSize: 12, color: colors.textFaint },

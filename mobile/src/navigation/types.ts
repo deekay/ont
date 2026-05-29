@@ -6,6 +6,7 @@ export type RootStackParamList = {
   AuctionDetail: { auctionId: string };
   Claim: { name?: string } | undefined;
   SetValue: { name?: string } | undefined;
+  Recovery: { name?: string } | undefined;
   Backup: undefined;
 };
 

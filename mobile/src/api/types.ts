@@ -118,6 +118,19 @@ export interface ValueRecordPublishResponse {
   valueStorePath?: string;
 }
 
+export interface RecoveryDescriptorPublishResponse {
+  ok: boolean;
+  name: string;
+  ownershipRef: string;
+  sequence: number;
+  previousDescriptorHash: string | null;
+  descriptorHash: string;
+  recoveryAddress: string;
+  signingProfile: string;
+  challengeWindowBlocks: number;
+  recoveryStorePath?: string;
+}
+
 export interface ValueHistoryResponse {
   name: string;
   ownershipRef: string;

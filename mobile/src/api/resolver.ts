@@ -1,3 +1,4 @@
+import type { SignedRecoveryDescriptor } from "../wallet/recovery-descriptor";
 import type { SignedValueRecord } from "../wallet/value-record";
 import { apiGet, apiPost, esploraGetText, esploraGetJson } from "./client";
 import type {
@@ -9,6 +10,7 @@ import type {
   NameRecord,
   NamesResponse,
   RecoveryDescriptor,
+  RecoveryDescriptorPublishResponse,
   ValueHistoryResponse,
   ValueRecord,
   ValueRecordPublishResponse,
@@ -31,6 +33,10 @@ export const resolver = {
    *  signature, owner, ownershipRef, and exact-next sequence before accepting. */
   publishValue: (record: SignedValueRecord) =>
     apiPost<ValueRecordPublishResponse>("/values", record),
+
+  /** Publish a locally-signed recovery descriptor (same checks as values). */
+  publishRecovery: (descriptor: SignedRecoveryDescriptor) =>
+    apiPost<RecoveryDescriptorPublishResponse>("/recovery-descriptors", descriptor),
   recovery: (name: string) => apiGet<RecoveryDescriptor>(`/name/${encodeURIComponent(name)}/recovery`),
 
   activity: (limit = 30) => apiGet<ActivityResponse>(`/activity?limit=${limit}`),

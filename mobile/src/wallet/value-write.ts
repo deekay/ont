@@ -12,6 +12,7 @@ import { resolver } from "../api/resolver";
 import type { ValueRecord } from "../api/types";
 import { normalizeName } from "./accumulator";
 import {
+  computeValueRecordHash,
   deriveOwnerPubkey,
   signValueRecord,
   verifyValueRecord,
@@ -36,7 +37,9 @@ export interface PublishValueResult {
   readonly ownershipRef: string;
   readonly valueType: number;
   readonly payloadHex: string;
-  /** The fully-signed record that was accepted (for display / local tracking). */
+  /** True when the record was signed but not published (demo mode). */
+  readonly simulated: boolean;
+  /** The fully-signed record (for display / local tracking). */
   readonly record: SignedValueRecord;
 }
 
@@ -107,7 +110,10 @@ export async function readValueState(rawName: string): Promise<ValueState | null
  * Throws with a human-readable message if the name is unknown, this wallet is
  * not the current owner, or the resolver rejects the record.
  */
-export async function publishNameValue(input: PublishValueInput): Promise<PublishValueResult> {
+export async function publishNameValue(
+  input: PublishValueInput,
+  opts: { simulate?: boolean } = {},
+): Promise<PublishValueResult> {
   const name = normalizeName(input.name);
   if (!name) {
     throw new Error("Enter a name to set a value for.");
@@ -159,9 +165,21 @@ export async function publishNameValue(input: PublishValueInput): Promise<Publis
     throw new Error("Local signature self-check failed — refusing to publish.");
   }
 
-  // 5. Publish; the resolver re-verifies everything before accepting (201).
+  // 5. Demo mode signs but does not publish; live mode POSTs and the resolver
+  //    re-verifies everything before accepting (201).
+  if (opts.simulate) {
+    return {
+      name,
+      sequence,
+      recordHash: computeValueRecordHash(signed),
+      ownershipRef,
+      valueType: signed.valueType,
+      payloadHex: signed.payloadHex,
+      simulated: true,
+      record: signed,
+    };
+  }
   const response = await resolver.publishValue(signed);
-
   return {
     name,
     sequence: response.sequence,
@@ -169,6 +187,7 @@ export async function publishNameValue(input: PublishValueInput): Promise<Publis
     ownershipRef: response.ownershipRef,
     valueType: response.valueType,
     payloadHex: signed.payloadHex,
+    simulated: false,
     record: signed,
   };
 }
