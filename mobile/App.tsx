@@ -2,6 +2,7 @@ import { StatusBar } from "expo-status-bar";
 import React from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { DemoHoldingsProvider } from "./src/DemoHoldings";
 import { DemoModeProvider } from "./src/DemoMode";
 import { RootNavigator } from "./src/navigation";
 import { WalletProvider } from "./src/wallet/WalletContext";
@@ -11,10 +12,12 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <DemoModeProvider>
-          <WalletProvider>
-            <StatusBar style="dark" />
-            <RootNavigator />
-          </WalletProvider>
+          <DemoHoldingsProvider>
+            <WalletProvider>
+              <StatusBar style="dark" />
+              <RootNavigator />
+            </WalletProvider>
+          </DemoHoldingsProvider>
         </DemoModeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

@@ -12,6 +12,7 @@ import React, { useState } from "react";
 import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Badge, Button, Card, KV, SectionTitle } from "../components/ui";
+import { useDemoHoldings } from "../DemoHoldings";
 import { useDemoMode } from "../DemoMode";
 import { shortHex } from "../format";
 import type { RootNav, RootStackParamList } from "../navigation/types";
@@ -39,6 +40,7 @@ export default function SetValueScreen() {
   const route = useRoute<RouteProp<RootStackParamList, "SetValue">>();
   const { wallet } = useWallet();
   const { demo } = useDemoMode();
+  const { recordValue } = useDemoHoldings();
   const ownerPubkey = wallet?.owner.ownerPubkey ?? null;
   const ownerPrivateKeyHex = wallet?.owner.ownerPrivateKeyHex ?? null;
 
@@ -98,6 +100,9 @@ export default function SetValueScreen() {
       );
       setResult(r);
       setStep("done");
+      if (r.simulated) {
+        recordValue({ name: r.name, valueType: r.valueType, value: value.trim(), sequence: r.sequence, at: new Date().toISOString() });
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Publish failed.");
     } finally {

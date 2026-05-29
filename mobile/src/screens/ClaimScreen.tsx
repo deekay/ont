@@ -16,6 +16,7 @@ import {
   type PublisherClientLike,
   type PublisherQuote,
 } from "../api/publisher";
+import { useDemoHoldings } from "../DemoHoldings";
 import { useDemoMode } from "../DemoMode";
 import { Badge, Button, Card, KV, SectionTitle } from "../components/ui";
 import { formatAmount, formatDateTime, shortHex } from "../format";
@@ -39,6 +40,7 @@ export default function ClaimScreen() {
   const ownerPubkey = wallet?.owner.ownerPubkey ?? null;
 
   const { demo } = useDemoMode();
+  const { recordClaim } = useDemoHoldings();
   const client = useMemo<PublisherClientLike | null>(
     () => (demo ? new MockPublisherClient() : getPublisherClient()),
     [demo],
@@ -121,6 +123,14 @@ export default function ClaimScreen() {
       const v = verifyConfirmedReceipt(r, { name: trimmed, ownerPubkey: ownerPubkey ?? "" });
       setVerdict(v);
       setStep("done");
+      if (v.ok && client?.isDemo) {
+        recordClaim({
+          name: trimmed,
+          anchorHeight: v.anchorHeight,
+          noticeWindowCloseHeight: v.noticeWindowCloseHeight,
+          at: new Date().toISOString(),
+        });
+      }
     } else {
       setVerdict(null);
       setStep("pending");

@@ -5,6 +5,7 @@ import { MockAuctionBidder, isBiddable, minimumNextBidSats, type DemoBidResult }
 import { resolver } from "../api/resolver";
 import type { AuctionEntry, BidOutcome } from "../api/types";
 import { Badge, Button, Card, KV, Loading, ErrorView, SectionTitle } from "../components/ui";
+import { useDemoHoldings } from "../DemoHoldings";
 import { useDemoMode } from "../DemoMode";
 import { formatAmount, formatBtc, shortHex, titleCase } from "../format";
 import { useAsync } from "../hooks/useAsync";
@@ -24,6 +25,7 @@ export default function AuctionDetailScreen() {
     return found;
   }, [auctionId]);
   const { demo } = useDemoMode();
+  const { recordBid } = useDemoHoldings();
   const { wallet } = useWallet();
   const [bidAmount, setBidAmount] = useState("");
   const [bidResult, setBidResult] = useState<DemoBidResult | null>(null);
@@ -37,7 +39,17 @@ export default function AuctionDetailScreen() {
 
   function placeBid() {
     if (!ownerPubkey) return;
-    setBidResult(new MockAuctionBidder().placeBid({ auction: a, bidAmountSats: bidAmount.trim(), ownerPubkey }));
+    const result = new MockAuctionBidder().placeBid({ auction: a, bidAmountSats: bidAmount.trim(), ownerPubkey });
+    setBidResult(result);
+    if (result.accepted) {
+      recordBid({
+        auctionId: a.auctionId,
+        name: a.normalizedName,
+        bidAmountSats: result.bidAmountSats,
+        leading: result.becameLeader,
+        at: new Date().toISOString(),
+      });
+    }
   }
 
   return (

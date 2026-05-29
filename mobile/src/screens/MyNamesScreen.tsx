@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { resolver } from "../api/resolver";
 import type { AuctionEntry, NameRecord } from "../api/types";
 import { Badge, Card, Empty, ErrorView, KV, Loading, SectionTitle } from "../components/ui";
+import { useDemoHoldings } from "../DemoHoldings";
 import { formatAmount, shortHex, titleCase } from "../format";
 import { useAsync } from "../hooks/useAsync";
 import type { RootNav } from "../navigation/types";
@@ -24,7 +25,9 @@ export default function MyNamesScreen() {
   const insets = useSafeAreaInsets();
   const nav = useNavigation<RootNav>();
   const { wallet } = useWallet();
+  const { claims, values, recoveries, bids } = useDemoHoldings();
   const ownerPubkey = wallet?.owner.ownerPubkey?.toLowerCase() ?? null;
+  const demoCount = claims.length + values.length + recoveries.length + bids.length;
 
   const state = useAsync<MyData>(async () => {
     if (!ownerPubkey) return { owned: [], leading: [] };
@@ -94,6 +97,48 @@ export default function MyNamesScreen() {
           </Card>
         ))
       )}
+
+      {demoCount > 0 ? (
+        <>
+          <SectionTitle right={<Badge label="demo · this device" tone="warn" />}>Demo activity</SectionTitle>
+          {claims.map((c, i) => (
+            <Card key={`c${i}`} style={styles.spaced} onPress={() => nav.navigate("NameDetail", { name: c.name })}>
+              <View style={styles.row}>
+                <Text style={styles.name}>{c.name}</Text>
+                <Badge label="claim · provisional" tone="warn" />
+              </View>
+              <KV label="Finalizes after" value={`block ${c.noticeWindowCloseHeight}`} />
+            </Card>
+          ))}
+          {values.map((v, i) => (
+            <Card key={`v${i}`} style={styles.spaced}>
+              <View style={styles.row}>
+                <Text style={styles.name}>{v.name}</Text>
+                <Badge label={`value · seq ${v.sequence}`} />
+              </View>
+              <KV label={`type ${v.valueType}`} value={v.value} />
+            </Card>
+          ))}
+          {recoveries.map((r, i) => (
+            <Card key={`r${i}`} style={styles.spaced}>
+              <View style={styles.row}>
+                <Text style={styles.name}>{r.name}</Text>
+                <Badge label={`recovery · seq ${r.sequence}`} />
+              </View>
+              <KV label="Recovery wallet" value={r.recoveryAddress} />
+            </Card>
+          ))}
+          {bids.map((b, i) => (
+            <Card key={`b${i}`} style={styles.spaced} onPress={() => nav.navigate("AuctionDetail", { auctionId: b.auctionId })}>
+              <View style={styles.row}>
+                <Text style={styles.name}>{b.name}</Text>
+                <Badge label={b.leading ? "bid · leading" : "bid"} tone={b.leading ? "success" : "neutral"} />
+              </View>
+              <KV label="Your bid" value={formatAmount(b.bidAmountSats)} />
+            </Card>
+          ))}
+        </>
+      ) : null}
 
       <View style={{ height: spacing.xxl }} />
     </ScrollView>

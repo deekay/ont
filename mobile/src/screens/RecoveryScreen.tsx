@@ -8,6 +8,7 @@ import React, { useState } from "react";
 import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Badge, Button, Card, KV, SectionTitle } from "../components/ui";
+import { useDemoHoldings } from "../DemoHoldings";
 import { useDemoMode } from "../DemoMode";
 import { shortHex } from "../format";
 import type { RootNav, RootStackParamList } from "../navigation/types";
@@ -29,6 +30,7 @@ export default function RecoveryScreen() {
   const route = useRoute<RouteProp<RootStackParamList, "Recovery">>();
   const { wallet } = useWallet();
   const { demo } = useDemoMode();
+  const { recordRecovery } = useDemoHoldings();
   const ownerPubkey = wallet?.owner.ownerPubkey ?? null;
   const ownerPrivateKeyHex = wallet?.owner.ownerPrivateKeyHex ?? null;
 
@@ -87,6 +89,9 @@ export default function RecoveryScreen() {
       );
       setResult(r);
       setStep("done");
+      if (r.simulated) {
+        recordRecovery({ name: r.name, recoveryAddress: r.recoveryAddress, sequence: r.sequence, at: new Date().toISOString() });
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Publish failed.");
     } finally {
