@@ -1,58 +1,63 @@
 /**
- * Live ONT infrastructure endpoints.
+ * App configuration, keyed by network so flipping to mainnet is one change.
  *
- * The app talks to the hosted private-signet stack over public HTTPS:
- *   - resolver read API + value-record writes live under /api/*
- *   - the esplora-shaped shim (funding scan + broadcast) lives under /esplora/*
+ * The app talks to a hosted ONT stack over public HTTPS:
+ *   - resolver read API (+ value-record writes) under /api/*
+ *   - the esplora-shaped shim (funding scan + broadcast) under /esplora/*
  *
- * These are the same endpoints the reference web client and CLI use, so the
- * mobile client reuses the validated surface with no shim-layer changes.
+ * To go to mainnet: set ACTIVE_NETWORK = "main" and fill the mainnet host below.
+ * Everything else (addresses, display, write paths) follows from NETWORK.
  */
-export const ONT_HOST = "https://opennametags.org";
+type OntNetworkName = "main" | "signet";
 
+interface NetworkConfig {
+  readonly network: OntNetworkName;
+  readonly host: string;
+  readonly label: string;
+}
+
+/** The single switch. Flip to "main" (and set its host) to point at mainnet. */
+const ACTIVE_NETWORK: OntNetworkName = "signet";
+
+const NETWORKS: Record<OntNetworkName, NetworkConfig> = {
+  signet: {
+    network: "signet",
+    host: "https://opennametags.org",
+    label: "Private signet",
+  },
+  main: {
+    network: "main",
+    // TODO: point at the mainnet stack when it exists. Placeholder until then.
+    host: "https://opennametags.org",
+    label: "Mainnet",
+  },
+};
+
+const active = NETWORKS[ACTIVE_NETWORK];
+
+export const ONT_HOST = active.host;
 export const API_BASE = `${ONT_HOST}/api`;
 export const ESPLORA_BASE = `${ONT_HOST}/esplora`;
 
-/** Private signet — owner keys are x-only Schnorr; funding addresses are bech32 tb1q…. */
-export const NETWORK = "signet" as const;
+/** Owner keys are x-only Schnorr; funding addresses are bech32 (tb1q… on signet). */
+export const NETWORK = active.network;
+export const NETWORK_LABEL = active.label;
 
 /**
- * Bitcoin-first display convention.
- * Amounts come off the wire as integer base units (strings). We render them as
- * ₿<integer> and offer an approximate dollar helper anchored at ₿1,000 ≈ $1
- * (i.e. ~$100k / 1 BTC). Never surface the legacy unit name in prose.
+ * Bitcoin-first display convention. Amounts come off the wire as integer base
+ * units (strings). We render them as ₿<integer> with an approximate dollar
+ * helper anchored at ₿1,000 ≈ $1 (~$100k / 1 BTC). Never surface the legacy
+ * unit name in prose.
  */
 export const BASE_UNITS_PER_USD = 1000;
 
 /**
  * Cheap-rail publisher endpoint (the batching service behind the flat ~₿1,000
- * claim). The claim flow is fully implemented and verifies every publisher
- * response locally against the anchored accumulator root before recording
- * anything — but it stays inert until a deployment supplies a reachable base
- * URL here.
- *
- * Unset by default on purpose: the hosted publisher runs bound to localhost on
- * the infrastructure host and is not publicly reachable, so there is no public
- * URL to default to. When null the Claim screen shows a clear "not configured"
- * state instead of attempting a request.
+ * claim). Null by default: the hosted publisher binds to localhost on the infra
+ * host and isn't publicly reachable. When demo mode is on, the Claim screen uses
+ * a local mock; with demo off and this set, it uses the live publisher.
  */
 export const PUBLISHER_BASE: string | null = null;
-
-/**
- * Demo mode default.
- *
- * Lexe-shaped pieces that don't exist on the private signet — the Lightning
- * payment for a cheap-rail claim, and cloud backup — are stubbed locally so the
- * full app is walkable end to end without mainnet/Lexe/Google. Demo mode swaps a
- * MockPublisherClient in for the (unreachable) real publisher: synthetic quote,
- * a simulated payment, and a receipt whose inclusion proof is *real* and is
- * checked by the real verifier against a self-consistent synthetic root.
- *
- * Honest by construction: only the external service (payment / anchor) is faked;
- * the cryptographic verification still runs. Toggle at runtime on the Wallet
- * screen. Production builds will default this to false.
- */
-export const DEMO_MODE_DEFAULT = true;
 
 /**
  * Notice/contest window for a cheap-rail claim, in blocks. A cheap claim is
@@ -60,3 +65,12 @@ export const DEMO_MODE_DEFAULT = true;
  * closes (ONT one-path model). Mirrors the engine's DEFAULT_NOTICE_WINDOW_BLOCKS.
  */
 export const NOTICE_WINDOW_BLOCKS = 6;
+
+/**
+ * Demo mode default. Lexe-shaped pieces that don't exist on the private signet
+ * (the Lightning payment for a cheap-rail claim; cloud backup) are stubbed
+ * locally so the whole app is walkable without mainnet/Lexe/Google. Demo mode
+ * fakes the external service, never the crypto. Toggle at runtime on the Wallet
+ * screen; production builds will default this to false.
+ */
+export const DEMO_MODE_DEFAULT = true;
