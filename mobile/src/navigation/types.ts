@@ -8,6 +8,8 @@ export type RootStackParamList = {
   SetValue: { name?: string } | undefined;
   Recovery: { name?: string } | undefined;
   Backup: undefined;
+  MyNames: undefined;
+  Deposit: undefined;
 };
 
 export type RootNav = NativeStackNavigationProp<RootStackParamList>;

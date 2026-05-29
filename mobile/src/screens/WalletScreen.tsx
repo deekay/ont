@@ -202,6 +202,14 @@ export default function WalletScreen() {
           </Card>
 
           <View style={{ marginTop: spacing.md }}>
+            <Button title="My ONT (names + bids)" variant="secondary" onPress={() => nav.navigate("MyNames")} />
+          </View>
+
+          <View style={{ marginTop: spacing.md }}>
+            <Button title="Deposit (fund wallet)" variant="secondary" onPress={() => nav.navigate("Deposit")} />
+          </View>
+
+          <View style={{ marginTop: spacing.md }}>
             <Button title="Claim a name" onPress={() => nav.navigate("Claim")} />
           </View>
 

@@ -8,7 +8,9 @@ import AuctionDetailScreen from "../screens/AuctionDetailScreen";
 import AuctionsScreen from "../screens/AuctionsScreen";
 import BackupScreen from "../screens/BackupScreen";
 import ClaimScreen from "../screens/ClaimScreen";
+import DepositScreen from "../screens/DepositScreen";
 import ExploreScreen from "../screens/ExploreScreen";
+import MyNamesScreen from "../screens/MyNamesScreen";
 import NameDetailScreen from "../screens/NameDetailScreen";
 import RecoveryScreen from "../screens/RecoveryScreen";
 import SetValueScreen from "../screens/SetValueScreen";
@@ -75,6 +77,8 @@ export function RootNavigator() {
         <RootStack.Screen name="SetValue" component={SetValueScreen} options={{ title: "Set a name's value" }} />
         <RootStack.Screen name="Recovery" component={RecoveryScreen} options={{ title: "Set a recovery wallet" }} />
         <RootStack.Screen name="Backup" component={BackupScreen} options={{ title: "Back up / restore" }} />
+        <RootStack.Screen name="MyNames" component={MyNamesScreen} options={{ title: "My ONT" }} />
+        <RootStack.Screen name="Deposit" component={DepositScreen} options={{ title: "Deposit" }} />
       </RootStack.Navigator>
     </NavigationContainer>
   );
