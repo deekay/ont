@@ -10,7 +10,8 @@ npm run check:crypto
 ```
 
 Runs the offline suite (no network): `accumulator`, `claim`, `value-record`,
-`recovery-descriptor`, `demo-claim`, `backup`.
+`recovery-descriptor`, `demo-claim`, `backup`, `edge-cases` (name-normalization
+boundaries, the demo-sign helpers, and the mock auction bidder).
 
 The `*.live.mts` checks are **not** in that suite — they POST to a live resolver
 (`config.API_BASE`) and need the local signet test accounts under

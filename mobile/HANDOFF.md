@@ -3,6 +3,24 @@
 Built autonomously against the "make the iOS app, trust your judgment" mandate.
 This is the state of things and the few decisions left to you.
 
+## Update — hardening pass (committed + pushed)
+
+After feature completion the app + the infra it depends on got a robustness +
+test pass. The whole repo suite is green (core 121 · protocol 41 · publisher 34 ·
+resolver 21 · + others) plus the 7 mobile offline crypto/edge suites
+(`npm run check:crypto`). Highlights:
+- **App robustness:** defensive JSON parsing (no silent string-as-T on non-JSON
+  2xx), esplora/JSON + block-height guards, UTXO field guards, `Promise.allSettled`
+  for partial reads. (`src/api/client.ts`, `resolver.ts`, screens.)
+- **Protocol tests:** +15 boundary/malformed cases (oversized/empty payload,
+  sequence/valueType/challenge-window bounds, parse format/version).
+- **Resolver tests:** the POST `/values` + `/recovery-descriptors` validation
+  decision is now a pure, exported function (`apps/resolver/src/validation.ts`)
+  with 12 tests covering every rejection code the app depends on — behavior
+  unchanged, full suite green.
+- **Mobile edge cases:** name-normalization boundaries, the demo-sign helpers,
+  and the mock auction bidder (`mobile/checks/edge-cases.mts`).
+
 ## Update — feature-complete demo on signet (committed + pushed)
 
 Since the original overnight build, the app was taken to a **complete, walkable

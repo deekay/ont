@@ -12,7 +12,15 @@ const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, "../..");
 const tsx = resolve(repoRoot, "node_modules/.bin/tsx");
 
-const checks = ["accumulator", "claim", "value-record", "recovery-descriptor", "demo-claim", "backup"];
+const checks = [
+  "accumulator",
+  "claim",
+  "value-record",
+  "recovery-descriptor",
+  "demo-claim",
+  "backup",
+  "edge-cases",
+];
 
 let failed = 0;
 for (const name of checks) {
