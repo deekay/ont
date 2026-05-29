@@ -29,6 +29,7 @@ wallet.
 | Name accumulator (verify) | `src/wallet/accumulator.ts` | verified vs engine |
 | Cheap-rail claim (quote → verify → submit → verify proof) | `src/wallet/claim.ts`, `src/api/publisher.ts`, `src/screens/ClaimScreen.tsx` | walkable in **demo mode** (mock publisher); uses a live publisher when `PUBLISHER_BASE` is set + demo off |
 | Demo mode (signet stub for Lexe-shaped pieces) | `src/DemoMode.tsx`, `src/api/mock-publisher.ts` | on by default; toggle on Wallet. Fakes the service/payment, not the crypto |
+| Encrypted backup + restore | `src/wallet/backup.ts`, `backup-provider.ts`, `src/screens/BackupScreen.tsx` | real AEAD (scrypt + XChaCha20-Poly1305); local-stub storage, swappable for Drive/iCloud |
 | Value-record signing (BIP340 Schnorr) | `src/wallet/value-record.ts` | verified vs engine (bidirectional) |
 | Value-record **write** (sign → publish → read back) | `src/wallet/value-write.ts`, `src/api/resolver.ts`, `src/screens/SetValueScreen.tsx` | live · proven against the private signet |
 

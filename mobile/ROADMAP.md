@@ -78,12 +78,13 @@ the money are tested separately:
   `/recovery-descriptors` (same client shape, already proven for value records).
 
 ### Phase B — backup & recovery (Lexe-style, optional)
-- **B1 · Client-side encryption.** Encrypt the wallet blob (owner key + funding
-  WIF) on-device. Recovery factor: a generated 12-word recovery code (optionally
-  + a passphrase), so recovery never depends on cloud auth alone.
+- **B1 · Client-side encryption.** ✅ *done.* `wallet/backup.ts`: scrypt KDF +
+  XChaCha20-Poly1305 AEAD; recovery code (+ optional passphrase). Swappable
+  `BackupProvider`; `LocalStubBackupProvider` stands in for cloud today. Full
+  backup/restore UI (`BackupScreen.tsx`). Verified round-trip + tamper rejection.
 - **B2 · Google Drive backup + restore.** OAuth via `expo-auth-session`, Drive
   REST, scoped to the app-only folder (`drive.appdata`) so the app can't see the
-  rest of the user's Drive. Mirrors Lexe.
+  rest of the user's Drive. Mirrors Lexe. *(Implement the BackupProvider iface.)*
 - **B3 · iCloud backup + restore.** CloudKit private DB (or the iOS key-value
   store) via a small native module / Expo config plugin. The native peer to B2.
 - **B4 · Optional sign-in plumbing.** Surfaced only on the backup screen; the
