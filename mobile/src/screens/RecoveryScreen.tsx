@@ -13,10 +13,11 @@ import { useDemoMode } from "../DemoMode";
 import { shortHex } from "../format";
 import type { RootNav, RootStackParamList } from "../navigation/types";
 import { colors, font, radius, spacing } from "../theme";
-import { isValidName, normalizeName } from "../wallet/accumulator";
+import { accumulatorKeyForName, isValidName, normalizeName } from "../wallet/accumulator";
 import {
   publishNameRecovery,
   readRecoveryState,
+  signRecoveryForDemo,
   type PublishRecoveryResult,
   type RecoveryState,
 } from "../wallet/recovery-write";
@@ -30,7 +31,7 @@ export default function RecoveryScreen() {
   const route = useRoute<RouteProp<RootStackParamList, "Recovery">>();
   const { wallet } = useWallet();
   const { demo } = useDemoMode();
-  const { recordRecovery } = useDemoHoldings();
+  const { claims, recoveries, recordRecovery } = useDemoHoldings();
   const ownerPubkey = wallet?.owner.ownerPubkey ?? null;
   const ownerPrivateKeyHex = wallet?.owner.ownerPrivateKeyHex ?? null;
 
@@ -61,6 +62,28 @@ export default function RecoveryScreen() {
     setBusy(true);
     setError(null);
     try {
+      if (demo) {
+        if (!claims.some((c) => c.name === trimmed)) {
+          setError(`Claim "${trimmed}" in demo first (Wallet → Claim a name).`);
+          setState(null);
+          setStep("input");
+          return;
+        }
+        const used = recoveries.filter((r) => r.name === trimmed).length;
+        const last = recoveries.filter((r) => r.name === trimmed)[0];
+        setState({
+          name: trimmed,
+          status: "claimed (demo)",
+          currentOwnerPubkey: ownerPubkey,
+          ownershipRef: accumulatorKeyForName(trimmed),
+          currentSequence: used === 0 ? null : used,
+          currentRecoveryAddress: last?.recoveryAddress ?? null,
+          nextSequence: used + 1,
+        });
+        if (last?.recoveryAddress && !recoveryAddress) setRecoveryAddress(last.recoveryAddress);
+        setStep("checked");
+        return;
+      }
       const s = await readRecoveryState(trimmed);
       if (s === null) {
         setError(`The resolver doesn't know "${trimmed}" yet — it has to be claimed first.`);
@@ -83,10 +106,17 @@ export default function RecoveryScreen() {
     setBusy(true);
     setError(null);
     try {
-      const r = await publishNameRecovery(
-        { name: trimmed, ownerPrivateKeyHex, recoveryAddress: recoveryAddress.trim() },
-        { simulate: demo },
-      );
+      const r = demo
+        ? signRecoveryForDemo({
+            name: trimmed,
+            ownerPrivateKeyHex,
+            recoveryAddress: recoveryAddress.trim(),
+            sequence: state?.nextSequence ?? 1,
+          })
+        : await publishNameRecovery(
+            { name: trimmed, ownerPrivateKeyHex, recoveryAddress: recoveryAddress.trim() },
+            { simulate: false },
+          );
       setResult(r);
       setStep("done");
       if (r.simulated) {

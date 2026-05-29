@@ -8,7 +8,7 @@
 import { ApiError } from "../api/client";
 import { resolver } from "../api/resolver";
 import type { RecoveryDescriptor } from "../api/types";
-import { normalizeName } from "./accumulator";
+import { accumulatorKeyForName, normalizeName } from "./accumulator";
 import {
   computeRecoveryDescriptorHash,
   signRecoveryDescriptor,
@@ -42,6 +42,37 @@ export interface RecoveryState {
   readonly currentSequence: number | null;
   readonly currentRecoveryAddress: string | null;
   readonly nextSequence: number;
+}
+
+/** Demo-only: sign a recovery descriptor in the demo sandbox (synthetic ref, no resolver). */
+export function signRecoveryForDemo(input: {
+  readonly name: string;
+  readonly ownerPrivateKeyHex: string;
+  readonly recoveryAddress: string;
+  readonly sequence: number;
+}): PublishRecoveryResult {
+  const name = normalizeName(input.name);
+  const ownershipRef = accumulatorKeyForName(name);
+  const signed = signRecoveryDescriptor({
+    name,
+    ownerPrivateKeyHex: input.ownerPrivateKeyHex,
+    ownershipRef,
+    sequence: input.sequence,
+    previousDescriptorHash: null,
+    recoveryAddress: input.recoveryAddress.trim(),
+  });
+  if (!verifyRecoveryDescriptor(signed)) {
+    throw new Error("Local signature self-check failed.");
+  }
+  return {
+    name,
+    sequence: input.sequence,
+    descriptorHash: computeRecoveryDescriptorHash(signed),
+    ownershipRef,
+    recoveryAddress: signed.recoveryAddress,
+    simulated: true,
+    descriptor: signed,
+  };
 }
 
 async function currentDescriptor(name: string): Promise<RecoveryDescriptor | null> {

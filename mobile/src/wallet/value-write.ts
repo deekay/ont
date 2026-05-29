@@ -10,7 +10,7 @@
 import { ApiError } from "../api/client";
 import { resolver } from "../api/resolver";
 import type { ValueRecord } from "../api/types";
-import { normalizeName } from "./accumulator";
+import { accumulatorKeyForName, normalizeName } from "./accumulator";
 import {
   computeValueRecordHash,
   deriveOwnerPubkey,
@@ -47,6 +47,44 @@ const encoder = new TextEncoder();
 
 function utf8ToHex(value: string): string {
   return Array.from(encoder.encode(value), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+/**
+ * Demo-only: sign a value record for a name "claimed" in the demo sandbox, with a
+ * deterministic synthetic ownership ref (no resolver). Real BIP340 signature over
+ * synthetic fields — exercises the signing core without any live write.
+ */
+export function signValueForDemo(input: {
+  readonly name: string;
+  readonly ownerPrivateKeyHex: string;
+  readonly valueType: number;
+  readonly payloadUtf8: string;
+  readonly sequence: number;
+}): PublishValueResult {
+  const name = normalizeName(input.name);
+  const ownershipRef = accumulatorKeyForName(name);
+  const signed = signValueRecord({
+    name,
+    ownerPrivateKeyHex: input.ownerPrivateKeyHex,
+    ownershipRef,
+    sequence: input.sequence,
+    previousRecordHash: null,
+    valueType: input.valueType,
+    payloadHex: utf8ToHex(input.payloadUtf8),
+  });
+  if (!verifyValueRecord(signed)) {
+    throw new Error("Local signature self-check failed.");
+  }
+  return {
+    name,
+    sequence: input.sequence,
+    recordHash: computeValueRecordHash(signed),
+    ownershipRef,
+    valueType: signed.valueType,
+    payloadHex: signed.payloadHex,
+    simulated: true,
+    record: signed,
+  };
 }
 
 /** Fetch the current value record, treating "no record yet" (404) as null. */

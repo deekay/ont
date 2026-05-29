@@ -17,11 +17,12 @@ import { useDemoMode } from "../DemoMode";
 import { shortHex } from "../format";
 import type { RootNav, RootStackParamList } from "../navigation/types";
 import { colors, font, radius, spacing } from "../theme";
-import { isValidName, normalizeName } from "../wallet/accumulator";
+import { accumulatorKeyForName, isValidName, normalizeName } from "../wallet/accumulator";
 import { useWallet } from "../wallet/WalletContext";
 import {
   publishNameValue,
   readValueState,
+  signValueForDemo,
   type PublishValueResult,
   type ValueState,
 } from "../wallet/value-write";
@@ -40,7 +41,7 @@ export default function SetValueScreen() {
   const route = useRoute<RouteProp<RootStackParamList, "SetValue">>();
   const { wallet } = useWallet();
   const { demo } = useDemoMode();
-  const { recordValue } = useDemoHoldings();
+  const { claims, values, recordValue } = useDemoHoldings();
   const ownerPubkey = wallet?.owner.ownerPubkey ?? null;
   const ownerPrivateKeyHex = wallet?.owner.ownerPrivateKeyHex ?? null;
 
@@ -73,6 +74,26 @@ export default function SetValueScreen() {
     setBusy(true);
     setError(null);
     try {
+      if (demo) {
+        // Demo sandbox: ownership comes from your demo claims, not the resolver.
+        if (!claims.some((c) => c.name === trimmed)) {
+          setError(`Claim "${trimmed}" in demo first (Wallet → Claim a name).`);
+          setState(null);
+          setStep("input");
+          return;
+        }
+        const used = values.filter((v) => v.name === trimmed).length;
+        setState({
+          name: trimmed,
+          status: "claimed (demo)",
+          currentOwnerPubkey: ownerPubkey,
+          ownershipRef: accumulatorKeyForName(trimmed),
+          currentSequence: used === 0 ? null : used,
+          nextSequence: used + 1,
+        });
+        setStep("checked");
+        return;
+      }
       const s = await readValueState(trimmed);
       if (s === null) {
         setError(`The resolver doesn't know "${trimmed}" yet — it has to be claimed first.`);
@@ -94,10 +115,18 @@ export default function SetValueScreen() {
     setBusy(true);
     setError(null);
     try {
-      const r = await publishNameValue(
-        { name: trimmed, ownerPrivateKeyHex, valueType, payloadUtf8: value.trim() },
-        { simulate: demo },
-      );
+      const r = demo
+        ? signValueForDemo({
+            name: trimmed,
+            ownerPrivateKeyHex,
+            valueType,
+            payloadUtf8: value.trim(),
+            sequence: state?.nextSequence ?? 1,
+          })
+        : await publishNameValue(
+            { name: trimmed, ownerPrivateKeyHex, valueType, payloadUtf8: value.trim() },
+            { simulate: false },
+          );
       setResult(r);
       setStep("done");
       if (r.simulated) {
