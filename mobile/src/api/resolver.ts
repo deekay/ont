@@ -1,6 +1,6 @@
 import type { SignedRecoveryDescriptor } from "../wallet/recovery-descriptor";
 import type { SignedValueRecord } from "../wallet/value-record";
-import { apiGet, apiPost, esploraGetText, esploraGetJson } from "./client";
+import { ApiError, apiGet, apiPost, esploraGetText, esploraGetJson } from "./client";
 import type {
   ActivityResponse,
   ConfigResponse,
@@ -46,7 +46,11 @@ export const resolver = {
 export const chain = {
   tipHeight: async (): Promise<number> => {
     const text = await esploraGetText("/blocks/tip/height");
-    return parseInt(text.trim(), 10);
+    const height = Number.parseInt(text.trim(), 10);
+    if (!Number.isFinite(height) || height < 0) {
+      throw new ApiError(`esplora returned a non-numeric block height: ${text.slice(0, 40)}`, 200, text);
+    }
+    return height;
   },
   addressUtxos: (address: string) =>
     esploraGetJson<EsploraUtxo[]>(`/address/${encodeURIComponent(address)}/utxo`),

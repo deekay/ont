@@ -31,11 +31,24 @@ export default function MyNamesScreen() {
 
   const state = useAsync<MyData>(async () => {
     if (!ownerPubkey) return { owned: [], leading: [] };
-    const [names, auctions] = await Promise.all([resolver.names(), resolver.experimentalAuctions()]);
-    const owned = names.names.filter((n) => (n.currentOwnerPubkey ?? "").toLowerCase() === ownerPubkey);
-    const leading = auctions.auctions.filter(
-      (a) => (a.currentLeaderBidderCommitment ?? "").toLowerCase() === ownerPubkey,
-    );
+    // Independent reads: a hiccup in one shouldn't blank the other section.
+    const [namesRes, auctionsRes] = await Promise.allSettled([
+      resolver.names(),
+      resolver.experimentalAuctions(),
+    ]);
+    if (namesRes.status === "rejected" && auctionsRes.status === "rejected") {
+      throw namesRes.reason;
+    }
+    const owned =
+      namesRes.status === "fulfilled"
+        ? namesRes.value.names.filter((n) => (n.currentOwnerPubkey ?? "").toLowerCase() === ownerPubkey)
+        : [];
+    const leading =
+      auctionsRes.status === "fulfilled"
+        ? auctionsRes.value.auctions.filter(
+            (a) => (a.currentLeaderBidderCommitment ?? "").toLowerCase() === ownerPubkey,
+          )
+        : [];
     return { owned, leading };
   }, [ownerPubkey]);
 

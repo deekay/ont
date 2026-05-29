@@ -29,8 +29,8 @@ export default function DepositScreen() {
   const funding = useAsync<FundingData>(async () => {
     if (!address) return { utxos: [], total: 0, confirmed: 0 };
     const utxos = await chain.addressUtxos(address);
-    const total = utxos.reduce((sum, u) => sum + u.value, 0);
-    const confirmed = utxos.filter((u) => u.status.confirmed).reduce((sum, u) => sum + u.value, 0);
+    const total = utxos.reduce((sum, u) => sum + (u?.value ?? 0), 0);
+    const confirmed = utxos.filter((u) => u?.status?.confirmed).reduce((sum, u) => sum + (u?.value ?? 0), 0);
     return { utxos, total, confirmed };
   }, [address]);
 
