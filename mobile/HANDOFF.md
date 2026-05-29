@@ -1,8 +1,32 @@
-# ONT iOS app — morning handoff
+# ONT iOS app — handoff
 
-Built overnight, autonomously, against the "make the iOS app, trust your judgment"
-mandate. This is the state of things and the few decisions left to you. Nothing
-here has been committed — `git status` is untouched until you say so.
+Built autonomously against the "make the iOS app, trust your judgment" mandate.
+This is the state of things and the few decisions left to you.
+
+## Update — feature-complete demo on signet (committed + pushed)
+
+Since the original overnight build, the app was taken to a **complete, walkable
+demo on the private signet**, committed and pushed to `scaling-research-prototypes`
+on `origin`. New since then:
+
+- **Demo mode** (`src/DemoMode.tsx`, default on, toggle on Wallet) stubs the
+  Lexe-shaped pieces signet can't do — fakes the *service*, never the *crypto*.
+- **Cheap-rail claim** is walkable end to end (mock publisher returns a *real*
+  inclusion proof the real verifier accepts).
+- **Auction bid** — walkable demo on AuctionDetail.
+- **Value-record write** — proven live on signet; demo mode signs without publishing.
+- **Recovery-descriptor write** — byte-exact vs engine; live write blocked only by
+  a public-proxy gap (the resolver supports `POST /recovery-descriptors`, the
+  public `/api` 405s it — flagged for an infra fix).
+- **Encrypted backup/restore** — real scrypt + XChaCha20-Poly1305; local-stub
+  storage swappable for Drive/iCloud.
+- **My ONT** (owned names + leading auctions) and **Deposit** screens.
+- **Network-config seam** — `ACTIVE_NETWORK` flips the whole app to mainnet later.
+- **`npm run check:crypto`** — offline suite proving mobile crypto == engine.
+
+Decisions locked with David: target = complete demo on signet; signet test-name
+writes allowed; commit + push to origin. The remaining real-money / mainnet work
+is the deliberate later flip. See `ROADMAP.md`.
 
 ## TL;DR
 

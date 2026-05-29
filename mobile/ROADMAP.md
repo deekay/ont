@@ -69,13 +69,18 @@ the money are tested separately:
 ## Roadmap (dependency-ordered)
 
 ### Phase A — finish the app as a signer (no new infra, signet)
-- **A1 · Auction bid (#60).** Build/sign the bonded second-price L1 bid PSBT
-  (bitcoinjs + funding key), broadcast via `/esplora`, track the bond UTXO. The
-  RN bitcoinjs/Schnorr stack is proven; needs a funded test account + a live
-  auction lot. *Live on-chain write — your go-ahead per write, like the value
-  record.*
-- **A2 · Recovery-descriptor write.** Mirror the value-record write path to
-  `/recovery-descriptors` (same client shape, already proven for value records).
+- **A1 · Auction bid.** ✅ *demo done* — walkable bid on AuctionDetail (real
+  minimum + bidder commitment; bond/broadcast simulated). The real on-chain PSBT
+  bid (#60) is still to build: bitcoinjs + funding key, broadcast via `/esplora`,
+  track the bond UTXO; needs a funded test account + a live lot + a per-write OK.
+- **A2 · Recovery-descriptor write.** ✅ *done* — `wallet/recovery-descriptor.ts`
+  byte-exact vs engine + `recovery-write.ts` + `RecoveryScreen`. Live write is
+  blocked only by the public proxy (it 405s `POST /recovery-descriptors`; the
+  resolver supports it) — a shared-infra allowlist fix. Demo mode signs locally.
+- **A3 · My ONT + Deposit.** ✅ *done* — owned names + leading auctions
+  (`MyNamesScreen`), funding address + balance (`DepositScreen`).
+- **A4 · Crypto regression suite.** ✅ *done* — `npm run check:crypto` proves the
+  ported crypto matches the engine byte-for-byte.
 
 ### Phase B — backup & recovery (Lexe-style, optional)
 - **B1 · Client-side encryption.** ✅ *done.* `wallet/backup.ts`: scrypt KDF +

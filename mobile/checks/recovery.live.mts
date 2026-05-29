@@ -1,9 +1,10 @@
 // LIVE check (dev-only): proves the mobile recovery-descriptor WRITE path against
 // the configured resolver. Requires the local signet test accounts and a resolver
 // that accepts POST /recovery-descriptors. NOTE: the public opennametags.org/api
-// currently returns 405 for this path (the resolver supports it; the public proxy
-// allowlist does not yet) — run against the tunneled resolver until that's fixed.
-// Not part of the default offline suite.
+// web proxy now forwards POST /recovery-descriptors and POST /recovery-proofs to
+// the resolver (apps/web/src/index.ts), so this works against the public surface
+// once the ont-domain-web service is redeployed; until then, run against the
+// tunneled resolver. Not part of the default offline suite.
 import { readFile } from "node:fs/promises";
 const ROOT = new URL("../..", import.meta.url).pathname.replace(/\/+$/, "");
 async function load(path: string): Promise<any> { const m = await import(path); return m.default ?? m; }
