@@ -54,10 +54,12 @@ import {
   type RecoveryWalletProof,
   type SignedRecoveryDescriptor,
   type SignedValueRecord,
-  verifyRecoveryDescriptor,
-  verifyRecoveryWalletProof,
-  verifyValueRecord
+  verifyRecoveryWalletProof
 } from "@ont/protocol";
+import {
+  validateRecoveryDescriptorSubmission,
+  validateValueRecordSubmission
+} from "./validation.js";
 import {
   appendRecoveryDescriptor,
   countRecoveryDescriptors,
@@ -524,76 +526,15 @@ async function main(): Promise<void> {
       try {
         const parsedRecord = parseSignedValueRecord(await readJsonBody(request));
 
-        if (!verifyValueRecord(parsedRecord)) {
-          return writeJson(response, 400, {
-            error: "invalid_signature",
-            message: "Value record signature did not verify."
-          });
-        }
-
         const currentNameRecord = indexer.getName(parsedRecord.name);
-
-        if (currentNameRecord === null || currentNameRecord.status === "invalid") {
-          return writeJson(response, 404, {
-            error: "name_not_found",
-            message: "Cannot publish a value for an unclaimed or invalid name.",
-            name: parsedRecord.name
-          });
-        }
-
-        if (currentNameRecord.currentOwnerPubkey !== parsedRecord.ownerPubkey) {
-          return writeJson(response, 409, {
-            error: "owner_mismatch",
-            message: "Value record owner pubkey does not match the resolver's current owner.",
-            name: parsedRecord.name,
-            currentOwnerPubkey: currentNameRecord.currentOwnerPubkey
-          });
-        }
-
-        const currentOwnershipRef = getOwnershipRef(currentNameRecord);
-
-        if (parsedRecord.ownershipRef !== currentOwnershipRef) {
-          return writeJson(response, 409, {
-            error: "ownership_ref_mismatch",
-            message: "Value record ownershipRef must match the resolver's current ownership interval.",
-            name: parsedRecord.name,
-            currentOwnershipRef
-          });
-        }
-
         const existingChain = getValueRecordChain(valueRecords, parsedRecord.name, parsedRecord.ownershipRef);
-        const existingRecord = getChainHead(existingChain);
-        const expectedSequence = existingRecord === null ? 1 : existingRecord.sequence + 1;
-        const expectedPreviousRecordHash =
-          existingRecord === null ? null : computeValueRecordHash(existingRecord);
-
-        if (parsedRecord.sequence < expectedSequence) {
-          return writeJson(response, 409, {
-            error: "stale_sequence",
-            message: "Value record sequence must be the exact next sequence for the current ownership interval.",
-            name: parsedRecord.name,
-            currentSequence: existingRecord?.sequence ?? 0,
-            expectedSequence
-          });
-        }
-
-        if (parsedRecord.sequence > expectedSequence) {
-          return writeJson(response, 409, {
-            error: "sequence_gap",
-            message: "Value record sequence cannot skip over missing predecessors.",
-            name: parsedRecord.name,
-            currentSequence: existingRecord?.sequence ?? 0,
-            expectedSequence
-          });
-        }
-
-        if (parsedRecord.previousRecordHash !== expectedPreviousRecordHash) {
-          return writeJson(response, 409, {
-            error: "predecessor_mismatch",
-            message: "Value record previousRecordHash must point to the current chain head.",
-            name: parsedRecord.name,
-            expectedPreviousRecordHash
-          });
+        const verdict = validateValueRecordSubmission(
+          parsedRecord,
+          currentNameRecord,
+          getChainHead(existingChain)
+        );
+        if (!verdict.ok) {
+          return writeJson(response, verdict.status, verdict.body);
         }
 
         appendValueRecord(valueRecords, parsedRecord);
@@ -625,80 +566,19 @@ async function main(): Promise<void> {
       try {
         const parsedDescriptor = parseSignedRecoveryDescriptor(await readJsonBody(request));
 
-        if (!verifyRecoveryDescriptor(parsedDescriptor)) {
-          return writeJson(response, 400, {
-            error: "invalid_signature",
-            message: "Recovery descriptor signature did not verify."
-          });
-        }
-
         const currentNameRecord = indexer.getName(parsedDescriptor.name);
-
-        if (currentNameRecord === null || currentNameRecord.status === "invalid") {
-          return writeJson(response, 404, {
-            error: "name_not_found",
-            message: "Cannot publish a recovery descriptor for an unclaimed or invalid name.",
-            name: parsedDescriptor.name
-          });
-        }
-
-        if (currentNameRecord.currentOwnerPubkey !== parsedDescriptor.ownerPubkey) {
-          return writeJson(response, 409, {
-            error: "owner_mismatch",
-            message: "Recovery descriptor owner pubkey does not match the resolver's current owner.",
-            name: parsedDescriptor.name,
-            currentOwnerPubkey: currentNameRecord.currentOwnerPubkey
-          });
-        }
-
-        const currentOwnershipRef = getOwnershipRef(currentNameRecord);
-
-        if (parsedDescriptor.ownershipRef !== currentOwnershipRef) {
-          return writeJson(response, 409, {
-            error: "ownership_ref_mismatch",
-            message: "Recovery descriptor ownershipRef must match the resolver's current ownership interval.",
-            name: parsedDescriptor.name,
-            currentOwnershipRef
-          });
-        }
-
         const existingChain = getRecoveryDescriptorChain(
           recoveryDescriptors,
           parsedDescriptor.name,
           parsedDescriptor.ownershipRef
         );
-        const existingDescriptor = getRecoveryChainHead(existingChain);
-        const expectedSequence = existingDescriptor === null ? 1 : existingDescriptor.sequence + 1;
-        const expectedPreviousDescriptorHash =
-          existingDescriptor === null ? null : computeRecoveryDescriptorHash(existingDescriptor);
-
-        if (parsedDescriptor.sequence < expectedSequence) {
-          return writeJson(response, 409, {
-            error: "stale_sequence",
-            message: "Recovery descriptor sequence must be the exact next sequence for the current ownership interval.",
-            name: parsedDescriptor.name,
-            currentSequence: existingDescriptor?.sequence ?? 0,
-            expectedSequence
-          });
-        }
-
-        if (parsedDescriptor.sequence > expectedSequence) {
-          return writeJson(response, 409, {
-            error: "sequence_gap",
-            message: "Recovery descriptor sequence cannot skip over missing predecessors.",
-            name: parsedDescriptor.name,
-            currentSequence: existingDescriptor?.sequence ?? 0,
-            expectedSequence
-          });
-        }
-
-        if (parsedDescriptor.previousDescriptorHash !== expectedPreviousDescriptorHash) {
-          return writeJson(response, 409, {
-            error: "predecessor_mismatch",
-            message: "Recovery descriptor previousDescriptorHash must point to the current chain head.",
-            name: parsedDescriptor.name,
-            expectedPreviousDescriptorHash
-          });
+        const verdict = validateRecoveryDescriptorSubmission(
+          parsedDescriptor,
+          currentNameRecord,
+          getRecoveryChainHead(existingChain)
+        );
+        if (!verdict.ok) {
+          return writeJson(response, verdict.status, verdict.body);
         }
 
         appendRecoveryDescriptor(recoveryDescriptors, parsedDescriptor);
