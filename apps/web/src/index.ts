@@ -42,6 +42,39 @@ const resolverUrl =
 const publisherUrl =
   normalizeOptionalText(process.env.ONT_WEB_PUBLISHER_URL)
   ?? "http://127.0.0.1:7878";
+
+// A public claim endpoint makes the publisher spend + anchor, so throttle it
+// per client IP (sliding 60s window). Default 10/min; tune via env.
+const claimRateMaxPerMinute = (() => {
+  const parsed = Number.parseInt(process.env.ONT_WEB_CLAIM_RATE_LIMIT_PER_MINUTE ?? "10", 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 10;
+})();
+const claimRateWindowMs = 60_000;
+const claimHitsByIp = new Map<string, number[]>();
+
+function clientIpFor(request: import("node:http").IncomingMessage): string {
+  const forwarded = request.headers["x-forwarded-for"];
+  if (typeof forwarded === "string" && forwarded.length > 0) {
+    return forwarded.split(",")[0]?.trim() || "unknown";
+  }
+  return request.socket?.remoteAddress ?? "unknown";
+}
+
+function claimRateExceeded(ip: string): boolean {
+  const now = Date.now();
+  const cutoff = now - claimRateWindowMs;
+  if (claimHitsByIp.size > 5000) {
+    claimHitsByIp.clear(); // crude unbounded-growth guard
+  }
+  const hits = (claimHitsByIp.get(ip) ?? []).filter((t) => t > cutoff);
+  if (hits.length >= claimRateMaxPerMinute) {
+    claimHitsByIp.set(ip, hits);
+    return true;
+  }
+  hits.push(now);
+  claimHitsByIp.set(ip, hits);
+  return false;
+}
 const resolverCandidateUrls = resolveConfiguredResolverUrls(
   resolverUrl,
   normalizeOptionalText(process.env.ONT_WEB_RESOLVER_URLS)
@@ -263,6 +296,12 @@ const server = createServer(async (request, response) => {
       return writeJson(response, 405, {
         error: "method_not_allowed",
         message: "Use POST for claim quote/submit."
+      });
+    }
+    if (claimRateExceeded(clientIpFor(request))) {
+      return writeJson(response, 429, {
+        error: "rate_limited",
+        message: "Too many claim requests from your address. Please wait a minute and try again."
       });
     }
     try {
