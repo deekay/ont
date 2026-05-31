@@ -230,23 +230,30 @@ function renderHeroSection(
 
   return `<header class="hero hero-home hero-home-product">
     <section class="hero-home-copy" aria-labelledby="homeHeroTitle">
-      <p class="hero-home-kicker">ONT tools</p>
-      <h1 id="homeHeroTitle">Human-readable names you can actually own</h1>
+      <p class="hero-home-kicker">Sovereign names on Bitcoin</p>
+      <h1 id="homeHeroTitle">Own your name like you own your bitcoin.</h1>
       <p class="hero-home-lede">
-        Claim a name, set what it points to, and prove you own it &mdash; secured by Bitcoin, with no
-        registrar, token, or rent.
+        Open Name Tags is a neutral naming protocol anchored to Bitcoin. No registrar, no token, no
+        rent, no gatekeeper &mdash; you hold the keys, and Bitcoin settles who owns what. The rules are
+        frozen and auditable, and anyone can run the infrastructure. You use it from the app; this site
+        just explains it and lets you verify it yourself.
       </p>
-      <div class="hero-home-proof-row" aria-label="Core ONT model">
-        <span>Claim</span>
-        <span>Own</span>
-        <span>Resolve</span>
+      <div class="hero-home-proof-row" aria-label="What makes it sovereign">
+        <span>You hold the keys</span>
+        <span>No gatekeeper</span>
+        <span>Verify, don't trust</span>
+      </div>
+      <div class="hero-lookup-actions">
+        <a class="action-link" href="#app">Get the app</a>
+        <a class="action-link secondary" href="#how-ont-works">How it works</a>
+        <a class="action-link secondary" href="#verify">Verify it yourself</a>
       </div>
     </section>
     <section id="lookup" class="hero-home-lookup" aria-labelledby="homeLookupTitle">
       <div class="hero-home-lookup-head">
-        <p class="hero-home-kicker">Name lookup</p>
+        <p class="hero-home-kicker">See it live</p>
         <h2 id="homeLookupTitle">Check a name</h2>
-        <p>See whether it is claimable or already owned, and the next step either way.</p>
+        <p>Look up any name on the live chain &mdash; whether it's claimable or already owned, and who owns it.</p>
       </div>
       <form id="searchForm" class="search-form hero-search-form">
         <label class="field-label" for="nameInput">Name</label>
@@ -256,20 +263,9 @@ function renderHeroSection(
         </div>
       </form>
       <div id="searchResult" class="result-card empty hero-search-result" hidden></div>
-      <div class="hero-lookup-status-grid" aria-label="What you can do with a name">
-        <article>
-          <span>Claimable</span>
-          <strong>Claim the name</strong>
-        </article>
-        <article>
-          <span>Owned</span>
-          <strong>Update or transfer</strong>
-        </article>
-      </div>
       <div class="hero-lookup-actions">
-        <a class="action-link secondary" href="${withBasePath("/auctions", configuredBasePath)}">Claim a name</a>
-        <a class="action-link secondary" href="${withBasePath("/setup", configuredBasePath)}">Set up signing</a>
-        <a class="action-link secondary" href="${withBasePath("/explainer", configuredBasePath)}">Read overview</a>
+        <a class="action-link secondary" href="${withBasePath("/explore", configuredBasePath)}">Explore the registry</a>
+        <a class="action-link secondary" href="${withBasePath("/values", configuredBasePath)}">Browser tools</a>
       </div>
     </section>
   </header>`;
@@ -278,9 +274,9 @@ function renderHeroSection(
 function renderPrimaryNav(configuredBasePath: string, pageKind: PageKind, faviconDataUrl: string): string {
   const links = [
     { href: withBasePath("/", configuredBasePath), label: "Home", active: pageKind === "home" },
-    { href: withBasePath("/setup", configuredBasePath), label: "Setup", active: pageKind === "setup" },
-    { href: withBasePath("/auctions", configuredBasePath), label: "Claim", active: pageKind === "auctions" },
-    { href: withBasePath("/explore", configuredBasePath), label: "Explore", active: pageKind === "explore" }
+    { href: withBasePath("/explore", configuredBasePath), label: "Explore", active: pageKind === "explore" },
+    { href: withBasePath("/values", configuredBasePath), label: "Tools", active: pageKind === "values" },
+    { href: withBasePath("/explainer", configuredBasePath), label: "Learn", active: pageKind === "explainer" }
   ];
 
   return `<nav class="site-nav" aria-label="Primary">
@@ -319,7 +315,10 @@ function renderPanelHead(title: string, summary: string, infoBody?: string): str
 }
 
 function renderHomePageSections(configuredBasePath: string): string {
-  return renderHomeStartSection(configuredBasePath);
+  return `${renderHomeModelSection()}
+    ${renderHomeNeutralitySection()}
+    ${renderHomeAppSection(configuredBasePath)}
+    ${renderHomeVerifySection(configuredBasePath)}`;
 }
 
 function renderExplorePageSections(configuredBasePath: string): string {
@@ -606,50 +605,75 @@ function renderAuctionLabNotesSection(collapsible = false): string {
   </details>`;
 }
 
-function renderHomeStartSection(configuredBasePath: string): string {
-  return `<section id="start-here" class="panel panel-guide panel-home">
+function renderHomeNeutralitySection(): string {
+  return `<section id="neutral" class="panel panel-guide panel-home">
     ${renderPanelHead(
-      "Choose A Workflow",
-      "Use the site as a set of task tools. Deeper explanations stay in the overview and reference guides."
+      "Neutral by design",
+      "A name is a sovereign possession, not a subscription. Three properties make that true — and keep it true."
     )}
     <div class="path-grid">
       <article class="path-card">
-        <p class="path-card-kicker">Wallet</p>
-        <h3>Set Up Signing</h3>
-        <p>Connect Sparrow to the demo endpoint and request private-signet coins.</p>
-        <div class="path-card-actions">
-          <a class="action-link secondary" href="${withBasePath("/setup", configuredBasePath)}">Open setup</a>
-        </div>
+        <p class="path-card-kicker">Self-custody</p>
+        <h3>You hold the keys</h3>
+        <p>Your owner key controls the name and signs every change. It is generated on your device and never leaves it. No one &mdash; not us, not an operator, not Apple &mdash; can move, rename, or seize your name. Only your key can.</p>
       </article>
       <article class="path-card">
-        <p class="path-card-kicker">Claim</p>
-        <h3>Claim A Name</h3>
-        <p>Check a name, save the recovery kit, and download a Sparrow PSBT. Contested names settle by bonded auction.</p>
-        <div class="path-card-actions">
-          <a class="action-link secondary" href="${withBasePath("/auctions", configuredBasePath)}">Claim a name</a>
-        </div>
+        <p class="path-card-kicker">No gatekeeper</p>
+        <h3>No registrar, token, or rent</h3>
+        <p>There is no company that grants names and no token you must hold. A name opens at a flat ${escapeHtml("₿")}1,000 (~$1) claim; Bitcoin records who owns it. opennametags.org is just one optional window onto that &mdash; it can't approve, censor, or charge you.</p>
       </article>
       <article class="path-card">
-        <p class="path-card-kicker">Registry</p>
-        <h3>Inspect Live State</h3>
-        <p>Browse names, active auctions, recent activity, and resolver status.</p>
-        <div class="path-card-actions">
-          <a class="action-link secondary" href="${withBasePath("/explore", configuredBasePath)}">Open explorer</a>
-        </div>
-      </article>
-      <article class="path-card">
-        <p class="path-card-kicker">Manage</p>
-        <h3>Update A Name</h3>
-        <p>Publish destinations or prepare a transfer after a name is owned.</p>
-        <div class="path-card-actions">
-          <a class="action-link secondary" href="${withBasePath("/values", configuredBasePath)}">Destinations</a>
-          <a class="action-link secondary" href="${withBasePath("/transfer", configuredBasePath)}">Transfer</a>
-        </div>
+        <p class="path-card-kicker">Frozen + auditable</p>
+        <h3>Rules you can pin down</h3>
+        <p>The protocol is a small, fixed consensus artifact — not a SaaS that changes under you. The rules are auditable, anyone can run a resolver or publisher, and you can verify every claim against Bitcoin yourself. You never have to trust us.</p>
       </article>
     </div>
-    ${renderLinkStrip("Reference", [
-      { href: withBasePath("/explainer", configuredBasePath), label: "Overview" },
-      { href: DOC_URLS.newUser, label: "Testing guide", external: true }
+  </section>`;
+}
+
+function renderHomeAppSection(configuredBasePath: string): string {
+  return `<section id="app" class="panel panel-guide panel-home">
+    ${renderPanelHead(
+      "Use it from the app",
+      "Day-to-day, ONT lives in the app: claim a name, set what it points to, set a recovery wallet, and bid — all signed on your device."
+    )}
+    <div class="guide-grid guide-grid-balanced">
+      <article class="guide-card">
+        <h3>Self-custodial by default</h3>
+        <p>Owner + funding keys are generated and stored on-device (iOS Keychain), revealed only for your own backup. Every record is BIP340-signed locally; the app verifies inclusion proofs against Bitcoin before it trusts anything a server says.</p>
+      </article>
+      <article class="guide-card">
+        <h3>On signet for testing</h3>
+        <p>The app currently runs against a private signet so anyone can exercise the full lifecycle with no real funds. A TestFlight build for the signet test group is next; mainnet is a later, deliberate step.</p>
+      </article>
+    </div>
+    ${renderLinkStrip("Prefer no install?", [
+      { href: withBasePath("/values", configuredBasePath), label: "Use the browser tools" },
+      { href: withBasePath("/explore", configuredBasePath), label: "Explore the registry" }
+    ])}
+  </section>`;
+}
+
+function renderHomeVerifySection(configuredBasePath: string): string {
+  return `<section id="verify" class="panel panel-guide panel-home">
+    ${renderPanelHead(
+      "Verify it yourself, don't trust us",
+      "Sovereignty means you can check everything without permission. Nothing here asks you to take our word for it."
+    )}
+    <div class="guide-grid guide-grid-balanced">
+      <article class="guide-card">
+        <h3>Check a name against Bitcoin</h3>
+        <p>A resolver returns an inclusion proof for a name; you verify it against the anchored accumulator root, and check the owner's signature on the current record. The browser tools do this locally &mdash; no install, no account, no trust in this site.</p>
+      </article>
+      <article class="guide-card">
+        <h3>Run your own</h3>
+        <p>The resolver, publisher, and esplora shim are open and reproducible. Run your own and point the app or tools at it; the protocol doesn't depend on opennametags.org.</p>
+      </article>
+    </div>
+    ${renderLinkStrip("Read the source", [
+      { href: withBasePath("/values", configuredBasePath), label: "Browser tools" },
+      { href: DOC_URLS.launchSpec, label: "Protocol spec", external: true },
+      { href: DOC_URLS.readme, label: "Source + run your own", external: true }
     ])}
   </section>`;
 }

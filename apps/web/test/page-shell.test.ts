@@ -13,45 +13,40 @@ const baseOptions = {
 } as const;
 
 describe("renderPageHtml", () => {
-  it("keeps the homepage focused on the core framing and next paths", () => {
+  it("leads with sovereignty + neutrality and points to the app", () => {
     const html = renderPageHtml({
       ...baseOptions,
       pageKind: "home"
     });
 
-    expect(html).toContain("Human-readable names you can actually own");
-    expect(html).toContain("Claim a name, set what it points to, and prove you own it");
-    expect(html).toContain("ONT tools");
-    expect(html).toContain(">Claim<");
-    expect(html).toContain(">Own<");
-    expect(html).toContain(">Resolve<");
+    // New framing: sovereign, neutral, Bitcoin-anchored; the app is the client.
+    expect(html).toContain("Own your name like you own your bitcoin.");
+    expect(html).toContain("Sovereign names on Bitcoin");
+    expect(html).toContain("no gatekeeper");
+    expect(html).toContain("You hold the keys");
+    expect(html).toContain("No registrar, token, or rent");
+    expect(html).toContain("Neutral by design");
+    expect(html).toContain("Use it from the app");
+    expect(html).toContain("Verify it yourself");
+    expect(html).toContain("Run your own");
+    // The mechanics (one-path) + live name lookup stay.
+    expect(html).toContain("How It Works");
     expect(html).toContain("Check a name");
-    expect(html).toContain("See whether it is claimable or already owned, and the next step either way.");
-    expect(html).toContain("Claim the name");
-    expect(html).toContain("Update or transfer");
-    expect(html).toContain("Choose A Workflow");
-    expect(html).toContain("Set Up Signing");
-    expect(html).toContain("Claim A Name");
-    expect(html).toContain("Inspect Live State");
-    expect(html).toContain("Update A Name");
-    expect(html).toContain("From Zero");
-    expect(html).toContain("site-footer");
+    expect(html).toContain('id="searchForm"');
+    // Collapsed, narrow nav.
+    expect(html).toContain(">Explore<");
+    expect(html).toContain(">Tools<");
     expect(html).toContain(">Learn<");
-    expect(html).toContain(">Use<");
-    expect(html).not.toContain("Offline architect");
-    expect(html).toContain("Manage");
-    expect(html).not.toContain("More links");
-    expect(html).not.toContain("Anchored To Bitcoin");
+    expect(html).toContain("site-footer");
+    // Old transactional/marketing framing is gone.
+    expect(html).not.toContain("Human-readable names you can actually own");
+    expect(html).not.toContain("ONT tools");
+    expect(html).not.toContain("Choose A Workflow");
+    expect(html).not.toContain("Set Up Signing");
+    expect(html).not.toContain("Inspect Live State");
     expect(html).not.toContain("Bonded, Not Rented");
     expect(html).not.toContain("Costly To Hoard");
-    expect(html).not.toContain("Maps To Destinations");
     expect(html).not.toContain("Two ideas shape ONT.");
-    expect(html).not.toContain("Eligible names use one auction lane.");
-    expect(html).not.toContain("One Name, Many Destinations");
-    expect(html).not.toContain("Any valid name can be opened by a bonded public bid.");
-    expect(html).not.toContain("Small Bitcoin footprint");
-    expect(html).not.toContain("Resolvers store the current owner-signed bundle for <span class=\"mono\">alice</span>");
-    expect(html).not.toContain("Current Status");
   });
 
   it("keeps explore focused on the current private-signet demo surfaces", () => {
@@ -140,7 +135,7 @@ describe("renderPageHtml", () => {
     });
 
     expect(html).toContain("Claim A Name");
-    expect(html).toContain(">Claim<");
+    expect(html).toContain(">Tools<");
     expect(html).toContain(">Advanced<");
     expect(html).toContain("claimable or already in a live contest");
     expect(html).toContain("Check name");
