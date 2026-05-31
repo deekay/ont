@@ -11,15 +11,35 @@ with no setup and no real money.
 
 ## Fastest: on your own phone, right now
 
-If your Mac is set up for iOS dev, plug in your iPhone and:
+This is a React Native (Expo) app. **Do NOT open `ios/OpenNameTags.xcodeproj` and
+build** — it doesn't link CocoaPods, so you'll get hundreds of missing-symbol
+errors. Either use the CLI (below) or open the **`.xcworkspace`**.
+
+Plug in your unlocked iPhone and:
 
 ```sh
 cd mobile
 npx expo run:ios --device      # pick your phone; signs with your Apple ID
 ```
 
-That builds + installs a dev build directly. (First run will prompt you to pick
-an Apple team for signing.)
+That prebuilds, runs `pod install`, builds, installs, and launches. First run
+prompts you to pick a signing team (your Apple ID).
+
+**If you'd rather use Xcode:** open `ios/OpenNameTags.xcworkspace` (the workspace,
+never the `.xcodeproj`). Set the target's Signing team to your Apple ID; if the
+bundle id `org.opennametags.mobile` is taken, make it unique (e.g.
+`org.opennametags.mobile.dk`). Pick your device and Run. For a debug build keep
+Metro up (`npx expo start`); or build the **Release** config so the JS is baked in.
+
+**First-time-on-device gotchas (iOS 16+):**
+- Settings → Privacy & Security → **Developer Mode** → On (restarts the phone).
+- After install: Settings → General → **VPN & Device Management** → trust your cert.
+- A **free Apple ID ("Personal Team") is enough** for your own device — the paid
+  Developer account is only for TestFlight/App Store. Free builds expire in ~7
+  days; re-run to refresh.
+
+If `ios/` ever gets out of sync (it's gitignored + regenerable):
+`npx expo prebuild -p ios --clean && (cd ios && pod install)`.
 
 ## Cloud build → install on your phone (no Mac toolchain needed)
 
