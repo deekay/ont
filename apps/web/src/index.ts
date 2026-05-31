@@ -36,6 +36,12 @@ const port = parsePort(
 const resolverUrl =
   process.env.ONT_WEB_RESOLVER_URL
   ?? `http://127.0.0.1:${resolverPort}`;
+// The batching publisher (cheap-rail ₿1,000 claims) — co-located on the box,
+// bound to localhost. The web /api proxies the claim endpoints so the no-install
+// browser tools can claim an available name end to end.
+const publisherUrl =
+  normalizeOptionalText(process.env.ONT_WEB_PUBLISHER_URL)
+  ?? "http://127.0.0.1:7878";
 const resolverCandidateUrls = resolveConfiguredResolverUrls(
   resolverUrl,
   normalizeOptionalText(process.env.ONT_WEB_RESOLVER_URLS)
@@ -181,6 +187,110 @@ const server = createServer(async (request, response) => {
         message: error instanceof Error ? error.message : "Unable to publish the signed value record."
       });
     }
+  }
+
+  if (pathname === "/api/recovery-descriptors") {
+    if (method !== "POST") {
+      return writeJson(response, 405, {
+        error: "method_not_allowed",
+        message: "Use POST for signed recovery descriptor publishing."
+      });
+    }
+
+    try {
+      const body = await readJsonBody(request);
+      return proxyJson(response, `${resolverUrl}/recovery-descriptors`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json"
+        },
+        body: JSON.stringify(body)
+      });
+    } catch (error) {
+      if (error instanceof HttpRequestError) {
+        return writeJson(response, error.statusCode, {
+          error: error.code,
+          message: error.message
+        });
+      }
+
+      return writeJson(response, 400, {
+        error: "invalid_recovery_descriptor",
+        message: error instanceof Error ? error.message : "Unable to publish the signed recovery descriptor."
+      });
+    }
+  }
+
+  if (pathname === "/api/recovery-proofs") {
+    if (method !== "POST") {
+      return writeJson(response, 405, {
+        error: "method_not_allowed",
+        message: "Use POST for signed recovery wallet proof publishing."
+      });
+    }
+
+    try {
+      const body = await readJsonBody(request);
+      return proxyJson(response, `${resolverUrl}/recovery-proofs`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json"
+        },
+        body: JSON.stringify(body)
+      });
+    } catch (error) {
+      if (error instanceof HttpRequestError) {
+        return writeJson(response, error.statusCode, {
+          error: error.code,
+          message: error.message
+        });
+      }
+
+      return writeJson(response, 400, {
+        error: "invalid_recovery_wallet_proof",
+        message: error instanceof Error ? error.message : "Unable to publish the signed recovery wallet proof."
+      });
+    }
+  }
+
+  // Cheap-rail claim — proxied to the batching publisher so the no-install
+  // browser tools can claim an available name. The wallet/browser trusts nothing
+  // the publisher returns: the quote is checked to commit H(name) + the owner key
+  // before "payment", and the inclusion proof is verified against its anchored
+  // root before the claim is treated as real.
+  if (pathname === "/api/claim/quote" || pathname === "/api/claim/submit") {
+    if (method !== "POST") {
+      return writeJson(response, 405, {
+        error: "method_not_allowed",
+        message: "Use POST for claim quote/submit."
+      });
+    }
+    try {
+      const body = await readJsonBody(request);
+      const target = pathname === "/api/claim/quote" ? "quote" : "submit";
+      return proxyJson(response, `${publisherUrl}/claim/${target}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body)
+      });
+    } catch (error) {
+      if (error instanceof HttpRequestError) {
+        return writeJson(response, error.statusCode, { error: error.code, message: error.message });
+      }
+      return writeJson(response, 502, {
+        error: "publisher_unreachable",
+        message: error instanceof Error ? error.message : "Could not reach the publisher."
+      });
+    }
+  }
+
+  if (pathname === "/api/publisher/info") {
+    return proxyJson(response, `${publisherUrl}/info`);
+  }
+
+  const claimStatusMatch = pathname ? pathname.match(/^\/api\/claim\/([A-Za-z0-9._-]+)$/) : null;
+  if (claimStatusMatch && claimStatusMatch[1] && method === "GET") {
+    return proxyJson(response, `${publisherUrl}/claim/${encodeURIComponent(claimStatusMatch[1])}`);
   }
 
   if (pathname === "/api/values/fanout") {
@@ -463,7 +573,7 @@ const server = createServer(async (request, response) => {
     error: "not_found",
     message:
       "Supported paths: /, /explore, /advanced, /auctions, /values, /transfer, /setup, /explainer, /app.js, /auction-tools.js, /key-tools.js, /value-tools.js, /api/config, /api/health, /api/names, /api/activity, /api/tx/{txid}, /api/utxo/{txid}/{vout}, /api/private-signet-fund, /api/name/{name}, /api/name/{name}/activity, /api/name/{name}/value, /api/name/{name}/value/history, /api/name/{name}/value/compare, /api/auctions"
-      + ", /api/private-auction-smoke-status, /api/experimental-auctions, /api/values, /api/values/fanout"
+      + ", /api/private-auction-smoke-status, /api/experimental-auctions, /api/values, /api/values/fanout, /api/recovery-descriptors, /api/recovery-proofs"
   });
 });
 

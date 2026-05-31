@@ -4225,4 +4225,16 @@ select {
     grid-template-columns: 1fr;
   }
 }
+
+.claim-available { display: grid; gap: 10px; text-align: left; }
+.claim-available-kicker { margin: 0; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+.claim-available h3 { margin: 0; font-size: 18px; }
+.claim-available p { margin: 0; color: var(--ink); line-height: 1.5; }
+.claim-available #valueClaimButton { justify-self: start; margin-top: 4px; }
+.claim-available-result { margin-top: 8px; display: grid; gap: 8px; }
+.claim-ok { color: #0a7d3c; font-weight: 600; }
+.claim-err { color: #b00020; font-weight: 600; }
+.claim-meta { font-size: 13px; color: var(--muted, #555); }
+.claim-key-box { border: 1px solid var(--line); border-radius: 10px; padding: 12px; background: rgba(0,0,0,0.03); display: grid; gap: 6px; }
+.claim-key { display: block; word-break: break-all; font-size: 13px; padding: 8px; background: #fff; border-radius: 6px; border: 1px solid var(--line); }
 `;
