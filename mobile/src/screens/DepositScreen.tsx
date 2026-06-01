@@ -79,7 +79,7 @@ export default function DepositScreen() {
       ) : null}
 
       <View style={{ marginTop: spacing.lg }}>
-        <Button title="Back to Wallet" variant="secondary" onPress={() => nav.navigate("Tabs")} />
+        <Button title="Back to Wallet" variant="secondary" onPress={() => nav.navigate("Tabs", { screen: "Wallet" })} />
       </View>
       <View style={{ height: spacing.xxl }} />
     </ScrollView>

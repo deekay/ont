@@ -158,7 +158,7 @@ export default function BackupScreen() {
             The backup decrypted and your keys are back in the device Keychain.
           </Text>
           <View style={styles.actions}>
-            <Button title="Go to Wallet" onPress={() => nav.navigate("Tabs")} />
+            <Button title="Go to Wallet" onPress={() => nav.navigate("Tabs", { screen: "Wallet" })} />
           </View>
         </Card>
       ) : (

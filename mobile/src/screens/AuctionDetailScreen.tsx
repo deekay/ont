@@ -86,7 +86,7 @@ export default function AuctionDetailScreen() {
             <Card>
               <Text style={styles.hint}>Create a wallet to place a bid.</Text>
               <View style={styles.bidActions}>
-                <Button title="Go to Wallet" variant="secondary" onPress={() => nav.navigate("Tabs")} />
+                <Button title="Go to Wallet" variant="secondary" onPress={() => nav.navigate("Tabs", { screen: "Wallet" })} />
               </View>
             </Card>
           ) : !canBid ? (

@@ -145,7 +145,7 @@ export default function RecoveryScreen() {
             A recovery descriptor is signed by the name's owner key. Create or import a wallet first.
           </Text>
           <View style={styles.actions}>
-            <Button title="Go to Wallet" onPress={() => nav.navigate("Tabs")} />
+            <Button title="Go to Wallet" onPress={() => nav.navigate("Tabs", { screen: "Wallet" })} />
           </View>
         </Card>
       ) : null}

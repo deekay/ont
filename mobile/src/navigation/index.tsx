@@ -16,10 +16,10 @@ import RecoveryScreen from "../screens/RecoveryScreen";
 import SetValueScreen from "../screens/SetValueScreen";
 import WalletScreen from "../screens/WalletScreen";
 import { colors } from "../theme";
-import type { RootStackParamList } from "./types";
+import type { RootStackParamList, TabParamList } from "./types";
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
-const Tab = createBottomTabNavigator();
+const Tab = createBottomTabNavigator<TabParamList>();
 
 const navTheme: Theme = {
   ...DefaultTheme,

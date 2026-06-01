@@ -158,7 +158,7 @@ export default function ClaimScreen() {
             Claiming records your owner key as the name's accumulator value. Create or import a wallet first.
           </Text>
           <View style={styles.actions}>
-            <Button title="Go to Wallet" onPress={() => nav.navigate("Tabs")} />
+            <Button title="Go to Wallet" onPress={() => nav.navigate("Tabs", { screen: "Wallet" })} />
           </View>
         </Card>
       ) : null}
