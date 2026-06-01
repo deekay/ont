@@ -35,7 +35,7 @@ export default function AuctionDetailScreen() {
   const a: AuctionEntry = state.data!;
   const ownerPubkey = wallet?.owner.ownerPubkey ?? null;
   const minNext = minimumNextBidSats(a);
-  const canBid = demo && ownerPubkey != null && isBiddable(a);
+  const biddable = isBiddable(a);
 
   function placeBid() {
     if (!ownerPubkey) return;
@@ -81,17 +81,22 @@ export default function AuctionDetailScreen() {
 
       {demo ? (
         <>
-          <SectionTitle right={<Badge label="demo" tone="warn" />}>Place a bid</SectionTitle>
-          {!ownerPubkey ? (
+          <SectionTitle right={<Badge label="demo" tone="warn" />}>
+            {biddable ? "Place a bid" : "Bidding"}
+          </SectionTitle>
+          {!biddable ? (
+            <Card>
+              <Text style={styles.hint}>
+                Bidding isn't open in this phase ({a.phaseLabel}) — there's nothing to do here.
+                {a.winnerOwnerPubkey ? " This auction has settled; see the winner below." : ""}
+              </Text>
+            </Card>
+          ) : !ownerPubkey ? (
             <Card>
               <Text style={styles.hint}>Create a wallet to place a bid.</Text>
               <View style={styles.bidActions}>
                 <Button title="Go to Wallet" variant="secondary" onPress={() => nav.navigate("Tabs", { screen: "Wallet" })} />
               </View>
-            </Card>
-          ) : !canBid ? (
-            <Card>
-              <Text style={styles.hint}>Bidding isn't open in this phase ({a.phaseLabel}).</Text>
             </Card>
           ) : (
             <Card>
