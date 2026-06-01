@@ -38,7 +38,7 @@ interface FundingData {
 export default function WalletScreen() {
   const insets = useSafeAreaInsets();
   const nav = useNavigation<RootNav>();
-  const { status, wallet, busy, createWallet, importWallet, removeWallet } = useWallet();
+  const { status, wallet, busy, createWallet, restoreWallet, removeWallet } = useWallet();
   const { demo, setDemo } = useDemoMode();
   const { claims } = useDemoHoldings();
 
@@ -64,34 +64,24 @@ export default function WalletScreen() {
     return { utxos, total, confirmed };
   }, [fundingAddress]);
 
-  // The names this single owner key controls (the same key signs for all of them).
-  const ownerKey = wallet?.owner.ownerPubkey ?? null;
-  const controlled = useAsync<string[]>(async () => {
-    if (!ownerKey) return [];
-    const res = await resolver.names();
-    const key = ownerKey.toLowerCase();
-    return res.names
-      .filter((n) => (n.currentOwnerPubkey ?? "").toLowerCase() === key)
-      .map((n) => n.name);
-  }, [ownerKey]);
+  // The names this wallet controls: its name->key map, plus on-device demo claims.
   const controlledNames = useMemo(() => {
-    const set = new Set<string>(controlled.data ?? []);
+    const set = new Set<string>(wallet ? Object.keys(wallet.names) : []);
     if (demo) for (const c of claims) set.add(c.name);
     return [...set].sort();
-  }, [controlled.data, demo, claims]);
+  }, [wallet, demo, claims]);
 
-  // Import form + secret reveal state.
-  const [mode, setMode] = useState<"view" | "import">("view");
-  const [importOwner, setImportOwner] = useState("");
-  const [importWif, setImportWif] = useState("");
+  // Restore form + secret reveal state.
+  const [mode, setMode] = useState<"view" | "restore">("view");
+  const [restoreSeed, setRestoreSeed] = useState("");
   const [importError, setImportError] = useState<string | null>(null);
-  const [revealOwner, setRevealOwner] = useState(false);
+  const [revealSeed, setRevealSeed] = useState(false);
   const [revealWif, setRevealWif] = useState(false);
 
   function confirmRemove() {
     Alert.alert(
       "Remove wallet from this device?",
-      "The keys are erased from the Keychain. Back up your owner key and funding WIF first — without them the name and funds are unrecoverable.",
+      "The keys are erased from the Keychain. Back up your recovery seed and funding WIF first — without them your names and funds are unrecoverable.",
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -99,7 +89,7 @@ export default function WalletScreen() {
           style: "destructive",
           onPress: () => {
             removeWallet().catch(() => undefined);
-            setRevealOwner(false);
+            setRevealSeed(false);
             setRevealWif(false);
           },
         },
@@ -107,15 +97,14 @@ export default function WalletScreen() {
     );
   }
 
-  async function submitImport() {
+  async function submitRestore() {
     setImportError(null);
     try {
-      await importWallet({ ownerPrivateKeyHex: importOwner, fundingWif: importWif });
-      setImportOwner("");
-      setImportWif("");
+      await restoreWallet(restoreSeed);
+      setRestoreSeed("");
       setMode("view");
     } catch (e) {
-      setImportError(e instanceof Error ? e.message : "Import failed.");
+      setImportError(e instanceof Error ? e.message : "Restore failed.");
     }
   }
 
@@ -145,40 +134,35 @@ export default function WalletScreen() {
           <SectionTitle right={<Badge label={wallet.network} tone="accent" />}>Your keys</SectionTitle>
 
           <Card>
-            <Text style={styles.cardLabel}>Owner key · x-only Schnorr</Text>
+            <Text style={styles.cardLabel}>Recovery seed · HD identity</Text>
             <Text style={styles.cardHint}>
-              Your single identity key — every name you claim is committed to it, and it signs all
-              ownership events.
-            </Text>
-            <Text selectable style={styles.monoBlock}>
-              {wallet.owner.ownerPubkey}
+              One master seed derives a fresh owner key for every name you claim — so your names
+              aren't linkable by a shared key. Back up this seed and you can restore them all.
             </Text>
             <View style={styles.controlsBox}>
               <Text style={styles.controlsLabel}>
-                Names under this key
+                Names under this wallet
                 {controlledNames.length > 0 ? ` · ${controlledNames.length}` : ""}
               </Text>
               <Text style={styles.cardHint}>
-                {controlled.loading && !controlled.data
-                  ? "Checking…"
-                  : controlledNames.length === 0
-                    ? "None yet — claim a name and it's committed to this key."
-                    : controlledNames.slice(0, 8).join(", ") +
-                      (controlledNames.length > 8 ? `, +${controlledNames.length - 8} more` : "")}
+                {controlledNames.length === 0
+                  ? "None yet — claim a name and it gets its own derived key."
+                  : controlledNames.slice(0, 8).join(", ") +
+                    (controlledNames.length > 8 ? `, +${controlledNames.length - 8} more` : "")}
               </Text>
             </View>
             <View style={styles.revealRow}>
               <Button
-                title={revealOwner ? "Hide secret key" : "Reveal secret key"}
+                title={revealSeed ? "Hide recovery seed" : "Reveal recovery seed"}
                 variant="secondary"
-                onPress={() => setRevealOwner((v) => !v)}
+                onPress={() => setRevealSeed((v) => !v)}
               />
             </View>
-            {revealOwner ? (
+            {revealSeed ? (
               <View style={styles.secretBox}>
-                <Text style={styles.secretLabel}>Owner private key (back this up)</Text>
+                <Text style={styles.secretLabel}>Master seed (back this up — restores every name)</Text>
                 <Text selectable style={styles.secretValue}>
-                  {wallet.owner.ownerPrivateKeyHex}
+                  {wallet.seedHex}
                 </Text>
               </View>
             ) : null}
@@ -264,34 +248,28 @@ export default function WalletScreen() {
             <Button title="Remove wallet" variant="danger" onPress={confirmRemove} loading={busy} />
           </View>
         </>
-      ) : mode === "import" ? (
+      ) : mode === "restore" ? (
         <>
-          <SectionTitle>Import existing keys</SectionTitle>
+          <SectionTitle>Restore from a seed</SectionTitle>
           <Card>
-            <Text style={styles.cardLabel}>Owner private key (64 hex chars)</Text>
+            <Text style={styles.cardLabel}>Master seed (64 hex chars)</Text>
+            <Text style={styles.cardHint}>
+              Paste the recovery seed from another device. We re-derive your keys and scan the
+              resolver for names this seed controls.
+            </Text>
             <TextInput
               style={styles.input}
-              value={importOwner}
-              onChangeText={setImportOwner}
-              placeholder="a1b2c3…"
+              value={restoreSeed}
+              onChangeText={setRestoreSeed}
+              placeholder="64 hex characters"
               placeholderTextColor={colors.textFaint}
               autoCapitalize="none"
               autoCorrect={false}
               multiline
             />
-            <Text style={[styles.cardLabel, { marginTop: spacing.md }]}>Funding WIF</Text>
-            <TextInput
-              style={styles.input}
-              value={importWif}
-              onChangeText={setImportWif}
-              placeholder="cN… / p2wpkh WIF"
-              placeholderTextColor={colors.textFaint}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
             {importError ? <Text style={styles.inlineError}>{importError}</Text> : null}
             <View style={styles.formActions}>
-              <Button title="Import" onPress={submitImport} loading={busy} />
+              <Button title="Restore" onPress={submitRestore} loading={busy} />
               <Button
                 title="Cancel"
                 variant="secondary"
@@ -309,12 +287,12 @@ export default function WalletScreen() {
           <Card>
             <Text style={styles.placeholderTitle}>No wallet on this device yet</Text>
             <Text style={styles.placeholderBody}>
-              Generate an owner key (controls the name) and a funding key (pays fees and bonds).
-              Both are stored encrypted in the device Keychain and never leave the phone.
+              Generate a master seed: it derives a fresh owner key per name (so your names aren't
+              linkable) plus a funding key. Stored encrypted in the device Keychain, never leaves the phone.
             </Text>
             <View style={styles.formActions}>
               <Button title="Create wallet" onPress={() => createWallet()} loading={busy} />
-              <Button title="Import keys" variant="secondary" onPress={() => setMode("import")} />
+              <Button title="Restore from seed" variant="secondary" onPress={() => setMode("restore")} />
               <Button title="Restore from backup" variant="secondary" onPress={() => nav.navigate("Backup")} />
             </View>
           </Card>

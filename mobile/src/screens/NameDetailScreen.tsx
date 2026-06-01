@@ -36,7 +36,7 @@ async function loadNameDetail(name: string): Promise<NameDetailData> {
 export default function NameDetailScreen() {
   const route = useRoute<RouteProp<RootStackParamList, "NameDetail">>();
   const nav = useNavigation<RootNav>();
-  const { wallet } = useWallet();
+  const { wallet, allOwnerPubkeys } = useWallet();
   const { name } = route.params;
   const state = useAsync(() => loadNameDetail(name), [name]);
 
@@ -44,12 +44,11 @@ export default function NameDetailScreen() {
   if (state.error && !state.data) return <ErrorView error={state.error} onRetry={state.reload} />;
   const data = state.data!;
   const r = data.record;
-  const ownedHere =
-    !!wallet &&
-    !!r.currentOwnerPubkey &&
-    r.currentOwnerPubkey.toLowerCase() === wallet.owner.ownerPubkey.toLowerCase();
+  // Per-name keys: owned-here if the name's owner matches ANY of my derived keys.
+  const mine = allOwnerPubkeys().map((p) => p.toLowerCase());
+  const ownedHere = !!r.currentOwnerPubkey && mine.includes(r.currentOwnerPubkey.toLowerCase());
   // What can you actually do with this name from here?
-  const availability = availabilityFromRecord(r, wallet?.owner.ownerPubkey ?? null);
+  const availability = availabilityFromRecord(r, ownedHere ? r.currentOwnerPubkey ?? null : null);
   const claimable = !ownedHere && availability.kind === "available";
   const inAuction = availability.kind === "in-auction";
 

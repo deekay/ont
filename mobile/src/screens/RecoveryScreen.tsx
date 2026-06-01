@@ -29,11 +29,9 @@ export default function RecoveryScreen() {
   const insets = useSafeAreaInsets();
   const nav = useNavigation<RootNav>();
   const route = useRoute<RouteProp<RootStackParamList, "Recovery">>();
-  const { wallet } = useWallet();
+  const { wallet, ownerKeyForName } = useWallet();
   const { demo } = useDemoMode();
   const { claims, recoveries, recordRecovery } = useDemoHoldings();
-  const ownerPubkey = wallet?.owner.ownerPubkey ?? null;
-  const ownerPrivateKeyHex = wallet?.owner.ownerPrivateKeyHex ?? null;
 
   const [name, setName] = useState(route.params?.name ?? "");
   const [recoveryAddress, setRecoveryAddress] = useState("");
@@ -46,6 +44,10 @@ export default function RecoveryScreen() {
   const trimmed = normalizeName(name);
   const nameOk = isValidName(trimmed);
   const addrOk = recoveryAddress.trim().length > 0;
+  // Per-name owner key: the derived key this wallet uses for `trimmed`.
+  const ownerKey = ownerKeyForName(trimmed);
+  const ownerPubkey = ownerKey?.ownerPubkey ?? null;
+  const ownerPrivateKeyHex = ownerKey?.ownerPrivateKeyHex ?? null;
   const owns =
     state != null &&
     ownerPubkey != null &&
@@ -138,11 +140,11 @@ export default function RecoveryScreen() {
       <Text style={styles.title}>Set a recovery wallet</Text>
       <Text style={styles.subtitle}>Owner-signed recovery descriptor · recovers the name if your key is lost</Text>
 
-      {!ownerPubkey ? (
+      {!wallet ? (
         <Card style={styles.spaced}>
-          <Text style={styles.cardLabel}>No owner key on this device</Text>
+          <Text style={styles.cardLabel}>No wallet on this device</Text>
           <Text style={styles.cardHint}>
-            A recovery descriptor is signed by the name's owner key. Create or import a wallet first.
+            A recovery descriptor is signed by the name's owner key. Create a wallet first.
           </Text>
           <View style={styles.actions}>
             <Button title="Go to Wallet" onPress={() => nav.navigate("Tabs", { screen: "Wallet" })} />

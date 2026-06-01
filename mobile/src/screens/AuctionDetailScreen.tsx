@@ -26,20 +26,25 @@ export default function AuctionDetailScreen() {
   }, [auctionId]);
   const { demo } = useDemoMode();
   const { recordBid } = useDemoHoldings();
-  const { wallet } = useWallet();
+  const { wallet, allocateOwnerKeyForName } = useWallet();
   const [bidAmount, setBidAmount] = useState("");
   const [bidResult, setBidResult] = useState<DemoBidResult | null>(null);
 
   if (state.loading && !state.data) return <Loading label="Loading auction…" />;
   if (state.error && !state.data) return <ErrorView error={state.error} onRetry={state.reload} />;
   const a: AuctionEntry = state.data!;
-  const ownerPubkey = wallet?.owner.ownerPubkey ?? null;
   const minNext = minimumNextBidSats(a);
   const biddable = isBiddable(a);
 
-  function placeBid() {
-    if (!ownerPubkey) return;
-    const result = new MockAuctionBidder().placeBid({ auction: a, bidAmountSats: bidAmount.trim(), ownerPubkey });
+  async function placeBid() {
+    if (!wallet) return;
+    // The bidder commitment is the per-name owner key you'd control if you win.
+    const owner = await allocateOwnerKeyForName(a.normalizedName);
+    const result = new MockAuctionBidder().placeBid({
+      auction: a,
+      bidAmountSats: bidAmount.trim(),
+      ownerPubkey: owner.ownerPubkey,
+    });
     setBidResult(result);
     if (result.accepted) {
       recordBid({
@@ -91,11 +96,11 @@ export default function AuctionDetailScreen() {
                 {a.winnerOwnerPubkey ? " This auction has settled; see the winner below." : ""}
               </Text>
             </Card>
-          ) : !ownerPubkey ? (
+          ) : !wallet ? (
             <Card>
               <Text style={styles.hint}>
-                You need a wallet first — it's your one ONT identity (the same owner key) for every
-                name, not a key for this auction. Create it, then come back to bid.
+                You need a wallet first — it derives a fresh owner key for each name you claim or win.
+                Create it, then come back to bid.
               </Text>
               <View style={styles.bidActions}>
                 <Button title="Go to Wallet" variant="secondary" onPress={() => nav.navigate("Tabs", { screen: "Wallet" })} />

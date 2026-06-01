@@ -39,11 +39,9 @@ export default function SetValueScreen() {
   const insets = useSafeAreaInsets();
   const nav = useNavigation<RootNav>();
   const route = useRoute<RouteProp<RootStackParamList, "SetValue">>();
-  const { wallet } = useWallet();
+  const { wallet, ownerKeyForName } = useWallet();
   const { demo } = useDemoMode();
   const { claims, values, recordValue } = useDemoHoldings();
-  const ownerPubkey = wallet?.owner.ownerPubkey ?? null;
-  const ownerPrivateKeyHex = wallet?.owner.ownerPrivateKeyHex ?? null;
 
   const [name, setName] = useState(route.params?.name ?? "");
   const [valueTypeStr, setValueTypeStr] = useState("2");
@@ -56,6 +54,10 @@ export default function SetValueScreen() {
 
   const trimmed = normalizeName(name);
   const nameOk = isValidName(trimmed);
+  // The owner key is per-name: it's the derived key this wallet uses for `trimmed`.
+  const ownerKey = ownerKeyForName(trimmed);
+  const ownerPubkey = ownerKey?.ownerPubkey ?? null;
+  const ownerPrivateKeyHex = ownerKey?.ownerPrivateKeyHex ?? null;
   const valueType = parseValueType(valueTypeStr);
   const valueOk = value.trim().length > 0;
   const owns =
@@ -148,11 +150,11 @@ export default function SetValueScreen() {
       <Text style={styles.title}>Set a name's value</Text>
       <Text style={styles.subtitle}>Owner-signed value record · published to the resolver</Text>
 
-      {!ownerPubkey ? (
+      {!wallet ? (
         <Card style={styles.spaced}>
-          <Text style={styles.cardLabel}>No owner key on this device</Text>
+          <Text style={styles.cardLabel}>No wallet on this device</Text>
           <Text style={styles.cardHint}>
-            A value record is signed by the name's owner key. Create or import a wallet first.
+            A value record is signed by the name's owner key. Create a wallet first.
           </Text>
           <View style={styles.actions}>
             <Button title="Go to Wallet" onPress={() => nav.navigate("Tabs", { screen: "Wallet" })} />

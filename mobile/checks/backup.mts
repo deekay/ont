@@ -15,8 +15,9 @@ const ok = (label: string, cond: boolean, extra = "") => {
 };
 
 const payload = {
-  ownerPrivateKeyHex: "1122334455667788991011121314151617181920212223242526272829303132",
-  fundingWif: "cMahea7zqjxrtgAbB7LSGbcQUr1uX1ojuat9jZodMN87JcbXMTcA",
+  seedHex: "1122334455667788991011121314151617181920212223242526272829303132",
+  names: { satoshi: 0, hal: 1 },
+  nextIndex: 2,
   network: "signet",
 };
 
@@ -25,12 +26,13 @@ ok("recovery code is 32 hex chars (grouped)", normalizeRecoveryCode(code).length
 
 const blob = encryptWalletBackup(payload, code);
 ok("blob is versioned + scrypt", blob.version === 1 && blob.kdf.name === "scrypt");
-ok("ciphertext is not the plaintext", !blob.ciphertext.includes(payload.ownerPrivateKeyHex));
+ok("ciphertext is not the plaintext", !blob.ciphertext.includes(payload.seedHex));
 const restored = decryptWalletBackup(blob, code);
-ok("round-trips owner key", restored.ownerPrivateKeyHex === payload.ownerPrivateKeyHex);
-ok("round-trips funding wif", restored.fundingWif === payload.fundingWif);
+ok("round-trips master seed", restored.seedHex === payload.seedHex);
+ok("round-trips name->index map", JSON.stringify(restored.names) === JSON.stringify(payload.names));
+ok("round-trips nextIndex", restored.nextIndex === payload.nextIndex);
 
-ok("decrypts with separator-stripped code", decryptWalletBackup(blob, normalizeRecoveryCode(code)).ownerPrivateKeyHex === payload.ownerPrivateKeyHex);
+ok("decrypts with separator-stripped code", decryptWalletBackup(blob, normalizeRecoveryCode(code)).seedHex === payload.seedHex);
 
 let wrongThrew = false;
 try { decryptWalletBackup(blob, generateRecoveryCode()); } catch { wrongThrew = true; }
@@ -41,7 +43,7 @@ try { decryptWalletBackup(blob, code, "extra-passphrase"); } catch { passThrew =
 ok("passphrase mismatch is rejected", passThrew);
 
 const blob2 = encryptWalletBackup(payload, code, "correct horse");
-ok("passphrase backup round-trips", decryptWalletBackup(blob2, code, "correct horse").fundingWif === payload.fundingWif);
+ok("passphrase backup round-trips", decryptWalletBackup(blob2, code, "correct horse").seedHex === payload.seedHex);
 
 const flipped = blob.ciphertext.slice(0, -2) + (blob.ciphertext.endsWith("00") ? "11" : "00");
 let tamperThrew = false;

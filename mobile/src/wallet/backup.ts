@@ -1,7 +1,8 @@
 // Encrypted wallet backup — the Lexe-shaped recovery story.
 //
-// The wallet secrets (owner private key + funding WIF) are encrypted ON-DEVICE
-// under a key derived from a recovery code (optionally + a passphrase), then
+// The wallet secret (the master seed) plus the name->owner-key-index map are
+// encrypted ON-DEVICE under a key derived from a recovery code (optionally + a
+// passphrase), then
 // handed to a BackupProvider. The provider is the only swappable part: today a
 // local stub stands in for cloud storage; later the same interface is
 // implemented for Google Drive (drive.appdata) and iCloud. The provider — and
@@ -18,8 +19,11 @@ import { bytesToHex, hexToBytes } from "./accumulator";
 // --- formats -----------------------------------------------------------------
 
 export interface WalletBackupPayload {
-  readonly ownerPrivateKeyHex: string;
-  readonly fundingWif: string;
+  /** 32-byte master seed (hex) — re-derives every owner key + the funding key. */
+  readonly seedHex: string;
+  /** name -> owner-key derivation index, so restore knows which key owns which name. */
+  readonly names: Record<string, number>;
+  readonly nextIndex: number;
   readonly network: string;
 }
 
@@ -110,10 +114,15 @@ export function decryptWalletBackup(
     throw new Error("Wrong recovery code (or passphrase) — could not decrypt this backup.");
   }
   const parsed = JSON.parse(asciiBytesToString(plaintext)) as WalletBackupPayload;
-  if (!parsed?.ownerPrivateKeyHex || !parsed?.fundingWif) {
-    throw new Error("Backup decrypted but is missing required keys.");
+  if (!parsed?.seedHex) {
+    throw new Error("Backup decrypted but is missing the master seed.");
   }
-  return parsed;
+  return {
+    seedHex: parsed.seedHex,
+    names: parsed.names && typeof parsed.names === "object" ? parsed.names : {},
+    nextIndex: typeof parsed.nextIndex === "number" ? parsed.nextIndex : 0,
+    network: parsed.network,
+  };
 }
 
 // --- providers ----------------------------------------------------------------

@@ -25,7 +25,7 @@ import { useWallet } from "../wallet/WalletContext";
 export default function BackupScreen() {
   const insets = useSafeAreaInsets();
   const nav = useNavigation<RootNav>();
-  const { wallet, importWallet } = useWallet();
+  const { wallet, importHdWallet } = useWallet();
   const provider = useMemo(() => new LocalStubBackupProvider(), []);
 
   const [passphrase, setPassphrase] = useState("");
@@ -45,8 +45,9 @@ export default function BackupScreen() {
       const code = generateRecoveryCode();
       const blob = encryptWalletBackup(
         {
-          ownerPrivateKeyHex: wallet.owner.ownerPrivateKeyHex,
-          fundingWif: wallet.funding.fundingWif,
+          seedHex: wallet.seedHex,
+          names: wallet.names,
+          nextIndex: wallet.nextIndex,
           network: wallet.network,
         },
         code,
@@ -70,7 +71,7 @@ export default function BackupScreen() {
         throw new Error("No backup found in this location.");
       }
       const payload = decryptWalletBackup(blob, restoreCode, restorePass);
-      await importWallet({ ownerPrivateKeyHex: payload.ownerPrivateKeyHex, fundingWif: payload.fundingWif });
+      await importHdWallet({ seedHex: payload.seedHex, names: payload.names, nextIndex: payload.nextIndex });
       setRestored(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Restore failed.");

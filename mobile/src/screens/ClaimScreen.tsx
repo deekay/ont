@@ -37,8 +37,7 @@ export default function ClaimScreen() {
   const insets = useSafeAreaInsets();
   const nav = useNavigation<RootNav>();
   const route = useRoute<RouteProp<RootStackParamList, "Claim">>();
-  const { wallet } = useWallet();
-  const ownerPubkey = wallet?.owner.ownerPubkey ?? null;
+  const { wallet, allocateOwnerKeyForName, ownerKeyForName } = useWallet();
 
   const { demo } = useDemoMode();
   const { claims, recordClaim } = useDemoHoldings();
@@ -56,6 +55,8 @@ export default function ClaimScreen() {
   const [receipt, setReceipt] = useState<PublisherClaimReceipt | null>(null);
   const [verdict, setVerdict] = useState<ConfirmedClaim | null>(null);
   const [avail, setAvail] = useState<NameAvailability | null>(null);
+  // The per-name owner key minted for the active claim (its pubkey is committed).
+  const [claimOwnerPubkey, setClaimOwnerPubkey] = useState<string | null>(null);
 
   const trimmed = name.trim().toLowerCase();
   const nameOk = isValidName(trimmed);
@@ -69,25 +70,33 @@ export default function ClaimScreen() {
     setPaymentHash("");
     setError(null);
     setAvail(null);
+    setClaimOwnerPubkey(null);
   }
 
   async function getQuote() {
-    if (!client || !ownerPubkey) return;
+    if (!client || !wallet) return;
     setBusy(true);
     setError(null);
     setAvail(null);
     try {
-      // The namespace is real even in demo; only the payment/anchor is faked. So
-      // check the live resolver, then layer this device's demo claims on top.
-      const demoOwned = demo && claims.some((c) => c.name === trimmed);
-      const availability: NameAvailability = demoOwned
+      // The namespace is real even in demo; only the payment/anchor is faked.
+      // "Already mine" = a name this wallet manages (or a demo claim on-device).
+      const alreadyMine = (demo && claims.some((c) => c.name === trimmed)) || ownerKeyForName(trimmed) != null;
+      const availability: NameAvailability = alreadyMine
         ? { kind: "owned-by-you", record: null }
-        : await checkNameAvailability(trimmed, ownerPubkey);
+        : await checkNameAvailability(trimmed, null);
       if (availability.kind !== "available") {
         setAvail(availability);
         return;
       }
-      const q = await fetchVerifiedQuote(client, { name: trimmed, ownerPubkey, rail: "lightning" });
+      // Mint a fresh per-name owner key and commit ITS pubkey to this claim.
+      const owner = await allocateOwnerKeyForName(trimmed);
+      setClaimOwnerPubkey(owner.ownerPubkey);
+      const q = await fetchVerifiedQuote(client, {
+        name: trimmed,
+        ownerPubkey: owner.ownerPubkey,
+        rail: "lightning",
+      });
       setQuote(q);
       setStep("quoted");
     } catch (e) {
@@ -134,7 +143,7 @@ export default function ClaimScreen() {
   function applyReceipt(r: PublisherClaimReceipt) {
     setReceipt(r);
     if (r.status === "confirmed") {
-      const v = verifyConfirmedReceipt(r, { name: trimmed, ownerPubkey: ownerPubkey ?? "" });
+      const v = verifyConfirmedReceipt(r, { name: trimmed, ownerPubkey: claimOwnerPubkey ?? "" });
       setVerdict(v);
       setStep("done");
       if (v.ok && client?.isDemo) {
@@ -165,11 +174,11 @@ export default function ClaimScreen() {
         </View>
       ) : null}
 
-      {!ownerPubkey ? (
+      {!wallet ? (
         <Card style={styles.spaced}>
-          <Text style={styles.cardLabel}>No owner key on this device</Text>
+          <Text style={styles.cardLabel}>No wallet on this device</Text>
           <Text style={styles.cardHint}>
-            Claiming records your owner key as the name's accumulator value. Create or import a wallet first.
+            Claiming mints a fresh owner key for this name as its accumulator value. Create a wallet first.
           </Text>
           <View style={styles.actions}>
             <Button title="Go to Wallet" onPress={() => nav.navigate("Tabs", { screen: "Wallet" })} />
@@ -287,7 +296,7 @@ export default function ClaimScreen() {
       ) : null}
 
       {/* Active flow (only when a publisher is configured and a wallet exists). */}
-      {client && ownerPubkey && step === "input" ? (
+      {client && wallet && step === "input" ? (
         <View style={styles.actions}>
           <Button
             title={avail && avail.kind !== "available" ? "Check again" : "Check availability & quote"}

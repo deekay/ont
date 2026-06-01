@@ -24,13 +24,16 @@ interface MyData {
 export default function MyNamesScreen() {
   const insets = useSafeAreaInsets();
   const nav = useNavigation<RootNav>();
-  const { wallet } = useWallet();
+  const { wallet, allOwnerPubkeys } = useWallet();
   const { claims, values, recoveries, bids } = useDemoHoldings();
-  const ownerPubkey = wallet?.owner.ownerPubkey?.toLowerCase() ?? null;
+  // Per-name keys: a name is "mine" if its owner matches ANY of my derived keys.
+  const ownerPubkeys = allOwnerPubkeys();
+  const ownerKeysCsv = ownerPubkeys.join(",").toLowerCase();
   const demoCount = claims.length + values.length + recoveries.length + bids.length;
 
   const state = useAsync<MyData>(async () => {
-    if (!ownerPubkey) return { owned: [], leading: [] };
+    const mine = new Set(ownerPubkeys.map((p) => p.toLowerCase()));
+    if (mine.size === 0) return { owned: [], leading: [] };
     // Independent reads: a hiccup in one shouldn't blank the other section.
     const [namesRes, auctionsRes] = await Promise.allSettled([
       resolver.names(),
@@ -41,16 +44,16 @@ export default function MyNamesScreen() {
     }
     const owned =
       namesRes.status === "fulfilled"
-        ? namesRes.value.names.filter((n) => (n.currentOwnerPubkey ?? "").toLowerCase() === ownerPubkey)
+        ? namesRes.value.names.filter((n) => mine.has((n.currentOwnerPubkey ?? "").toLowerCase()))
         : [];
     const leading =
       auctionsRes.status === "fulfilled"
-        ? auctionsRes.value.auctions.filter(
-            (a) => (a.currentLeaderBidderCommitment ?? "").toLowerCase() === ownerPubkey,
+        ? auctionsRes.value.auctions.filter((a) =>
+            mine.has((a.currentLeaderBidderCommitment ?? "").toLowerCase()),
           )
         : [];
     return { owned, leading };
-  }, [ownerPubkey]);
+  }, [ownerKeysCsv]);
 
   if (!wallet) {
     return <Empty title="No wallet" subtitle="Create or import a wallet to see the names you own." />;
