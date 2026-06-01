@@ -28,6 +28,7 @@ import {
   verifyConfirmedReceipt,
 } from "../wallet/claim";
 import { accumulatorKeyForName, isValidName } from "../wallet/accumulator";
+import { checkNameAvailability, type NameAvailability } from "../wallet/availability";
 import { useWallet } from "../wallet/WalletContext";
 
 type Step = "input" | "quoted" | "pending" | "done";
@@ -40,7 +41,7 @@ export default function ClaimScreen() {
   const ownerPubkey = wallet?.owner.ownerPubkey ?? null;
 
   const { demo } = useDemoMode();
-  const { recordClaim } = useDemoHoldings();
+  const { claims, recordClaim } = useDemoHoldings();
   const client = useMemo<PublisherClientLike | null>(
     () => (demo ? new MockPublisherClient() : getPublisherClient()),
     [demo],
@@ -54,6 +55,7 @@ export default function ClaimScreen() {
   const [paymentHash, setPaymentHash] = useState("");
   const [receipt, setReceipt] = useState<PublisherClaimReceipt | null>(null);
   const [verdict, setVerdict] = useState<ConfirmedClaim | null>(null);
+  const [avail, setAvail] = useState<NameAvailability | null>(null);
 
   const trimmed = name.trim().toLowerCase();
   const nameOk = isValidName(trimmed);
@@ -66,13 +68,25 @@ export default function ClaimScreen() {
     setVerdict(null);
     setPaymentHash("");
     setError(null);
+    setAvail(null);
   }
 
   async function getQuote() {
     if (!client || !ownerPubkey) return;
     setBusy(true);
     setError(null);
+    setAvail(null);
     try {
+      // The namespace is real even in demo; only the payment/anchor is faked. So
+      // check the live resolver, then layer this device's demo claims on top.
+      const demoOwned = demo && claims.some((c) => c.name === trimmed);
+      const availability: NameAvailability = demoOwned
+        ? { kind: "owned-by-you", record: null }
+        : await checkNameAvailability(trimmed, ownerPubkey);
+      if (availability.kind !== "available") {
+        setAvail(availability);
+        return;
+      }
       const q = await fetchVerifiedQuote(client, { name: trimmed, ownerPubkey, rail: "lightning" });
       setQuote(q);
       setStep("quoted");
@@ -171,6 +185,7 @@ export default function ClaimScreen() {
           value={name}
           onChangeText={(t) => {
             setName(t);
+            setAvail(null);
             if (step !== "input") reset();
           }}
           placeholder="lowercase alphanumeric, 1–32 chars"
@@ -221,10 +236,65 @@ export default function ClaimScreen() {
         </>
       ) : null}
 
+      {/* Availability gate: a cheap claim only makes sense for an available name. */}
+      {avail && avail.kind !== "available" ? (
+        <Card style={[styles.spaced, { borderColor: colors.warn }]}>
+          {avail.kind === "owned-by-you" ? (
+            <>
+              <Text style={[styles.cardLabel, { color: colors.warn }]}>You already own this name</Text>
+              <Text style={styles.cardHint}>
+                No need to claim it again — set its value or a recovery wallet instead.
+              </Text>
+              <View style={styles.actions}>
+                {avail.record ? (
+                  <Button
+                    title="View name"
+                    variant="secondary"
+                    onPress={() => nav.navigate("NameDetail", { name: trimmed })}
+                  />
+                ) : (
+                  <Button title="Go to My ONT" variant="secondary" onPress={() => nav.navigate("MyNames")} />
+                )}
+              </View>
+            </>
+          ) : avail.kind === "in-auction" ? (
+            <>
+              <Text style={[styles.cardLabel, { color: colors.warn }]}>This name is being contested</Text>
+              <Text style={styles.cardHint}>
+                Someone else wants it too, so it's gone to an auction. A cheap claim isn't possible
+                while it's contested — bid in the auction instead.
+              </Text>
+              <View style={styles.actions}>
+                <Button title="Go to auctions" onPress={() => nav.navigate("Tabs", { screen: "Auctions" })} />
+              </View>
+            </>
+          ) : (
+            <>
+              <Text style={[styles.cardLabel, { color: colors.warn }]}>This name is already claimed</Text>
+              <Text style={styles.cardHint}>
+                Another key owns it. You can view it, but a name that's already taken can't be claimed.
+              </Text>
+              <View style={styles.actions}>
+                <Button
+                  title="View name"
+                  variant="secondary"
+                  onPress={() => nav.navigate("NameDetail", { name: trimmed })}
+                />
+              </View>
+            </>
+          )}
+        </Card>
+      ) : null}
+
       {/* Active flow (only when a publisher is configured and a wallet exists). */}
       {client && ownerPubkey && step === "input" ? (
         <View style={styles.actions}>
-          <Button title="Get quote" onPress={getQuote} disabled={!nameOk} loading={busy} />
+          <Button
+            title={avail && avail.kind !== "available" ? "Check again" : "Check availability & quote"}
+            onPress={getQuote}
+            disabled={!nameOk}
+            loading={busy}
+          />
         </View>
       ) : null}
 

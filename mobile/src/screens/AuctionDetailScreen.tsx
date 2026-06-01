@@ -93,7 +93,10 @@ export default function AuctionDetailScreen() {
             </Card>
           ) : !ownerPubkey ? (
             <Card>
-              <Text style={styles.hint}>Create a wallet to place a bid.</Text>
+              <Text style={styles.hint}>
+                You need a wallet first — it's your one ONT identity (the same owner key) for every
+                name, not a key for this auction. Create it, then come back to bid.
+              </Text>
               <View style={styles.bidActions}>
                 <Button title="Go to Wallet" variant="secondary" onPress={() => nav.navigate("Tabs", { screen: "Wallet" })} />
               </View>

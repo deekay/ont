@@ -115,7 +115,9 @@ export default function MyNamesScreen() {
         <>
           <SectionTitle right={<Badge label="demo · this device" tone="warn" />}>Demo activity</SectionTitle>
           {claims.map((c, i) => (
-            <Card key={`c${i}`} style={styles.spaced} onPress={() => nav.navigate("NameDetail", { name: c.name })}>
+            // Demo claims are device-local and not on the resolver, so this card
+            // is informational — tapping through to NameDetail would 404.
+            <Card key={`c${i}`} style={styles.spaced}>
               <View style={styles.row}>
                 <Text style={styles.name}>{c.name}</Text>
                 <Badge label="claim · provisional" tone="warn" />

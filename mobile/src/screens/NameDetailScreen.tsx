@@ -8,6 +8,7 @@ import { Badge, Button, Card, KV, Loading, ErrorView, SectionTitle } from "../co
 import { formatAmount, formatDateTime, hexToUtf8, shortHex, titleCase } from "../format";
 import { useAsync } from "../hooks/useAsync";
 import type { RootNav, RootStackParamList } from "../navigation/types";
+import { availabilityFromRecord } from "../wallet/availability";
 import { useWallet } from "../wallet/WalletContext";
 import { eventTone, nameStatusTone } from "../status";
 import { colors, font, spacing } from "../theme";
@@ -47,6 +48,10 @@ export default function NameDetailScreen() {
     !!wallet &&
     !!r.currentOwnerPubkey &&
     r.currentOwnerPubkey.toLowerCase() === wallet.owner.ownerPubkey.toLowerCase();
+  // What can you actually do with this name from here?
+  const availability = availabilityFromRecord(r, wallet?.owner.ownerPubkey ?? null);
+  const claimable = !ownedHere && availability.kind === "available";
+  const inAuction = availability.kind === "in-auction";
 
   return (
     <ScrollView
@@ -60,6 +65,24 @@ export default function NameDetailScreen() {
         <Text style={styles.name}>{r.name}</Text>
         <Badge label={titleCase(r.status)} tone={nameStatusTone(r.status)} />
       </View>
+
+      {claimable ? (
+        <Card style={styles.primaryCard}>
+          <Text style={styles.primaryLabel}>This name is available</Text>
+          <Text style={styles.primaryHint}>
+            No one owns it on the live chain right now. Claim it with the flat-gate cheap rail.
+          </Text>
+          <Button title={`Claim ${r.name}`} onPress={() => nav.navigate("Claim", { name: r.name })} />
+        </Card>
+      ) : inAuction ? (
+        <Card style={styles.primaryCard}>
+          <Text style={styles.primaryLabel}>This name is being contested</Text>
+          <Text style={styles.primaryHint}>
+            It's gone to an auction, so it can't be cheaply claimed. Bid in the auction instead.
+          </Text>
+          <Button title="Go to auctions" onPress={() => nav.navigate("Tabs", { screen: "Auctions" })} />
+        </Card>
+      ) : null}
 
       <SectionTitle>Ownership</SectionTitle>
       <Card>
@@ -170,6 +193,9 @@ const styles = StyleSheet.create({
   content: { padding: spacing.lg, paddingBottom: spacing.xxl },
   titleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md },
   name: { fontSize: 30, fontWeight: "800", color: colors.text, letterSpacing: -0.5, flexShrink: 1 },
+  primaryCard: { marginTop: spacing.md, gap: spacing.sm, borderColor: colors.accent },
+  primaryLabel: { color: colors.text, fontWeight: "700", fontSize: 15 },
+  primaryHint: { color: colors.textMuted, fontSize: 13, lineHeight: 18 },
   count: { color: colors.textFaint, fontSize: 13, fontWeight: "600" },
   spaced: { marginBottom: spacing.sm },
   ownerActions: {

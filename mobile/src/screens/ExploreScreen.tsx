@@ -11,12 +11,13 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { resolver } from "../api/resolver";
 import type { NameRecord } from "../api/types";
-import { Badge, Card, Empty, ErrorView, Loading } from "../components/ui";
+import { Badge, Button, Card, Empty, ErrorView, Loading } from "../components/ui";
 import { shortHex, titleCase } from "../format";
 import { useAsync } from "../hooks/useAsync";
 import type { RootNav } from "../navigation/types";
 import { nameStatusTone } from "../status";
 import { colors, radius, spacing } from "../theme";
+import { isValidName } from "../wallet/accumulator";
 
 export default function ExploreScreen() {
   const nav = useNavigation<RootNav>();
@@ -64,7 +65,16 @@ export default function ExploreScreen() {
         contentContainerStyle={styles.listContent}
         keyboardShouldPersistTaps="handled"
         ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
-        ListEmptyComponent={<Empty title="No names match" subtitle="Try a different search." />}
+        ListEmptyComponent={
+          isValidName(query.trim().toLowerCase()) ? (
+            <ClaimSuggestion
+              name={query.trim().toLowerCase()}
+              onPress={() => nav.navigate("Claim", { name: query.trim().toLowerCase() })}
+            />
+          ) : (
+            <Empty title="No names match" subtitle="Try a different search, or type a name to claim it." />
+          )
+        }
         refreshControl={
           <RefreshControl refreshing={names.refreshing} onRefresh={names.refresh} tintColor={colors.accent} />
         }
@@ -89,8 +99,24 @@ function NameRow({ record, onPress }: { record: NameRecord; onPress: () => void 
   );
 }
 
+function ClaimSuggestion({ name, onPress }: { name: string; onPress: () => void }) {
+  return (
+    <Card style={styles.claimCard}>
+      <Text style={styles.claimTitle}>"{name}" isn't claimed yet</Text>
+      <Text style={styles.claimHint}>
+        No name matches your search on the live chain — which means this one is free. Claim it with
+        the flat-gate cheap rail.
+      </Text>
+      <Button title={`Claim ${name}`} onPress={onPress} />
+    </Card>
+  );
+}
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
+  claimCard: { gap: spacing.sm, borderColor: colors.accent },
+  claimTitle: { color: colors.text, fontWeight: "700", fontSize: 16 },
+  claimHint: { color: colors.textMuted, fontSize: 13, lineHeight: 18 },
   header: { paddingHorizontal: spacing.lg, paddingBottom: spacing.sm },
   title: { fontSize: 30, fontWeight: "800", color: colors.text, letterSpacing: -0.5 },
   subtitle: { color: colors.textMuted, marginTop: 2 },
