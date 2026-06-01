@@ -120,6 +120,28 @@ describe("value record store", () => {
     ).toThrow(/invalid predecessor hash/);
   });
 
+  it("returns no value for a fresh ownership interval (a transfer orphans the prior chain)", () => {
+    const prior = signValueRecord({
+      name: "alice",
+      ownerPrivateKeyHex: "11".repeat(32),
+      ownershipRef: "aa".repeat(32),
+      sequence: 1,
+      previousRecordHash: null,
+      valueType: 2,
+      payloadHex: "0011",
+      issuedAt: "2026-04-15T12:00:00.000Z"
+    });
+    const store = parseValueRecordStoreSnapshot({
+      chains: [{ name: "alice", ownershipRef: "aa".repeat(32), records: [prior] }]
+    });
+
+    // After a transfer the name's ownershipRef changes; the new owner's interval
+    // has no value yet, so the current value is null (the prior chain is orphaned).
+    expect(getValueRecordChain(store, "alice", "bb".repeat(32))).toBeNull();
+    // ...while the prior interval's chain is still addressable under its own ref.
+    expect(getValueRecordChain(store, "alice", "aa".repeat(32))?.records).toHaveLength(1);
+  });
+
   it("keeps ownership intervals separate even when the same owner regains the name later", () => {
     const firstInterval = signValueRecord({
       name: "alice",

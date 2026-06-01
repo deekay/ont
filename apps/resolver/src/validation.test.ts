@@ -84,6 +84,21 @@ describe("validateValueRecordSubmission", () => {
     expect(r).toMatchObject({ ok: false, status: 409, body: { error: "stale_sequence", expectedSequence: 2 } });
   });
 
+  it("rejects the losing writer in a concurrent head+1 race", () => {
+    const head = signValue({ sequence: 1 });
+    // Two writers both build seq 2 against head seq 1.
+    const next = signValue({ sequence: 2, previousRecordHash: computeValueRecordHash(head) });
+    expect(validateValueRecordSubmission(next, nameRecord(), head).ok).toBe(true);
+    // Writer A wins and is applied -> head is now seq 2. Writer B's identical seq-2
+    // submission is now stale (expected seq 3).
+    const r = validateValueRecordSubmission(
+      signValue({ sequence: 2, previousRecordHash: computeValueRecordHash(head) }),
+      nameRecord(),
+      next
+    );
+    expect(r).toMatchObject({ ok: false, status: 409, body: { error: "stale_sequence", expectedSequence: 3 } });
+  });
+
   it("rejects a sequence gap (409 sequence_gap)", () => {
     const r = validateValueRecordSubmission(signValue({ sequence: 3 }), nameRecord(), null);
     expect(r).toMatchObject({ ok: false, status: 409, body: { error: "sequence_gap", expectedSequence: 1 } });
