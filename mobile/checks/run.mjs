@@ -14,6 +14,7 @@ const tsx = resolve(repoRoot, "node_modules/.bin/tsx");
 
 const checks = [
   "accumulator",
+  "hd-derivation",
   "claim",
   "value-record",
   "recovery-descriptor",
