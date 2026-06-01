@@ -370,5 +370,5 @@ const styles = StyleSheet.create({
     minHeight: 44,
   },
   inlineError: { color: colors.danger, marginTop: spacing.sm, fontSize: 13 },
-  formActions: { flexDirection: "row", gap: spacing.md, marginTop: spacing.lg },
+  formActions: { gap: spacing.md, marginTop: spacing.lg },
 });

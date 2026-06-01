@@ -190,6 +190,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     minHeight: 48,
+    flexShrink: 1,
   },
   buttonText: { fontSize: 16, fontWeight: "600" },
 });
