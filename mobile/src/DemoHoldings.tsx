@@ -30,16 +30,23 @@ export interface DemoBid {
   readonly leading: boolean;
   readonly at: string;
 }
+export interface DemoTransfer {
+  readonly name: string;
+  readonly newOwnerPubkey: string;
+  readonly at: string;
+}
 
 interface DemoHoldingsValue {
   readonly claims: DemoClaim[];
   readonly values: DemoValue[];
   readonly recoveries: DemoRecovery[];
   readonly bids: DemoBid[];
+  readonly transfers: DemoTransfer[];
   recordClaim: (c: DemoClaim) => void;
   recordValue: (v: DemoValue) => void;
   recordRecovery: (r: DemoRecovery) => void;
   recordBid: (b: DemoBid) => void;
+  recordTransfer: (t: DemoTransfer) => void;
   clear: () => void;
 }
 
@@ -53,21 +60,36 @@ export function DemoHoldingsProvider({ children }: { children: React.ReactNode }
   const [values, setValues] = useState<DemoValue[]>([]);
   const [recoveries, setRecoveries] = useState<DemoRecovery[]>([]);
   const [bids, setBids] = useState<DemoBid[]>([]);
+  const [transfers, setTransfers] = useState<DemoTransfer[]>([]);
 
   const recordClaim = useCallback((c: DemoClaim) => setClaims((l) => prepend(l, c)), []);
   const recordValue = useCallback((v: DemoValue) => setValues((l) => prepend(l, v)), []);
   const recordRecovery = useCallback((r: DemoRecovery) => setRecoveries((l) => prepend(l, r)), []);
   const recordBid = useCallback((b: DemoBid) => setBids((l) => prepend(l, b)), []);
+  const recordTransfer = useCallback((t: DemoTransfer) => setTransfers((l) => prepend(l, t)), []);
   const clear = useCallback(() => {
     setClaims([]);
     setValues([]);
     setRecoveries([]);
     setBids([]);
+    setTransfers([]);
   }, []);
 
   const value = useMemo<DemoHoldingsValue>(
-    () => ({ claims, values, recoveries, bids, recordClaim, recordValue, recordRecovery, recordBid, clear }),
-    [claims, values, recoveries, bids, recordClaim, recordValue, recordRecovery, recordBid, clear],
+    () => ({
+      claims,
+      values,
+      recoveries,
+      bids,
+      transfers,
+      recordClaim,
+      recordValue,
+      recordRecovery,
+      recordBid,
+      recordTransfer,
+      clear,
+    }),
+    [claims, values, recoveries, bids, transfers, recordClaim, recordValue, recordRecovery, recordBid, recordTransfer, clear],
   );
 
   return <DemoHoldingsContext.Provider value={value}>{children}</DemoHoldingsContext.Provider>;

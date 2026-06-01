@@ -241,6 +241,10 @@ export default function WalletScreen() {
           </View>
 
           <View style={{ marginTop: spacing.md }}>
+            <Button title="Transfer a name" variant="secondary" onPress={() => nav.navigate("Transfer")} />
+          </View>
+
+          <View style={{ marginTop: spacing.md }}>
             <Button title="Back up / restore" variant="secondary" onPress={() => nav.navigate("Backup")} />
           </View>
 

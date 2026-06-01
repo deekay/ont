@@ -98,6 +98,7 @@ export default function NameDetailScreen() {
             <View style={styles.ownerButtons}>
               <Button title="Set value" variant="secondary" onPress={() => nav.navigate("SetValue", { name: r.name })} />
               <Button title="Set recovery" variant="secondary" onPress={() => nav.navigate("Recovery", { name: r.name })} />
+              <Button title="Transfer" variant="secondary" onPress={() => nav.navigate("Transfer", { name: r.name })} />
             </View>
           </View>
         ) : null}

@@ -14,6 +14,7 @@ import MyNamesScreen from "../screens/MyNamesScreen";
 import NameDetailScreen from "../screens/NameDetailScreen";
 import RecoveryScreen from "../screens/RecoveryScreen";
 import SetValueScreen from "../screens/SetValueScreen";
+import TransferScreen from "../screens/TransferScreen";
 import WalletScreen from "../screens/WalletScreen";
 import { colors } from "../theme";
 import type { RootStackParamList, TabParamList } from "./types";
@@ -76,6 +77,7 @@ export function RootNavigator() {
         <RootStack.Screen name="Claim" component={ClaimScreen} options={{ title: "Claim a name" }} />
         <RootStack.Screen name="SetValue" component={SetValueScreen} options={{ title: "Set a name's value" }} />
         <RootStack.Screen name="Recovery" component={RecoveryScreen} options={{ title: "Set a recovery wallet" }} />
+        <RootStack.Screen name="Transfer" component={TransferScreen} options={{ title: "Transfer a name" }} />
         <RootStack.Screen name="Backup" component={BackupScreen} options={{ title: "Back up / restore" }} />
         <RootStack.Screen name="MyNames" component={MyNamesScreen} options={{ title: "My ONT" }} />
         <RootStack.Screen name="Deposit" component={DepositScreen} options={{ title: "Deposit" }} />

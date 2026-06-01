@@ -17,6 +17,7 @@ const checks = [
   "hd-derivation",
   "claim",
   "value-record",
+  "transfer",
   "recovery-descriptor",
   "demo-claim",
   "backup",

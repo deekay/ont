@@ -15,6 +15,7 @@ export type RootStackParamList = {
   Claim: { name?: string } | undefined;
   SetValue: { name?: string } | undefined;
   Recovery: { name?: string } | undefined;
+  Transfer: { name?: string } | undefined;
   Backup: undefined;
   MyNames: undefined;
   Deposit: undefined;

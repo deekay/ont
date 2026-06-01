@@ -25,11 +25,11 @@ export default function MyNamesScreen() {
   const insets = useSafeAreaInsets();
   const nav = useNavigation<RootNav>();
   const { wallet, allOwnerPubkeys } = useWallet();
-  const { claims, values, recoveries, bids } = useDemoHoldings();
+  const { claims, values, recoveries, bids, transfers } = useDemoHoldings();
   // Per-name keys: a name is "mine" if its owner matches ANY of my derived keys.
   const ownerPubkeys = allOwnerPubkeys();
   const ownerKeysCsv = ownerPubkeys.join(",").toLowerCase();
-  const demoCount = claims.length + values.length + recoveries.length + bids.length;
+  const demoCount = claims.length + values.length + recoveries.length + bids.length + transfers.length;
 
   const state = useAsync<MyData>(async () => {
     const mine = new Set(ownerPubkeys.map((p) => p.toLowerCase()));
@@ -153,6 +153,15 @@ export default function MyNamesScreen() {
                 <Badge label={b.leading ? "bid · leading" : "bid"} tone={b.leading ? "success" : "neutral"} />
               </View>
               <KV label="Your bid" value={formatAmount(b.bidAmountSats)} />
+            </Card>
+          ))}
+          {transfers.map((t, i) => (
+            <Card key={`t${i}`} style={styles.spaced}>
+              <View style={styles.row}>
+                <Text style={styles.name}>{t.name}</Text>
+                <Badge label="transfer · sent" tone="warn" />
+              </View>
+              <KV label="New owner" value={shortHex(t.newOwnerPubkey, 10, 6)} mono />
             </Card>
           ))}
         </>
