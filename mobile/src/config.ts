@@ -74,3 +74,17 @@ export const NOTICE_WINDOW_BLOCKS = 6;
  * screen; production builds will default this to false.
  */
 export const DEMO_MODE_DEFAULT = true;
+
+/**
+ * Private-signet test faucet. The hosted funding endpoint
+ * (POST { address, amountSats } → sends from the auto-miner wallet and mines a
+ * block) is enabled on the "/ont-private" demo deployment — the public-root
+ * vhost has it off — so we target that path directly. Null on mainnet: there is
+ * no faucet for real bitcoin. Signet coins are worthless test coins, which is
+ * exactly what makes them useful for exercising real on-chain flows.
+ */
+export const FAUCET_URL: string | null =
+  NETWORK === "signet" ? `${ONT_HOST}/ont-private/api/private-signet-fund` : null;
+
+/** Base units requested per faucet tap (₿1,000,000 ≈ $1,000 of signet coins). */
+export const FAUCET_REQUEST_SATS = 1_000_000;

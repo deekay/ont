@@ -1,14 +1,15 @@
 // Deposit / funding — the wallet's funding address (pays on-chain fees + bonds),
-// its live balance, and guidance to send coins. On signet there's no in-app
-// buy; you fund the address from an external wallet or the signet faucet.
+// its live balance, and guidance to send coins. On signet you can tap the test
+// faucet for coins, or send to the address from an external wallet.
 import { useNavigation } from "@react-navigation/native";
-import React from "react";
+import React, { useState } from "react";
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { faucetAvailable, requestTestFunds, type FaucetResult } from "../api/faucet";
 import { chain, type EsploraUtxo } from "../api/resolver";
 import { Badge, Button, Card, Empty, ErrorView, KV, Loading, SectionTitle } from "../components/ui";
 import { NETWORK } from "../config";
-import { formatAmount } from "../format";
+import { formatAmount, shortHex } from "../format";
 import { useAsync } from "../hooks/useAsync";
 import type { RootNav } from "../navigation/types";
 import { colors, font, radius, spacing } from "../theme";
@@ -34,6 +35,25 @@ export default function DepositScreen() {
     return { utxos, total, confirmed };
   }, [address]);
 
+  const [faucetBusy, setFaucetBusy] = useState(false);
+  const [faucetResult, setFaucetResult] = useState<FaucetResult | null>(null);
+  const [faucetError, setFaucetError] = useState<string | null>(null);
+
+  async function requestFunds() {
+    if (!address) return;
+    setFaucetBusy(true);
+    setFaucetError(null);
+    try {
+      const r = await requestTestFunds(address);
+      setFaucetResult(r);
+      funding.refresh();
+    } catch (e) {
+      setFaucetError(e instanceof Error ? e.message : "Faucet request failed.");
+    } finally {
+      setFaucetBusy(false);
+    }
+  }
+
   if (!wallet || !address) {
     return <Empty title="No wallet" subtitle="Create or import a wallet to get a funding address." />;
   }
@@ -55,10 +75,35 @@ export default function DepositScreen() {
           {address}
         </Text>
         <Text style={styles.hint}>
-          Send {NETWORK} coins to this address from any wallet (or the {NETWORK} faucet). The funding key
-          pays on-chain fees and auction bonds; it never holds a Lightning balance.
+          Send {NETWORK} coins to this address from any wallet. The funding key pays on-chain fees and
+          auction bonds; it never holds a Lightning balance.
         </Text>
       </Card>
+
+      {faucetAvailable ? (
+        <>
+          <SectionTitle right={<Badge label={`${NETWORK} · test coins`} tone="warn" />}>Test faucet</SectionTitle>
+          <Card>
+            <Text style={styles.hint}>
+              Get free {NETWORK} test coins sent to this address (and a block mined) so you can
+              exercise real on-chain flows — fees, bonds, value and recovery writes. These are
+              worthless test coins, not real bitcoin.
+            </Text>
+            <View style={{ marginTop: spacing.md }}>
+              <Button title="Request test coins" onPress={requestFunds} loading={faucetBusy} />
+            </View>
+            {faucetResult ? (
+              <View style={styles.faucetOk}>
+                <Text style={styles.faucetOkLabel}>Coins on the way</Text>
+                <KV label="Sent" value={formatAmount(faucetResult.fundedSats)} />
+                <KV label="Funding txid" value={shortHex(faucetResult.txid, 10, 8)} mono />
+                <Text style={styles.hint}>Pull to refresh the balance once the block is seen.</Text>
+              </View>
+            ) : null}
+            {faucetError ? <Text style={styles.faucetErr}>{faucetError}</Text> : null}
+          </Card>
+        </>
+      ) : null}
 
       <SectionTitle>Balance</SectionTitle>
       {funding.loading && !funding.data ? (
@@ -104,4 +149,12 @@ const styles = StyleSheet.create({
   balanceRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: spacing.sm },
   balanceLabel: { color: colors.textMuted, fontSize: 14 },
   balanceValue: { color: colors.text, fontWeight: "800", fontSize: 20 },
+  faucetOk: {
+    marginTop: spacing.md,
+    padding: spacing.md,
+    borderRadius: radius.sm,
+    backgroundColor: colors.successSoft,
+  },
+  faucetOkLabel: { color: colors.success, fontWeight: "700", fontSize: 14, marginBottom: spacing.xs },
+  faucetErr: { color: colors.danger, fontSize: 13, marginTop: spacing.md, lineHeight: 18 },
 });
