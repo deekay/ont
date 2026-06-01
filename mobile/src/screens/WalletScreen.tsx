@@ -1,5 +1,5 @@
 import { useNavigation } from "@react-navigation/native";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   Alert,
   RefreshControl,
@@ -11,6 +11,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useDemoHoldings } from "../DemoHoldings";
 import { useDemoMode } from "../DemoMode";
 import type { RootNav } from "../navigation/types";
 import { resolver, chain, type EsploraUtxo } from "../api/resolver";
@@ -39,6 +40,7 @@ export default function WalletScreen() {
   const nav = useNavigation<RootNav>();
   const { status, wallet, busy, createWallet, importWallet, removeWallet } = useWallet();
   const { demo, setDemo } = useDemoMode();
+  const { claims } = useDemoHoldings();
 
   const infra = useAsync<StatusData>(async () => {
     const [health, config, tip] = await Promise.all([
@@ -61,6 +63,22 @@ export default function WalletScreen() {
     }
     return { utxos, total, confirmed };
   }, [fundingAddress]);
+
+  // The names this single owner key controls (the same key signs for all of them).
+  const ownerKey = wallet?.owner.ownerPubkey ?? null;
+  const controlled = useAsync<string[]>(async () => {
+    if (!ownerKey) return [];
+    const res = await resolver.names();
+    const key = ownerKey.toLowerCase();
+    return res.names
+      .filter((n) => (n.currentOwnerPubkey ?? "").toLowerCase() === key)
+      .map((n) => n.name);
+  }, [ownerKey]);
+  const controlledNames = useMemo(() => {
+    const set = new Set<string>(controlled.data ?? []);
+    if (demo) for (const c of claims) set.add(c.name);
+    return [...set].sort();
+  }, [controlled.data, demo, claims]);
 
   // Import form + secret reveal state.
   const [mode, setMode] = useState<"view" | "import">("view");
@@ -128,10 +146,27 @@ export default function WalletScreen() {
 
           <Card>
             <Text style={styles.cardLabel}>Owner key · x-only Schnorr</Text>
-            <Text style={styles.cardHint}>Controls the name. Signs ownership events.</Text>
+            <Text style={styles.cardHint}>
+              Your single identity key — every name you claim is committed to it, and it signs all
+              ownership events.
+            </Text>
             <Text selectable style={styles.monoBlock}>
               {wallet.owner.ownerPubkey}
             </Text>
+            <View style={styles.controlsBox}>
+              <Text style={styles.controlsLabel}>
+                Names under this key
+                {controlledNames.length > 0 ? ` · ${controlledNames.length}` : ""}
+              </Text>
+              <Text style={styles.cardHint}>
+                {controlled.loading && !controlled.data
+                  ? "Checking…"
+                  : controlledNames.length === 0
+                    ? "None yet — claim a name and it's committed to this key."
+                    : controlledNames.slice(0, 8).join(", ") +
+                      (controlledNames.length > 8 ? `, +${controlledNames.length - 8} more` : "")}
+              </Text>
+            </View>
             <View style={styles.revealRow}>
               <Button
                 title={revealOwner ? "Hide secret key" : "Reveal secret key"}
@@ -341,6 +376,13 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   revealRow: { marginTop: spacing.md },
+  controlsBox: {
+    marginTop: spacing.md,
+    paddingTop: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+  },
+  controlsLabel: { color: colors.text, fontWeight: "700", fontSize: 13, marginBottom: 2 },
   secretBox: {
     marginTop: spacing.md,
     padding: spacing.md,
