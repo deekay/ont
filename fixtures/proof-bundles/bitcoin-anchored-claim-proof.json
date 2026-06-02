@@ -1,0 +1,45 @@
+{
+  "format": "ont-proof-bundle",
+  "bundleVersion": 0,
+  "status": "test-fixture-real-bitcoin-anchor",
+  "proofSource": "accumulator_batch_claim",
+  "assuranceTier": "accumulator-batched",
+  "verificationGoal": "Verify that alice's accumulator claim is anchored in Bitcoin: the cited batch anchor transaction is Merkle-committed by a real block header with valid proof-of-work. The anchor is Bitcoin mainnet block 170's payment transaction (used only as a real, immutable inclusion-proof sample).",
+  "name": "alice",
+  "normalizedName": "alice",
+  "createdAt": "2026-06-01T00:00:00.000Z",
+  "ownershipProof": {
+    "currentOwnerPubkey": "2222222222222222222222222222222222222222222222222222222222222222",
+    "ownershipRef": "accumulator-leaf:alice"
+  },
+  "accumulatorProof": {
+    "root": "4444444444444444444444444444444444444444444444444444444444444444",
+    "leaf": "2bd806c97f0e00af1a1fc3328fa763a9269723c8db8fac4f93af71db186d6e90",
+    "value": "3333333333333333333333333333333333333333333333333333333333333333",
+    "siblings": [
+      {
+        "level": 12,
+        "hash": "5555555555555555555555555555555555555555555555555555555555555555"
+      },
+      {
+        "level": 9,
+        "hash": "6666666666666666666666666666666666666666666666666666666666666666"
+      }
+    ]
+  },
+  "batchAnchor": {
+    "anchorTxid": "f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16",
+    "anchorHeight": 170
+  },
+  "bitcoinInclusion": {
+    "anchors": [
+      {
+        "txid": "f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16",
+        "height": 170,
+        "blockHeaderHex": "0100000055bd840a78798ad0da853f68974f3d183e2bd1db6a842c1feecf222a00000000ff104ccb05421ab93e63f8c3ce5c2c2e9dbb37de2764b3a3175c8166562cac7d51b96a49ffff001d283e9e70",
+        "merkle": ["b1fea52486ce0c62bb442b530a3f0132b826c74e473d1f2c220bfa78111c5082"],
+        "pos": 1
+      }
+    ]
+  }
+}

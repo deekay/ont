@@ -141,6 +141,250 @@ export function verifyProofBundle(input: unknown): ProofBundleVerificationReport
   return verifyProofBundleStructure(input);
 }
 
+// --- Bitcoin inclusion verification ---------------------------------------
+// The structural verifier above proves a bundle is self-consistent. This second
+// level proves the bundle's claims are actually anchored in Bitcoin: every cited
+// anchor transaction is committed by a block header (Merkle inclusion) and that
+// header carries the proof-of-work its own difficulty target demands. With an
+// optional header source it also confirms the header is the one on the caller's
+// canonical chain at the claimed height (so a valid-PoW-but-off-chain header
+// can't be substituted). All hashing uses the protocol's SHA-256 primitive.
+
+/** A block header the caller trusts to be on the canonical chain at `height`. */
+export interface BitcoinHeaderSource {
+  /** Canonical 80-byte block header (hex) at `height`, or null if unknown. */
+  headerHexAtHeight(height: number): string | null;
+}
+
+/** One cited anchor with its Bitcoin inclusion proof. */
+export interface BitcoinAnchorInclusion {
+  readonly txid: string;
+  readonly height: number;
+  readonly blockHeaderHex: string;
+  /** Merkle siblings (display/big-endian hex), as esplora /merkle-proof returns. */
+  readonly merkle: readonly string[];
+  /** Transaction index within the block (Merkle path direction). */
+  readonly pos: number;
+}
+
+function doubleSha256(bytes: Uint8Array): Uint8Array {
+  return sha256Bytes(sha256Bytes(bytes));
+}
+
+function hexToBytesOrNull(hex: unknown): Uint8Array | null {
+  if (typeof hex !== "string" || hex.length % 2 !== 0 || !/^[0-9a-fA-F]*$/.test(hex)) {
+    return null;
+  }
+  const out = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < out.length; i += 1) {
+    out[i] = Number.parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+  }
+  return out;
+}
+
+function reversed(bytes: Uint8Array): Uint8Array {
+  const out = new Uint8Array(bytes.length);
+  for (let i = 0; i < bytes.length; i += 1) {
+    out[i] = bytes[bytes.length - 1 - i] as number;
+  }
+  return out;
+}
+
+function bytesToHex(bytes: Uint8Array): string {
+  let hex = "";
+  for (const byte of bytes) {
+    hex += byte.toString(16).padStart(2, "0");
+  }
+  return hex;
+}
+
+/** Compact nBits → 256-bit target. */
+function bitsToTarget(bits: number): bigint {
+  const exponent = bits >>> 24;
+  const mantissa = BigInt(bits & 0x007fffff);
+  if (exponent <= 3) {
+    return mantissa >> (8n * BigInt(3 - exponent));
+  }
+  return mantissa << (8n * BigInt(exponent - 3));
+}
+
+/** True if doubleSHA256(header) ≤ the target encoded in the header's nBits. */
+function headerMeetsTarget(header: Uint8Array): boolean {
+  if (header.length !== 80) {
+    return false;
+  }
+  const bits =
+    (header[72] as number) |
+    ((header[73] as number) << 8) |
+    ((header[74] as number) << 16) |
+    ((header[75] as number) << 24);
+  const target = bitsToTarget(bits >>> 0);
+  // Block hash is little-endian internally; its numeric value is the big-endian
+  // reading, i.e. the reversed bytes.
+  const hashValue = BigInt("0x" + bytesToHex(reversed(doubleSha256(header))));
+  return target > 0n && hashValue <= target;
+}
+
+/** Recompute the Merkle root (internal byte order) from a txid + sibling path. */
+function merkleRootFromProof(
+  txidDisplayHex: string,
+  siblingsDisplayHex: readonly string[],
+  pos: number,
+): Uint8Array | null {
+  const txid = hexToBytesOrNull(txidDisplayHex);
+  if (txid === null || txid.length !== 32) {
+    return null;
+  }
+  let acc = reversed(txid); // display → internal order
+  let index = pos;
+  for (const siblingHex of siblingsDisplayHex) {
+    const siblingBytes = hexToBytesOrNull(siblingHex);
+    if (siblingBytes === null || siblingBytes.length !== 32) {
+      return null;
+    }
+    const sibling = reversed(siblingBytes);
+    acc =
+      (index & 1) === 1
+        ? doubleSha256(concatBytes(sibling, acc))
+        : doubleSha256(concatBytes(acc, sibling));
+    index >>= 1;
+  }
+  return acc;
+}
+
+function parseAnchorInclusions(bundle: JsonRecord): BitcoinAnchorInclusion[] {
+  const section = getRecord(bundle, "bitcoinInclusion");
+  const anchors = getRecordArray(section, "anchors");
+  const parsed: BitcoinAnchorInclusion[] = [];
+  for (const anchor of anchors) {
+    const txid = getString(anchor, "txid");
+    const height = getNumber(anchor, "height");
+    const blockHeaderHex = getString(anchor, "blockHeaderHex");
+    const pos = getNumber(anchor, "pos");
+    const merkleField = getField(anchor, "merkle");
+    const merkle = Array.isArray(merkleField)
+      ? merkleField.filter((value): value is string => typeof value === "string")
+      : [];
+    if (txid !== null && height !== null && blockHeaderHex !== null && pos !== null) {
+      parsed.push({ txid, height, blockHeaderHex, merkle, pos });
+    }
+  }
+  return parsed;
+}
+
+/** The on-chain anchor txid(s) a bundle's ownership claim depends on, by source. */
+function citedAnchorTxids(bundle: JsonRecord, proofSource: string): string[] {
+  if (proofSource === "accumulator_batch_claim") {
+    const txid = getString(getRecord(bundle, "batchAnchor"), "anchorTxid");
+    return txid === null ? [] : [txid];
+  }
+  if (proofSource === "bitcoin_l1_direct_auction") {
+    const outpoint = getRecord(getRecord(bundle, "settlementProof"), "currentBondOutpoint");
+    const txid = getString(outpoint, "txid");
+    return txid === null ? [] : [txid];
+  }
+  return [];
+}
+
+/**
+ * Verify a proof bundle AGAINST Bitcoin. Runs the structural verifier first,
+ * then proves every cited anchor transaction is Merkle-committed by a block
+ * header carrying valid proof-of-work. Pass `options.headerSource` to also pin
+ * each header to the canonical chain at its claimed height. The report's `valid`
+ * is true only when structure passes AND every cited anchor is Bitcoin-verified.
+ */
+export function verifyProofBundleAgainstBitcoin(
+  input: unknown,
+  options: { readonly headerSource?: BitcoinHeaderSource } = {},
+): ProofBundleVerificationReport {
+  const structural = verifyProofBundleStructure(input);
+  const checks: ProofBundleVerificationCheck[] = [...structural.checks];
+  const addCheck = (id: string, condition: boolean, message: string): void => {
+    checks.push({ id, status: condition ? "passed" : "failed", message });
+  };
+
+  const bundle = isRecord(input) ? input : {};
+  const proofSource = structural.proofSource;
+  const inclusions = parseAnchorInclusions(bundle);
+  const cited = proofSource === "unknown" ? [] : citedAnchorTxids(bundle, proofSource);
+
+  addCheck(
+    "btc.inclusion.present",
+    inclusions.length > 0,
+    "bundle carries Bitcoin inclusion proofs (bitcoinInclusion.anchors)",
+  );
+  addCheck(
+    "btc.cited.present",
+    cited.length > 0,
+    "bundle cites at least one on-chain anchor transaction to verify",
+  );
+
+  const verifiedTxids = new Set<string>();
+  for (const [index, anchor] of inclusions.entries()) {
+    const header = hexToBytesOrNull(anchor.blockHeaderHex);
+    const headerOk = header !== null && header.length === 80;
+    addCheck(`btc.${index}.header`, headerOk, `anchor ${index + 1} block header is 80 bytes`);
+
+    const powOk = headerOk && headerMeetsTarget(header as Uint8Array);
+    addCheck(`btc.${index}.pow`, powOk, `anchor ${index + 1} header meets its proof-of-work target`);
+
+    const computedRoot = merkleRootFromProof(anchor.txid, anchor.merkle, anchor.pos);
+    const headerRoot = headerOk ? (header as Uint8Array).slice(36, 68) : null;
+    const inclusionOk =
+      computedRoot !== null &&
+      headerRoot !== null &&
+      bytesToHex(computedRoot) === bytesToHex(headerRoot);
+    addCheck(
+      `btc.${index}.inclusion`,
+      inclusionOk,
+      `anchor ${index + 1} transaction is Merkle-committed by its block header`,
+    );
+
+    let chainOk = true;
+    if (options.headerSource) {
+      const canonical = options.headerSource.headerHexAtHeight(anchor.height);
+      chainOk = canonical !== null && canonical.toLowerCase() === anchor.blockHeaderHex.toLowerCase();
+      addCheck(
+        `btc.${index}.chain`,
+        chainOk,
+        `anchor ${index + 1} header is the canonical chain header at height ${anchor.height}`,
+      );
+    }
+
+    if (headerOk && powOk && inclusionOk && chainOk) {
+      verifiedTxids.add(anchor.txid.toLowerCase());
+    }
+  }
+
+  for (const [index, txid] of cited.entries()) {
+    addCheck(
+      `btc.cited.${index}.verified`,
+      verifiedTxids.has(txid.toLowerCase()),
+      `cited anchor ${txid.slice(0, 12)}… has a verified Bitcoin inclusion proof`,
+    );
+  }
+
+  const passedCheckCount = checks.filter((check) => check.status === "passed").length;
+  const failedCheckCount = checks.length - passedCheckCount;
+  const anchored = options.headerSource ? "anchored to the supplied chain" : "Merkle/PoW-verified";
+  const summary =
+    failedCheckCount === 0
+      ? `${proofSource} proof bundle for ${structural.normalizedName || structural.name || "(unknown)"} passed all ${passedCheckCount} checks (${anchored}).`
+      : `${proofSource} proof bundle for ${structural.normalizedName || structural.name || "(unknown)"} failed ${failedCheckCount} of ${checks.length} checks against Bitcoin.`;
+
+  return {
+    valid: failedCheckCount === 0,
+    proofSource,
+    name: structural.name,
+    normalizedName: structural.normalizedName,
+    assuranceTier: structural.assuranceTier,
+    passedCheckCount,
+    failedCheckCount,
+    checks,
+    summary,
+  };
+}
+
 function validateDirectL1AuctionBundle(input: {
   readonly bundle: JsonRecord;
   readonly addCheck: (id: string, condition: boolean, message: string) => void;

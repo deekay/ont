@@ -554,13 +554,22 @@ Goal: make the trust story true in software, not only in prose.
 
 Actions:
 
-1. Rename current verifier to structural verification.
-2. Add Bitcoin inclusion/header verification path.
-3. Remove or quarantine Ark/RGB experimental proof sources from the core verifier.
-4. Add canonical bundles for current direct auction, transfers, value records, and
-   accumulator claims.
+1. ✅ Rename current verifier to structural verification (`verifyProofBundleStructure`,
+   with a deprecated `verifyProofBundle` alias). The report now says a pass means
+   "well-formed and self-consistent", not "settled on Bitcoin".
+2. ✅ Add a Bitcoin inclusion/header verification path
+   (`verifyProofBundleAgainstBitcoin`): verifies each cited anchor transaction is
+   Merkle-committed by a block header carrying valid proof-of-work, with an optional
+   `BitcoinHeaderSource` to pin the header to the canonical chain at its claimed
+   height. Bundles carry a `bitcoinInclusion` section; tested against a real Bitcoin
+   block header + Merkle branch.
+3. ✅ Removed the Ark/RGB experimental proof sources from the core verifier entirely
+   (they were never the launch path; the frozen sovereignty core stays auditable).
+4. Still to do: define/emit canonical bundles for current direct auction, transfers,
+   value records, and accumulator claims (the wallet/resolver should produce bundles
+   that carry the `bitcoinInclusion` proofs the new verifier consumes).
 
-Payoff: very high. Effort: medium-high.
+Payoff: very high. Effort: medium-high. Steps 1–3 done; step 4 remains.
 
 ### Phase 5: Simplify auction surfaces
 
