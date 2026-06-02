@@ -6,7 +6,6 @@ import {
   AUCTION_BID_FIXED_PAYLOAD_LENGTH,
   AUCTION_BOND_FLOOR_SATS,
   BOND_MATURITY_BLOCKS,
-  BOND_FLOOR_SATS,
   computeAuctionBidderCommitment,
   computeAuctionBidStateCommitment,
   computeAuctionLotCommitment,
@@ -28,10 +27,6 @@ import {
   encodeTransferBody,
   encodeTransferPayload,
   getBondSats,
-  getEpochIndex,
-  getMaturityBlocks,
-  INITIAL_MATURITY_BLOCKS,
-  MIN_MATURITY_BLOCKS,
   normalizeName,
   OntEventType,
   parseSignedRecoveryDescriptor,
@@ -75,21 +70,12 @@ describe("bond and maturity helpers", () => {
   });
 
   it("holds the configured floor for long names", () => {
-    expect(BOND_FLOOR_SATS).toBe(AUCTION_BOND_FLOOR_SATS);
     expect(getBondSats(12)).toBe(AUCTION_BOND_FLOOR_SATS);
     expect(getBondSats(32)).toBe(AUCTION_BOND_FLOOR_SATS);
   });
 
-  it("exposes fixed current constants separately from legacy epoch helpers", () => {
+  it("exposes the fixed current bonded-name maturity", () => {
     expect(BOND_MATURITY_BLOCKS).toBe(52_560);
-    expect(BOND_MATURITY_BLOCKS).not.toBe(INITIAL_MATURITY_BLOCKS);
-  });
-
-  it("keeps legacy epoch maturity helpers quarantined for compatibility", () => {
-    expect(getMaturityBlocks(0)).toBe(INITIAL_MATURITY_BLOCKS);
-    expect(getMaturityBlocks(1)).toBe(26_000);
-    expect(getMaturityBlocks(4)).toBe(MIN_MATURITY_BLOCKS);
-    expect(getEpochIndex(552_000, 500_000)).toBe(1);
   });
 });
 
