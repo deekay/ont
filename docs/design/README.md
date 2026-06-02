@@ -72,7 +72,7 @@ that were superseded or set aside. Don't treat them as the live spec.
   `PUBLIC_NOTICE_RELAY_AND_RESOLVER_TRANSPARENCY.md`.
 - **Early scaling survey:** `SCALING_IDEA_CATALOG.md`, `SCALING_DESIGN_SPACE.md`,
   `SCALABILITY_INVESTIGATION_AND_HYPOTHESES.md`, `ONT_SCALING_EXPLORATIONS.md`.
-- **Earlier review/brief + renders:** `ONT_DESIGN_REVIEW_BRIEF.md`, `PROOF_BUNDLE_PROTOTYPES.md`,
+- **Earlier review/brief + renders:** `ONT_DESIGN_REVIEW_BRIEF.md`,
   `subname-sovereignty-paths.html` / `.pdf`.
 
 *This index reflects current understanding; a doc may be reclassified as the design firms up. Where a

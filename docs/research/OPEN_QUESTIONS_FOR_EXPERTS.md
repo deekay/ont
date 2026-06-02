@@ -42,8 +42,7 @@ endpoints* to support PTLCs, not the whole network, which could be the differenc
 
 **Why it matters:** the plan is to build the ONT client layer on top of a non-custodial,
 always-online, programmable LN node (Lexe is the reference shape) rather than a wallet from scratch —
-build-on-top + upstream PRs, not a fork. See
-[`ONT_WALLET_AND_ONBOARDING_DIRECTION.md`](./ONT_WALLET_AND_ONBOARDING_DIRECTION.md).
+build-on-top + upstream PRs, not a fork.
 
 1. Does the SDK/sidecar expose **conditional payments / adaptor signatures bound to an external
    on-chain event** today? If not, would you take it as an upstream contribution? (decides

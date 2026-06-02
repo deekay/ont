@@ -15,7 +15,9 @@ references worth keeping:
 - [CONTESTED_AUCTION_REFERENCE.md](./CONTESTED_AUCTION_REFERENCE.md) — the contested-auction path
 - [ONT_IMPLEMENTATION_AND_VALIDATION.md](./ONT_IMPLEMENTATION_AND_VALIDATION.md) — what's built + validated
 - [ONT_PARAMETER_REVIEW_PACKET.md](./ONT_PARAMETER_REVIEW_PACKET.md) — the parameter decisions
-- `AUCTION_*` — auction mechanism working notes
+- [AUCTION_SETTLEMENT_AND_OWNERSHIP.md](./AUCTION_SETTLEMENT_AND_OWNERSHIP.md) — settlement + ownership rules
+- [AUCTION_PLACEHOLDERS_AND_MECHANISM_CHOICES.md](./AUCTION_PLACEHOLDERS_AND_MECHANISM_CHOICES.md) — real design choices vs. placeholder numbers
+- [PRELAUNCH_SCALING_CONFIDENCE_PLAN.md](./PRELAUNCH_SCALING_CONFIDENCE_PLAN.md) — what v1 must preserve for future scaling
 
 The older `BITCOIN_EXPERT_*` / `BITCOIN_REVIEW_*` review packets and the earlier one-pagers
 have been **superseded by the two canonical docs above** and moved to

@@ -14,6 +14,9 @@ lexebot-*.tar.gz.sha256
 coverage
 *.log
 COMMERCIAL_IDEAS.md
+# Local agent config + internal working status logs (kept local, not public)
+CODEX.md
+docs/status/
 
 # Local narration/audio scratch artifacts
 /audio_compressed.mp3

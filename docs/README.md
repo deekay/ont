@@ -44,9 +44,9 @@ How to run the prototype and demos — not conceptual reading.
 
 ## Notes & explorations (`docs/research/`)
 
-- **`docs/research/`** — secondary notes not part of the core design: product/strategy/messaging
-  (`NARRATIVE_FRAMEWORK`, `USE_CASE_SCENES`, `NOSTR_STRATEGY`, …), forward-looking ideas
-  (`POST_QUANTUM_AND_SIGNATURE_AGILITY`, `FUTURE_EXPLORATIONS`), and assorted design notes.
+- **`docs/research/`** — the design & security depth behind the core docs: adversarial
+  analysis, data-availability, multi-publisher convergence, recovery specs, prior-art
+  (`ONT_VS_PUBKY_PKARR`), post-quantum, and the open questions for experts.
 - **[research/archive/](./research/archive/)** — **superseded explorations**, isolated and kept only for provenance
   (sponsor credits, Ark/RGB, the "open collider" / public-log passes, the early scaling survey, and
   retired launch paths).
