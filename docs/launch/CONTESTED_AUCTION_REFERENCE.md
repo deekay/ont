@@ -86,7 +86,7 @@ every name: a short random string may be worth less than a longer obvious brand,
 handle, or word.
 
 Length can still be used as an objective opening or bond floor for structurally
-scarce names, but it should be kept separate from the 1,000 sat claim gate:
+scarce names, but it should be kept separate from the ₿1,000 claim gate:
 
 - claim gate: sunk fee paid to miners for a claim attempt
 - auction bond: returnable bitcoin capital posted by bidders

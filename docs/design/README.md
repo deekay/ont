@@ -5,7 +5,7 @@
 > explorations we did *not* pursue live in `../research/` (historical, not the design).
 
 The system, restated for this folder: ONT is one flat namespace. You claim a name by paying a small
-**fixed bitcoin amount (1,000 sats ≈ $1) to miners**; if no one else claims it during a notice window it's yours
+**fixed bitcoin amount (₿1,000 ≈ $1) to miners**; if no one else claims it during a notice window it's yours
 (cheap, batched into a Bitcoin-anchored accumulator); if it's contested it **escalates to an L1 bonded
 auction**. Either way you get a globally unique name controlled by an owner key, verifiable against
 Bitcoin — no registrar, no token, no rent.

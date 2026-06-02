@@ -85,7 +85,7 @@ The first 5–8 character names have no minimum price and rely on competition to
 launch is quiet, an early mover can sweep up the good ones cheaply.
 
 > **Example:** Before anyone's paying attention, one person registers `pizza`, `hotel`, `coffee`
-> and hundreds more for 1,000 sats (~$1) each, then resells them.
+> and hundreds more for ₿1,000 (~$1) each, then resells them.
 
 **Where it stands:** mitigated by a loud, scheduled launch and the fact that the resale market
 reprices names anyway — but it's a bet on attention at launch.
@@ -93,7 +93,7 @@ reprices names anyway — but it's a bet on attention at launch.
 ### Slow hoarding over time — ✅ *largely handled* (R10)
 Someone patiently buying up medium-value names at the floor price.
 
-> **Example:** A squatter quietly registers a few hundred plausible names a month for 1,000 sats (~$1) each.
+> **Example:** A squatter quietly registers a few hundred plausible names a month for ₿1,000 (~$1) each.
 
 **Where it stands:** accepted as bounded — the cost adds up in a straight line and each name is
 low-value, so there's no cheap corner to exploit.
@@ -278,7 +278,7 @@ on-chain. Recommended, not yet decided or spelled out. (Full analysis in
 Fees and floors are fixed *amounts of bitcoin*. As Bitcoin's price moves, the real-world cost — and
 therefore how well it deters spam and squatters — drifts.
 
-> **Example:** A 1,000 sats floor that feels like ~$1 today could effectively become $4 if Bitcoin
+> **Example:** A ₿1,000 floor that feels like ~$1 today could effectively become $4 if Bitcoin
 > quadruples, or 25¢ if it crashes — changing how much friction it provides.
 
 **Where it stands:** decide whether that drift is acceptable, or whether to add a neutral way to

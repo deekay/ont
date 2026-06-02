@@ -53,7 +53,7 @@ try to automate every case.
 | --- | --- | --- | --- |
 | No bid exists | No auction exists; no owner exists. | Covered | Simulator and UI empty states cover the shape. |
 | Underfloor opening attempt | Does not open the auction. | Covered | Underfloor bids remain rejected and name is still awaiting opening. |
-| Exact-floor opening bid | Opens the auction and becomes leader. | Covered | Core simulator covers exact floor paired with one-sat-below rejection. |
+| Exact-floor opening bid | Opens the auction and becomes leader. | Covered | Core simulator covers exact floor paired with ₿1-below rejection. |
 | Above-floor opening bid | Opens the auction and becomes leader at the higher amount. | Covered | Existing opening/auction discovery tests cover this. |
 | Opening before unlock / before release anchor | Rejected as too early. | Covered | Legacy/simulator unlock path covers `before_unlock`. |
 | Opening after current unlock / release anchor | Accepted if otherwise valid. | Partial | Covered for ordinary opening and correct reauction; exact boundary should be explicit. |
@@ -75,7 +75,7 @@ try to automate every case.
 | --- | --- | --- | --- |
 | One accepted bid only | Auction is live until close; opener leads. | Covered | Opening bid materialization and live states are covered. |
 | Second bid below required increment | Rejected; leader unchanged. | Covered | Simulator covers below-minimum increment. |
-| Second bid exactly at next valid bid | Accepted; second bidder leads. | Covered | Core simulator pairs exact-minimum acceptance with one-sat-below rejection. |
+| Second bid exactly at next valid bid | Accepted; second bidder leads. | Covered | Core simulator pairs exact-minimum acceptance with ₿1-below rejection. |
 | Second bid above next valid bid | Accepted; second bidder leads. | Covered | Existing multi-bid tests cover this. |
 | Third bid below next valid bid | Rejected; leader unchanged. | Covered | Covered in simulator / stale state variants. |
 | Third bid exactly at next valid bid | Accepted; third bidder leads. | Covered | Core simulator covers chained exact-minimum rebids. |
@@ -83,7 +83,7 @@ try to automate every case.
 | Normal increment uses percentage when percentage is larger | Next valid bid is percentage-rounded-up amount. | Covered | Existing policy tests cover percentage path. |
 | Percentage increment rounding | Rounds up so fractional base-unit requirements cannot be bypassed. | Covered | Core policy test checks rounded-up normal and soft-close increments. |
 | Bid amount is one base unit below required minimum | Rejected. | Covered | Underfloor and increment failures exist; exact one-unit boundary should be explicit. |
-| Bid amount equals required minimum | Accepted. | Covered | Paired with the one-sat-below boundary in core simulator tests. |
+| Bid amount equals required minimum | Accepted. | Covered | Paired with the ₿1-below boundary in core simulator tests. |
 | Bid uses old package after another bid confirmed | Rejected as stale state commitment. | Covered | This is covered and should remain front-and-center in UI copy. |
 | Bid references current state but wrong current leader commitment | Rejected as stale or inconsistent state commitment. | Needs coverage | Good adversarial package case. |
 | Bid with wrong bond maturity duration | Rejected. | Covered | Maturity-duration mismatch is covered. |
@@ -107,7 +107,7 @@ try to automate every case.
 | --- | --- | --- | --- |
 | Bid before soft-close window | Accepted if increment clears; close is not extended. | Partial | Covered indirectly by live bidding; exact no-extension boundary should be explicit. |
 | Bid at first block of soft-close window | Accepted if increment clears; close extends. | Covered | Core simulator covers the inclusive first-soft-close block. |
-| Bid in soft-close window below soft-close increment | Rejected; close not extended. | Covered | Core simulator covers one-sat-below soft-close rejection. |
+| Bid in soft-close window below soft-close increment | Rejected; close not extended. | Covered | Core simulator covers ₿1-below soft-close rejection. |
 | Bid in soft-close window exactly at soft-close increment | Accepted; close extends. | Covered | Core simulator covers exact soft-close minimum acceptance. |
 | Bid in soft-close window above soft-close increment | Accepted; close extends. | Covered | Soft-close extension tests cover this generally. |
 | Bid at previous close block | Accepted or rejected according to explicit inclusive/exclusive rule. | Covered | Core simulator covers a bid at the close boundary as accepted, with the following block rejected. |

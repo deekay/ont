@@ -55,11 +55,11 @@ recomputing.
 ### 1.1 Launch capture — a whale claims the top N names before anyone is watching
 
 The flagship threat. One actor with ₿-denominated patience pays the flat
-1,000 sats gate on the top 100,000 brands/handles in the opening days, betting
+₿1,000 gate on the top 100,000 brands/handles in the opening days, betting
 that the real owners are not watching and do not have coin out of cold storage
 to contest in time.
 
-- **Cost to attacker:** 1,000 sats per name (to miners) × N. Cheap by design — the
+- **Cost to attacker:** ₿1,000 per name (to miners) × N. Cheap by design — the
   gate is anti-spam, not a price signal.
 - **Defense today:** the notice/contest window. A cheap claim is *provisional*,
   not owned (`feb653a` made the wallet honest about this; `batch-rail.ts`
@@ -84,10 +84,10 @@ distinct in-window claimants escalates). So one actor can anchor a second
 claim for a victim's name under a throwaway id and force the name out of the
 cheap path into the bonded auction.
 
-- **Cost to attacker:** one extra 1,000 sats gate per griefed name, *plus* — and
+- **Cost to attacker:** one extra ₿1,000 gate per griefed name, *plus* — and
   this is the saving grace — they then have to actually post a bond and win the
   auction to take the name. Forcing the auction is not a steal; it converts a
-  1,000 sats grief into "now we both bid." This is encoded as a documenting test
+  ₿1,000 grief into "now we both bid." This is encoded as a documenting test
   in `batch-rail.test.ts` ("escalation keys on distinct delta ids, so a Sybil
   claimant can force a provisional name to L1").
 - **Defense today:** the cost asymmetry (the griefer pays the gate and gains
@@ -216,7 +216,7 @@ proof.
 - **Defense today:** the payment is for a *gate*, and the client verifies
   inclusion against Bitcoin. A publisher that takes payment and does not anchor
   produces no inclusion proof, so the client knows it did not get what it paid
-  for and does not record ownership. The harm is a lost 1,000 sats gate, not a lost
+  for and does not record ownership. The harm is a lost ₿1,000 gate, not a lost
   name.
 - **Residual gap:** no automatic refund path for "paid but never anchored"
   beyond the per-leaf detection above; recourse is "stop using that publisher."
@@ -354,7 +354,7 @@ Why it is hard:
 - Capture is most valuable and least observed at launch (1.1).
 - Every market-derived "readiness" signal is adversary-controlled when the
   adversary is the only one with capital deployed (philosophy note, Principle 2).
-- The cheap gate (1,000 sats) is deliberately not a price signal, so it does not
+- The cheap gate (₿1,000) is deliberately not a price signal, so it does not
   ration scarce premium names — it is anti-spam, not an allocator.
 
 Levers that exist or are proposed (none individually sufficient):

@@ -620,7 +620,7 @@ function renderHomeNeutralitySection(): string {
       <article class="path-card">
         <p class="path-card-kicker">No gatekeeper</p>
         <h3>No registrar, token, or rent</h3>
-        <p>There is no company that grants names and no token you must hold. A name opens at a flat 1,000-sat (~$1) claim; Bitcoin records who owns it. opennametags.org is just one optional window onto that &mdash; it can't approve, censor, or charge you.</p>
+        <p>There is no company that grants names and no token you must hold. A name opens at a flat ₿1,000 (~$1) claim; Bitcoin records who owns it. opennametags.org is just one optional window onto that &mdash; it can't approve, censor, or charge you.</p>
       </article>
       <article class="path-card">
         <p class="path-card-kicker">Frozen + auditable</p>
@@ -696,7 +696,7 @@ function renderHomeModelSection(): string {
           <p><span>name</span><strong class="mono">alice</strong></p>
           <p><span>claim</span><strong>uncontested</strong></p>
           <p><span>owner</span><strong class="mono">8f3c...12ab</strong></p>
-          <p><span>cost</span><strong>1,000 sats (~$1)</strong></p>
+          <p><span>cost</span><strong>₿1,000 (~$1)</strong></p>
         </div>
       </article>
       <div class="protocol-flow-arrow" aria-hidden="true"></div>
@@ -814,7 +814,7 @@ function renderHomeDocsSection(): string {
       <article class="guide-card">
         <h3>Still Prototype</h3>
         <ul class="guide-list">
-          <li>The cheap uncontested 1,000-sat (~$1) claim path is designed and measured, but not live here yet; claiming in this demo runs the bonded/contested path end-to-end.</li>
+          <li>The cheap uncontested ₿1,000 (~$1) claim path is designed and measured, but not live here yet; claiming in this demo runs the bonded/contested path end-to-end.</li>
           <li>Transfers still rely on external signer and CLI steps.</li>
           <li>Resolver availability is only partly decentralized in v1.</li>
           <li>The one-path claim flow is partly prototyped and still not mainnet-ready.</li>

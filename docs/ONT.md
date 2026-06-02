@@ -36,7 +36,7 @@ only thing that can move a name.
 
 **Claiming a name — one path.** There's a single way in, and it only branches if a name is contested:
 
-1. **Claim it.** Pay a small fixed amount of bitcoin — **1,000 sats (~$1)**, as a fee to Bitcoin miners —
+1. **Claim it.** Pay a small fixed amount of bitcoin — **₿1,000 (~$1)**, as a fee to Bitcoin miners —
    to claim the name you want. (A few thousand obviously-scarce names, like very short ones, start
    higher.)
 2. **A short notice window opens.** If no one else claims the same name during it, the name is simply
@@ -67,8 +67,8 @@ never be turned into a way for someone else to take your name.
 
 **Why it costs a little.** The small claim cost keeps spam and squatting expensive without charging
 rent. It's paid to Bitcoin miners, so it strengthens Bitcoin's security rather than enriching the
-project. The amount is **fixed in bitcoin** — **1,000 sats**, meaning 1,000 bitcoin base units
-(0.00001 BTC), about $1 at present. (The sat amount is the protocol truth; the
+project. The amount is **fixed in bitcoin** — **₿1,000**, meaning 1,000 bitcoin base units
+(0.00001 BTC), about $1 at present. (The ₿ amount is the protocol truth; the
 `~$` is just a casual helper that drifts.) It is *not* pegged to a dollar, which
 would require a trusted price feed, so its dollar value drifts as Bitcoin's price
 moves. We accept that drift deliberately; if claiming ever feels expensive,

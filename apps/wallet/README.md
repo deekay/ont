@@ -133,7 +133,7 @@ Environment: `ONT_WALLET_KEYSTORE` (default `ont-wallet.json`), `ONT_WALLET_STAT
 
 - extend `export-proof` to cover transferred names (include the transfer chain) and the value
   record chain, so a proof reflects post-auction history.
-- the **cheap batched-claim rail**: the small 1,000 sats gate paid over Lightning through the
+- the **cheap batched-claim rail**: the small ₿1,000 gate paid over Lightning through the
   adapter above (a natural use-case for a Lexe node). Designed, not yet live.
 - exact Lexe sidecar `pay` request/response schema (confirm against docs.lexe.tech), and
   wiring against a real node.

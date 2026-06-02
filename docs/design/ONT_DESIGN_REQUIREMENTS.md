@@ -144,11 +144,11 @@ The naming of a destination must be:
   names without per-name Bitcoin blockspace, trending toward global population +
   agents/devices over time.
 - **T2 — User cost.** Ordinary long-tail acquisition should cost far less than a
-  Bitcoin on-chain transaction. **Target set to 1,000 sats (~$1)
+  Bitcoin on-chain transaction. **Target set to ₿1,000 (~$1)
   (decided 2026-05-23):** cheap enough for human mass adoption, high enough to
   deter bulk squatting and meaningfully contribute to the security budget.
   Revisit toward cents only if feedback or a machine/IoT-at-billions use case
-  pushes back. (1,000 sats is the fixed amount; its ~$1 helper floats with BTC price — see R5.)
+  pushes back. (₿1,000 is the fixed amount; its ~$1 helper floats with BTC price — see R5.)
 - **T3 — Verifier budget.** A fresh verifier should be able to validate any
   single name's ownership with compact data, and bootstrap full state on
   commodity hardware/storage. Verification cost per name must not grow with total
@@ -255,7 +255,7 @@ These follow from the requirements and pre-constrain any candidate design:
    off-chain, invoke via a rare temporary recovery UTXO, owner veto on-chain;
    stays recovery-not-revocation. **Decided 2026-05-24: it is a requirement, with
    wallet-default arming.** Still to spec: the tx + the transfer-resets-arming rule.
-2. **Scale targets (T1–T3):** T2 user cost **set to 1,000 sats (~$1)** (2026-05-23, revisit on
+2. **Scale targets (T1–T3):** T2 user cost **set to ₿1,000 (~$1)** (2026-05-23, revisit on
    feedback); T1 and T3 placeholders still to confirm.
 3. **Transferability of cheap-issued names:** free owner-key transfer, or
    transfer-friction (e.g. harden-before-resale) to suppress squat-and-flip?

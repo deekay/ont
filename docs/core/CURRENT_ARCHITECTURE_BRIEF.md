@@ -34,7 +34,7 @@ infer active design from archived docs.
 There is one acquisition path:
 
 1. A user claims a valid flat name and pays the fixed claim gate, currently
-   `1,000 sats`, as a Bitcoin miner fee.
+   `₿1,000`, as a Bitcoin miner fee.
 2. A public notice window gives others a chance to claim the same name.
 3. If no one else claims it, the name becomes final through the accumulator
    rail. The owner key controls transfer, recovery setup, and value records.

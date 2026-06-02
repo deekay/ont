@@ -148,7 +148,7 @@ contains a length-halving bond curve with a floor, but launch should explicitly
 decide where that curve applies before treating it as frozen.
 
 Current lean:
-- use the 1,000 sat claim gate as the ordinary long-tail floor
+- use the ₿1,000 claim gate as the ordinary long-tail floor
 - use bonded auctions for contested names
 - confine any length-based bond floor to structurally scarce names or the
   contested-auction opening requirements
@@ -355,7 +355,7 @@ The prototype code still carries earlier bond-curve parameters:
 Those values should be treated as auction/bond prototype parameters, not as the
 ordinary long-tail claim floor. Before launch, the code should make this split
 explicit so reviewers do not infer that every 5+ character uncontested claim
-requires a 50,000 sat bond.
+requires a ₿50,000 bond.
 
 25. Same-block auction tie-break rule
 

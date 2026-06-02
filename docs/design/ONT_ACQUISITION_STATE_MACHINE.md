@@ -58,7 +58,7 @@ A claim binds:
 - fixed per-name gate amount
 
 The gate is a sunk cost paid to Bitcoin miners, not revenue to ONT and not
-publisher revenue. The current target is 1,000 sats per name, fixed in bitcoin.
+publisher revenue. The current target is ₿1,000 per name, fixed in bitcoin.
 
 In the batched path, many claims can share one anchor transaction, but the
 transaction must still pay enough miner fee to cover the sum of the per-name

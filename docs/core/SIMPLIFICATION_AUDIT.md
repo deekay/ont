@@ -2,7 +2,7 @@
 
 Status: working audit, 2026-06-01. First cleanup pass applied the same day:
 current launch docs now point at the one-path claim model, older auction-first
-launch docs are marked historical, visible `1,000 sats` wording replaces
+launch docs are marked historical, visible `₿1,000` wording replaces
 confusing `BTC`-style shorthand, and the wallet no longer describes resolvers as
 ownership authorities.
 
@@ -80,7 +80,7 @@ part of the project.
 
 The intended current model, per `docs/ONT.md`, is:
 
-1. A user submits a claim for a name and pays a fixed 1,000 sat gate to miners.
+1. A user submits a claim for a name and pays a fixed ₿1,000 gate to miners.
 2. The claim becomes public and starts a notice window.
 3. If no competing claim lands in the notice window, the name finalizes through
    a Bitcoin-anchored accumulator.
@@ -161,18 +161,18 @@ Do not leave "framing note says X, body says not-X" docs in the main reading pat
 Relevant code:
 
 - `packages/protocol/src/constants.ts:26-40` defines epoch maturity parameters
-  and a 50,000 sat bond floor.
+  and a ₿50,000 bond floor.
 - `packages/protocol/src/bond.ts:11-40` computes a length-halving bond amount
   and epoch-halving maturity schedule.
-- `packages/core/src/auction-policy.ts:60-79` sets a 50,000 sat auction class
+- `packages/core/src/auction-policy.ts:60-79` sets a ₿50,000 auction class
   floor and one-year-ish settlement lock.
 - `packages/core/src/auction-policy.ts:94-112` uses `getBondSats(name.length)`
   for auction opening requirements.
 
 Current design pressure:
 
-- The long-tail floor in `docs/ONT.md` is the 1,000 sat sunk claim gate, not a
-  50,000 sat returnable bond.
+- The long-tail floor in `docs/ONT.md` is the ₿1,000 sunk claim gate, not a
+  ₿50,000 returnable bond.
 - The one-pager suggests returnable length-floor bonds should be confined to the
   scarce short-name set, while 5+ character names use the gate plus contention.
 - The current launch direction seems to prefer a fixed maturity, not epoch
@@ -190,7 +190,7 @@ BOND_MATURITY_BLOCKS = 52_560; // fixed launch value, with test override only
 
 Then decide whether 5+ character contested auctions have:
 
-- no length floor beyond the 1,000 sat opening gate and market bids, or
+- no length floor beyond the ₿1,000 opening gate and market bids, or
 - a separate auction opening minimum.
 
 Do not let the old all-auction bond floor silently define the new cheap-claim

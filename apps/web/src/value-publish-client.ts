@@ -338,7 +338,7 @@ function renderClaimable(name: string): void {
     <div class="claim-available">
       <p class="claim-available-kicker">Available</p>
       <h3><span class="mono">${name}</span> isn't claimed yet</h3>
-      <p>You can claim it for a flat <strong>1,200 sats</strong> (1,000 sats gate + 200 sats service, ~$1). A fresh
+      <p>You can claim it for a flat <strong>₿1,200</strong> (₿1,000 gate + ₿200 service, ~$1). A fresh
         owner key is generated in your browser &mdash; only you hold it. On this signet the Lightning
         payment is stubbed, so the claim completes end to end.</p>
       <button type="button" id="valueClaimButton">Claim ${name}</button>
