@@ -100,3 +100,33 @@ export function verifyTransferAuthorization(
     return false;
   }
 }
+
+// On-chain wire encoding for the transfer event (the OP_RETURN payload).
+// Framing mirrors @ont/protocol wire.ts exactly:
+//   MAGIC("ONT") ‖ [version, type=0x03] ‖ prevStateTxid(32) ‖ newOwnerPubkey(32)
+//     ‖ flags(1) ‖ successorBondVout(1) ‖ signature(64)   = 135 bytes
+const PROTOCOL_MAGIC = Uint8Array.of(0x4f, 0x4e, 0x54); // "ONT"
+const PROTOCOL_VERSION = 1;
+const TRANSFER_EVENT_TYPE = 0x03;
+
+/** Encode the framed transfer event payload (hex) that goes in the OP_RETURN output. */
+export function encodeTransferPayloadHex(
+  input: TransferAuthorizationFields & { readonly signature: string },
+): string {
+  const prevStateTxid = assertHexBytes(input.prevStateTxid, 32, "prevStateTxid");
+  const newOwnerPubkey = assertHexBytes(input.newOwnerPubkey, 32, "newOwnerPubkey");
+  const flags = assertByte(input.flags, "flags");
+  const successorBondVout = assertByte(input.successorBondVout, "successorBondVout");
+  const signature = assertHexBytes(input.signature, 64, "signature");
+
+  const framed = new Uint8Array(3 + 2 + 130);
+  framed.set(PROTOCOL_MAGIC, 0);
+  framed[3] = PROTOCOL_VERSION;
+  framed[4] = TRANSFER_EVENT_TYPE;
+  framed.set(hexToBytes(prevStateTxid), 5);
+  framed.set(hexToBytes(newOwnerPubkey), 37);
+  framed[69] = flags;
+  framed[70] = successorBondVout;
+  framed.set(hexToBytes(signature), 71);
+  return bytesToHex(framed);
+}

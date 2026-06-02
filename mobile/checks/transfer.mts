@@ -7,11 +7,17 @@ import {
   signTransferAuthorization as engineSign,
   verifyTransferAuthorization as engineVerify,
 } from "../../packages/protocol/src/events.ts";
+import { encodeTransferPayload as engineEncode } from "../../packages/protocol/src/wire.ts";
 import { deriveOwnerPubkey as engineDerive } from "../../packages/protocol/src/value-record.ts";
 
 const mod = await import("../../mobile/src/wallet/transfer.ts");
 const t = (mod as any).default ?? mod;
-const { computeTransferAuthorizationHash, signTransferAuthorization, verifyTransferAuthorization } = t;
+const {
+  computeTransferAuthorizationHash,
+  signTransferAuthorization,
+  verifyTransferAuthorization,
+  encodeTransferPayloadHex,
+} = t;
 
 let failures = 0;
 const ok = (label: string, cond: boolean) => {
@@ -55,6 +61,13 @@ ok(
 ok("flags change the digest", computeTransferAuthorizationHash({ ...fields, flags: 1 }) !== computeTransferAuthorizationHash(fields));
 ok("successorBondVout changes the digest", computeTransferAuthorizationHash({ ...fields, successorBondVout: 1 }) !== computeTransferAuthorizationHash(fields));
 ok("newOwnerPubkey changes the digest", computeTransferAuthorizationHash({ ...fields, newOwnerPubkey: "ef".repeat(32) }) !== computeTransferAuthorizationHash(fields));
+
+// 5. On-chain OP_RETURN payload encoding is byte-identical to the engine wire codec.
+const mobilePayload = encodeTransferPayloadHex({ ...fields, signature: engineSig });
+const enginePayload = Buffer.from(engineEncode({ ...fields, signature: engineSig })).toString("hex");
+ok("transfer OP_RETURN payload matches engine wire codec", mobilePayload === enginePayload);
+ok("framed payload is 135 bytes", mobilePayload.length === 135 * 2);
+ok("payload starts with the ONT magic + version + transfer type", mobilePayload.slice(0, 10) === "4f4e540103");
 
 if (failures > 0) {
   console.error(`\n${failures} transfer check(s) failed.`);
