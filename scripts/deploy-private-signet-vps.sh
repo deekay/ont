@@ -102,6 +102,9 @@ rsync -az --delete \
   --exclude 'dist' \
   --exclude '.data' \
   --exclude '.DS_Store' \
+  --exclude 'LEXEBOT_*' \
+  --exclude 'lexebot-*' \
+  --exclude 'mobile' \
   -e "ssh ${SSH_ARGS[*]}" \
   "$ROOT_DIR/" \
   "$REMOTE:${RELEASE_DIR}/"

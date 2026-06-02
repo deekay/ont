@@ -354,8 +354,6 @@ async function buildAndBroadcastAuctionBid({
   const bidPackage = createAuctionBidPackage({
     auctionId: auctionState.auctionId,
     name: auctionState.normalizedName,
-    auctionClassId: auctionState.auctionClassId,
-    classLabel: auctionState.classLabel,
     currentBlockHeight: auctionState.currentBlockHeight,
     phase: auctionState.phase,
     unlockBlock: auctionState.unlockBlock,

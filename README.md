@@ -4,6 +4,12 @@ Open Name Tags is a payment-handle system anchored to Bitcoin.
 
 An ONT name is a human-readable handle you can actually own. Its first job is simple: let a wallet or client resolve who should get paid before money moves. The owner can update signed off-chain destination records, so the same name can later carry other destinations if clients and applications decide to support them.
 
+> **[docs/ONT.md](./docs/ONT.md) is the single source of truth for the design.** In one line: you
+> claim a name for a small fixed amount of bitcoin (₿1,000 ≈ $1, paid to miners); if no one else wants it,
+> it's yours cheaply; if it's contested, it escalates to a bonded auction. The hosted prototype below
+> currently implements the bonded-auction path; the cheap long-tail claim path is prototyped and being
+> hardened. The detailed sections in this README describe the *running prototype*.
+
 The hosted website is mainly a tool surface:
 
 - browse names
@@ -17,18 +23,56 @@ This repository is where the fuller project explanation lives.
 
 Human-facing amounts in ONT use ₿ notation. Example: `₿0.0005`.
 
-## Start Here
+## For Bitcoin reviewers — start here
 
-If you want the shortest honest project orientation before touching the product surface, start with:
+If you're here to evaluate the **design** (not to use the product), read these three, in order:
 
-1. [docs/research/BITCOIN_EXPERT_REVIEW_PACKET.md](./docs/research/BITCOIN_EXPERT_REVIEW_PACKET.md)
-2. [docs/core/ONT_FROM_ZERO.md](./docs/core/ONT_FROM_ZERO.md)
-3. [docs/core/NEW_USER_TESTING_GUIDE.md](./docs/core/NEW_USER_TESTING_GUIDE.md)
-4. [docs/research/ONT_IMPLEMENTATION_AND_VALIDATION.md](./docs/research/ONT_IMPLEMENTATION_AND_VALIDATION.md)
-5. [docs/research/UNIVERSAL_AUCTION_LAUNCH_MODEL.md](./docs/research/UNIVERSAL_AUCTION_LAUNCH_MODEL.md)
-6. [docs/research/LAUNCH_SPEC_V0.md](./docs/research/LAUNCH_SPEC_V0.md)
-7. [docs/research/BITCOIN_REVIEW_CLOSURE_MATRIX.md](./docs/research/BITCOIN_REVIEW_CLOSURE_MATRIX.md)
-8. [docs/core/TESTING.md](./docs/core/TESTING.md)
+1. **[docs/ONT_ONE_PAGER.md](./docs/ONT_ONE_PAGER.md)** — the one-page version.
+2. **[docs/ONT_DESIGN_BRIEF.md](./docs/ONT_DESIGN_BRIEF.md)** — one level deeper: the model,
+   the trust surface, scaling + data-availability, economics, prior art, and the
+   risks/alternatives/open questions we most want pushed on.
+3. **[docs/ONT.md](./docs/ONT.md)** — the plain-language source of truth.
+
+**The trust surface.** Who-owns-what is a deterministic function of Bitcoin, in a frozen
+core plus protocol primitives:
+
+- `packages/consensus/src/engine.ts` (event replay), `state.ts` (name state),
+  `proof-bundle.ts` (portable proofs, incl. Merkle-inclusion + header-PoW verification
+  against Bitcoin)
+- `packages/protocol/src/` (names, wire formats, events, transfer/value/recovery payloads)
+- `packages/consensus/src/trust-surface.test.ts` **fails the build** if that core grows a
+  dependency outside `@ont/protocol` / `@ont/bitcoin`, or gains a file outside the
+  documented set — so the audit surface cannot silently grow.
+
+**Verify it yourself:**
+
+```bash
+npm install
+npm run test -w @ont/consensus      # trust surface + proof bundles (incl. Bitcoin Merkle/PoW)
+npm run test -w @ont/protocol
+npm run test -w @ont/core
+```
+
+**What runs on-chain today vs. prototype** (honest):
+
+| Capability | State |
+| --- | --- |
+| Owner-key transfer, value records, recovery descriptors | Live on signet; byte-checked across two independent implementations |
+| Bonded contested-auction bid, resolver-accepted end-to-end | Live on signet |
+| Proof-bundle verification against Bitcoin (Merkle + PoW) | Verifier done; producers don't emit inclusion proofs yet |
+| Cheap accumulator rail (batched claims) | Built + unit-tested; **not yet wired into the live indexer** |
+| Leaderless multi-publisher convergence | Simulated + tested; single-writer publisher in production |
+| Mainnet | Not yet — active prototype |
+
+Deeper design references live under [docs/design/](./docs/design/) and
+[docs/research/](./docs/research/); the design brief links the relevant ones inline.
+
+## Using the product (optional — not needed for review)
+
+If you want the shortest project orientation before touching the product surface:
+[docs/core/ONT_FROM_ZERO.md](./docs/core/ONT_FROM_ZERO.md),
+[docs/core/NEW_USER_TESTING_GUIDE.md](./docs/core/NEW_USER_TESTING_GUIDE.md), and
+[docs/core/TESTING.md](./docs/core/TESTING.md).
 
 If you want the fastest first walkthrough, use the hosted private demo:
 
@@ -52,14 +96,14 @@ Keep these distinctions in mind:
 One important testing/status distinction:
 
 - the hosted private demo is a **private signet** walkthrough and the active live environment we maintain
-- the leading launch model is public bonded auctions for every valid name
+- in the model, uncontested names are claimed cheaply for a small fixed fee; a contested name settles by public bonded auction — and the hosted demo currently exercises that contested/auction path end-to-end
 - the old shared **public signet** path has been retired from the active demo and validation story because faucet funding never became reliable
 
 ## Quick Map
 
 ```mermaid
 flowchart LR
-  A["Wallet Key"] -->|"signs"| B["Auction / Transfer Bitcoin Transactions"]
+  A["Wallet Key"] -->|"signs"| B["Claim / Auction / Transfer Bitcoin Transactions"]
   B -->|"records ownership on"| C["Bitcoin Chain"]
   C -->|"canonical state for"| D["Resolver / Website"]
   E["Owner Key"] -->|"signs"| F["Destination Record / Profile Bundle"]
@@ -225,7 +269,8 @@ What a name points to is intentionally off-chain.
 
 ONT tries to make namespace allocation as neutral as possible.
 
-It does that by using locked bitcoin bonds instead of:
+It does that with a small fixed claim fee paid to Bitcoin miners, plus locked
+bitcoin bonds for contested names — instead of:
 
 - registrar pricing tiers
 - recurring rent
@@ -233,16 +278,17 @@ It does that by using locked bitcoin bonds instead of:
 - whitelist access
 - protocol-level sales of names
 
-The current lead launch direction is intentionally simple:
+The allocation rule is intentionally simple and mechanical:
 
-- every valid name can be opened by a public bonded auction
+- any valid name can be claimed for a small fixed fee; if no one else wants it, it is yours
+- if more than one party wants the same name, it escalates to a public bonded auction
 - there is no semantic reserved-name list
 - there is no separate ordinary lane or direct-allocation path
 - there is no pre-launch reservation system
 
-Auctions discover the BTC amount. Length may still provide an objective
-opening-bond floor, but ONT should not decide which brands, people, companies,
-or words deserve special launch treatment.
+When a name is contested, the auction discovers the BTC amount. Length may still
+provide an objective opening-bond floor, but ONT should not decide which brands,
+people, companies, or words deserve special launch treatment.
 
 ### Bond Floors
 
@@ -252,9 +298,9 @@ The current legacy floor curve is:
 - each additional character halves the required bond
 - the bond floors at `₿0.0005` for names of length 12 and longer
 
-Under the universal-auction launch model, this kind of curve is best understood
-as an opening-bond / anti-spam floor. It is not the final price; the auction
-discovers that.
+When a name is contested, this kind of curve is best understood as an
+opening-bond / anti-spam floor for the auction. It is not the final price; the
+auction discovers that.
 
 ### Why The Namespace Remains Open
 
@@ -410,17 +456,18 @@ This is a TypeScript monorepo using `npm` workspaces.
 
 Start here:
 
-- [docs/core/ONT_ONE_PAGER.md](./docs/core/ONT_ONE_PAGER.md): short overview of the design, economics, and blockspace footprint
-- [docs/README.md](./docs/README.md): documentation index
+- [docs/ONT.md](./docs/ONT.md): **the single source of truth** — what ONT is, why it matters, how it works
+- [docs/README.md](./docs/README.md): documentation index (design, launch, operational, research)
+- [docs/design/](./docs/design/): the design reference — sovereignty map, requirements, risks, scaling, prototype scope
 - [docs/core/SELF_HOSTING.md](./docs/core/SELF_HOSTING.md): run your own website + resolver stack
 - [docs/core/ARCHITECTURE.md](./docs/core/ARCHITECTURE.md): system structure, trust boundaries, and runtime modes
 - [docs/core/DECISIONS.md](./docs/core/DECISIONS.md): design decisions and open tradeoffs
 - [docs/core/NEW_USER_TESTING_GUIDE.md](./docs/core/NEW_USER_TESTING_GUIDE.md): friendly first-time testing guide for reviewers and friends
 - [docs/core/TESTING.md](./docs/core/TESTING.md): fixture, regtest, and private signet testing paths
-- [docs/research/TRANSFER_RELAY_OPTIONS.md](./docs/research/TRANSFER_RELAY_OPTIONS.md): why transfers are still policy-sensitive and what the real redesign options are
 - [CONTRIBUTING.md](./CONTRIBUTING.md): local setup and contribution workflow
 
-More exploratory and draft-oriented material lives under [`docs/research/`](./docs/research/).
+Launch & review material lives under [`docs/launch/`](./docs/launch/); secondary notes and superseded
+explorations under [`docs/research/`](./docs/research/).
 
 ## Status
 

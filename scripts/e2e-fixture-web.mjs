@@ -108,7 +108,7 @@ async function assertHomePage(page) {
   await waitForVisibleText(page, "Human-Readable Names You Can Actually Own");
   await waitForVisibleText(page, "Choose A Workflow");
   await waitForVisibleText(page, "Set Up Signing");
-  await waitForVisibleText(page, "Build A Bid");
+  await waitForVisibleText(page, "Claim A Name");
   await waitForVisibleText(page, "Inspect Live State");
   const html = await page.content();
   assert(
@@ -131,7 +131,7 @@ async function assertHomeToAuctionLookupCarryover(page) {
   await waitForVisibleText(page, normalizedName);
 
   const openAuctionLink = page.getByRole("link", {
-    name: new RegExp(`Build opening bid for ${normalizedName}`, "i")
+    name: new RegExp(`Claim ${normalizedName}`, "i")
   });
   const openAuctionHref = await openAuctionLink.getAttribute("href");
   assert(
@@ -152,7 +152,7 @@ async function assertHomeToAuctionLookupCarryover(page) {
   );
 
   const repeatedOpenAuctionLinks = await page.getByRole("link", {
-    name: new RegExp(`Build opening bid for ${normalizedName}`, "i")
+    name: new RegExp(`Claim ${normalizedName}`, "i")
   }).count();
   assert(
     repeatedOpenAuctionLinks === 0,

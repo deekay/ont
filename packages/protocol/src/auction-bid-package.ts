@@ -4,7 +4,7 @@ import { concatBytes, sha256Hex, utf8ToBytes } from "./crypto.js";
 import { normalizeName } from "./names.js";
 
 export const AUCTION_BID_PACKAGE_FORMAT = "ont-auction-bid-package";
-export const AUCTION_BID_PACKAGE_VERSION = 2;
+export const AUCTION_BID_PACKAGE_VERSION = 3;
 
 export type AuctionBidPackagePhase =
   | "pending_unlock"
@@ -26,8 +26,6 @@ export interface AuctionBidPackage {
   readonly exportedAt: string;
   readonly auctionId: string;
   readonly name: string;
-  readonly auctionClassId: string;
-  readonly classLabel: string;
   readonly currentBlockHeight: number;
   readonly phase: AuctionBidPackagePhase;
   readonly unlockBlock: number;
@@ -56,8 +54,6 @@ export interface AuctionBidPackage {
 export interface CreateAuctionBidPackageInput {
   readonly auctionId: string;
   readonly name: string;
-  readonly auctionClassId: string;
-  readonly classLabel: string;
   readonly currentBlockHeight: number;
   readonly phase: AuctionBidPackagePhase;
   readonly unlockBlock: number;
@@ -82,8 +78,6 @@ export interface CreateAuctionBidPackageInput {
 export function createAuctionBidPackage(input: CreateAuctionBidPackageInput): AuctionBidPackage {
   const auctionId = normalizeRequiredText(input.auctionId, "auctionId");
   const name = normalizeName(input.name);
-  const auctionClassId = normalizeRequiredText(input.auctionClassId, "auctionClassId");
-  const classLabel = normalizeRequiredText(input.classLabel, "classLabel");
   const currentBlockHeight = parseNonNegativeSafeInteger(input.currentBlockHeight, "currentBlockHeight");
   const phase = parseAuctionBidPackagePhase(input.phase, "phase");
   const unlockBlock = parseNonNegativeSafeInteger(input.unlockBlock, "unlockBlock");
@@ -112,7 +106,6 @@ export function createAuctionBidPackage(input: CreateAuctionBidPackageInput): Au
     : computeAuctionLotCommitment({
         auctionId,
         name,
-        auctionClassId,
         unlockBlock
       });
   const auctionStateCommitment = input.auctionStateCommitment
@@ -120,7 +113,6 @@ export function createAuctionBidPackage(input: CreateAuctionBidPackageInput): Au
     : computeAuctionBidStateCommitment({
         auctionId,
         name,
-        auctionClassId,
         currentBlockHeight,
         phase,
         unlockBlock,
@@ -160,8 +152,6 @@ export function createAuctionBidPackage(input: CreateAuctionBidPackageInput): Au
     exportedAt: input.exportedAt ?? new Date().toISOString(),
     auctionId,
     name,
-    auctionClassId,
-    classLabel,
     currentBlockHeight,
     phase,
     unlockBlock,
@@ -213,8 +203,6 @@ export function parseAuctionBidPackage(input: unknown): AuctionBidPackage {
 
   const auctionId = normalizeRequiredText(assertString(record.auctionId, "auctionId"), "auctionId");
   const name = normalizeName(assertString(record.name, "name"));
-  const auctionClassId = normalizeRequiredText(assertString(record.auctionClassId, "auctionClassId"), "auctionClassId");
-  const classLabel = normalizeRequiredText(assertString(record.classLabel, "classLabel"), "classLabel");
   const currentBlockHeight = parseNonNegativeSafeInteger(record.currentBlockHeight, "currentBlockHeight");
   const phase = parseAuctionBidPackagePhase(record.phase, "phase");
   const unlockBlock = parseNonNegativeSafeInteger(record.unlockBlock, "unlockBlock");
@@ -291,7 +279,6 @@ export function parseAuctionBidPackage(input: unknown): AuctionBidPackage {
   const expectedAuctionStateCommitment = computeAuctionBidStateCommitment({
     auctionId,
     name,
-    auctionClassId,
     currentBlockHeight,
     phase,
     unlockBlock,
@@ -305,7 +292,6 @@ export function parseAuctionBidPackage(input: unknown): AuctionBidPackage {
   const expectedAuctionLotCommitment = computeAuctionLotCommitment({
     auctionId,
     name,
-    auctionClassId,
     unlockBlock
   });
   if (auctionLotCommitment !== expectedAuctionLotCommitment) {
@@ -347,8 +333,6 @@ export function parseAuctionBidPackage(input: unknown): AuctionBidPackage {
     exportedAt,
     auctionId,
     name,
-    auctionClassId,
-    classLabel,
     currentBlockHeight,
     phase,
     unlockBlock,
@@ -388,7 +372,6 @@ export function computeAuctionBidderCommitment(bidderId: string): string {
 export function computeAuctionLotCommitment(input: {
   readonly auctionId: string;
   readonly name: string;
-  readonly auctionClassId: string;
   readonly unlockBlock: number;
 }): string {
   return sha256Hex(
@@ -399,8 +382,6 @@ export function computeAuctionLotCommitment(input: {
       utf8ToBytes("\u0000"),
       utf8ToBytes(normalizeName(input.name)),
       utf8ToBytes("\u0000"),
-      utf8ToBytes(normalizeRequiredText(input.auctionClassId, "auctionClassId")),
-      utf8ToBytes("\u0000"),
       utf8ToBytes(String(parseNonNegativeSafeInteger(input.unlockBlock, "unlockBlock")))
     )
   ).slice(0, 32);
@@ -409,7 +390,6 @@ export function computeAuctionLotCommitment(input: {
 export function computeAuctionBidStateCommitment(input: {
   readonly auctionId: string;
   readonly name: string;
-  readonly auctionClassId: string;
   readonly currentBlockHeight: number;
   readonly phase: AuctionBidPackagePhase;
   readonly unlockBlock: number;
@@ -424,7 +404,6 @@ export function computeAuctionBidStateCommitment(input: {
     "ont-auction-state-v1",
     normalizeRequiredText(input.auctionId, "auctionId"),
     normalizeName(input.name),
-    normalizeRequiredText(input.auctionClassId, "auctionClassId"),
     String(parseNonNegativeSafeInteger(input.currentBlockHeight, "currentBlockHeight")),
     parseAuctionBidPackagePhase(input.phase, "phase"),
     String(parseNonNegativeSafeInteger(input.unlockBlock, "unlockBlock")),

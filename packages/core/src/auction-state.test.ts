@@ -13,7 +13,6 @@ describe("simulateLaunchAuctionStateAtBlock", () => {
       currentBlockHeight: 839_990,
       scenario: parseLaunchAuctionScenario({
         name: "marble",
-        auctionClassId: "launch_name",
         unlockBlock: 840_000,
         bidAttempts: [
           { bidderId: "alpha", blockHeight: 840_010, amountSats: "1000000000" }
@@ -32,7 +31,6 @@ describe("simulateLaunchAuctionStateAtBlock", () => {
       currentBlockHeight: 880_030,
       scenario: parseLaunchAuctionScenario({
         name: "luna",
-        auctionClassId: "launch_name",
         unlockBlock: 880_000,
         bidAttempts: [
           { bidderId: "speculator_a", blockHeight: 880_015, amountSats: "10000000" },
@@ -54,7 +52,6 @@ describe("simulateLaunchAuctionStateAtBlock", () => {
       currentBlockHeight: 884_321,
       scenario: parseLaunchAuctionScenario({
         name: "luna",
-        auctionClassId: "launch_name",
         unlockBlock: 880_000,
         bidAttempts: [
           { bidderId: "speculator_a", blockHeight: 880_015, amountSats: "10000000" },
@@ -77,7 +74,6 @@ describe("simulateLaunchAuctionStateAtBlock", () => {
       currentBlockHeight: 850_600,
       scenario: parseLaunchAuctionScenario({
         name: "meadow",
-        auctionClassId: "launch_name",
         unlockBlock: 850_000,
         bidAttempts: [
           { bidderId: "speculator_a", blockHeight: 850_010, amountSats: "200000000" },
@@ -98,7 +94,6 @@ describe("simulateLaunchAuctionStateAtBlock", () => {
       currentBlockHeight: 841_060,
       scenario: parseLaunchAuctionScenario({
         name: "marble",
-        auctionClassId: "launch_name",
         unlockBlock: 840_000,
         bidAttempts: [
           { bidderId: "alpha", blockHeight: 840_010, amountSats: "1000000000" },
@@ -121,7 +116,6 @@ describe("simulateLaunchAuctionStateAtBlock", () => {
       currentBlockHeight: 851_400,
       scenario: parseLaunchAuctionScenario({
         name: "meadow",
-        auctionClassId: "launch_name",
         unlockBlock: 850_000,
         bidAttempts: [
           { bidderId: "speculator_a", blockHeight: 850_010, amountSats: "200000000" },

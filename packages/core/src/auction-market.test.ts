@@ -47,7 +47,6 @@ describe("auction market simulator", () => {
         {
           auctionId: "meadow-main",
           name: "meadow",
-          auctionClassId: "launch_name",
           unlockBlock: 920000,
           bidAttempts: [
             {

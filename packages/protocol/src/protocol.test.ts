@@ -4,6 +4,8 @@ import * as secp256k1 from "tiny-secp256k1";
 
 import {
   AUCTION_BID_FIXED_PAYLOAD_LENGTH,
+  AUCTION_BOND_FLOOR_SATS,
+  BOND_MATURITY_BLOCKS,
   BOND_FLOOR_SATS,
   computeAuctionBidderCommitment,
   computeAuctionBidStateCommitment,
@@ -73,11 +75,17 @@ describe("bond and maturity helpers", () => {
   });
 
   it("holds the configured floor for long names", () => {
-    expect(getBondSats(12)).toBe(BOND_FLOOR_SATS);
-    expect(getBondSats(32)).toBe(BOND_FLOOR_SATS);
+    expect(BOND_FLOOR_SATS).toBe(AUCTION_BOND_FLOOR_SATS);
+    expect(getBondSats(12)).toBe(AUCTION_BOND_FLOOR_SATS);
+    expect(getBondSats(32)).toBe(AUCTION_BOND_FLOOR_SATS);
   });
 
-  it("derives maturity from the launch epoch", () => {
+  it("exposes fixed current constants separately from legacy epoch helpers", () => {
+    expect(BOND_MATURITY_BLOCKS).toBe(52_560);
+    expect(BOND_MATURITY_BLOCKS).not.toBe(INITIAL_MATURITY_BLOCKS);
+  });
+
+  it("keeps legacy epoch maturity helpers quarantined for compatibility", () => {
     expect(getMaturityBlocks(0)).toBe(INITIAL_MATURITY_BLOCKS);
     expect(getMaturityBlocks(1)).toBe(26_000);
     expect(getMaturityBlocks(4)).toBe(MIN_MATURITY_BLOCKS);
@@ -96,13 +104,11 @@ describe("auction and transfer wire payloads", () => {
       auctionLotCommitment: computeAuctionLotCommitment({
         auctionId: "meadow-soft-close",
         name: "meadow",
-        auctionClassId: "launch_name",
         unlockBlock: 840_000
       }),
       auctionCommitment: computeAuctionBidStateCommitment({
         auctionId: "meadow-soft-close",
         name: "meadow",
-        auctionClassId: "launch_name",
         currentBlockHeight: 844_360,
         phase: "soft_close",
         unlockBlock: 840_000,

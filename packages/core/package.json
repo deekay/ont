@@ -19,11 +19,12 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "test": "npm run build -w @ont/protocol && vitest run",
+    "test": "npm run build -w @ont/protocol && npm run build -w @ont/bitcoin && npm run build -w @ont/consensus && vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "@ont/bitcoin": "file:../bitcoin",
+    "@ont/consensus": "file:../consensus",
     "@ont/protocol": "file:../protocol",
     "bitcoinjs-lib": "^7.0.1"
   },

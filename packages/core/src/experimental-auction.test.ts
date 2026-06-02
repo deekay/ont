@@ -20,7 +20,6 @@ describe("experimental auction derivation", () => {
         title: "Soft close · marble",
         description: "Experimental live auction fixture.",
         name: "marble",
-        auctionClassId: "launch_name",
         unlockBlock: 840_000
       },
       policy
@@ -45,7 +44,6 @@ describe("experimental auction derivation", () => {
           auctionCommitment: computeAuctionBidStateCommitment({
             auctionId: catalogEntry.auctionId,
             name: catalogEntry.normalizedName,
-            auctionClassId: catalogEntry.auctionClassId,
             currentBlockHeight: 840_010,
             phase: "awaiting_opening_bid",
             unlockBlock: catalogEntry.unlockBlock,
@@ -71,7 +69,6 @@ describe("experimental auction derivation", () => {
           auctionCommitment: computeAuctionBidStateCommitment({
             auctionId: catalogEntry.auctionId,
             name: catalogEntry.normalizedName,
-            auctionClassId: catalogEntry.auctionClassId,
             currentBlockHeight: 840_910,
             phase: "soft_close",
             unlockBlock: catalogEntry.unlockBlock,
@@ -97,7 +94,6 @@ describe("experimental auction derivation", () => {
           auctionCommitment: computeAuctionBidStateCommitment({
             auctionId: catalogEntry.auctionId,
             name: catalogEntry.normalizedName,
-            auctionClassId: catalogEntry.auctionClassId,
             currentBlockHeight: 840_911,
             phase: "soft_close",
             unlockBlock: catalogEntry.unlockBlock,
@@ -135,7 +131,6 @@ describe("experimental auction derivation", () => {
         title: "Soft close · marble",
         description: "Experimental live auction fixture.",
         name: "marble",
-        auctionClassId: "launch_name",
         unlockBlock: 840_000
       },
       policy
@@ -160,7 +155,6 @@ describe("experimental auction derivation", () => {
           auctionCommitment: computeAuctionBidStateCommitment({
             auctionId: catalogEntry.auctionId,
             name: catalogEntry.normalizedName,
-            auctionClassId: catalogEntry.auctionClassId,
             currentBlockHeight: 840_010,
             phase: "awaiting_opening_bid",
             unlockBlock: catalogEntry.unlockBlock,
@@ -186,7 +180,6 @@ describe("experimental auction derivation", () => {
           auctionCommitment: computeAuctionBidStateCommitment({
             auctionId: catalogEntry.auctionId,
             name: catalogEntry.normalizedName,
-            auctionClassId: catalogEntry.auctionClassId,
             currentBlockHeight: 840_019,
             phase: "awaiting_opening_bid",
             unlockBlock: catalogEntry.unlockBlock,
@@ -220,7 +213,6 @@ describe("experimental auction derivation", () => {
         title: "Soft close · marble",
         description: "Experimental live auction fixture.",
         name: "marble",
-        auctionClassId: "launch_name",
         unlockBlock: 840_000
       },
       policy
@@ -247,7 +239,6 @@ describe("experimental auction derivation", () => {
           auctionCommitment: computeAuctionBidStateCommitment({
             auctionId: catalogEntry.auctionId,
             name: catalogEntry.normalizedName,
-            auctionClassId: catalogEntry.auctionClassId,
             currentBlockHeight: 840_010,
             phase: "live_bidding",
             unlockBlock: catalogEntry.unlockBlock,
@@ -273,7 +264,6 @@ describe("experimental auction derivation", () => {
           auctionCommitment: computeAuctionBidStateCommitment({
             auctionId: catalogEntry.auctionId,
             name: catalogEntry.normalizedName,
-            auctionClassId: catalogEntry.auctionClassId,
             currentBlockHeight: 840_010,
             phase: "awaiting_opening_bid",
             unlockBlock: catalogEntry.unlockBlock,
@@ -299,7 +289,6 @@ describe("experimental auction derivation", () => {
           auctionCommitment: computeAuctionBidStateCommitment({
             auctionId: catalogEntry.auctionId,
             name: catalogEntry.normalizedName,
-            auctionClassId: catalogEntry.auctionClassId,
             currentBlockHeight: 840_010,
             phase: "live_bidding",
             unlockBlock: catalogEntry.unlockBlock,
@@ -338,7 +327,6 @@ describe("experimental auction derivation", () => {
         title: "Eligible to open · luna",
         description: "Prototype entry after the configured eligibility height but before a valid opening bid.",
         name: "luna",
-        auctionClassId: "launch_name",
         unlockBlock: 880_000
       },
       policy
@@ -363,7 +351,6 @@ describe("experimental auction derivation", () => {
           auctionCommitment: computeAuctionBidStateCommitment({
             auctionId: catalogEntry.auctionId,
             name: catalogEntry.normalizedName,
-            auctionClassId: catalogEntry.auctionClassId,
             currentBlockHeight: 880_015,
             phase: "awaiting_opening_bid",
             unlockBlock: catalogEntry.unlockBlock,
@@ -412,7 +399,6 @@ describe("experimental auction derivation", () => {
         title: "Soft close · marble",
         description: "Experimental live auction fixture.",
         name: "marble",
-        auctionClassId: "launch_name",
         unlockBlock: 840_000
       },
       policy
@@ -437,7 +423,6 @@ describe("experimental auction derivation", () => {
           auctionCommitment: computeAuctionBidStateCommitment({
             auctionId: catalogEntry.auctionId,
             name: catalogEntry.normalizedName,
-            auctionClassId: catalogEntry.auctionClassId,
             currentBlockHeight: 840_010,
             phase: "awaiting_opening_bid",
             unlockBlock: catalogEntry.unlockBlock,
@@ -463,7 +448,6 @@ describe("experimental auction derivation", () => {
           auctionCommitment: computeAuctionBidStateCommitment({
             auctionId: catalogEntry.auctionId,
             name: catalogEntry.normalizedName,
-            auctionClassId: catalogEntry.auctionClassId,
             currentBlockHeight: 840_910,
             phase: "soft_close",
             unlockBlock: catalogEntry.unlockBlock,
@@ -501,7 +485,6 @@ describe("experimental auction derivation", () => {
         title: "Soft close · marble",
         description: "Experimental live auction fixture.",
         name: "marble",
-        auctionClassId: "launch_name",
         unlockBlock: 840_000
       },
       policy
@@ -526,7 +509,6 @@ describe("experimental auction derivation", () => {
           auctionCommitment: computeAuctionBidStateCommitment({
             auctionId: catalogEntry.auctionId,
             name: catalogEntry.normalizedName,
-            auctionClassId: catalogEntry.auctionClassId,
             currentBlockHeight: 840_010,
             phase: "awaiting_opening_bid",
             unlockBlock: catalogEntry.unlockBlock,
@@ -552,7 +534,6 @@ describe("experimental auction derivation", () => {
           auctionCommitment: computeAuctionBidStateCommitment({
             auctionId: catalogEntry.auctionId,
             name: catalogEntry.normalizedName,
-            auctionClassId: catalogEntry.auctionClassId,
             currentBlockHeight: 840_910,
             phase: "soft_close",
             unlockBlock: catalogEntry.unlockBlock,
@@ -609,7 +590,6 @@ describe("experimental auction derivation", () => {
         title: "Soft close · marble",
         description: "Experimental live auction fixture.",
         name: "marble",
-        auctionClassId: "launch_name",
         unlockBlock: 840_000
       },
       policy
@@ -636,7 +616,6 @@ describe("experimental auction derivation", () => {
           auctionCommitment: computeAuctionBidStateCommitment({
             auctionId: catalogEntry.auctionId,
             name: catalogEntry.normalizedName,
-            auctionClassId: catalogEntry.auctionClassId,
             currentBlockHeight: 840_010,
             phase: "awaiting_opening_bid",
             unlockBlock: catalogEntry.unlockBlock,
@@ -662,7 +641,6 @@ describe("experimental auction derivation", () => {
           auctionCommitment: computeAuctionBidStateCommitment({
             auctionId: catalogEntry.auctionId,
             name: catalogEntry.normalizedName,
-            auctionClassId: catalogEntry.auctionClassId,
             currentBlockHeight: 840_910,
             phase: "soft_close",
             unlockBlock: catalogEntry.unlockBlock,
@@ -719,7 +697,6 @@ describe("experimental auction derivation", () => {
         title: "Soft close · marble",
         description: "Experimental live auction fixture.",
         name: "marble",
-        auctionClassId: "launch_name",
         unlockBlock: 840_000
       },
       policy
@@ -744,7 +721,6 @@ describe("experimental auction derivation", () => {
           auctionCommitment: computeAuctionBidStateCommitment({
             auctionId: catalogEntry.auctionId,
             name: catalogEntry.normalizedName,
-            auctionClassId: catalogEntry.auctionClassId,
             currentBlockHeight: 840_010,
             phase: "awaiting_opening_bid",
             unlockBlock: catalogEntry.unlockBlock,
@@ -775,7 +751,6 @@ describe("experimental auction derivation", () => {
           auctionCommitment: computeAuctionBidStateCommitment({
             auctionId: catalogEntry.auctionId,
             name: catalogEntry.normalizedName,
-            auctionClassId: catalogEntry.auctionClassId,
             currentBlockHeight: 840_910,
             phase: "soft_close",
             unlockBlock: catalogEntry.unlockBlock,
@@ -801,7 +776,6 @@ describe("experimental auction derivation", () => {
           auctionCommitment: computeAuctionBidStateCommitment({
             auctionId: catalogEntry.auctionId,
             name: catalogEntry.normalizedName,
-            auctionClassId: catalogEntry.auctionClassId,
             currentBlockHeight: 840_911,
             phase: "soft_close",
             unlockBlock: catalogEntry.unlockBlock,

@@ -1,0 +1,31 @@
+{
+  "name": "@ont/wallet",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "ont-wallet": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx src/index.ts",
+    "demo": "node scripts/demo.mjs",
+    "demo:full": "node scripts/demo-full.mjs",
+    "smoke:live": "bash scripts/live-resolver-smoke.sh",
+    "smoke:cheap-claim": "bash scripts/cheap-claim-smoke.sh",
+    "test": "npm run build -w @ont/protocol && npm run build -w @ont/consensus && npm run build -w @ont/architect && npm run build -w @ont/core && tsc -p tsconfig.json --noEmit && vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@ont/architect": "file:../../packages/architect",
+    "@ont/consensus": "file:../../packages/consensus",
+    "@ont/core": "file:../../packages/core",
+    "@ont/protocol": "file:../../packages/protocol",
+    "bitcoinjs-lib": "^7.0.1",
+    "ecpair": "^3.0.1",
+    "tiny-secp256k1": "^2.2.4"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.4"
+  }
+}

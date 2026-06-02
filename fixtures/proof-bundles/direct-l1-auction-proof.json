@@ -1,0 +1,109 @@
+{
+  "format": "ont-proof-bundle",
+  "bundleVersion": 0,
+  "status": "mock-research-fixture",
+  "proofSource": "bitcoin_l1_direct_auction",
+  "assuranceTier": "hardened",
+  "verificationGoal": "Verify that alice was acquired through the direct L1 auction path and is currently controlled by the winner owner key.",
+  "name": "alice",
+  "normalizedName": "alice",
+  "createdAt": "2026-05-14T16:00:00.000Z",
+  "chain": {
+    "network": "signet",
+    "anchorHeight": 120000,
+    "anchorBlockHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "auctionTranscript": {
+    "transcriptSource": "bitcoin_l1_bid_transactions",
+    "auctionId": "opening-alice-119000",
+    "rulesVersion": "ont-l1-auction-v1",
+    "openHeight": 119000,
+    "closeHeight": 120008,
+    "softCloseExtensionBlocks": 144,
+    "minimumIncrementPolicy": {
+      "absoluteSats": "1000",
+      "basisPoints": 500,
+      "softCloseAbsoluteSats": "1000",
+      "softCloseBasisPoints": 1000
+    },
+    "acceptedBids": [
+      {
+        "txid": "1111111111111111111111111111111111111111111111111111111111111111",
+        "blockHeight": 119000,
+        "bidderCommitment": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "amountSats": "50000",
+        "ownerPubkey": "1111111111111111111111111111111111111111111111111111111111111111",
+        "bondOutpoint": {
+          "txid": "1111111111111111111111111111111111111111111111111111111111111111",
+          "vout": 0,
+          "valueSats": "50000"
+        }
+      },
+      {
+        "txid": "2222222222222222222222222222222222222222222222222222222222222222",
+        "blockHeight": 119900,
+        "bidderCommitment": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "amountSats": "70000",
+        "ownerPubkey": "2222222222222222222222222222222222222222222222222222222222222222",
+        "bondOutpoint": {
+          "txid": "2222222222222222222222222222222222222222222222222222222222222222",
+          "vout": 0,
+          "valueSats": "70000"
+        }
+      }
+    ],
+    "winner": {
+      "winningTxid": "2222222222222222222222222222222222222222222222222222222222222222",
+      "winnerOwnerPubkey": "2222222222222222222222222222222222222222222222222222222222222222",
+      "winningAmountSats": "70000"
+    }
+  },
+  "settlementProof": {
+    "kind": "winner_bid_bond_becomes_name_bond",
+    "settlementHeight": 120009,
+    "currentBondOutpoint": {
+      "txid": "2222222222222222222222222222222222222222222222222222222222222222",
+      "vout": 0,
+      "valueSats": "70000"
+    },
+    "requiredBondSats": "50000",
+    "maturityHeight": 172569,
+    "bondStatusAtAnchor": {
+      "checkedHeight": 120000,
+      "isUnspent": true
+    }
+  },
+  "ownershipProof": {
+    "ownershipRef": "2222222222222222222222222222222222222222222222222222222222222222",
+    "currentOwnerPubkey": "2222222222222222222222222222222222222222222222222222222222222222",
+    "state": "immature_bonded_owner",
+    "transfers": []
+  },
+  "valueRecordChain": {
+    "complete": true,
+    "records": [
+      {
+        "recordHash": "3333333333333333333333333333333333333333333333333333333333333333",
+        "sequence": 1,
+        "previousRecordHash": null,
+        "ownerPubkey": "2222222222222222222222222222222222222222222222222222222222222222",
+        "ownershipRef": "2222222222222222222222222222222222222222222222222222222222222222",
+        "valueType": 2,
+        "payloadHex": "626974636f696e3a62633171616c6963656578616d706c65",
+        "signature": "mock-owner-signature"
+      }
+    ]
+  },
+  "verificationChecklist": [
+    "Verify each accepted bid transaction is included in Bitcoin before the auction close.",
+    "Replay auction rules to confirm the winner.",
+    "Verify the winning bid owner key is the current owner key.",
+    "Verify the winning bond outpoint satisfies the required bond amount.",
+    "Verify the bond is unspent before maturity or that maturity was reached before release.",
+    "Verify value records are signed by the current owner key and form a predecessor chain."
+  ],
+  "openQuestions": [
+    "What compact proof format replaces this mock JSON for production?",
+    "How much Bitcoin header/proof data should the bundle carry versus rely on the verifier's node?"
+  ]
+}

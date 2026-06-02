@@ -5,9 +5,18 @@ dist
 .DS_Store
 .env
 .env.local
+# Local-only scripts / secrets (never committed)
+*.local.sh
+# Local-only operator artifacts — must never be committed
+LEXEBOT_*
+lexebot-*.tar.gz
+lexebot-*.tar.gz.sha256
 coverage
 *.log
 COMMERCIAL_IDEAS.md
+# Local agent config + internal working status logs (kept local, not public)
+CODEX.md
+docs/status/
 
 # Local narration/audio scratch artifacts
 /audio_compressed.mp3

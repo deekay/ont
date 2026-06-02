@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 950" font-family="-apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif">
+  <defs>
+    <marker id="arrow" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#9aa4b2"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="860" height="950" fill="#ffffff"/>
+
+  <!-- Title -->
+  <text x="430" y="44" text-anchor="middle" font-size="24" font-weight="700" fill="#16161d">How you claim a name in ONT</text>
+  <text x="430" y="69" text-anchor="middle" font-size="13" fill="#6b7280">Own a human-readable name on Bitcoin — no company, registrar, token, or rent</text>
+
+  <!-- A: start -->
+  <rect x="255" y="92" width="350" height="48" rx="11" fill="#111827"/>
+  <text x="430" y="121" text-anchor="middle" font-size="15.5" font-weight="600" fill="#ffffff">Claim a name — e.g. &#8220;alice&#8221;</text>
+  <line x1="430" y1="140" x2="430" y2="162" stroke="#9aa4b2" stroke-width="1.6" marker-end="url(#arrow)"/>
+
+  <!-- M: two ways in -->
+  <rect x="70" y="164" width="720" height="86" rx="11" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.4"/>
+  <text x="92" y="190" font-size="13.5" font-weight="700" fill="#334155">Two ways in — both pay the same fee:</text>
+  <text x="92" y="213" font-size="13" fill="#334155">1)  Directly — post your own Bitcoin transaction (fully self-sovereign)</text>
+  <text x="92" y="235" font-size="13" fill="#334155">2)  Via a publisher — bundled with thousands of claims into one commitment</text>
+  <line x1="430" y1="250" x2="430" y2="274" stroke="#9aa4b2" stroke-width="1.6" marker-end="url(#arrow)"/>
+
+  <!-- C: gate -->
+  <rect x="180" y="276" width="500" height="60" rx="11" fill="#fff7ec" stroke="#f7931a" stroke-width="2"/>
+  <text x="430" y="302" text-anchor="middle" font-size="15.5" font-weight="700" fill="#92400e">Pay &#8383;1,000 (~$1) to Bitcoin miners</text>
+  <text x="430" y="323" text-anchor="middle" font-size="12.5" fill="#b45309">a fixed anti-squat gate that supports Bitcoin&#8217;s security budget</text>
+  <line x1="430" y1="336" x2="430" y2="360" stroke="#9aa4b2" stroke-width="1.6" marker-end="url(#arrow)"/>
+
+  <!-- D: notice window -->
+  <rect x="180" y="362" width="500" height="56" rx="11" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.4"/>
+  <text x="430" y="386" text-anchor="middle" font-size="14" font-weight="600" fill="#334155">A short notice window opens</text>
+  <text x="430" y="406" text-anchor="middle" font-size="12.5" fill="#64748b">a few days, counted in Bitcoin blocks</text>
+  <line x1="430" y1="418" x2="430" y2="446" stroke="#9aa4b2" stroke-width="1.6" marker-end="url(#arrow)"/>
+
+  <!-- E: decision diamond -->
+  <polygon points="430,448 575,500 430,552 285,500" fill="#ffffff" stroke="#475569" stroke-width="1.6"/>
+  <text x="430" y="495" text-anchor="middle" font-size="13" font-weight="600" fill="#334155">Anyone else claim</text>
+  <text x="430" y="513" text-anchor="middle" font-size="13" font-weight="600" fill="#334155">&#8220;alice&#8221; in the window?</text>
+
+  <!-- branch arrows -->
+  <line x1="400" y1="540" x2="230" y2="598" stroke="#9aa4b2" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <line x1="460" y1="540" x2="630" y2="598" stroke="#9aa4b2" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <text x="270" y="566" text-anchor="middle" font-size="12" font-weight="700" fill="#16a34a">No · common</text>
+  <text x="592" y="566" text-anchor="middle" font-size="12" font-weight="700" fill="#b45309">Yes · rare</text>
+
+  <!-- F: uncontested -->
+  <rect x="40" y="600" width="350" height="92" rx="11" fill="#ecfdf3" stroke="#16a34a" stroke-width="1.6"/>
+  <text x="215" y="626" text-anchor="middle" font-size="14.5" font-weight="700" fill="#15803d">It&#8217;s yours, cheaply</text>
+  <text x="215" y="648" text-anchor="middle" font-size="12.5" fill="#166534">folded into one Bitcoin commitment</text>
+  <text x="215" y="667" text-anchor="middle" font-size="12.5" fill="#166534">— scales to billions of names</text>
+
+  <!-- G: contested -->
+  <rect x="470" y="600" width="350" height="92" rx="11" fill="#fff4e6" stroke="#f7931a" stroke-width="1.6"/>
+  <text x="645" y="626" text-anchor="middle" font-size="14.5" font-weight="700" fill="#b45309">Contested &#8594; bonded auction</text>
+  <text x="645" y="648" text-anchor="middle" font-size="12.5" fill="#9a3412">on Bitcoin L1; highest returnable</text>
+  <text x="645" y="667" text-anchor="middle" font-size="12.5" fill="#9a3412">bond wins (real skin in the game)</text>
+
+  <!-- merge arrows -->
+  <line x1="215" y1="692" x2="395" y2="738" stroke="#9aa4b2" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <line x1="645" y1="692" x2="465" y2="738" stroke="#9aa4b2" stroke-width="1.6" marker-end="url(#arrow)"/>
+
+  <!-- H: own -->
+  <rect x="215" y="740" width="430" height="50" rx="11" fill="#eef2ff" stroke="#4a6cf7" stroke-width="2"/>
+  <text x="430" y="771" text-anchor="middle" font-size="15.5" font-weight="700" fill="#3730a3">You own &#8220;alice&#8221; — one key controls it</text>
+  <line x1="430" y1="790" x2="430" y2="830" stroke="#9aa4b2" stroke-width="1.6" marker-end="url(#arrow)"/>
+
+  <!-- I: use -->
+  <rect x="130" y="832" width="600" height="58" rx="11" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.4"/>
+  <text x="430" y="856" text-anchor="middle" font-size="13.5" font-weight="600" fill="#334155">Sign with your key to update destinations</text>
+  <text x="430" y="876" text-anchor="middle" font-size="12.5" fill="#64748b">(payment, Lightning, website&#8230;), transfer, or recover</text>
+
+  <!-- footer -->
+  <text x="430" y="922" text-anchor="middle" font-size="11" font-style="italic" fill="#94a3b8">Decentralized throughout: anyone can publish or claim directly · fees go to miners · ownership is replayed from Bitcoin · only your key can change a name</text>
+</svg>

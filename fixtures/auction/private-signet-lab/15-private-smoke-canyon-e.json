@@ -4,7 +4,6 @@
   "currentBlockHeight": 128,
   "scenario": {
     "name": "canyon",
-    "auctionClassId": "launch_name",
     "unlockBlock": 260,
     "bidAttempts": []
   }

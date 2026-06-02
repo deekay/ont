@@ -7,9 +7,14 @@ context.
 
 Related notes:
 
-- [LAUNCH_SPEC_V0.md](../research/LAUNCH_SPEC_V0.md)
-- [UNIVERSAL_AUCTION_LAUNCH_MODEL.md](../research/UNIVERSAL_AUCTION_LAUNCH_MODEL.md)
-- [BITCOIN_REVIEW_CLOSURE_MATRIX.md](../research/BITCOIN_REVIEW_CLOSURE_MATRIX.md)
+- [../ONT.md](../ONT.md) — the single source of truth.
+- [../design/ONT_ACQUISITION_STATE_MACHINE.md](../design/ONT_ACQUISITION_STATE_MACHINE.md) —
+  the current acquisition reference: claim first, accumulator finality if
+  uncontested, L1 bonded auction only if contested.
+- [../launch/ONT_LAUNCH_V1_BRIEF.md](../launch/ONT_LAUNCH_V1_BRIEF.md)
+- [../launch/CONTESTED_AUCTION_REFERENCE.md](../launch/CONTESTED_AUCTION_REFERENCE.md) —
+  contested-auction reference.
+- [BITCOIN_REVIEW_CLOSURE_MATRIX.md](../research/archive/BITCOIN_REVIEW_CLOSURE_MATRIX.md)
 
 ## How To Read This File
 
@@ -92,41 +97,61 @@ The winning bid transaction must establish both:
 - the name owner key carried in the auction bid payload
 - the dedicated bond UTXO that backs the name
 
-7. Auction-first allocation
+7. One-path acquisition
 
-Initial launch allocation uses auctions, not a separate direct-claim lane.
+Initial launch allocation uses one public claim path, not separate ordinary,
+premium, reserved, or founder lanes.
+
+Rules:
+- A claim binds a valid name to an owner key.
+- A claim is provisional during a public notice window.
+- If no competing DA-valid claim for the same name lands in the window, the name
+  finalizes through the accumulator.
+- If a competing DA-valid claim lands in the window, the name is contested and
+  escalates to the L1 bonded auction path.
 
 Purpose:
-- Let markets price scarce names.
+- Keep ordinary long-tail names cheap and batched.
+- Let markets price names that actually receive competing demand.
 - Avoid maintaining a subjective reserved-name list.
-- Keep ordinary long-tail names reachable without special editorial decisions.
 
-8. No short-name wave
+8. No reserved list or launch wave
 
-Short names use the same public auction model as every other valid name.
-Opening-bond floors can still vary objectively by name length, but there is no
-separate short-name launch phase.
+All valid names use the same objective claim/contest rules. There is no semantic
+reserved-name list, short-name wave, pre-launch reservation system, founder
+allocation, or identity-based quota.
+
+Short/scarce names may still have objective parameter differences, such as a
+higher claim reserve or auction bond floor, but those differences must be
+mechanical and public rather than editorial.
 
 9. Maturity anchor
 
-Maturity starts from the winning auction state once the name has settled into ownership, since that is when the active owner bond becomes protocol-relevant.
+Maturity applies to names that enter the bonded auction path. It starts once the
+winning auction state has settled into ownership, since that is when the active
+owner bond becomes protocol-relevant.
 
-10. Bond pricing function shape
+10. Economic parameter split
 
-Bond pricing is:
-- objective
-- length-only
-- based on temporary bonded capital, not fees paid to an issuer
+The claim gate and the auction bond are distinct:
+- The claim gate is a sunk fixed bitcoin fee paid to miners for a claim attempt.
+- The auction bond is returnable bitcoin capital used when a name is contested or
+  otherwise requires bonded settlement.
 
-No subjective premium categories are used in v1.
+Keeping these separate avoids letting the older all-auction bond table define
+ordinary long-tail claims.
 
-11. Bond curve form
+11. Auction bond curve status
 
-Bond amounts follow a Bitcoin-like halving curve with a minimum floor.
+Bond amounts should be objective and mechanical. The prototype code still
+contains a length-halving bond curve with a floor, but launch should explicitly
+decide where that curve applies before treating it as frozen.
 
-Formula under consideration:
-
-`bond_btc(length) = max(floor_btc, base_btc / 2^(length - 1))`
+Current lean:
+- use the ₿1,000 claim gate as the ordinary long-tail floor
+- use bonded auctions for contested names
+- confine any length-based bond floor to structurally scarce names or the
+  contested-auction opening requirements
 
 12. Maturity duration binding
 
@@ -152,8 +177,8 @@ design path, not the current lead launch recommendation.
 
 Current status:
 - The codebase still supports test overrides and maturity-schedule experiments.
-- The current lead launch spec favors a simpler fixed ordinary lock, currently
-  around one year, rather than a visible epoch-halving schedule.
+- The current lead launch spec favors a simpler fixed bonded-name maturity,
+  currently around one year, rather than a visible epoch-halving schedule.
 - Any final maturity parameters must be frozen before launch.
 
 This keeps the implementation flexible during prototype work without implying
@@ -315,16 +340,22 @@ Notes:
 - This is intended to avoid unnecessary social or technical coupling between ONT and Nostr.
 - Future standardized value types, if any, should be introduced conservatively and explicitly.
 
-24. Bond amount parameters
+24. Claim gate and bond amount parameters
 
-The launch bond curve parameters are:
-- `base_btc = ₿1`
-- `floor_btc = ₿0.0005`
+The current design has two economic mechanisms:
 
-Implications:
-- 1-character names require a 1 BTC bond at launch.
-- Each additional character halves the required bond until the `₿0.0005` floor is reached.
-- The 4,000-block value previously resolved is the minimum maturity floor, not the bond floor.
+- `claim_gate_sats = 1,000` for ordinary claim attempts, paid to Bitcoin miners.
+- returnable auction bonds for contested or objectively scarce names.
+
+The prototype code still carries earlier bond-curve parameters:
+
+- `base_btc = 1 BTC`
+- `floor_btc = 0.0005 BTC`
+
+Those values should be treated as auction/bond prototype parameters, not as the
+ordinary long-tail claim floor. Before launch, the code should make this split
+explicit so reviewers do not infer that every 5+ character uncontested claim
+requires a ₿50,000 bond.
 
 25. Same-block auction tie-break rule
 
@@ -342,14 +373,20 @@ Rationale:
 
 The v1 on-chain event set is intentionally minimal.
 
-Standardized on-chain events:
+Standardized ownership events:
 - `AUCTION_BID`
 - `TRANSFER`
+
+Scaling-rail messages:
+- `ROOT_ANCHOR`
+- `AVAILABILITY_MARKER`
 
 Implications:
 - v1 does not standardize on-chain `SET_VALUE`
 - v1 does not standardize on-chain `CLEAR_VALUE`
 - routine mutable value changes remain off-chain
+- root anchors and availability markers support batched acquisition; they do not
+  authorize transfers or mutable value updates
 
 27. Pre-maturity transfer linkage
 
@@ -432,33 +469,40 @@ These are not yet immutable launch commitments, but they are concrete enough
 that implementation, documentation, and reviewer-facing materials should treat
 them as the current defaults unless they are later revised explicitly.
 
-32. Retired direct-allocation batching baseline
+32. Retired two-lane and auction-only baselines
 
-The old direct-allocation scaling baseline is retired from launch planning.
-Future footprint work should be evaluated against auction openings, bids,
-transfers, and value-publication flows.
+The old ordinary/reserved two-lane model is retired. The later auction-for-every-
+name baseline is also retired as the ordinary entry path, and survives only as
+the contested-name escalation path.
+
+Current footprint work should be evaluated against:
+
+- batched claim anchors
+- availability markers
+- contested auction bids
+- transfers
+- value-record publication and retrieval
 
 34. Launch architecture lead direction
 
-The current lead launch architecture is **public bonded auctions for every
-valid name**.
+The current lead launch architecture is the **one-path claim model**.
 
 Current shape:
-- any valid name can be opened by a bonded public bid
+- every valid name enters through public claim
+- the claim is provisional during the notice window
+- an uncontested claim finalizes through the accumulator
+- a contested claim escalates to L1 bonded auction
 - there is no semantic reserved-name list
-- there is no ordinary direct-allocation lane in the launch model
 - there is no pre-launch reservation system
-- there is no short-name wave
-- old direct-claim tooling should be removed from public surfaces rather than
-  treated as a parallel launch path
+- there is no short-name wave or founder allocation
 
 This is strong enough to build supporting materials around, but it should still
 be treated as a working launch assumption rather than an immutable protocol
 freeze.
 
-35. Universal auction family
+35. Contested auction family
 
-The current auction family is:
+The current auction family applies when a name is contested:
 
 - open ascending
 - on-chain bonded bids
@@ -467,8 +511,7 @@ The current auction family is:
 - stronger minimum increments for bids that would extend the auction
 - no hard extension cap in the current design; a cap would create a known final
   edge and reintroduce sniping pressure
-- if nobody submits a valid bonded opening bid, no auction has opened and no
-  ownership changes
+- the winner's bond becomes the live name bond
 
 Current default increment parameters:
 - normal bids must clear `max(0.00001 BTC, 5%)`
@@ -483,7 +526,8 @@ Current rebid shape:
   the replacement transaction
 
 Implications:
-- the project can explain one coherent allocation rule for all eligible names
+- the project can explain one coherent claim rule for all eligible names
+- auctions price actual contention rather than precomputed salience
 - old reserved-list generation work is no longer launch-critical
 - close-griefing is handled by forcing late extensions to be real higher bonded
   bids with stronger increments, not by adding a hard final cap
@@ -510,7 +554,8 @@ The rewritten launch draft should explicitly state:
 - No discounted insider allocations
 - No whitelist
 - No identity-based quotas
-- Every immature auction-acquired name requires dedicated bonded BTC
+- Every valid name enters the same public claim path
+- Every contested auction winner requires dedicated bonded BTC while immature
 - Bond and maturity rules are fixed at launch
 - Auction rules and release conditions must be objective enough that outcomes
   are auditable from chain data plus the pre-announced launch artifacts
@@ -520,8 +565,9 @@ The protocol should aim for objective fairness, not semantic fairness.
 That means:
 - Names with the same objective policy inputs are treated identically by the
   protocol.
-- Scarcity and anti-hoarding pressure come from auction-discovered bonded BTC
-  and time, not from subjective pricing rules.
+- Scarcity and anti-hoarding pressure come from the miner-fee claim gate,
+  public notice, auction-discovered bonded BTC, and time, not from subjective
+  pricing rules.
 - If opening floors differ by length, that difference comes from a public
   objective curve rather than discretionary per-user judgment.
 

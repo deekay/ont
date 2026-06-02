@@ -17,6 +17,8 @@ import {
   type ProfileBundleDraft,
   type ProfileBundleEntry
 } from "./value-bundle.js";
+import { generateBrowserOwnerKey } from "./browser-key-tools.js";
+import { claimAvailableName } from "./browser-claim.js";
 
 type NameRecord = {
   readonly name: string;
@@ -312,9 +314,69 @@ async function loadName(rawName: string): Promise<void> {
     state.lastSuggestedSequence = null;
     resetValueInputs();
     invalidateSignedRecord("Load an owned name first, then sign the destination update locally.");
-    renderLookupMessage(error instanceof Error ? error.message : "Unable to load the requested name.");
+    if (isNotFound(error)) {
+      // Not a dead end: an unclaimed name is available to claim (one-path model).
+      renderClaimable(normalizedName);
+    } else {
+      renderLookupMessage(error instanceof Error ? error.message : "Unable to load the requested name.");
+    }
     syncWizard();
   }
+}
+
+/**
+ * An available (not-found) name turns into a claim. A fresh owner key is
+ * generated in the browser and the cheap-rail claim runs through the publisher
+ * (quote -> stubbed pay -> submit), with the inclusion proof verified locally.
+ */
+function renderClaimable(name: string): void {
+  if (!elements.lookupResult) {
+    return;
+  }
+  elements.lookupResult.classList.remove("empty");
+  elements.lookupResult.innerHTML = `
+    <div class="claim-available">
+      <p class="claim-available-kicker">Available</p>
+      <h3><span class="mono">${name}</span> isn't claimed yet</h3>
+      <p>You can claim it for a flat <strong>₿1,200</strong> (₿1,000 gate + ₿200 service, ~$1). A fresh
+        owner key is generated in your browser &mdash; only you hold it. On this signet the Lightning
+        payment is stubbed, so the claim completes end to end.</p>
+      <button type="button" id="valueClaimButton">Claim ${name}</button>
+      <div id="valueClaimResult" class="claim-available-result" hidden></div>
+    </div>`;
+  const button = document.getElementById("valueClaimButton") as HTMLButtonElement | null;
+  const output = document.getElementById("valueClaimResult");
+  button?.addEventListener("click", async () => {
+    if (!button || !output) {
+      return;
+    }
+    button.disabled = true;
+    button.textContent = "Claiming...";
+    output.hidden = false;
+    output.textContent = "Generating an owner key and requesting a quote...";
+    try {
+      const key = generateBrowserOwnerKey();
+      const result = await claimAvailableName({ basePath: BASE_PATH, name, ownerPubkey: key.ownerPubkey });
+      if (result.ok) {
+        output.innerHTML = `
+          <p class="claim-ok">&#10003; <strong>${name}</strong> claimed (provisional) &mdash; the inclusion proof verified in your browser.</p>
+          <div class="claim-key-box">
+            <p><strong>Save your owner private key.</strong> It is the only thing that controls this name, and it is stored nowhere:</p>
+            <code class="mono claim-key">${key.privateKeyHex}</code>
+          </div>
+          ${result.anchorTxid ? `<p class="claim-meta">Anchor txid <span class="mono">${result.anchorTxid}</span></p>` : ""}
+          <p class="claim-meta">It finalizes if uncontested through the notice window. Load <span class="mono">${name}</span> again above to set its destinations.</p>`;
+      } else {
+        output.innerHTML = `<p class="claim-err">Claim did not complete: ${result.problems.join("; ") || result.status}</p>`;
+        button.disabled = false;
+        button.textContent = `Claim ${name}`;
+      }
+    } catch (error) {
+      output.innerHTML = `<p class="claim-err">${error instanceof Error ? error.message : "Claim failed."}</p>`;
+      button.disabled = false;
+      button.textContent = `Claim ${name}`;
+    }
+  });
 }
 
 function signLocally(): void {

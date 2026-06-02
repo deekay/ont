@@ -1,60 +1,54 @@
-# Documentation
+# ONT documentation
 
-This repository has four documentation buckets:
+## Start here
 
-## Core
+**[ONT.md](./ONT.md) — the single source of truth** for what ONT is, why it matters, and how it
+works. If you read one thing, read that. Everything below is secondary to it.
 
-These are the best places to start if you want to understand the current prototype.
+For a fresh builder or reviewer, read **[core/CURRENT_ARCHITECTURE_BRIEF.md](./core/CURRENT_ARCHITECTURE_BRIEF.md)**
+next. It is the current handoff after the cleanup pass: active design, active code entrypoints,
+retired paths, verification baseline, and recommended next work.
 
-- [ONT_ONE_PAGER.md](./core/ONT_ONE_PAGER.md): short overview of the design, economics, and blockspace footprint
-- [SELF_HOSTING.md](./core/SELF_HOSTING.md): easiest path for running your own ONT website + resolver stack
-- [ARCHITECTURE.md](./core/ARCHITECTURE.md): system structure, trust boundaries, and runtime modes
-- [DECISIONS.md](./core/DECISIONS.md): protocol decisions and tradeoffs that are already explicit
-- [NEW_USER_TESTING_GUIDE.md](./core/NEW_USER_TESTING_GUIDE.md): friendly first-time testing guide for reviewers and friends
-- [TESTING.md](./core/TESTING.md): fixture, regtest, and private signet testing paths
+## Design reference (the depth behind ONT.md)
 
-## Demo
+- **[design/ONT_SOVEREIGNTY_MAP.md](./design/ONT_SOVEREIGNTY_MAP.md)** — the minimal set of rules
+  that guarantee no one can take your name, mapped to the code.
+- **[core/CURRENT_ARCHITECTURE_BRIEF.md](./core/CURRENT_ARCHITECTURE_BRIEF.md)** — current builder
+  handoff and anti-archaeology map for humans and LLMs.
+- **[design/ONT_ACQUISITION_STATE_MACHINE.md](./design/ONT_ACQUISITION_STATE_MACHINE.md)** — the
+  current acquisition reference: claim, notice, uncontested finality, and contested auction escalation.
+- **[design/README.md](./design/README.md)** — the curated design index: requirements,
+  conformance, the data-availability rule, the scaling design, risks, and the signet prototype.
+- **[core/SIMPLIFICATION_AUDIT.md](./core/SIMPLIFICATION_AUDIT.md)** — current cleanup map for
+  collapsing historical exploration into the main protocol path.
 
-These documents are specifically about the current hosted and private-signet demo flows.
+## Launch & review (`docs/launch/`)
 
-- [FLINT_DEMO.md](./demo/FLINT_DEMO.md): shortest hosted-demo script for reviewers, friends, and first-time testers
-- [SPARROW_PRIVATE_SIGNET.md](./demo/SPARROW_PRIVATE_SIGNET.md): Sparrow + private signet setup for the hosted demo
-- [RUN_SIGNET.md](./demo/RUN_SIGNET.md): running the prototype against signet backends
-- [COLD_USER_WALKTHROUGH.md](./demo/COLD_USER_WALKTHROUGH.md): how to run and record a first-time user walkthrough
+Working material for getting to launch. The current launch brief is
+[`ONT_LAUNCH_V1_BRIEF.md`](./launch/ONT_LAUNCH_V1_BRIEF.md). Retired launch
+paths have been moved out of this folder so the active launch docs stay clean:
 
-## Operators
+- Current: `ONT_LAUNCH_V1_BRIEF`, `CONTESTED_AUCTION_REFERENCE` (contested-auction reference),
+  `ONT_IMPLEMENTATION_AND_VALIDATION`, `ONT_PARAMETER_REVIEW_PACKET`.
+- Historical snapshots: `research/archive/retired-launch/`.
+- Bitcoin reviewers: [ONT_ONE_PAGER](./ONT_ONE_PAGER.md) + [ONT_DESIGN_BRIEF](./ONT_DESIGN_BRIEF.md) (older review packets are archived under `research/archive/`).
+- Auction working docs: `AUCTION_*`.
 
-These are mainly useful if you are self-hosting or running the prototype infrastructure.
+## Running it (operational)
 
-- [VPS_SETUP.md](./operators/VPS_SETUP.md)
-- [ONT_DOMAIN_DEPLOY.md](./operators/ONT_DOMAIN_DEPLOY.md)
-- [SUPABASE_SETUP.md](./operators/SUPABASE_SETUP.md)
+How to run the prototype and demos — not conceptual reading.
 
-## Research And Drafts
+- [core/SELF_HOSTING.md](./core/SELF_HOSTING.md), [core/ARCHITECTURE.md](./core/ARCHITECTURE.md),
+  [core/TESTING.md](./core/TESTING.md), [core/NEW_USER_TESTING_GUIDE.md](./core/NEW_USER_TESTING_GUIDE.md)
+- Demo flows: [demo/](./demo/) · Operators: [operators/](./operators/)
 
-These documents are useful, but they are more speculative, essay-like, or draft-oriented than the core docs above.
+## Notes & explorations (`docs/research/`)
 
-- [UNIVERSAL_AUCTION_LAUNCH_MODEL.md](./research/UNIVERSAL_AUCTION_LAUNCH_MODEL.md): current lead launch model; public bonded auctions for every valid name, no reserved list
-- [AUCTION_EDGE_CASE_MATRIX.md](./research/AUCTION_EDGE_CASE_MATRIX.md): human-readable auction edge-case and test-planning matrix
-- [AUCTION_SIMULATOR.md](./research/AUCTION_SIMULATOR.md): current simulator and CLI commands for auction policy, single-auction cases, and market scenarios
-- [ONT_VS_PUBKY_PKARR.md](./research/ONT_VS_PUBKY_PKARR.md)
-- [ONT_AND_PRIVATE_MESSAGING_BOOTSTRAP.md](./research/ONT_AND_PRIVATE_MESSAGING_BOOTSTRAP.md)
-- [VALUE_RECORD_HISTORY_AND_KEYBASE_NOTES.md](./research/VALUE_RECORD_HISTORY_AND_KEYBASE_NOTES.md)
-- [NARRATIVE_FRAMEWORK.md](./research/NARRATIVE_FRAMEWORK.md)
-- [PAYMENT_NAMES_AND_TRUST_SIGNALS.md](./research/PAYMENT_NAMES_AND_TRUST_SIGNALS.md)
-- [PRIVATE_RELATIONSHIP_GRAPH_AND_NOSTR.md](./research/PRIVATE_RELATIONSHIP_GRAPH_AND_NOSTR.md)
-- [USE_CASE_SCENES.md](./research/USE_CASE_SCENES.md)
-- [REVIEW_FEEDBACK_BACKLOG.md](./research/REVIEW_FEEDBACK_BACKLOG.md)
-- [POST_QUANTUM_AND_SIGNATURE_AGILITY.md](./research/POST_QUANTUM_AND_SIGNATURE_AGILITY.md)
-- [HYPE_VIDEO_SCRIPT.md](./research/HYPE_VIDEO_SCRIPT.md)
-- [HANDSOFF_DEMO_WALLET_PLAN.md](./research/HANDSOFF_DEMO_WALLET_PLAN.md)
-- [ONT_EXPLAINER.md](./research/ONT_EXPLAINER.md)
-- [ONT-v2-draft.md](./research/ONT-v2-draft.md)
-- [IMPLEMENTATION_PLAN.md](./research/IMPLEMENTATION_PLAN.md)
-- [TRANSFER_RELAY_OPTIONS.md](./research/TRANSFER_RELAY_OPTIONS.md)
-- [FUTURE_EXPLORATIONS.md](./research/FUTURE_EXPLORATIONS.md)
-- [NOSTR_STRATEGY.md](./research/NOSTR_STRATEGY.md)
+- **`docs/research/`** — the design & security depth behind the core docs: adversarial
+  analysis, data-availability, multi-publisher convergence, recovery specs, prior-art
+  (`ONT_VS_PUBKY_PKARR`), post-quantum, and the open questions for experts.
+- **[research/archive/](./research/archive/)** — **superseded explorations**, isolated and kept only for provenance
+  (sponsor credits, Ark/RGB, the "open collider" / public-log passes, the early scaling survey, and
+  retired launch paths).
 
-Superseded launch-list and two-lane notes are intentionally removed from this
-index. The current launch model does not use a reserved-word list, salience
-spreadsheet, pre-launch reservation system, or separate ordinary lane.
+**Authoritative: [ONT.md](./ONT.md) + [design/](./design/).**

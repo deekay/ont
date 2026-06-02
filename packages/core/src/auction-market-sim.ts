@@ -22,7 +22,6 @@ export interface LaunchAuctionMarketAuctionScenario extends LaunchAuctionScenari
 export interface SerializedLaunchAuctionMarketAuctionScenario {
   readonly auctionId: string;
   readonly name: string;
-  readonly auctionClassId: LaunchAuctionScenario["auctionClassId"];
   readonly unlockBlock: number;
   readonly bidAttempts: ReadonlyArray<{
     readonly bidderId: string;
@@ -44,8 +43,6 @@ export interface SerializedLaunchAuctionMarketScenario {
 export interface LaunchAuctionMarketAuctionResult {
   readonly auctionId: string;
   readonly normalizedName: string;
-  readonly auctionClassId: LaunchAuctionScenario["auctionClassId"];
-  readonly classLabel: string;
   readonly unlockBlock: number;
   readonly openingMinimumBidSats: bigint;
   readonly settlementLockBlocks: number;
@@ -60,8 +57,6 @@ export interface LaunchAuctionMarketAuctionResult {
 export interface SerializedLaunchAuctionMarketAuctionResult {
   readonly auctionId: string;
   readonly normalizedName: string;
-  readonly auctionClassId: LaunchAuctionScenario["auctionClassId"];
-  readonly classLabel: string;
   readonly unlockBlock: number;
   readonly openingMinimumBidSats: string;
   readonly settlementLockBlocks: number;
@@ -149,8 +144,6 @@ export interface SerializedLaunchAuctionMarketSimulationResult {
 interface AuctionRuntime {
   readonly auctionId: string;
   readonly normalizedName: string;
-  readonly auctionClassId: LaunchAuctionScenario["auctionClassId"];
-  readonly classLabel: string;
   readonly unlockBlock: number;
   readonly openingMinimumBidSats: bigint;
   readonly settlementLockBlocks: number;
@@ -187,15 +180,12 @@ export function simulateLaunchAuctionMarket(input: {
     const normalizedName = normalizeName(auction.name);
     const openingRequirements = getLaunchAuctionOpeningRequirements({
       policy: input.policy,
-      name: normalizedName,
-      auctionClassId: auction.auctionClassId
+      name: normalizedName
     });
 
     return {
       auctionId: auction.auctionId,
       normalizedName,
-      auctionClassId: auction.auctionClassId,
-      classLabel: openingRequirements.classLabel,
       unlockBlock: auction.unlockBlock,
       openingMinimumBidSats: openingRequirements.openingMinimumBidSats,
       settlementLockBlocks: openingRequirements.settlementLockBlocks,
@@ -292,8 +282,6 @@ export function simulateLaunchAuctionMarket(input: {
   const auctionResults: LaunchAuctionMarketAuctionResult[] = runtimes.map((runtime) => ({
     auctionId: runtime.auctionId,
     normalizedName: runtime.normalizedName,
-    auctionClassId: runtime.auctionClassId,
-    classLabel: runtime.classLabel,
     unlockBlock: runtime.unlockBlock,
     openingMinimumBidSats: runtime.openingMinimumBidSats,
     settlementLockBlocks: runtime.settlementLockBlocks,
@@ -379,7 +367,6 @@ export function serializeLaunchAuctionMarketScenario(
     auctions: scenario.auctions.map((auction) => ({
       auctionId: auction.auctionId,
       name: auction.name,
-      auctionClassId: auction.auctionClassId,
       unlockBlock: auction.unlockBlock,
       bidAttempts: auction.bidAttempts.map((attempt) => ({
         bidderId: attempt.bidderId,
@@ -397,8 +384,6 @@ export function serializeLaunchAuctionMarketSimulationResult(
     auctionResults: result.auctionResults.map((auction) => ({
       auctionId: auction.auctionId,
       normalizedName: auction.normalizedName,
-      auctionClassId: auction.auctionClassId,
-      classLabel: auction.classLabel,
       unlockBlock: auction.unlockBlock,
       openingMinimumBidSats: auction.openingMinimumBidSats.toString(),
       settlementLockBlocks: auction.settlementLockBlocks,
@@ -660,7 +645,6 @@ function parseLaunchAuctionMarketAuctionScenario(
     auctionId: parseString(record.auctionId, `auctions[${index}].auctionId`),
     ...parseLaunchAuctionScenario({
       name: record.name,
-      auctionClassId: record.auctionClassId,
       unlockBlock: record.unlockBlock,
       bidAttempts: record.bidAttempts
     })

@@ -2,6 +2,10 @@
 
 This document describes the current shape of the Open Name Tags prototype as it exists in this repository.
 
+For a clean handoff before deeper architecture reading, start with
+[CURRENT_ARCHITECTURE_BRIEF.md](./CURRENT_ARCHITECTURE_BRIEF.md). It identifies
+the active design path, current code entrypoints, and retired paths to ignore.
+
 ## Layer Model
 
 Current prototype work is easiest to reason about as five layers:
@@ -321,7 +325,7 @@ For high-value use, the stronger path should stay local-first:
 That keeps high-value preparation closer to the Ian Coleman model: transparent
 and runnable without trusting a live hosted JavaScript bundle. The old
 direct-allocation browser path is retired; any higher-trust path should now be
-auction-first.
+claim-first, with local auction preparation when a claim is contested.
 
 ## What Still Needs Improvement
 

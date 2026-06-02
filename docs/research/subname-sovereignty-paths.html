@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ONT Root And Subname Sovereignty Paths</title>
+  <style>
+    @page {
+      size: Letter landscape;
+      margin: 0.38in;
+    }
+
+    :root {
+      --ink: #16201f;
+      --muted: #5b6662;
+      --line: #d8ded8;
+      --panel: #f8faf7;
+      --accent: #0d6f6b;
+      --accent-2: #174f80;
+      --warm: #f5eee8;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: #ffffff;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 11px;
+      line-height: 1.32;
+    }
+
+    .page {
+      min-height: 7.7in;
+      padding: 0.06in;
+    }
+
+    header {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: end;
+      gap: 24px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid var(--ink);
+    }
+
+    h1 {
+      margin: 0 0 5px;
+      font-size: 25px;
+      line-height: 1.05;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      max-width: 8.6in;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .badge {
+      border: 1px solid var(--line);
+      background: var(--panel);
+      border-radius: 8px;
+      padding: 8px 10px;
+      min-width: 1.55in;
+      text-align: right;
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    .badge strong {
+      display: block;
+      color: var(--ink);
+      font-size: 12px;
+    }
+
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin: 12px 0;
+    }
+
+    .summary div {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 9px 11px;
+      background: var(--panel);
+    }
+
+    .summary strong {
+      color: var(--accent);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      table-layout: fixed;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      font-size: 10px;
+    }
+
+    thead th {
+      background: var(--ink);
+      color: #ffffff;
+      padding: 7px 8px;
+      text-align: left;
+      vertical-align: bottom;
+      font-weight: 750;
+      line-height: 1.18;
+    }
+
+    tbody td {
+      padding: 8px;
+      vertical-align: top;
+      border-top: 1px solid var(--line);
+    }
+
+    tbody tr:nth-child(odd) td {
+      background: #ffffff;
+    }
+
+    tbody tr:nth-child(even) td {
+      background: var(--panel);
+    }
+
+    .name {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-weight: 800;
+      color: var(--accent-2);
+      font-size: 11px;
+      white-space: nowrap;
+    }
+
+    .pill {
+      display: inline-block;
+      min-width: 34px;
+      padding: 2px 7px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: #ffffff;
+      font-weight: 750;
+      text-align: center;
+    }
+
+    .yes {
+      color: var(--accent-2);
+    }
+
+    .no {
+      color: var(--accent);
+    }
+
+    .note {
+      margin-top: 12px;
+      display: grid;
+      grid-template-columns: 1.35fr 1fr;
+      gap: 10px;
+    }
+
+    .note div {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 9px 11px;
+      background: var(--warm);
+    }
+
+    .note h2 {
+      margin: 0 0 4px;
+      font-size: 12px;
+      letter-spacing: 0;
+    }
+
+    .note p {
+      margin: 0;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header>
+      <div>
+        <h1>ONT Root And Subname Sovereignty Paths</h1>
+        <div class="subtitle">
+          Preliminary scale model: roots are the direct Bitcoin-sovereign primitive; subnames are the
+          scalable namespace path, with optional hardening for higher-assurance cases.
+        </div>
+      </div>
+      <div class="badge">
+        <strong>Draft framing</strong>
+        for discussion
+      </div>
+    </header>
+
+    <section class="summary">
+      <div><strong>Roots</strong> require Bitcoin footprint and maturity, but are the cleanest "just own a name" path.</div>
+      <div><strong>Subnames</strong> can be issued without a new UTXO if the root grants ownership to a subname key.</div>
+      <div><strong>Finality</strong> can come from grant acceptance, checkpointing, and a non-revocation rule.</div>
+    </section>
+
+    <table aria-label="ONT sovereignty examples">
+      <colgroup>
+        <col style="width: 13%">
+        <col style="width: 17%">
+        <col style="width: 10%">
+        <col style="width: 11%">
+        <col style="width: 14%">
+        <col style="width: 18%">
+        <col style="width: 17%">
+      </colgroup>
+      <thead>
+        <tr>
+          <th>Example</th>
+          <th>What it is</th>
+          <th>Requires new UTXO?</th>
+          <th>Requires maturity?</th>
+          <th>Useful when?</th>
+          <th>Self-sovereign / final when?</th>
+          <th>Main caveat</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="name">bitcoin</span></td>
+          <td>Root name won through permissionless on-chain auction.</td>
+          <td><span class="pill yes">Yes</span></td>
+          <td><span class="pill yes">Yes</span><br>Example: 1 year.</td>
+          <td>Day 1. Owner controls it, but bond continuity matters.</td>
+          <td>After root maturity. Owner-key authority can survive bond release.</td>
+          <td>Highest assurance, but consumes Bitcoin blockspace and one immature bond UTXO.</td>
+        </tr>
+        <tr>
+          <td><span class="name">alice@bitcoin</span><br>after <span class="name">bitcoin</span> is mature</td>
+          <td>Subname issued by a mature root to Alice's owner key.</td>
+          <td><span class="pill no">No</span></td>
+          <td><span class="pill no">No</span><br>No new subname maturity.</td>
+          <td>Seconds to minutes after root grant and Alice acceptance.</td>
+          <td>After checkpoint plus finality. Root cannot overwrite if grant is non-revocable.</td>
+          <td>Not root-equivalent. Validity depends on the root grant and proof history.</td>
+        </tr>
+        <tr>
+          <td><span class="name">alice@bitcoin</span><br>before <span class="name">bitcoin</span> is mature</td>
+          <td>Subname issued while the root is still in its bond-maturity window.</td>
+          <td><span class="pill no">No</span></td>
+          <td><span class="pill yes">Inherits root risk</span></td>
+          <td>Seconds to minutes after accepted grant.</td>
+          <td>After grant finality and root maturity.</td>
+          <td>If the root bond fails before maturity, dependent subnames may be affected.</td>
+        </tr>
+        <tr>
+          <td><span class="name">agent7@alice</span></td>
+          <td>Scalable identity for an agent, app, device, department, or key.</td>
+          <td><span class="pill no">No</span></td>
+          <td><span class="pill no">No</span><br>If root is mature.</td>
+          <td>Immediately after accepted grant, subject to resolver availability.</td>
+          <td>After checkpoint plus finality under the root's published policy.</td>
+          <td>Good for scale, but root policy and proof availability must be explicit.</td>
+        </tr>
+        <tr>
+          <td><span class="name">treasury@acme</span></td>
+          <td>High-assurance subname that chooses optional independent hardening.</td>
+          <td><span class="pill yes">Yes</span></td>
+          <td><span class="pill yes">Yes</span><br>Protocol-defined.</td>
+          <td>Pending immediately once grant is accepted; stronger after hardening starts.</td>
+          <td>After its own Bitcoin-backed maturity path.</td>
+          <td>Closest to root-like assurance, but reintroduces per-name Bitcoin cost.</td>
+        </tr>
+        <tr>
+          <td><span class="name">alice</span><br>after using <span class="name">alice@bitcoin</span></td>
+          <td>User later acquires a root name and migrates usage.</td>
+          <td><span class="pill yes">Yes</span></td>
+          <td><span class="pill yes">Yes</span></td>
+          <td>After winning root auction.</td>
+          <td>After root maturity.</td>
+          <td>Practical sovereignty upgrade, but it is a new root name, not the same subname.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <section class="note">
+      <div>
+        <h2>Key distinction</h2>
+        <p>
+          A finalized subname can be self-sovereign against the root operator: the root cannot revoke
+          or replace the subname owner's key. It is still namespace sovereignty, not identical to
+          owning the root itself.
+        </p>
+      </div>
+      <div>
+        <h2>Resolver role</h2>
+        <p>
+          Resolvers verify roots, grants, owner-key update chains, and proofs. They provide data
+          availability and witness infrastructure; they should not become registrars.
+        </p>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

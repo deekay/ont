@@ -34,20 +34,17 @@ describe("InMemoryOntIndexer auction observations", () => {
     const bidderCommitment = computeAuctionBidderCommitment("operator_satoshi");
     const openingRequirements = getLaunchAuctionOpeningRequirements({
       policy,
-      name,
-      auctionClassId: "launch_name"
+      name
     });
     const auctionLotCommitment = computeAuctionLotCommitment({
       auctionId,
       name,
-      auctionClassId: "launch_name",
       unlockBlock
     });
     const bidAmountSats = openingRequirements.openingMinimumBidSats;
     const auctionCommitment = computeAuctionBidStateCommitment({
       auctionId,
       name,
-      auctionClassId: "launch_name",
       currentBlockHeight,
       phase: "awaiting_opening_bid",
       unlockBlock,
@@ -141,8 +138,7 @@ describe("InMemoryOntIndexer auction observations", () => {
           ownerPubkey: OWNER_PUBKEY,
           bondOutputValueSats: getLaunchAuctionOpeningRequirements({
             policy,
-            name: "shortbond",
-            auctionClassId: "launch_name"
+            name: "shortbond"
           }).openingMinimumBidSats - 1n
         }).block,
         reason: "auction_bid_bond_value_mismatch"
@@ -296,6 +292,209 @@ describe("InMemoryOntIndexer auction observations", () => {
           typeName: "TRANSFER",
           validationStatus: "applied",
           reason: "transfer_applied_immature",
+          affectedName: name
+        }
+      ]
+    });
+  });
+
+  it("transfers a MATURE name and rewrites the owner without bond continuity", () => {
+    const policy = createFastAuctionPolicy();
+    const name = "orchard";
+    const openingBid = createOpeningBidBlock({
+      policy,
+      name,
+      height: 10,
+      txid: hexByte(0x22),
+      ownerPubkey: OWNER_PUBKEY
+    });
+    const transferTxid = hexByte(0x55);
+    const indexer = new InMemoryOntIndexer({ launchHeight: 0, experimentalLaunchAuctionPolicy: policy });
+
+    indexer.ingestBlocks([
+      openingBid.block,
+      emptyBlock(13, 0x33),
+      emptyBlock(16, 0x34),
+      transferBlock({
+        height: 17,
+        txid: transferTxid,
+        prevStateTxid: openingBid.txid,
+        spentBondTxid: openingBid.txid,
+        spentBondVout: 0,
+        successorBondSats: openingBid.bidAmountSats
+      })
+    ]);
+
+    // A mature transfer rewrites ownership without requiring bond continuity.
+    expect(indexer.getName(name)).toMatchObject({
+      name,
+      currentOwnerPubkey: NEW_OWNER_PUBKEY,
+      lastStateTxid: transferTxid,
+      lastStateHeight: 17
+    });
+    expect(indexer.getTransactionProvenance(transferTxid)).toMatchObject({
+      events: [
+        {
+          typeName: "TRANSFER",
+          validationStatus: "applied",
+          reason: "transfer_applied_mature",
+          affectedName: name
+        }
+      ]
+    });
+  });
+
+  it("rejects a transfer signed by a key other than the current owner", () => {
+    const policy = createFastAuctionPolicy();
+    const name = "orchard";
+    const openingBid = createOpeningBidBlock({
+      policy,
+      name,
+      height: 10,
+      txid: hexByte(0x22),
+      ownerPubkey: OWNER_PUBKEY
+    });
+    const transferTxid = hexByte(0x44);
+    const indexer = new InMemoryOntIndexer({ launchHeight: 0, experimentalLaunchAuctionPolicy: policy });
+
+    indexer.ingestBlocks([
+      openingBid.block,
+      emptyBlock(13, 0x33),
+      transferBlock({
+        height: 14,
+        txid: transferTxid,
+        prevStateTxid: openingBid.txid,
+        spentBondTxid: openingBid.txid,
+        spentBondVout: 0,
+        successorBondSats: openingBid.bidAmountSats,
+        signingPrivateKeyHex: "09".repeat(32)
+      })
+    ]);
+
+    expect(indexer.getName(name)?.currentOwnerPubkey).toBe(OWNER_PUBKEY);
+    expect(indexer.getTransactionProvenance(transferTxid)).toMatchObject({
+      events: [
+        {
+          typeName: "TRANSFER",
+          validationStatus: "ignored",
+          reason: "transfer_invalid_signature",
+          affectedName: name
+        }
+      ]
+    });
+  });
+
+  it("ignores a transfer whose prevStateTxid matches no name record", () => {
+    const policy = createFastAuctionPolicy();
+    const name = "orchard";
+    const openingBid = createOpeningBidBlock({
+      policy,
+      name,
+      height: 10,
+      txid: hexByte(0x22),
+      ownerPubkey: OWNER_PUBKEY
+    });
+    const transferTxid = hexByte(0x44);
+    const indexer = new InMemoryOntIndexer({ launchHeight: 0, experimentalLaunchAuctionPolicy: policy });
+
+    indexer.ingestBlocks([
+      openingBid.block,
+      emptyBlock(13, 0x33),
+      transferBlock({
+        height: 14,
+        txid: transferTxid,
+        prevStateTxid: hexByte(0xee), // no record has this lastStateTxid
+        spentBondTxid: openingBid.txid,
+        spentBondVout: 0,
+        successorBondSats: openingBid.bidAmountSats
+      })
+    ]);
+
+    expect(indexer.getName(name)?.currentOwnerPubkey).toBe(OWNER_PUBKEY);
+    expect(indexer.getTransactionProvenance(transferTxid)).toMatchObject({
+      events: [
+        {
+          typeName: "TRANSFER",
+          validationStatus: "ignored",
+          reason: "transfer_name_not_found_or_invalid",
+          affectedName: null
+        }
+      ]
+    });
+  });
+
+  it("rejects an immature transfer that does not spend the current bond", () => {
+    const policy = createFastAuctionPolicy();
+    const name = "orchard";
+    const openingBid = createOpeningBidBlock({
+      policy,
+      name,
+      height: 10,
+      txid: hexByte(0x22),
+      ownerPubkey: OWNER_PUBKEY
+    });
+    const transferTxid = hexByte(0x44);
+    const indexer = new InMemoryOntIndexer({ launchHeight: 0, experimentalLaunchAuctionPolicy: policy });
+
+    indexer.ingestBlocks([
+      openingBid.block,
+      emptyBlock(13, 0x33),
+      transferBlock({
+        height: 14,
+        txid: transferTxid,
+        prevStateTxid: openingBid.txid,
+        spentBondTxid: hexByte(0xab), // spends some other outpoint, not the current bond
+        spentBondVout: 0,
+        successorBondSats: openingBid.bidAmountSats
+      })
+    ]);
+
+    expect(indexer.getName(name)?.currentOwnerPubkey).toBe(OWNER_PUBKEY);
+    expect(indexer.getTransactionProvenance(transferTxid)).toMatchObject({
+      events: [
+        {
+          typeName: "TRANSFER",
+          validationStatus: "ignored",
+          reason: "transfer_missing_bond_spend",
+          affectedName: name
+        }
+      ]
+    });
+  });
+
+  it("rejects an immature transfer whose successor bond is below the required bond", () => {
+    const policy = createFastAuctionPolicy();
+    const name = "orchard";
+    const openingBid = createOpeningBidBlock({
+      policy,
+      name,
+      height: 10,
+      txid: hexByte(0x22),
+      ownerPubkey: OWNER_PUBKEY
+    });
+    const transferTxid = hexByte(0x44);
+    const indexer = new InMemoryOntIndexer({ launchHeight: 0, experimentalLaunchAuctionPolicy: policy });
+
+    indexer.ingestBlocks([
+      openingBid.block,
+      emptyBlock(13, 0x33),
+      transferBlock({
+        height: 14,
+        txid: transferTxid,
+        prevStateTxid: openingBid.txid,
+        spentBondTxid: openingBid.txid,
+        spentBondVout: 0,
+        successorBondSats: 1n // far below the required bond
+      })
+    ]);
+
+    expect(indexer.getName(name)?.currentOwnerPubkey).toBe(OWNER_PUBKEY);
+    expect(indexer.getTransactionProvenance(transferTxid)).toMatchObject({
+      events: [
+        {
+          typeName: "TRANSFER",
+          validationStatus: "ignored",
+          reason: "transfer_invalid_successor_bond",
           affectedName: name
         }
       ]
@@ -777,12 +976,6 @@ function createFastAuctionPolicy(): LaunchAuctionPolicy {
       ...policy.auction,
       baseWindowBlocks: 2,
       softCloseExtensionBlocks: 0
-    },
-    auctionClasses: {
-      launch_name: {
-        ...policy.auctionClasses.launch_name,
-        lockBlocks: 5
-      }
     }
   };
 }
@@ -818,20 +1011,17 @@ function createOpeningBidBlock(input: {
   });
   const openingRequirements = getLaunchAuctionOpeningRequirements({
     policy: input.policy,
-    name: input.name,
-    auctionClassId: "launch_name"
+    name: input.name
   });
   const auctionLotCommitment = computeAuctionLotCommitment({
     auctionId,
     name: input.name,
-    auctionClassId: "launch_name",
     unlockBlock
   });
   const bidAmountSats = openingRequirements.openingMinimumBidSats;
   const auctionCommitment = computeAuctionBidStateCommitment({
     auctionId,
     name: input.name,
-    auctionClassId: "launch_name",
     currentBlockHeight: input.height,
     phase: "awaiting_opening_bid",
     unlockBlock,
@@ -918,13 +1108,14 @@ function transferBlock(input: {
   readonly spentBondTxid: string;
   readonly spentBondVout: number;
   readonly successorBondSats: bigint;
+  readonly signingPrivateKeyHex?: string;
 }): BitcoinBlock {
   const signature = signTransferAuthorization({
     prevStateTxid: input.prevStateTxid,
     newOwnerPubkey: NEW_OWNER_PUBKEY,
     flags: 0,
     successorBondVout: 0,
-    ownerPrivateKeyHex: OWNER_PRIVATE_KEY_HEX
+    ownerPrivateKeyHex: input.signingPrivateKeyHex ?? OWNER_PRIVATE_KEY_HEX
   });
   const payload = encodeTransferPayload({
     prevStateTxid: input.prevStateTxid,

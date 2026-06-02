@@ -9,7 +9,6 @@
       {
         "auctionId": "meadow-main",
         "name": "meadow",
-        "auctionClassId": "launch_name",
         "unlockBlock": 900000,
         "bidAttempts": [
           {
@@ -27,7 +26,6 @@
       {
         "auctionId": "tyler-side",
         "name": "silverpine",
-        "auctionClassId": "launch_name",
         "unlockBlock": 900050,
         "bidAttempts": [
           {
@@ -45,7 +43,6 @@
       {
         "auctionId": "garry-followup",
         "name": "wildrose",
-        "auctionClassId": "launch_name",
         "unlockBlock": 904500,
         "bidAttempts": [
           {

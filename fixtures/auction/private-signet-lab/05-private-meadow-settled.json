@@ -4,7 +4,6 @@
   "currentBlockHeight": 1150,
   "scenario": {
     "name": "meadow",
-    "auctionClassId": "launch_name",
     "unlockBlock": 110,
     "bidAttempts": [
       {

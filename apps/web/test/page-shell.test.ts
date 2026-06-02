@@ -13,45 +13,40 @@ const baseOptions = {
 } as const;
 
 describe("renderPageHtml", () => {
-  it("keeps the homepage focused on the core framing and next paths", () => {
+  it("leads with sovereignty + neutrality and points to the app", () => {
     const html = renderPageHtml({
       ...baseOptions,
       pageKind: "home"
     });
 
-    expect(html).toContain("Human-readable names you can actually own");
-    expect(html).toContain("Search a name, then jump into the workflow");
-    expect(html).toContain("ONT tools");
-    expect(html).toContain(">Check<");
-    expect(html).toContain(">Bid<");
-    expect(html).toContain(">Manage<");
+    // New framing: sovereign, neutral, Bitcoin-anchored; the app is the client.
+    expect(html).toContain("Own your name like you own your bitcoin.");
+    expect(html).toContain("Sovereign names on Bitcoin");
+    expect(html).toContain("no gatekeeper");
+    expect(html).toContain("You hold the keys");
+    expect(html).toContain("No registrar, token, or rent");
+    expect(html).toContain("Neutral by design");
+    expect(html).toContain("Use it from the app");
+    expect(html).toContain("Verify it yourself");
+    expect(html).toContain("Run your own");
+    // The mechanics (one-path) + live name lookup stay.
+    expect(html).toContain("How It Works");
     expect(html).toContain("Check a name");
-    expect(html).toContain("See owner status, auction status, and the next available action.");
-    expect(html).toContain("Build an opening bid");
-    expect(html).toContain("Update or transfer");
-    expect(html).toContain("Choose A Workflow");
-    expect(html).toContain("Set Up Signing");
-    expect(html).toContain("Build A Bid");
-    expect(html).toContain("Inspect Live State");
-    expect(html).toContain("Update A Name");
-    expect(html).toContain("From Zero");
-    expect(html).toContain("site-footer");
+    expect(html).toContain('id="searchForm"');
+    // Collapsed, narrow nav.
+    expect(html).toContain(">Explore<");
+    expect(html).toContain(">Tools<");
     expect(html).toContain(">Learn<");
-    expect(html).toContain(">Use<");
-    expect(html).not.toContain("Offline architect");
-    expect(html).toContain("Manage");
-    expect(html).not.toContain("More links");
-    expect(html).not.toContain("Anchored To Bitcoin");
+    expect(html).toContain("site-footer");
+    // Old transactional/marketing framing is gone.
+    expect(html).not.toContain("Human-readable names you can actually own");
+    expect(html).not.toContain("ONT tools");
+    expect(html).not.toContain("Choose A Workflow");
+    expect(html).not.toContain("Set Up Signing");
+    expect(html).not.toContain("Inspect Live State");
     expect(html).not.toContain("Bonded, Not Rented");
     expect(html).not.toContain("Costly To Hoard");
-    expect(html).not.toContain("Maps To Destinations");
     expect(html).not.toContain("Two ideas shape ONT.");
-    expect(html).not.toContain("Eligible names use one auction lane.");
-    expect(html).not.toContain("One Name, Many Destinations");
-    expect(html).not.toContain("Any valid name can be opened by a bonded public bid.");
-    expect(html).not.toContain("Small Bitcoin footprint");
-    expect(html).not.toContain("Resolvers store the current owner-signed bundle for <span class=\"mono\">alice</span>");
-    expect(html).not.toContain("Current Status");
   });
 
   it("keeps explore focused on the current private-signet demo surfaces", () => {
@@ -79,11 +74,11 @@ describe("renderPageHtml", () => {
     expect(html).toContain("Overview sections");
     expect(html).toContain("How it works");
     expect(html).toContain("How It Works");
-    expect(html).toContain("Follow one name from Bitcoin ownership to the destinations apps can use.");
+    expect(html).toContain("Follow one name from a Bitcoin-secured claim to the destinations apps can use.");
     expect(html).toContain("protocol-flow");
-    expect(html).toContain("Win At Auction");
-    expect(html).toContain("Bitcoin establishes that <span class=\"mono\">alice</span> is controlled by an owner key");
-    expect(html).toContain("₿0.0005");
+    expect(html).toContain("Claim It");
+    expect(html).toContain("Claim <span class=\"mono\">alice</span> for a small fixed fee");
+    expect(html).toContain("₿1,000 (~$1)");
     expect(html).toContain("Publish Off-Chain");
     expect(html).toContain("Resolvers store that signed record.");
     expect(html).toContain("<strong class=\"mono\">bc1qxy...0wlh</strong>");
@@ -110,7 +105,7 @@ describe("renderPageHtml", () => {
     expect(html).toContain("Works Today");
     expect(html).toContain("Read Next");
     expect(html).toContain("Read from zero");
-    expect(html).toContain("Launch Spec v0");
+    expect(html).toContain("Launch v1 brief");
     expect(html).not.toContain("What ONT Is");
   });
 
@@ -125,7 +120,7 @@ describe("renderPageHtml", () => {
     expect(html).toContain("Most People Can Ignore This");
     expect(html).toContain("Open auctions");
     expect(html).toContain("Testing guide");
-    expect(html).toContain("Launch spec");
+    expect(html).toContain("Launch brief");
     expect(html).toContain(">Advanced<");
     expect(html).toContain("Auction State Gallery");
     expect(html).toContain("Fixture-backed simulator states for documentation and implementation review.");
@@ -139,14 +134,15 @@ describe("renderPageHtml", () => {
       pageKind: "auctions"
     });
 
-    expect(html).toContain("Bid Builder");
-    expect(html).toContain(">Auctions<");
+    expect(html).toContain("Claim A Name");
+    expect(html).toContain(">Tools<");
     expect(html).toContain(">Advanced<");
-    expect(html).toContain("Build A Bid");
+    expect(html).toContain("claimable or already in a live contest");
     expect(html).toContain("Check name");
     expect(html).toContain("Live Auction Activity");
     expect(html).toContain("Check a name, build the unsigned Sparrow PSBT");
-    expect(html).toContain("Website builds. Sparrow signs and broadcasts.");
+    expect(html).toContain("so claiming here builds an opening bid");
+    expect(html).toContain("Website builds; Sparrow signs and broadcasts.");
     expect(html).toContain("experimentalAuctionList");
     expect(html).not.toContain("Auction State Gallery");
     expect(html).not.toContain("Auction Examples");

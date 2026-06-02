@@ -21,8 +21,11 @@ import {
 } from "./builder.js";
 import {
   parseLaunchAuctionMarketScenario,
+  parseSponsoredFlatIssuanceScenario,
   serializeLaunchAuctionMarketSimulationResult,
+  serializeSponsoredFlatIssuanceSimulationResult,
   simulateLaunchAuctionMarket,
+  simulateSponsoredFlatIssuance,
   createDefaultLaunchAuctionPolicy,
   parseLaunchAuctionPolicy,
   parseLaunchAuctionScenario,
@@ -30,6 +33,7 @@ import {
   serializeLaunchAuctionSimulationResult,
   simulateLaunchAuction,
   simulateLaunchAuctionStateAtBlock,
+  verifyProofBundle,
   type SerializedLaunchAuctionPolicy
 } from "@ont/core";
 import {
@@ -110,6 +114,12 @@ async function main(): Promise<void> {
       return;
     case "simulate-auction-market":
       await simulateLaunchAuctionMarketCommand(args);
+      return;
+    case "simulate-sponsored-issuance":
+      await simulateSponsoredFlatIssuanceCommand(args);
+      return;
+    case "inspect-proof-bundle":
+      await inspectProofBundleCommand(args);
       return;
     case "create-auction-bid-package":
       await createAuctionBidPackageCommand(args);
@@ -218,7 +228,7 @@ async function inspectAuctionBidPackage(filePath: string | undefined): Promise<v
   console.log("");
   console.log(`Auction: ${parsed.auctionId}`);
   console.log(`Name: ${parsed.name}`);
-  console.log(`Class: ${parsed.classLabel} (${parsed.auctionClassId})`);
+  console.log(`Path: contested auction`);
   console.log(`Observed phase: ${parsed.phase}`);
   console.log(`Observed block: ${parsed.currentBlockHeight}`);
   console.log(`Eligible to open at block: ${parsed.unlockBlock}`);
@@ -321,6 +331,52 @@ async function simulateLaunchAuctionMarketCommand(args: readonly string[]): Prom
   console.log(JSON.stringify(serializedResult, null, 2));
 }
 
+async function simulateSponsoredFlatIssuanceCommand(args: readonly string[]): Promise<void> {
+  const parsed = parseOptions(args);
+  const scenarioPath = parsed.positionals[0];
+
+  if (!scenarioPath) {
+    throw new Error("simulate-sponsored-issuance requires a path to a sponsored issuance scenario JSON file");
+  }
+
+  const scenario = parseSponsoredFlatIssuanceScenario(
+    extractLaunchAuctionScenarioInput(await loadJsonFile(scenarioPath))
+  );
+  const result = simulateSponsoredFlatIssuance(scenario);
+  const serializedResult = serializeSponsoredFlatIssuanceSimulationResult(result);
+
+  await maybeWriteJsonFile(parsed.options.get("write"), serializedResult);
+  console.log(JSON.stringify(serializedResult, null, 2));
+}
+
+async function inspectProofBundleCommand(args: readonly string[]): Promise<void> {
+  const parsed = parseOptions(args);
+  const bundlePath = parsed.positionals[0];
+
+  if (!bundlePath) {
+    throw new Error("inspect-proof-bundle requires a path to a proof bundle JSON file");
+  }
+
+  const report = verifyProofBundle(await loadJsonFile(bundlePath));
+  const failedChecks = report.checks.filter((check) => check.status === "failed");
+
+  console.log(report.summary);
+  console.log(`Source: ${report.proofSource}`);
+  console.log(`Name: ${report.normalizedName || report.name || "(unknown)"}`);
+  console.log(`Assurance: ${report.assuranceTier || "(unknown)"}`);
+  console.log(`Checks: ${report.passedCheckCount} passed, ${report.failedCheckCount} failed`);
+
+  if (failedChecks.length > 0) {
+    console.log("");
+    console.log("Failed checks:");
+    for (const check of failedChecks) {
+      console.log(`  - ${check.id}: ${check.message}`);
+    }
+
+    process.exitCode = 1;
+  }
+}
+
 async function createAuctionBidPackageCommand(args: readonly string[]): Promise<void> {
   const parsed = parseOptions(args);
   const scenarioPath = parsed.positionals[0];
@@ -366,8 +422,6 @@ async function createAuctionBidPackageCommand(args: readonly string[]): Promise<
       parsed.options.get("auction-id")
       ?? basename(scenarioPath).replace(/\.json$/u, ""),
     name: state.normalizedName,
-    auctionClassId: state.auctionClassId,
-    classLabel: state.classLabel,
     currentBlockHeight: state.currentBlockHeight,
     phase: state.phase,
     unlockBlock: state.unlockBlock,
@@ -1804,6 +1858,15 @@ function formatBtcDecimal(sats: bigint): string {
 function printUsage(): void {
   console.log(`${PRODUCT_NAME} CLI`);
   console.log("");
+  console.log("The model: you claim a human-readable name on Bitcoin for a small fixed fee. If no one");
+  console.log("else claims it, it's simply yours; if it's contested, it escalates to a bonded auction.");
+  console.log("Either way you end up with a name controlled by one owner key.");
+  console.log("");
+  console.log("This CLI operates the live prototype mechanics: building, signing, and broadcasting");
+  console.log("bonded bids (the contested-name path), transfers, off-chain value records, and recovery.");
+  console.log("The cheap uncontested-claim path is prototyped separately and not wired into these");
+  console.log("commands yet, so claiming a name here goes through the auction-bid commands.");
+  console.log("");
   console.log("Human-facing amounts use integer bitcoin notation alongside the conventional BTC equivalent here; for example, ₿50,000 (0.0005 BTC).");
   console.log("Legacy amount flags keep their *-sats names for compatibility.");
   console.log("");
@@ -1832,6 +1895,12 @@ function printUsage(): void {
   console.log("");
   console.log("  simulate-auction-market <scenario-json> [--policy <policy-json>] [--write <path>]");
   console.log("    Run a multi-auction market scenario with bidder budget constraints and capital lock carryover");
+  console.log("");
+  console.log("  simulate-sponsored-issuance <scenario-json> [--write <path>]  (research model)");
+  console.log("    Numerical model from the superseded sponsor-credit exploration; kept for research only");
+  console.log("");
+  console.log("  inspect-proof-bundle <proof-bundle-json>");
+  console.log("    Run structural checks against a mock/research ONT ownership proof bundle");
   console.log("");
   console.log("  build-transfer-artifacts --prev-state-txid <txid> --new-owner-pubkey <hex32> --owner-private-key-hex <hex32> --bond-input <txid:vout:valueSats:address> [--input ...] --successor-bond-vout <0-255> --successor-bond-sats <amount> --fee-sats <amount> --bond-address <addr> [--change-address <addr>] [--flags <0-255>] [--network signet|testnet|regtest|main] [--write <path>]");
   console.log("    Build unsigned gift-transfer artifacts with embedded owner authorization and successor bond output");

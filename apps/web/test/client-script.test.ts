@@ -20,7 +20,7 @@ describe("renderClientScript", () => {
     expect(script).toContain("return getInitialNameQueryParam();");
     expect(script).toContain('baseAuctionsPath + "?name=" + encodeURIComponent(normalizedName)');
     expect(script).toContain("updateAuctionHistory(name)");
-    expect(script).toContain('href="${escapeHtml(buildAuctionsPath(name))}">Build opening bid for');
+    expect(script).toContain('href="${escapeHtml(buildAuctionsPath(name))}">Claim ${escapeHtml(name)}</a>');
     expect(script).toContain('href="#experimental-auction-feed">View live auction activity</a>');
     expect(script).toContain('source: "opening"');
     expect(script).toContain("findVisibleLiveAuctionForName");

@@ -80,8 +80,6 @@ describe("loadLaunchAuctionLab", () => {
       auction: {
         auctionId: "private-meadow",
         normalizedName: "meadow",
-        auctionClassId: "launch_name",
-        classLabel: "Public auction",
         currentBlockHeight: 123456,
         phase: "soft_close",
         unlockBlock: 123440,
@@ -111,8 +109,6 @@ describe("loadLaunchAuctionLab", () => {
         auction: {
           auctionId: "private-meadow",
           normalizedName: "meadow",
-          auctionClassId: "launch_name",
-          classLabel: "Public auction",
           currentBlockHeight: 123470,
           phase: "settled",
           unlockBlock: 123440,

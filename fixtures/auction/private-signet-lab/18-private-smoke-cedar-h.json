@@ -4,7 +4,6 @@
   "currentBlockHeight": 128,
   "scenario": {
     "name": "cedar",
-    "auctionClassId": "launch_name",
     "unlockBlock": 288,
     "bidAttempts": []
   }

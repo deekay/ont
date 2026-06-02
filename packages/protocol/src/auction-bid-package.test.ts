@@ -15,8 +15,6 @@ describe("auction bid packages", () => {
     const pkg = createAuctionBidPackage({
       auctionId: "01-pre-eligibility-marble",
       name: "marble",
-      auctionClassId: "launch_name",
-      classLabel: "Public auction",
       currentBlockHeight: 95_000,
       phase: "pending_unlock",
       unlockBlock: 95_144,
@@ -45,7 +43,6 @@ describe("auction bid packages", () => {
       computeAuctionLotCommitment({
         auctionId: "01-pre-eligibility-marble",
         name: "marble",
-        auctionClassId: "launch_name",
         unlockBlock: 95_144
       })
     );
@@ -56,8 +53,6 @@ describe("auction bid packages", () => {
     const pkg = createAuctionBidPackage({
       auctionId: "04-soft-close-marble",
       name: "marble",
-      auctionClassId: "launch_name",
-      classLabel: "Public auction",
       currentBlockHeight: 100_288,
       phase: "soft_close",
       unlockBlock: 96_000,
@@ -88,8 +83,6 @@ describe("auction bid packages", () => {
     const pkg = createAuctionBidPackage({
       auctionId: "03-live-meadow",
       name: "meadow",
-      auctionClassId: "launch_name",
-      classLabel: "Public auction",
       currentBlockHeight: 128,
       phase: "live_bidding",
       unlockBlock: 110,
@@ -118,8 +111,6 @@ describe("auction bid packages", () => {
     const pkg = createAuctionBidPackage({
       auctionId: "02-awaiting-opening",
       name: "luna",
-      auctionClassId: "launch_name",
-      classLabel: "Public auction",
       currentBlockHeight: 99_000,
       phase: "awaiting_opening_bid",
       unlockBlock: 99_000,
