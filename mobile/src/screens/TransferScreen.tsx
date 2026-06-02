@@ -3,10 +3,13 @@
 // Coordination: the recipient generates a key in their own wallet and gives you
 // only their x-only owner pubkey. You sign a transfer authorization with the
 // name's CURRENT owner key (the per-name derived key), naming their pubkey as the
-// new owner. The signature is real and self-verified; settling it on-chain (an
-// OP_RETURN + successor bond) is the broadcast step the app can't do yet, so demo
-// mode simulates it — same principle as demo claims/bids: real crypto, faked
-// broadcast.
+// new owner. The signature is real and self-verified.
+//
+// Settling it on-chain: for a MATURE name (the simple path) we build a real
+// transaction — funding input → OP_RETURN(authorization) → change — and broadcast
+// it via the esplora shim. The engine re-checks the signature against the current
+// owner before rewriting ownership. Demo mode simulates the broadcast; an immature
+// name's on-chain transfer (which needs a successor bond) isn't built yet.
 import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
 import React, { useState } from "react";
 import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
@@ -20,9 +23,11 @@ import { colors, font, radius, spacing } from "../theme";
 import { isValidName, normalizeName } from "../wallet/accumulator";
 import { generateOwnerKey } from "../wallet/keys";
 import {
+  broadcastMatureTransfer,
   demoPrevStateTxid,
   readTransferState,
   signTransfer,
+  type BroadcastedTransfer,
   type SignedTransfer,
   type TransferState,
 } from "../wallet/transfer-write";
@@ -45,6 +50,7 @@ export default function TransferScreen() {
   const [error, setError] = useState<string | null>(null);
   const [state, setState] = useState<TransferState | null>(null);
   const [result, setResult] = useState<SignedTransfer | null>(null);
+  const [broadcast, setBroadcast] = useState<BroadcastedTransfer | null>(null);
 
   const trimmed = normalizeName(name);
   const nameOk = isValidName(trimmed);
@@ -56,11 +62,15 @@ export default function TransferScreen() {
     state != null &&
     ownerPubkey != null &&
     (state.currentOwnerPubkey ?? "").toLowerCase() === ownerPubkey.toLowerCase();
+  // On-chain settlement via the simple path is valid only for a mature name; an
+  // immature name's transfer needs a successor bond (not built into the app yet).
+  const canBroadcast = !demo && state?.status === "mature";
 
   function reset() {
     setStep("input");
     setState(null);
     setResult(null);
+    setBroadcast(null);
     setError(null);
   }
 
@@ -105,8 +115,8 @@ export default function TransferScreen() {
     setRecipient(generateOwnerKey().ownerPubkey);
   }
 
-  function doTransfer() {
-    if (!ownerKey || !ownerPubkey || !state?.prevStateTxid) return;
+  async function doTransfer() {
+    if (!ownerKey || !ownerPubkey || !state?.prevStateTxid || !wallet) return;
     setBusy(true);
     setError(null);
     try {
@@ -117,13 +127,27 @@ export default function TransferScreen() {
         newOwnerPubkey: recipient.trim(),
         prevStateTxid: state.prevStateTxid,
       });
-      setResult(signed);
-      setStep("done");
+
       if (demo) {
         recordTransfer({ name: signed.name, newOwnerPubkey: signed.newOwnerPubkey, at: new Date().toISOString() });
+        setResult(signed);
+        setStep("done");
+        return;
       }
+
+      if (canBroadcast) {
+        // Build, sign, and broadcast the real on-chain transfer transaction.
+        const b = await broadcastMatureTransfer({
+          signed,
+          seedHex: wallet.seedHex,
+          network: wallet.network,
+        });
+        setBroadcast(b);
+      }
+      setResult(signed);
+      setStep("done");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Transfer signing failed.");
+      setError(e instanceof Error ? e.message : "Transfer failed.");
     } finally {
       setBusy(false);
     }
@@ -188,6 +212,18 @@ export default function TransferScreen() {
                 Only the current owner key can transfer this name.
               </Text>
             ) : null}
+            {owns && !demo && state.status === "mature" ? (
+              <Text style={[styles.cardHint, { marginTop: spacing.sm }]}>
+                Mature — signing broadcasts the transfer on-chain and pays a small network fee from
+                your funding balance.
+              </Text>
+            ) : null}
+            {owns && !demo && state.status !== "mature" ? (
+              <Text style={[styles.cardHint, { marginTop: spacing.sm }]}>
+                This name isn't mature yet, so it can't settle on-chain here (that path needs a
+                successor bond). You can still sign the authorization.
+              </Text>
+            ) : null}
           </Card>
         </>
       ) : null}
@@ -237,7 +273,13 @@ export default function TransferScreen() {
       {wallet && step === "checked" ? (
         <View style={styles.actions}>
           <Button
-            title={demo ? "Sign & transfer (demo)" : "Sign transfer authorization"}
+            title={
+              demo
+                ? "Sign & transfer (demo)"
+                : canBroadcast
+                  ? "Sign & broadcast on-chain"
+                  : "Sign transfer authorization"
+            }
             onPress={doTransfer}
             disabled={!owns || !recipientOk || recipientIsSelf || !state?.prevStateTxid}
             loading={busy}
@@ -248,22 +290,38 @@ export default function TransferScreen() {
 
       {step === "done" && result ? (
         <>
-          <SectionTitle>{demo ? "Transferred (demo)" : "Authorization signed"}</SectionTitle>
+          <SectionTitle>
+            {demo ? "Transferred (demo)" : broadcast ? "Broadcast on-chain" : "Authorization signed"}
+          </SectionTitle>
           <Card style={{ borderColor: colors.success }}>
             <View style={styles.row}>
               <Text style={[styles.cardLabel, { color: colors.success }]}>
-                {demo ? "Transfer simulated" : "Transfer authorization signed"}
+                {demo ? "Transfer simulated" : broadcast ? "Transfer broadcast" : "Transfer authorization signed"}
               </Text>
-              <Badge label={demo ? "demo" : "signed"} tone={demo ? "warn" : "success"} />
+              <Badge
+                label={demo ? "demo" : broadcast ? "on-chain" : "signed"}
+                tone={demo ? "warn" : "success"}
+              />
             </View>
             <Text style={styles.cardHint}>
               {demo
-                ? "Signed for real with this name's owner key and self-verified. In a real broadcast this OP_RETURN + successor bond hands the name to the recipient; the consensus engine re-checks your signature against the current owner before rewriting ownership."
-                : "Signed for real with this name's owner key and self-verified. Broadcasting it on-chain (OP_RETURN + successor bond) isn't built into the app yet — hand this authorization to the on-chain settle step."}
+                ? "Signed for real with this name's owner key and self-verified. In a real broadcast this OP_RETURN hands the name to the recipient; the consensus engine re-checks your signature against the current owner before rewriting ownership."
+                : broadcast
+                  ? "Broadcast to the network. Once it confirms, the indexer reads the OP_RETURN, re-checks your signature against the current owner, and reassigns the name to the recipient's key."
+                  : "Signed for real with this name's owner key and self-verified. This name isn't mature yet, so its on-chain settlement (which needs a successor bond) isn't built into the app — hand this authorization to the on-chain settle step."}
             </Text>
             <KV label="New owner" value={shortHex(result.newOwnerPubkey, 10, 8)} mono />
-            <KV label="Auth hash" value={shortHex(result.authHash, 12, 8)} mono />
-            <KV label="Signature" value={shortHex(result.signature, 12, 8)} mono />
+            {broadcast ? (
+              <>
+                <KV label="Txid" value={shortHex(broadcast.txid, 12, 8)} mono />
+                <KV label="Network fee" value={`₿${broadcast.feeSats.toLocaleString()} (${broadcast.vbytes} vB)`} />
+              </>
+            ) : (
+              <>
+                <KV label="Auth hash" value={shortHex(result.authHash, 12, 8)} mono />
+                <KV label="Signature" value={shortHex(result.signature, 12, 8)} mono />
+              </>
+            )}
             <View style={styles.actions}>
               <Button title="View name" variant="secondary" onPress={() => nav.navigate("NameDetail", { name: trimmed })} />
               <Button title="Transfer another" variant="secondary" onPress={reset} />

@@ -18,6 +18,7 @@ const checks = [
   "claim",
   "value-record",
   "transfer",
+  "transfer-onchain",
   "recovery-descriptor",
   "demo-claim",
   "backup",
