@@ -78,9 +78,9 @@ point; a reviewer who disagrees is exactly who we want to hear from.
 
 **Names.** A valid v1 name is a normalized lowercase string matching `[a-z0-9]{1,32}`.
 
-**Owner key.** Each name is controlled by an x-only key. The owner key — and nothing else —
-authorizes transfers, off-chain value records, and recovery setup. No key, no movement.
-This owner-key layer is the cleanest, most settled part of the system.
+**Owner key.** Each name is controlled by an x-only key. Only the owner key authorizes
+transfers, off-chain value records, and recovery setup. No key, no movement. This owner-key
+layer is the cleanest, most settled part of the system.
 
 **The acquisition state machine** (one path, branch only on contention):
 

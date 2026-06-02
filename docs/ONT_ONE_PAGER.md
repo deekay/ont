@@ -11,9 +11,9 @@ The value is in those properties, not the plumbing:
   list, no founder grab.
 - **verifiable without trust** — you can prove ownership, and anyone can check it.
 
-Bitcoin is *how* we get those (it supplies ordering, settlement, and a scarce cost), but
-the properties are the point. For technical reviewers; deeper level is
-[`ONT_DESIGN_BRIEF.md`](./ONT_DESIGN_BRIEF.md), plain-language source is [`ONT.md`](./ONT.md).
+Bitcoin is how we get those: it supplies the ordering, the final settlement, and the
+scarce cost. This is the reviewer's version. The deeper level is
+[`ONT_DESIGN_BRIEF.md`](./ONT_DESIGN_BRIEF.md); the plain-language source is [`ONT.md`](./ONT.md).
 
 ## What it's for
 
@@ -29,7 +29,8 @@ destinations and updates without touching the chain.
 
 1. **Claim** a name for a flat **₿1,000 (~$1)** miner fee (₿1 = 1 satoshi).
 2. **A public notice window** opens. Uncontested → it's yours, finalized through a single
-   batched Bitcoin commitment (thousands of claims per anchor — how it scales to billions).
+   batched Bitcoin commitment that carries thousands of claims per anchor. That batching is
+   how it scales to billions.
 3. **Contested** → escalates to an **auction backed by a returnable bond**: bitcoin the
    bidder keeps in self-custody, committed for a maturity period, then released. The name
    stays theirs. No rent, no burn, no payment to the project.
