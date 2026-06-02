@@ -23,19 +23,56 @@ This repository is where the fuller project explanation lives.
 
 Human-facing amounts in ONT use ₿ notation. Example: `₿0.0005`.
 
-## Start Here
+## For Bitcoin reviewers — start here
 
-If you want the shortest honest project orientation before touching the product surface, start with:
+If you're here to evaluate the **design** (not to use the product), read these three, in order:
 
-1. [docs/ONT.md](./docs/ONT.md) — what ONT is and how it works (the single source of truth)
-2. [docs/design/](./docs/design/) — the design reference (sovereignty map, requirements, risks, scaling)
-3. [docs/core/ONT_FROM_ZERO.md](./docs/core/ONT_FROM_ZERO.md)
-4. [docs/core/NEW_USER_TESTING_GUIDE.md](./docs/core/NEW_USER_TESTING_GUIDE.md)
-5. [docs/core/TESTING.md](./docs/core/TESTING.md)
+1. **[docs/ONT_ONE_PAGER.md](./docs/ONT_ONE_PAGER.md)** — the one-page version.
+2. **[docs/ONT_DESIGN_BRIEF.md](./docs/ONT_DESIGN_BRIEF.md)** — one level deeper: the model,
+   the trust surface, scaling + data-availability, economics, prior art, and the
+   risks/alternatives/open questions we most want pushed on.
+3. **[docs/ONT.md](./docs/ONT.md)** — the plain-language source of truth.
 
-Launch & review working material (current, internal) lives in [docs/launch/](./docs/launch/) — e.g.
-`BITCOIN_EXPERT_REVIEW_PACKET`, `ONT_IMPLEMENTATION_AND_VALIDATION`, `UNIVERSAL_AUCTION_LAUNCH_MODEL`,
-`LAUNCH_SPEC_V0`, `BITCOIN_REVIEW_CLOSURE_MATRIX`.
+**The trust surface.** Who-owns-what is a deterministic function of Bitcoin, in a frozen
+core plus protocol primitives:
+
+- `packages/consensus/src/engine.ts` (event replay), `state.ts` (name state),
+  `proof-bundle.ts` (portable proofs, incl. Merkle-inclusion + header-PoW verification
+  against Bitcoin)
+- `packages/protocol/src/` (names, wire formats, events, transfer/value/recovery payloads)
+- `packages/consensus/src/trust-surface.test.ts` **fails the build** if that core grows a
+  dependency outside `@ont/protocol` / `@ont/bitcoin`, or gains a file outside the
+  documented set — so the audit surface cannot silently grow.
+
+**Verify it yourself:**
+
+```bash
+npm install
+npm run test -w @ont/consensus      # trust surface + proof bundles (incl. Bitcoin Merkle/PoW)
+npm run test -w @ont/protocol
+npm run test -w @ont/core
+```
+
+**What runs on-chain today vs. prototype** (honest):
+
+| Capability | State |
+| --- | --- |
+| Owner-key transfer, value records, recovery descriptors | Live on signet; byte-checked across two independent implementations |
+| Bonded contested-auction bid, resolver-accepted end-to-end | Live on signet |
+| Proof-bundle verification against Bitcoin (Merkle + PoW) | Verifier done; producers don't emit inclusion proofs yet |
+| Cheap accumulator rail (batched claims) | Built + unit-tested; **not yet wired into the live indexer** |
+| Leaderless multi-publisher convergence | Simulated + tested; single-writer publisher in production |
+| Mainnet | Not yet — active prototype |
+
+Deeper design references live under [docs/design/](./docs/design/) and
+[docs/research/](./docs/research/); the design brief links the relevant ones inline.
+
+## Using the product (optional — not needed for review)
+
+If you want the shortest project orientation before touching the product surface:
+[docs/core/ONT_FROM_ZERO.md](./docs/core/ONT_FROM_ZERO.md),
+[docs/core/NEW_USER_TESTING_GUIDE.md](./docs/core/NEW_USER_TESTING_GUIDE.md), and
+[docs/core/TESTING.md](./docs/core/TESTING.md).
 
 If you want the fastest first walkthrough, use the hosted private demo:
 

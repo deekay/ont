@@ -49,7 +49,7 @@ authoritative. The earlier `ONT_FLAT_NAMESPACE_DESIGN` summary is superseded by 
 ### Supporting / reference (current)
 - **[ONT_ISSUANCE_FEE_MECHANICS.md](./ONT_ISSUANCE_FEE_MECHANICS.md)** — how the per-name claim gate reaches miners in the batched path (the gate *is* the anchor's miner fee); resolves the fee/security-budget inconsistency.
 - **[ONT_RISK_REGISTER.md](./ONT_RISK_REGISTER.md)** + **[ONT_RISKS_PLAIN_LANGUAGE.md](./ONT_RISKS_PLAIN_LANGUAGE.md)** — the living risk register and its jargon-free companion.
-- **[ONT_FLAT_NAMESPACE_ONE_PAGER.md](./ONT_FLAT_NAMESPACE_ONE_PAGER.md)** — modeled $-forward one-pager (some figures annotated with measured values).
+- **[ONT_ONE_PAGER.md](../ONT_ONE_PAGER.md)** + **[ONT_DESIGN_BRIEF.md](../ONT_DESIGN_BRIEF.md)** — the canonical review one-pager and design brief.
 - **[PRELAUNCH_SCALING_CONFIDENCE_PLAN.md](../launch/PRELAUNCH_SCALING_CONFIDENCE_PLAN.md)** — what v1 must preserve to keep scaling additive.
 - **[ONT_LAUNCH_V1_BRIEF.md](../launch/ONT_LAUNCH_V1_BRIEF.md)** — current v1 launch/review brief.
 - **[../core/SIMPLIFICATION_AUDIT.md](../core/SIMPLIFICATION_AUDIT.md)** — cleanup map for removing

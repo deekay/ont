@@ -10,9 +10,8 @@ the canonical [`../ONT.md`](../ONT.md) on anything that disagrees.
 Related notes:
 
 - [../ONT.md](../ONT.md) — the single source of truth for what ONT is and how it works
-- [BITCOIN_EXPERT_ONE_PAGER.md](../launch/BITCOIN_EXPERT_ONE_PAGER.md)
-- [BITCOIN_EXPERT_REVIEW_PACKET.md](../launch/BITCOIN_EXPERT_REVIEW_PACKET.md)
-- [BITCOIN_REVIEW_CLOSURE_MATRIX.md](../launch/BITCOIN_REVIEW_CLOSURE_MATRIX.md)
+- [../ONT_ONE_PAGER.md](../ONT_ONE_PAGER.md) — the review one-pager
+- [../ONT_DESIGN_BRIEF.md](../ONT_DESIGN_BRIEF.md) — the deeper design brief for Bitcoin reviewers
 - [ONT_LAUNCH_V1_BRIEF.md](../launch/ONT_LAUNCH_V1_BRIEF.md)
 - [CONTESTED_AUCTION_REFERENCE.md](../launch/CONTESTED_AUCTION_REFERENCE.md)
 
@@ -181,12 +180,10 @@ If someone wants to learn the project in a reasonable order, this is the best
 sequence right now:
 
 1. [../ONT.md](../ONT.md)
-2. [BITCOIN_EXPERT_ONE_PAGER.md](../launch/BITCOIN_EXPERT_ONE_PAGER.md)
-3. [BITCOIN_EXPERT_REVIEW_PACKET.md](../launch/BITCOIN_EXPERT_REVIEW_PACKET.md)
+2. [../ONT_ONE_PAGER.md](../ONT_ONE_PAGER.md)
+3. [../ONT_DESIGN_BRIEF.md](../ONT_DESIGN_BRIEF.md)
 4. [ONT_IMPLEMENTATION_AND_VALIDATION.md](../launch/ONT_IMPLEMENTATION_AND_VALIDATION.md)
 5. [CONTESTED_AUCTION_REFERENCE.md](../launch/CONTESTED_AUCTION_REFERENCE.md)
-6. [BITCOIN_PROTOCOL_REVIEW_QUESTIONS.md](../launch/BITCOIN_PROTOCOL_REVIEW_QUESTIONS.md)
-7. [BITCOIN_REVIEW_CLOSURE_MATRIX.md](../launch/BITCOIN_REVIEW_CLOSURE_MATRIX.md)
 
 ## The Right Takeaway
 

@@ -92,6 +92,10 @@ yet live don't change it.
 
 ## Going deeper
 
+- **[One-pager](./ONT_ONE_PAGER.md)** — the short, review-oriented summary.
+- **[Design brief](./ONT_DESIGN_BRIEF.md)** — one level below this page for technical
+  reviewers: the model, trust surface, scaling/data-availability, economics, prior art, and
+  the risks, alternatives, and open questions.
 - **[Current Architecture Brief](./core/CURRENT_ARCHITECTURE_BRIEF.md)** — the clean handoff for a
   fresh builder or reviewer: active design, active code entrypoints, retired paths, and next work.
 - **[The Sovereignty Map](./design/ONT_SOVEREIGNTY_MAP.md)** — the exact, minimal set of rules that

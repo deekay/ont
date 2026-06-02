@@ -14,7 +14,7 @@ Related notes:
 - [../launch/ONT_LAUNCH_V1_BRIEF.md](../launch/ONT_LAUNCH_V1_BRIEF.md)
 - [../launch/CONTESTED_AUCTION_REFERENCE.md](../launch/CONTESTED_AUCTION_REFERENCE.md) —
   contested-auction reference.
-- [BITCOIN_REVIEW_CLOSURE_MATRIX.md](../launch/BITCOIN_REVIEW_CLOSURE_MATRIX.md)
+- [BITCOIN_REVIEW_CLOSURE_MATRIX.md](../research/archive/BITCOIN_REVIEW_CLOSURE_MATRIX.md)
 
 ## How To Read This File
 

@@ -31,7 +31,7 @@ paths have been moved out of this folder so the active launch docs stay clean:
 - Current: `ONT_LAUNCH_V1_BRIEF`, `CONTESTED_AUCTION_REFERENCE` (contested-auction reference),
   `ONT_IMPLEMENTATION_AND_VALIDATION`, `ONT_PARAMETER_REVIEW_PACKET`.
 - Historical snapshots: `research/archive/retired-launch/`.
-- Bitcoin review packets: `BITCOIN_EXPERT_*`, `BITCOIN_PROTOCOL_REVIEW_QUESTIONS`, `BITCOIN_REVIEW_*`.
+- Bitcoin reviewers: [ONT_ONE_PAGER](./ONT_ONE_PAGER.md) + [ONT_DESIGN_BRIEF](./ONT_DESIGN_BRIEF.md) (older review packets are archived under `research/archive/`).
 - Auction working docs: `AUCTION_*`.
 
 ## Running it (operational)

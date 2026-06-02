@@ -16,8 +16,8 @@ for onboarding and review.
 Related notes:
 
 - [ONT_FROM_ZERO.md](../core/ONT_FROM_ZERO.md)
-- [BITCOIN_EXPERT_REVIEW_PACKET.md](./BITCOIN_EXPERT_REVIEW_PACKET.md)
-- [BITCOIN_REVIEW_CLOSURE_MATRIX.md](./BITCOIN_REVIEW_CLOSURE_MATRIX.md)
+- [BITCOIN_EXPERT_REVIEW_PACKET.md](../research/archive/BITCOIN_EXPERT_REVIEW_PACKET.md)
+- [BITCOIN_REVIEW_CLOSURE_MATRIX.md](../research/archive/BITCOIN_REVIEW_CLOSURE_MATRIX.md)
 - [VALUE_RECORD_HISTORY_AND_KEYBASE_NOTES.md](../research/VALUE_RECORD_HISTORY_AND_KEYBASE_NOTES.md)
 - [TESTING.md](../core/TESTING.md)
 - [AUCTION_TESTING_AND_LIVE_SURFACES.md](./AUCTION_TESTING_AND_LIVE_SURFACES.md)
@@ -41,7 +41,7 @@ The shortest honest summary is:
 
 For external technically sophisticated review, the best current entry point is:
 
-- [BITCOIN_EXPERT_REVIEW_PACKET.md](./BITCOIN_EXPERT_REVIEW_PACKET.md)
+- [BITCOIN_EXPERT_REVIEW_PACKET.md](../research/archive/BITCOIN_EXPERT_REVIEW_PACKET.md)
 
 ## Status Table
 
