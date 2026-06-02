@@ -1,6 +1,6 @@
 # ONT Parameter Review Packet
 
-This is a concise list of protocol and product parameters that should be reviewed before launch. The values below reflect the current prototype defaults, not final recommendations.
+This is a concise list of protocol and product parameters that should be reviewed before launch. The values below reflect the current prototype defaults, not final recommendations. Amounts use ₿ where **₿1 = 1 satoshi** (so ₿1,000 ≈ $1, and ₿100,000,000 = 1 BTC).
 
 ## Core Name Rules
 
@@ -15,31 +15,31 @@ This is a concise list of protocol and product parameters that should be reviewe
 
 The opening bid must meet the higher of two floors:
 
-- Length price: starts at ₿1.00000000 for a 1-character name and halves for each additional character.
-- Long-name minimum: ₿0.00050000. Once the length price falls below this, the minimum applies.
+- Length price: starts at ₿100,000,000 (≈1 BTC) for a 1-character name and halves for each additional character.
+- Long-name minimum: ₿50,000. Once the length price falls below this, the minimum applies.
 
 The table below shows the current defaults.
 
 | Name length | Opening floor |
 | ---: | ---: |
-| 1 | ₿1.00000000 |
-| 2 | ₿0.50000000 |
-| 3 | ₿0.25000000 |
-| 4 | ₿0.12500000 |
-| 5 | ₿0.06250000 |
-| 6 | ₿0.03125000 |
-| 7 | ₿0.01562500 |
-| 8 | ₿0.00781250 |
-| 9 | ₿0.00390625 |
-| 10 | ₿0.00195312 |
-| 11 | ₿0.00097656 |
-| 12-32 | ₿0.00050000 |
+| 1 | ₿100,000,000 |
+| 2 | ₿50,000,000 |
+| 3 | ₿25,000,000 |
+| 4 | ₿12,500,000 |
+| 5 | ₿6,250,000 |
+| 6 | ₿3,125,000 |
+| 7 | ₿1,562,500 |
+| 8 | ₿781,250 |
+| 9 | ₿390,625 |
+| 10 | ₿195,312 |
+| 11 | ₿97,656 |
+| 12-32 | ₿50,000 |
 
 Review questions:
 
-- Is ₿1.00000000 the right starting floor for one-character names?
+- Is ₿100,000,000 (≈1 BTC) the right starting floor for one-character names?
 - Is the halving curve the right shape?
-- Is ₿0.00050000 the right long-name floor?
+- Is ₿50,000 the right long-name floor?
 - Should reopened auctions reset to the length floor, or should the prior winning bond matter?
 
 ## Auction Timing
@@ -62,8 +62,8 @@ Review questions:
 
 | Parameter | Current default |
 | --- | ---: |
-| Normal minimum raise | max(₿0.00001000, `5%`) |
-| Soft-close minimum raise | max(₿0.00001000, `10%`) |
+| Normal minimum raise | max(₿1,000, `5%`) |
+| Soft-close minimum raise | max(₿1,000, `10%`) |
 
 Current philosophy: avoid a hard extension cap; discourage close-griefing by requiring meaningful late raises.
 

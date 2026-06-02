@@ -94,8 +94,10 @@ claim (₿1,000 gate, owner pubkey committed)
 ```
 
 Uniqueness is enforced **at insertion time**, not retrospectively: only one claim per name
-can be in-window-and-uncontested; a second distinct claimant escalates *both* to the
-auction. That avoids "prove no challenge ever happened" non-inclusion proofs. See
+can be in-window-and-uncontested. A second distinct claim makes the name contested, and
+ownership is then decided by who commits the largest returnable bond — not by who claimed
+first. That insertion-time rule avoids "prove no challenge ever happened" non-inclusion
+proofs. See
 [`design/ONT_ACQUISITION_STATE_MACHINE.md`](./design/ONT_ACQUISITION_STATE_MACHINE.md).
 
 **Off-chain records.** What a name *points to* (a Bitcoin/Lightning destination, an HTTPS
@@ -192,7 +194,7 @@ enforced at consensus-replay time (ONT-level), not by Bitcoin script.
 | --- | --- | --- |
 | `CLAIM_GATE_SATS` | ₿1,000 | Working baseline (revisit only on strong feedback) |
 | `AUCTION_BOND_FLOOR_SATS` | ₿50,000 | **Placeholder** — not pinned |
-| length floors (≤4-char) | `₿1 / 2^(len−1)` scale | Working baseline; 5+ chars use gate + contention |
+| short-name opening bond (≤4-char) | ₿100,000,000 (≈1 BTC) for 1 char, halving per char | Working baseline; 5+ chars use gate + contention |
 | `BOND_MATURITY_BLOCKS` | ~52,560 (~1 yr) | **Test override** — must be frozen pre-launch |
 | `DEFAULT_NOTICE_WINDOW_BLOCKS` | 6 (~1 hr) | **Placeholder** — real value is the launch-fairness lever; must be long (weeks) and published |
 | DA windows `W`, `C`, `K` | unset | **Unpinned** — reorg-safety + DA deadlines |

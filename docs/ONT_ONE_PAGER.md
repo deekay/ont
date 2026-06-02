@@ -27,13 +27,14 @@ destinations and updates without touching the chain.
 
 ## How it works — one path, branches only if contested
 
-1. **Claim** a name for a flat **₿1,000 (~$1)** miner fee (₿1 = 1 satoshi).
+1. **Claim** a name for a flat **₿1,000 (~$1)** fee (₿1 = 1 satoshi) paid to Bitcoin miners —
+   a protocol fee that adds to the security budget, not a fee to the project.
 2. **A public notice window** opens. Uncontested → it's yours, finalized through a single
    batched Bitcoin commitment that carries thousands of claims per anchor. That batching is
    how it scales to billions.
-3. **Contested** → escalates to an **auction backed by a returnable bond**: bitcoin the
-   bidder keeps in self-custody, committed for a maturity period, then released. The name
-   stays theirs. No rent, no burn, no payment to the project.
+3. **Contested** → ownership is decided by a **returnable-bond auction**: whoever commits the
+   largest bond (bitcoin they keep in self-custody, released at maturity) wins — not whoever
+   claimed first. No rent, no burn, no payment to the project.
 
 Either way: one globally-unique name your key controls (records, transfers, recovery).
 
