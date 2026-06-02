@@ -12,6 +12,7 @@ import { useAsync } from "../hooks/useAsync";
 import type { RootNav, RootStackParamList } from "../navigation/types";
 import { auctionPhaseTone, eventTone } from "../status";
 import { colors, font, radius, spacing } from "../theme";
+import { broadcastAuctionBid, type BroadcastedBid } from "../wallet/auction-write";
 import { useWallet } from "../wallet/WalletContext";
 
 export default function AuctionDetailScreen() {
@@ -29,6 +30,9 @@ export default function AuctionDetailScreen() {
   const { wallet, allocateOwnerKeyForName } = useWallet();
   const [bidAmount, setBidAmount] = useState("");
   const [bidResult, setBidResult] = useState<DemoBidResult | null>(null);
+  const [realBid, setRealBid] = useState<BroadcastedBid | null>(null);
+  const [bidBusy, setBidBusy] = useState(false);
+  const [bidError, setBidError] = useState<string | null>(null);
 
   if (state.loading && !state.data) return <Loading label="Loading auction…" />;
   if (state.error && !state.data) return <ErrorView error={state.error} onRetry={state.reload} />;
@@ -54,6 +58,41 @@ export default function AuctionDetailScreen() {
         leading: result.becameLeader,
         at: new Date().toISOString(),
       });
+    }
+  }
+
+  async function placeRealBid() {
+    if (!wallet) return;
+    setBidBusy(true);
+    setBidError(null);
+    try {
+      const raw = bidAmount.trim();
+      if (!/^[0-9]+$/.test(raw)) throw new Error("Enter a bid amount in base units.");
+      const amount = BigInt(raw);
+      if (amount < minNext) {
+        throw new Error(`Bid must be at least ${minNext.toString()} base units.`);
+      }
+      // The owner key you'd control if you win — committed in the bid.
+      const owner = await allocateOwnerKeyForName(a.normalizedName);
+      const result = await broadcastAuctionBid({
+        entry: a,
+        ownerPubkey: owner.ownerPubkey,
+        bidAmountSats: amount,
+        seedHex: wallet.seedHex,
+        network: wallet.network,
+      });
+      setRealBid(result);
+      recordBid({
+        auctionId: a.auctionId,
+        name: a.normalizedName,
+        bidAmountSats: amount.toString(),
+        leading: false,
+        at: new Date().toISOString(),
+      });
+    } catch (e) {
+      setBidError(e instanceof Error ? e.message : "Could not place the bid.");
+    } finally {
+      setBidBusy(false);
     }
   }
 
@@ -153,6 +192,94 @@ export default function AuctionDetailScreen() {
                   <Text style={styles.bidError}>Rejected: {bidResult.reason}</Text>
                 )
               ) : null}
+            </Card>
+          )}
+        </>
+      ) : null}
+
+      {!demo ? (
+        <>
+          <SectionTitle right={<Badge label="on-chain" tone="accent" />}>
+            {biddable ? "Place a bid" : "Bidding"}
+          </SectionTitle>
+          {!biddable ? (
+            <Card>
+              <Text style={styles.hint}>
+                Bidding isn't open in this phase ({a.phaseLabel}).
+                {a.winnerOwnerPubkey ? " This auction has settled; see the winner below." : ""}
+              </Text>
+            </Card>
+          ) : !wallet ? (
+            <Card>
+              <Text style={styles.hint}>
+                You need a wallet first — it derives a fresh owner key for each name and pays the bond
+                + fee from its funding balance.
+              </Text>
+              <View style={styles.bidActions}>
+                <Button title="Go to Wallet" variant="secondary" onPress={() => nav.navigate("Tabs", { screen: "Wallet" })} />
+              </View>
+            </Card>
+          ) : realBid ? (
+            <Card style={{ borderColor: colors.success }}>
+              <View style={styles.outcomeHead}>
+                <Text style={[styles.bidLabel, { color: colors.success, marginTop: 0 }]}>Bid broadcast on-chain</Text>
+                <Badge label="on-chain" tone="success" />
+              </View>
+              <Text style={styles.hint}>
+                Your bid is locked as a returnable Bitcoin bond paid to your funding key. Once the tx
+                confirms, the indexer records the bid against this auction.
+              </Text>
+              <KV label="Bid / bond" value={formatAmount(String(realBid.bondSats))} />
+              <KV label="Bond txid" value={shortHex(realBid.txid, 10, 6)} mono />
+              <KV label="Network fee" value={`₿${realBid.feeSats.toLocaleString()} (${realBid.vbytes} vB)`} />
+              <KV label="Bidder commitment" value={shortHex(realBid.bidderCommitment, 10, 6)} mono />
+              <View style={styles.bidActions}>
+                <Button
+                  title="Refresh auction"
+                  variant="secondary"
+                  onPress={() => {
+                    setRealBid(null);
+                    state.reload();
+                  }}
+                />
+              </View>
+            </Card>
+          ) : (
+            <Card>
+              <Text style={styles.hint}>
+                Bonded bid. Your bid amount is locked as a returnable Bitcoin bond and broadcast
+                on-chain; the engine records it against this auction.
+              </Text>
+              <Text style={styles.bidLabel}>Bid amount · ₿ base units</Text>
+              <TextInput
+                style={styles.input}
+                value={bidAmount}
+                onChangeText={(t) => {
+                  setBidAmount(t.replace(/[^0-9]/g, ""));
+                  setBidError(null);
+                }}
+                placeholder={`min ${minNext.toString()}`}
+                placeholderTextColor={colors.textFaint}
+                keyboardType="number-pad"
+              />
+              {bidAmount ? <Text style={styles.bidPreview}>{formatAmount(bidAmount)}</Text> : null}
+              <View style={styles.bidActions}>
+                <Button
+                  title="Use minimum"
+                  variant="secondary"
+                  onPress={() => {
+                    setBidAmount(minNext.toString());
+                    setBidError(null);
+                  }}
+                />
+                <Button
+                  title="Place bid on-chain"
+                  onPress={placeRealBid}
+                  disabled={bidAmount.trim().length === 0}
+                  loading={bidBusy}
+                />
+              </View>
+              {bidError ? <Text style={styles.bidError}>{bidError}</Text> : null}
             </Card>
           )}
         </>

@@ -22,6 +22,12 @@ export interface FundingUtxo {
   readonly valueSats: number;
 }
 
+/** A funded payment output that must precede the OP_RETURN (e.g. an auction bond). */
+export interface PaymentOutput {
+  readonly address: string;
+  readonly valueSats: number;
+}
+
 export interface BuildOpReturnSpendInput {
   /** WIF for the P2WPKH funding key that controls every input. */
   readonly fundingWif: string;
@@ -31,6 +37,12 @@ export interface BuildOpReturnSpendInput {
   readonly utxos: readonly FundingUtxo[];
   /** Framed OP_RETURN payload (hex) — e.g. encodeTransferPayloadHex(...). */
   readonly opReturnHex: string;
+  /**
+   * Payment outputs placed BEFORE the OP_RETURN (so their vout indices are
+   * stable and start at 0). An auction bid passes its bond here (vout 0); a
+   * plain transfer passes none. Their value is funded from the inputs.
+   */
+  readonly paymentOutputs?: readonly PaymentOutput[];
   /** Fee rate in base units per virtual byte. Defaults to 2. */
   readonly feeRateSatPerVb?: number;
   readonly network: OntNetwork;
@@ -95,13 +107,14 @@ function estimateVbytes(numInputs: number, outputScriptLengths: readonly number[
 const P2WPKH_OUTPUT_SCRIPT_LEN = 22; // OP_0 <20-byte-hash>
 
 /**
- * Build and sign a transaction that spends funding UTXOs into a single
- * OP_RETURN output (vout 0) plus change (vout 1) back to the funding address.
+ * Build and sign a transaction that spends funding UTXOs into any prepended
+ * payment outputs (e.g. an auction bond at vout 0), then an OP_RETURN, then
+ * change back to the funding address.
  *
- * Output ordering is mature-transfer-safe: the engine's mature path does not
- * dereference `successorBondVout`, so the OP_RETURN may sit at vout 0. (The
- * contested/immature path, which requires a successor-bond payment output, is a
- * separate builder.)
+ * With no payment outputs this is a plain transfer: OP_RETURN at vout 0, change
+ * at vout 1 (mature-transfer-safe — the engine's mature path does not dereference
+ * `successorBondVout`). With one payment output it is an auction bid: bond at
+ * vout 0, OP_RETURN at vout 1, change at vout 2.
  */
 export function buildOpReturnSpend(input: BuildOpReturnSpendInput): BuiltTransaction {
   const network = toBitcoinjsNetwork(input.network);
@@ -111,7 +124,19 @@ export function buildOpReturnSpend(input: BuildOpReturnSpendInput): BuiltTransac
   }
 
   const opReturn = opReturnScript(input.opReturnHex);
-  const outputScriptLens = [opReturn.length, P2WPKH_OUTPUT_SCRIPT_LEN];
+  const paymentOutputs = input.paymentOutputs ?? [];
+  const paymentScripts = paymentOutputs.map((o) => {
+    if (!Number.isInteger(o.valueSats) || o.valueSats <= 0) {
+      throw new Error("payment output value must be a positive integer");
+    }
+    return baddress.toOutputScript(o.address, network);
+  });
+  const requiredOut = paymentOutputs.reduce((sum, o) => sum + o.valueSats, 0);
+  const outputScriptLens = [
+    ...paymentScripts.map((s) => s.length),
+    opReturn.length,
+    P2WPKH_OUTPUT_SCRIPT_LEN,
+  ];
 
   const candidates = [...input.utxos]
     .filter((u) => Number.isInteger(u.valueSats) && u.valueSats > 0)
@@ -120,8 +145,8 @@ export function buildOpReturnSpend(input: BuildOpReturnSpendInput): BuiltTransac
     throw new Error("No spendable funding UTXOs.");
   }
 
-  // Greedy selection: add inputs until value covers the fee for the current
-  // input count and still leaves an economical change output.
+  // Greedy selection: add inputs until value covers the payment outputs plus the
+  // fee for the current input count and still leaves an economical change output.
   const selected: FundingUtxo[] = [];
   let total = 0;
   let estFee = 0;
@@ -129,15 +154,16 @@ export function buildOpReturnSpend(input: BuildOpReturnSpendInput): BuiltTransac
     selected.push(utxo);
     total += utxo.valueSats;
     estFee = Math.ceil(estimateVbytes(selected.length, outputScriptLens) * feeRate);
-    if (total - estFee >= DUST_SATS) break;
+    if (total - requiredOut - estFee >= DUST_SATS) break;
   }
-  if (total - estFee < DUST_SATS) {
+  if (total - requiredOut - estFee < DUST_SATS) {
     throw new Error(
-      `Insufficient funding: have ${total} base units, need > ${estFee + DUST_SATS} to cover the fee.`,
+      `Insufficient funding: have ${total} base units, need > ${requiredOut + estFee + DUST_SATS} ` +
+        `to cover ${requiredOut > 0 ? "the bond + fee" : "the fee"}.`,
     );
   }
 
-  const changeSats = total - estFee;
+  const changeSats = total - requiredOut - estFee;
   const fundingScript = baddress.toOutputScript(input.fundingAddress, network);
 
   const psbt = new Psbt({ network });
@@ -148,6 +174,9 @@ export function buildOpReturnSpend(input: BuildOpReturnSpendInput): BuiltTransac
       witnessUtxo: { script: fundingScript, value: BigInt(utxo.valueSats) },
     });
   }
+  paymentScripts.forEach((script, i) => {
+    psbt.addOutput({ script, value: BigInt(paymentOutputs[i].valueSats) });
+  });
   psbt.addOutput({ script: opReturn, value: 0n });
   psbt.addOutput({ address: input.fundingAddress, value: BigInt(changeSats) });
 
