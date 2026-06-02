@@ -5,14 +5,18 @@
 // wallet's own funding key (returnable). Targets a "phase-*" test fixture in the
 // awaiting_opening_bid phase.
 //
-// Scope: this proves the BROADCAST + decode path (node accepts the bond + bid
-// OP_RETURN, the tx decodes to our AuctionBid). It does NOT assert that the
-// resolver's experimental-auction tracker *accepts* the bid: association keys on
-// auctionLotCommitment === catalog's, and the deployed signet resolver currently
-// runs pre-consolidation code (it still serves auctionClassId/classLabel that the
-// current source removed), so its commitment scheme differs from HEAD. The
-// offline auction-bid.mts is the authoritative correctness proof against current
-// source; full live acceptance will follow a resolver redeploy to HEAD.
+// Scope: this asserts the BROADCAST + decode path (node accepts the bond + bid
+// OP_RETURN, the tx decodes to our AuctionBid). Resolver ACCEPTANCE (the tracker
+// associating the bid via auctionLotCommitment and recording it) is verified
+// separately by mining a block and polling /experimental-auctions — proven
+// against the HEAD-deployed resolver (SHA 9182e8d): a mobile bid was observed,
+// accepted as the opening bid, and became leader (stateCommitmentMatched: true).
+// The offline auction-bid.mts remains the byte-exact correctness proof.
+//
+// Note: acceptance requires the deployed resolver to be on the same commitment
+// scheme as this source. A pre-consolidation resolver (one still serving
+// auctionClassId/classLabel) computes a different lot commitment and won't
+// associate the bid — redeploy to HEAD first.
 //
 // Not part of the offline suite. Run: tsx mobile/checks/auction-bid.live.mts
 import * as bitcoin from "bitcoinjs-lib";
