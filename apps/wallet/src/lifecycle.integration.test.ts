@@ -42,8 +42,6 @@ class FakeResolver {
     this.auction = {
       auctionId: `opening-${normalizedName}`,
       normalizedName,
-      auctionClassId: "class-a",
-      classLabel: "Class A",
       currentBlockHeight: this.currentBlockHeight,
       phase: "awaiting_opening_bid",
       unlockBlock: 100,

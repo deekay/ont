@@ -208,7 +208,7 @@ async function runAuctions(args: readonly string[]): Promise<void> {
       ? ` — leader at ${auction.currentHighestBidSats} base units`
       : "";
     console.log(`  ${auction.normalizedName}  [${auction.phase}]`);
-    console.log(`    class:    ${auction.classLabel} (${auction.auctionClassId})`);
+    console.log(`    path:     contested auction`);
     console.log(`    minimum:  ${minimum} base units${leader}`);
     console.log(`    timing:   unlock at ${auction.unlockBlock} (${auction.blocksUntilUnlock} to go), ${close}`);
   }
@@ -455,9 +455,10 @@ async function runSync(args: readonly string[]): Promise<void> {
       state.recordSync(name, { ownershipRef: record.lastStateTxid, status: record.status });
       changed = true;
       console.log(`${name}: you own it (${record.status})${note}`);
-      // The resolver is the canonical authority the wallet defers to: if it now
-      // reports this wallet as the mature owner, a provisional cheap-rail claim
-      // has resolved in our favor (the notice window closed uncontested).
+      // The resolver is a convenience mirror, not an authority. In the current
+      // prototype, a resolver report is the sync signal that a provisional
+      // cheap-rail claim has resolved in our favor; the canonical version should
+      // verify this against the Bitcoin-derived accumulator state/proof bundle.
       if (tracked?.cheapClaim?.status === "provisional" && record.status === "mature") {
         const resolved = state.reconcileCheapClaim(name, {
           chainHeight: tracked.cheapClaim.noticeWindowCloseHeight

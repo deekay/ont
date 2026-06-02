@@ -1,7 +1,6 @@
 {
   "scenario": {
     "name": "copper",
-    "auctionClassId": "launch_name",
     "unlockBlock": 875000,
     "bidAttempts": [
       {

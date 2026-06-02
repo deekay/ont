@@ -1,4 +1,4 @@
-import { getBondSats, getMaturityBlocks, getMaturityHeight, normalizeName } from "@ont/protocol";
+import { BOND_MATURITY_BLOCKS, getBondSats, getMaturityHeight, normalizeName } from "@ont/protocol";
 
 export type NameStatus = "unclaimed" | "pending" | "immature" | "mature" | "invalid";
 export type ClaimedNameStatus = Exclude<NameStatus, "unclaimed">;
@@ -10,18 +10,21 @@ export interface ClaimState {
   readonly requiredBondSats: bigint;
 }
 
+// Current bonded-name claim state uses one fixed maturity duration. `epochIndex`
+// remains optional only so older prototype callers do not break at compile time;
+// it is intentionally ignored.
 export function createClaimState(input: {
   name: string;
   claimHeight: number;
-  epochIndex: number;
+  /** @deprecated Epoch maturity is prototype residue and is ignored. */
+  epochIndex?: number;
 }): ClaimState {
   const name = normalizeName(input.name);
-  const maturityBlocks = getMaturityBlocks(input.epochIndex);
 
   return {
     name,
     claimHeight: input.claimHeight,
-    maturityHeight: getMaturityHeight(input.claimHeight, maturityBlocks),
+    maturityHeight: getMaturityHeight(input.claimHeight, BOND_MATURITY_BLOCKS),
     requiredBondSats: getBondSats(name.length)
   };
 }

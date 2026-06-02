@@ -366,15 +366,16 @@ Open. See [POST_QUANTUM_AND_SIGNATURE_AGILITY.md](../research/POST_QUANTUM_AND_S
 
 The v1 story is now simpler than some of the implementation history still
 visible in code and tooling. Reviewers may infer unnecessary complexity from
-leftover abstractions that no longer match the universal-auction launch model.
+leftover abstractions that no longer match the one-path claim launch model.
 
 Current examples:
 
 - legacy `gns` names remain in deployment scripts as compatibility fallbacks
-- `auctionClassId` is still threaded through bid packages, fixtures, policy,
-  simulators, indexers, and web surfaces even though v1 has one auction rule
-- older epoch-halving maturity helpers remain in protocol/core code even though
-  the launch direction is a fixed maturity duration
+- retired auction-class fields have been removed from active bid packages,
+  fixtures, policy, simulators, and app consumers; the remaining simplification
+  work is terminology/docs cleanup around the same one-rule contested path
+- older epoch-halving maturity helpers remain as deprecated compatibility code;
+  active claim state now uses the fixed maturity constant
 - recovery now has BIP322 proof-envelope verification, but challenge-window
   language and proof distribution rules still need a cleaner reviewer-facing
   explanation
@@ -385,26 +386,25 @@ Current examples:
 
 ### Why It Matters
 
-The external design brief now says "v1 is direct bonded auction only." The code
-and tools should progressively converge on that same mental model. Otherwise
-reviewers have to audit historical flexibility that we no longer intend to use.
+The external design brief now says "v1 is one public claim path, with L1 auction
+only after contest." The code and tools should progressively converge on that
+same mental model. Otherwise reviewers have to audit historical flexibility that
+we no longer intend to use.
 
 ### Current Status
 
-New. Suggested order:
+In progress. Suggested order:
 
 1. Standardize reviewer-facing terminology on `ONT`; quarantine or remove
    legacy `gns` deployment compatibility where safe.
-2. Retire `auctionClassId` from v1 payloads and internal launch policy unless a
-   real second class is reintroduced before launch.
-3. Freeze the maturity model around a fixed duration and remove or quarantine
-   epoch-halving helpers from the v1 protocol surface.
-4. Tighten recovery docs around the challenge window, proof fanout, and
+2. Remove deprecated epoch-halving helpers from the v1 protocol surface after
+   downstream fixtures/tests no longer import them.
+3. Tighten recovery docs around the challenge window, proof fanout, and
    late-proof/replay behavior.
 5. Add a CLI/browser helper abstraction for successor-bond linking so immature
    transfers feel like ownership transfers, not manual UTXO surgery.
-6. Prototype or specify canonical proof bundles for direct acquisition,
-   maturity, release, transfer, and value-record history.
+6. Prototype or specify canonical proof bundles for claim acquisition, auction
+   escalation, maturity, release, transfer, and value-record history.
 
 ## Suggested Discussion Order
 

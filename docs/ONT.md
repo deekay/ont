@@ -36,7 +36,7 @@ only thing that can move a name.
 
 **Claiming a name — one path.** There's a single way in, and it only branches if a name is contested:
 
-1. **Claim it.** Pay a small fixed amount of bitcoin — **₿1,000 (~$1)**, as a fee to Bitcoin miners —
+1. **Claim it.** Pay a small fixed amount of bitcoin — **1,000 sats (~$1)**, as a fee to Bitcoin miners —
    to claim the name you want. (A few thousand obviously-scarce names, like very short ones, start
    higher.)
 2. **A short notice window opens.** If no one else claims the same name during it, the name is simply
@@ -67,12 +67,13 @@ never be turned into a way for someone else to take your name.
 
 **Why it costs a little.** The small claim cost keeps spam and squatting expensive without charging
 rent. It's paid to Bitcoin miners, so it strengthens Bitcoin's security rather than enriching the
-project. The amount is **fixed in bitcoin** — **₿1,000**, meaning 1,000 bitcoin base units
-(0.00001 BTC), about $1 at present. (We write bitcoin amounts this way throughout: a ₿ figure is the
-truth, the `~$` is just a casual helper that drifts.) It is *not* pegged to a dollar, which would
-require a trusted price feed — so its dollar value drifts as Bitcoin's price moves. We accept that drift deliberately
-(it keeps the rule simple and trustless); if claiming ever feels expensive, wallets or communities
-can sponsor the fee for users without changing the rule itself.
+project. The amount is **fixed in bitcoin** — **1,000 sats**, meaning 1,000 bitcoin base units
+(0.00001 BTC), about $1 at present. (The sat amount is the protocol truth; the
+`~$` is just a casual helper that drifts.) It is *not* pegged to a dollar, which
+would require a trusted price feed, so its dollar value drifts as Bitcoin's price
+moves. We accept that drift deliberately; if claiming ever feels expensive,
+wallets or communities can sponsor the fee for users without changing the rule
+itself.
 
 ## Why you can keep trusting it
 
@@ -91,6 +92,8 @@ yet live don't change it.
 
 ## Going deeper
 
+- **[Current Architecture Brief](./core/CURRENT_ARCHITECTURE_BRIEF.md)** — the clean handoff for a
+  fresh builder or reviewer: active design, active code entrypoints, retired paths, and next work.
 - **[The Sovereignty Map](./design/ONT_SOVEREIGNTY_MAP.md)** — the exact, minimal set of rules that
   guarantee no one can take your name, and where each lives in the code.
 - **[Design reference](./design/README.md)** — the mechanics, risks, and scaling design in depth.

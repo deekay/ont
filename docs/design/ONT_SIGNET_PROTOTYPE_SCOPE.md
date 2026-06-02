@@ -99,7 +99,7 @@ stores. → Validates F6 at the tx level.
 | Contested name footprint | ~110 vB | C6 — measure the settlement + bond tx |
 | SMT membership / non-membership proof | "estimated" | **✅ measured (C1):** ~log₂(N) siblings — 339/273 B (member/non-member) @ 100, 577/511 B @ 10k; projects ~1.1 KB @ 1e9 |
 | Availability marker tx | (new) | C4 — measure |
-| ₿1,000 (~$1) gate as miner fee | "top-of-mempool" | C2/C3 — confirm inclusion priority at signet fee rates |
+| 1,000 sats (~$1) gate as miner fee | "top-of-mempool" | C2/C3 — confirm inclusion priority at signet fee rates |
 
 The headline question these answer: **does the per-name cost and proof size actually stay small at the
 sizes the billions-scale thesis (T1) needs?** If the measured numbers diverge from the assumptions,

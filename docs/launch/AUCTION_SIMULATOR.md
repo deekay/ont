@@ -66,12 +66,12 @@ It is still a simulator, not the final launch engine.
 
 ## Current Policy Shape
 
-The default policy has one auction group:
+The default policy has one contested-auction path for valid names. It uses a
+single opening floor, a single settlement lock, one soft-close rule, and one
+minimum-increment rule.
 
-- `launch_name`: the public auction group for valid names
-
-The default timing and floors are placeholders. They are intentionally useful
-for tests and demos, not final launch constants.
+The default timing and floors are useful for tests and demos; final launch
+constants should be reviewed directly in the launch spec before freeze.
 
 ## What Still Needs Work
 

@@ -8,7 +8,6 @@
       {
         "auctionId": "meadow-main",
         "name": "meadow",
-        "auctionClassId": "launch_name",
         "unlockBlock": 920000,
         "bidAttempts": [
           {
@@ -31,7 +30,6 @@
       {
         "auctionId": "tyler-side",
         "name": "silverpine",
-        "auctionClassId": "launch_name",
         "unlockBlock": 920000,
         "bidAttempts": [
           {

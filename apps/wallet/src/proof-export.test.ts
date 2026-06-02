@@ -31,8 +31,6 @@ function auction(overrides: Partial<ResolverAuctionState> = {}): ResolverAuction
   return {
     auctionId: "opening-satoshi",
     normalizedName: "satoshi",
-    auctionClassId: "class-a",
-    classLabel: "Class A",
     currentBlockHeight: 200,
     phase: "settled",
     unlockBlock: 100,

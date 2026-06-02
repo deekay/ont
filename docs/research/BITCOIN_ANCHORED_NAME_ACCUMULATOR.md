@@ -4,11 +4,11 @@ Status: candidate design + feasibility analysis. Judged against
 [ONT_DESIGN_REQUIREMENTS.md](../design/ONT_DESIGN_REQUIREMENTS.md). Not a v1 commitment.
 
 > Note: the **allocation model** was refined after this doc was written. Names are
-> now **publicly visible** at claim (only bid *amounts* are sealed), and
-> contention triggers a **second-price auction** rather than pure earliest-commit
-> first-come. The integrated, current design is in
-> [ONT_FLAT_NAMESPACE_DESIGN.md](./archive/ONT_FLAT_NAMESPACE_DESIGN.md); the accumulator
-> mechanics, DA rules, sequencer, and red-team below remain valid.
+> now **publicly visible** at claim, and contention triggers the contested L1
+> auction path rather than pure earliest-commit first-come. The current design is
+> in [ONT_ACQUISITION_STATE_MACHINE.md](../design/ONT_ACQUISITION_STATE_MACHINE.md);
+> the accumulator mechanics, DA rules, sequencer, and red-team below remain useful
+> background but this file is not the launch spec.
 
 ## What this is
 

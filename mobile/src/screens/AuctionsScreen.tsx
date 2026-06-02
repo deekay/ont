@@ -68,7 +68,7 @@ export function AuctionCard({ auction, onPress }: { auction: AuctionEntry; onPre
       </View>
       <Text style={styles.leading}>{leading}</Text>
       <Text style={styles.meta}>
-        {auction.classLabel}
+        Contested auction
         {auction.phase === "live_bidding" && auction.blocksUntilClose != null
           ? ` · closes in ${auction.blocksUntilClose} blocks`
           : auction.phase === "pending_unlock" && auction.blocksUntilUnlock != null

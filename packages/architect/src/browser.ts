@@ -152,7 +152,6 @@ export function buildAuctionBidArtifacts(
   const expectedAuctionStateCommitment = computeAuctionBidStateCommitment({
     auctionId: bidPackage.auctionId,
     name: bidPackage.name,
-    auctionClassId: bidPackage.auctionClassId,
     currentBlockHeight: bidPackage.currentBlockHeight,
     phase: bidPackage.phase,
     unlockBlock: bidPackage.unlockBlock,
@@ -167,7 +166,6 @@ export function buildAuctionBidArtifacts(
   const expectedAuctionLotCommitment = computeAuctionLotCommitment({
     auctionId: bidPackage.auctionId,
     name: bidPackage.name,
-    auctionClassId: bidPackage.auctionClassId,
     unlockBlock: bidPackage.unlockBlock
   });
   if (bidPackage.auctionLotCommitment !== expectedAuctionLotCommitment) {

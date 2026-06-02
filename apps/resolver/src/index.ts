@@ -13,6 +13,7 @@ import {
   findBitcoinEsploraMatchingCheckpoint,
   findBitcoinRpcMatchingCheckpoint,
   type BitcoinRpcSyncStatus,
+  getBitcoinRpcBlockchainInfo,
   getBitcoinRpcUnspentTransactionOutput,
   createBitcoinEsploraConfig,
   createBitcoinRpcConfig,
@@ -707,6 +708,17 @@ async function main(): Promise<void> {
     }
 
     if (url.pathname === "/health") {
+      // rpcChainInfo is seeded once at startup; refresh it live per request so it
+      // tracks the chain tip alongside rpcStatus instead of reporting a stale
+      // mid-resync height. Keep the last-known-good value if the live query fails.
+      if (rpc !== undefined) {
+        try {
+          rpcChainInfo = await getBitcoinRpcBlockchainInfo(rpc);
+        } catch {
+          // Preserve the previous rpcChainInfo when bitcoind RPC is briefly unreachable.
+        }
+      }
+
       return writeJson(response, 200, {
         ok: true,
         product: PRODUCT_NAME,
@@ -1112,7 +1124,6 @@ async function loadExperimentalLaunchAuctionCatalog(
           title: fixture.title,
           description: fixture.description,
           name: scenario.name,
-          auctionClassId: scenario.auctionClassId,
           unlockBlock: scenario.unlockBlock
         },
         policy
@@ -1200,12 +1211,13 @@ function resolveExperimentalLaunchAuctionPolicy(): LaunchAuctionPolicy {
   const softCloseMinimumIncrementBasisPoints = readOptionalExperimentalAuctionInteger(
     "ONT_EXPERIMENTAL_AUCTION_SOFT_CLOSE_MINIMUM_INCREMENT_BASIS_POINTS"
   );
-  const launchNameLockBlocks = readOptionalExperimentalAuctionInteger(
+  const settlementLockBlocks = readOptionalExperimentalAuctionInteger(
     "ONT_EXPERIMENTAL_AUCTION_LAUNCH_NAME_LOCK_BLOCKS"
   );
 
   return {
     ...basePolicy,
+    ...(settlementLockBlocks === undefined ? {} : { defaultSettlementLockBlocks: settlementLockBlocks }),
     auction: {
       ...basePolicy.auction,
       ...(baseWindowBlocks === undefined ? {} : { baseWindowBlocks }),
@@ -1218,13 +1230,6 @@ function resolveExperimentalLaunchAuctionPolicy(): LaunchAuctionPolicy {
       ...(softCloseMinimumIncrementBasisPoints === undefined
         ? {}
         : { softCloseMinimumIncrementBasisPoints })
-    },
-    auctionClasses: {
-      ...basePolicy.auctionClasses,
-      launch_name: {
-        ...basePolicy.auctionClasses.launch_name,
-        ...(launchNameLockBlocks === undefined ? {} : { lockBlocks: launchNameLockBlocks })
-      }
     }
   };
 }

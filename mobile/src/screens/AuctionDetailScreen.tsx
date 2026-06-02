@@ -160,7 +160,7 @@ export default function AuctionDetailScreen() {
 
       <SectionTitle>Timing</SectionTitle>
       <Card>
-        <KV label="Class" value={a.classLabel} />
+        <KV label="Path" value="Contested auction" />
         <KV label="Chain height" value={String(a.currentBlockHeight)} />
         <KV label="Unlock block" value={String(a.unlockBlock)} />
         {a.blocksUntilUnlock != null ? <KV label="Blocks to unlock" value={String(a.blocksUntilUnlock)} /> : null}

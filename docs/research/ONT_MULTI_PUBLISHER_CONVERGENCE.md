@@ -212,10 +212,10 @@ This is settled canonically and I had wrongly flagged it as open. `ONT.md`
 is **not** final on confirmation. Anchoring opens a **notice window**; if no
 competing claim for the same name lands during it, the claim finalizes (the
 common, cheap, batched case). If a competing claim *does* land in the window,
-the name is **contested** and escalates to a bonded second-price auction —
+the name is **contested** and escalates to a bonded L1 auction —
 which is the *only* way an auction ever starts. The cheap claim is the sole
 entry path; the auction is an escalation of it, not a parallel rail.
-`docs/launch/UNIVERSAL_AUCTION_LAUNCH_MODEL.md` is the in-depth design of that
+`docs/launch/CONTESTED_AUCTION_REFERENCE.md` is the in-depth design of that
 escalated path (≈7-day window, soft close, returnable bonds).
 
 The mechanical consequence for the convergence layer is mostly already built.
@@ -261,7 +261,7 @@ Remaining sub-questions (implementation shape, not protocol shape):
   any challenger? Is the auction open to anyone, or only to the claimants who
   appeared in the notice window? The neutral default is "open to anyone; the
   in-window claimants are simply the first bidders," but this is worth a call.
-- **Gate disposition on escalation.** The ₿1,000 gates were already paid to
+- **Gate disposition on escalation.** The 1,000 sats gates were already paid to
   miners on the claim anchors. On escalation they are sunk for both sides
   (they are neither bond nor refundable), which is fine as anti-spam but
   should be stated so the auction's bond accounting does not double-count them.
@@ -286,8 +286,8 @@ ordering/fairness half of the notice window.
 3. **Griefing bound under escalation.** Because contested claims go to auction
    rather than a silent race, a griefer cannot cheaply void a victim's claim —
    they can only *force an auction* by claiming the same name in the notice
-   window, which costs them their own ₿1,000 gate and then a returnable bond to
-   actually compete. For ₿1,000 plus bonded capital per attempt that is real
+   window, which costs them their own 1,000 sats gate and then a returnable bond to
+   actually compete. For 1,000 sats plus bonded capital per attempt that is real
    skin in the game and scales linearly with the griefing; the residual harm is
    the victim's time and auction friction, not a lost name. Worth naming as a
    known cost rather than discovering it later.

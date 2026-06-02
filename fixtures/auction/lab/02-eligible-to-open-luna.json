@@ -4,7 +4,6 @@
   "currentBlockHeight": 880030,
   "scenario": {
     "name": "luna",
-    "auctionClassId": "launch_name",
     "unlockBlock": 880000,
     "bidAttempts": [
       {

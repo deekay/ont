@@ -13,7 +13,7 @@ Related notes:
 - [BITCOIN_EXPERT_REVIEW_PACKET.md](./BITCOIN_EXPERT_REVIEW_PACKET.md)
 - [BITCOIN_REVIEW_CLOSURE_MATRIX.md](./BITCOIN_REVIEW_CLOSURE_MATRIX.md)
 - [AUCTION_SETTLEMENT_AND_OWNERSHIP.md](./AUCTION_SETTLEMENT_AND_OWNERSHIP.md)
-- [UNIVERSAL_AUCTION_LAUNCH_MODEL.md](./UNIVERSAL_AUCTION_LAUNCH_MODEL.md)
+- [CONTESTED_AUCTION_REFERENCE.md](./CONTESTED_AUCTION_REFERENCE.md)
 - [VALUE_RECORD_HISTORY_AND_KEYBASE_NOTES.md](../research/VALUE_RECORD_HISTORY_AND_KEYBASE_NOTES.md)
 
 ## Best Use Of Bitcoin-Expert Attention
@@ -39,7 +39,7 @@ Questions:
 Why this matters:
 
 - it proves the project is thinking seriously about footprint
-- it gives us a concrete baseline before exploring auction-opening or bid
+- it gives us a concrete baseline before exploring auction-escalation or bid
   batching later
 
 ## 2. Auction Transaction And Settlement Shape
@@ -49,7 +49,8 @@ Current position:
 - `AUCTION_BID` exists as a real experimental transaction type
 - chain-derived experimental auction state exists
 - a settled winner can materialize directly into a live owned name
-- universal auctions are now the lead launch direction
+- public claims are now the lead launch direction; auctions are the contested
+  escalation path
 
 Questions:
 
@@ -69,7 +70,7 @@ Why this matters:
 
 Current position:
 
-- universal auctions are the lead launch architecture
+- one public claim path is the lead launch architecture
 - the old semantic reserved-list problem is intentionally removed
 - auction bids, transfers, and off-chain value records are all visible in the
   prototype
@@ -106,11 +107,11 @@ and system-design judgment than Bitcoin-native protocol review.
 
 These are the positions we should present as our current working answers:
 
-- universal auctions are the lead launch model
+- one public claim path is the lead launch model
 - no reserved-word list or pre-launch reservation system is part of the launch
   plan
-- very short names are handled by the same auction rule, with parameter review
-  focused on whether the length-based floors are strong enough
+- contested names are handled by the same auction rule, with parameter review
+  focused on whether the bonded floors are strong enough
 - auction numbers are still placeholders, but the mechanism family is the real
   design choice
 

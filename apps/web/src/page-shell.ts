@@ -9,7 +9,7 @@ const DOC_URLS = {
   newUser: `${GITHUB_BLOB_BASE_URL}/docs/core/NEW_USER_TESTING_GUIDE.md`,
   sparrowPrivateSignet: `${GITHUB_BLOB_BASE_URL}/docs/demo/SPARROW_PRIVATE_SIGNET.md`,
   implementation: `${GITHUB_BLOB_BASE_URL}/docs/launch/ONT_IMPLEMENTATION_AND_VALIDATION.md`,
-  launchSpec: `${GITHUB_BLOB_BASE_URL}/docs/launch/LAUNCH_SPEC_V0.md`,
+  launchBrief: `${GITHUB_BLOB_BASE_URL}/docs/launch/ONT_LAUNCH_V1_BRIEF.md`,
   auctionSettlement: `${GITHUB_BLOB_BASE_URL}/docs/launch/AUCTION_SETTLEMENT_AND_OWNERSHIP.md`,
   destinations: `${GITHUB_BLOB_BASE_URL}/docs/research/VALUE_RECORD_HISTORY_AND_KEYBASE_NOTES.md`,
   transfer: `${GITHUB_BLOB_BASE_URL}/docs/research/TRANSFER_RELAY_OPTIONS.md`,
@@ -406,7 +406,7 @@ function renderAdvancedGuideSection(configuredBasePath: string): string {
         <p>If you need custom destination formats, multi-resolver fanout, policy modeling, deeper transfer/sale flows, or protocol research work, the CLI and docs are still the right tools.</p>
         <div class="guide-card-actions">
           <a class="action-link secondary" href="${DOC_URLS.fromZero}" target="_blank" rel="noreferrer noopener">Read from zero</a>
-          <a class="action-link secondary" href="${DOC_URLS.launchSpec}" target="_blank" rel="noreferrer noopener">Launch spec</a>
+          <a class="action-link secondary" href="${DOC_URLS.launchBrief}" target="_blank" rel="noreferrer noopener">Launch brief</a>
           <a class="action-link secondary" href="${DOC_URLS.implementation}" target="_blank" rel="noreferrer noopener">Implementation</a>
         </div>
       </article>
@@ -446,7 +446,7 @@ function renderAdvancedReferencesSection(configuredBasePath: string): string {
         <p>Use the launch and system docs when you want the higher-level protocol framing, tradeoffs, and current working assumptions.</p>
         <div class="guide-card-actions">
           <a class="action-link secondary" href="${DOC_URLS.fromZero}" target="_blank" rel="noreferrer noopener">From zero</a>
-          <a class="action-link secondary" href="${DOC_URLS.launchSpec}" target="_blank" rel="noreferrer noopener">Launch spec</a>
+          <a class="action-link secondary" href="${DOC_URLS.launchBrief}" target="_blank" rel="noreferrer noopener">Launch brief</a>
         </div>
       </article>
     </div>
@@ -552,7 +552,7 @@ function renderExperimentalAuctionFeedSection(): string {
     <div id="experimentalAuctionList" class="activity-list"></div>
     ${renderLinkStrip("Reference", [
       { href: DOC_URLS.auctionSettlement, label: "Auction rules", external: true },
-      { href: DOC_URLS.launchSpec, label: "Launch spec", external: true }
+      { href: DOC_URLS.launchBrief, label: "Launch brief", external: true }
     ])}
   </section>`;
 }
@@ -620,7 +620,7 @@ function renderHomeNeutralitySection(): string {
       <article class="path-card">
         <p class="path-card-kicker">No gatekeeper</p>
         <h3>No registrar, token, or rent</h3>
-        <p>There is no company that grants names and no token you must hold. A name opens at a flat ${escapeHtml("₿")}1,000 (~$1) claim; Bitcoin records who owns it. opennametags.org is just one optional window onto that &mdash; it can't approve, censor, or charge you.</p>
+        <p>There is no company that grants names and no token you must hold. A name opens at a flat 1,000-sat (~$1) claim; Bitcoin records who owns it. opennametags.org is just one optional window onto that &mdash; it can't approve, censor, or charge you.</p>
       </article>
       <article class="path-card">
         <p class="path-card-kicker">Frozen + auditable</p>
@@ -672,7 +672,7 @@ function renderHomeVerifySection(configuredBasePath: string): string {
     </div>
     ${renderLinkStrip("Read the source", [
       { href: withBasePath("/values", configuredBasePath), label: "Browser tools" },
-      { href: DOC_URLS.launchSpec, label: "Protocol spec", external: true },
+      { href: DOC_URLS.launchBrief, label: "Protocol spec", external: true },
       { href: DOC_URLS.readme, label: "Source + run your own", external: true }
     ])}
   </section>`;
@@ -696,7 +696,7 @@ function renderHomeModelSection(): string {
           <p><span>name</span><strong class="mono">alice</strong></p>
           <p><span>claim</span><strong>uncontested</strong></p>
           <p><span>owner</span><strong class="mono">8f3c...12ab</strong></p>
-          <p><span>cost</span><strong>₿1,000 (~$1)</strong></p>
+          <p><span>cost</span><strong>1,000 sats (~$1)</strong></p>
         </div>
       </article>
       <div class="protocol-flow-arrow" aria-hidden="true"></div>
@@ -814,10 +814,10 @@ function renderHomeDocsSection(): string {
       <article class="guide-card">
         <h3>Still Prototype</h3>
         <ul class="guide-list">
-          <li>The cheap uncontested ₿1,000 (~$1) claim path is designed and measured, but not live here yet &mdash; claiming in this demo runs the bonded/contested path end-to-end.</li>
+          <li>The cheap uncontested 1,000-sat (~$1) claim path is designed and measured, but not live here yet; claiming in this demo runs the bonded/contested path end-to-end.</li>
           <li>Transfers still rely on external signer and CLI steps.</li>
           <li>Resolver availability is only partly decentralized in v1.</li>
-          <li>The universal-auction launch flow is implemented as a prototype and still not mainnet-ready.</li>
+          <li>The one-path claim flow is partly prototyped and still not mainnet-ready.</li>
           <li>Mainnet-ready usage is not ready yet.</li>
         </ul>
       </article>
@@ -826,12 +826,12 @@ function renderHomeDocsSection(): string {
         <ul class="guide-list">
           <li><a class="detail-link" href="${DOC_URLS.fromZero}" target="_blank" rel="noreferrer noopener">ONT From Zero</a></li>
           <li><a class="detail-link" href="${DOC_URLS.implementation}" target="_blank" rel="noreferrer noopener">Implementation &amp; Validation</a></li>
-          <li><a class="detail-link" href="${DOC_URLS.launchSpec}" target="_blank" rel="noreferrer noopener">Launch Spec v0</a></li>
+          <li><a class="detail-link" href="${DOC_URLS.launchBrief}" target="_blank" rel="noreferrer noopener">Launch v1 brief</a></li>
         </ul>
         <div class="guide-card-actions">
           <a class="action-link secondary" href="${DOC_URLS.fromZero}" target="_blank" rel="noreferrer noopener">Read from zero</a>
           <a class="action-link secondary" href="${DOC_URLS.implementation}" target="_blank" rel="noreferrer noopener">Implementation</a>
-          <a class="action-link secondary" href="${DOC_URLS.launchSpec}" target="_blank" rel="noreferrer noopener">Launch spec</a>
+          <a class="action-link secondary" href="${DOC_URLS.launchBrief}" target="_blank" rel="noreferrer noopener">Launch brief</a>
         </div>
       </article>
     </div>
@@ -1551,7 +1551,7 @@ function renderTransferSupportStrip(configuredBasePath: string): string {
     ])}
     ${renderLinkStrip("Reference", [
       { href: DOC_URLS.transfer, label: "Transfer guide", external: true },
-      { href: DOC_URLS.launchSpec, label: "Launch spec", external: true }
+      { href: DOC_URLS.launchBrief, label: "Launch brief", external: true }
     ])}
   </section>`;
 }

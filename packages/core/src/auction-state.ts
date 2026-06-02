@@ -21,8 +21,6 @@ export interface LaunchAuctionStateAtBlock {
   readonly phase: LaunchAuctionPhase;
   readonly phaseLabel: string;
   readonly normalizedName: string;
-  readonly auctionClassId: LaunchAuctionScenario["auctionClassId"];
-  readonly classLabel: string;
   readonly unlockBlock: number;
   readonly baseMinimumBidSats: bigint;
   readonly openingMinimumBidSats: bigint;
@@ -44,8 +42,6 @@ export interface SerializedLaunchAuctionStateAtBlock {
   readonly phase: LaunchAuctionPhase;
   readonly phaseLabel: string;
   readonly normalizedName: string;
-  readonly auctionClassId: LaunchAuctionScenario["auctionClassId"];
-  readonly classLabel: string;
   readonly unlockBlock: number;
   readonly baseMinimumBidSats: string;
   readonly openingMinimumBidSats: string;
@@ -118,8 +114,6 @@ export function simulateLaunchAuctionStateAtBlock(input: {
     phase,
     phaseLabel: formatLaunchAuctionPhaseLabel(phase),
     normalizedName: partialResult.normalizedName,
-    auctionClassId: partialResult.auctionClassId,
-    classLabel: partialResult.classLabel,
     unlockBlock: partialResult.unlockBlock,
     baseMinimumBidSats: partialResult.baseMinimumBidSats,
     openingMinimumBidSats: partialResult.openingMinimumBidSats,
@@ -146,8 +140,6 @@ export function serializeLaunchAuctionStateAtBlock(
     phase: state.phase,
     phaseLabel: state.phaseLabel,
     normalizedName: state.normalizedName,
-    auctionClassId: state.auctionClassId,
-    classLabel: state.classLabel,
     unlockBlock: state.unlockBlock,
     baseMinimumBidSats: state.baseMinimumBidSats.toString(),
     openingMinimumBidSats: state.openingMinimumBidSats.toString(),

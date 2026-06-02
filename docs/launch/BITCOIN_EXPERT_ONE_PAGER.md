@@ -8,8 +8,8 @@ Related notes:
 - [BITCOIN_EXPERT_REVIEW_PACKET.md](./BITCOIN_EXPERT_REVIEW_PACKET.md)
 - [BITCOIN_PROTOCOL_REVIEW_QUESTIONS.md](./BITCOIN_PROTOCOL_REVIEW_QUESTIONS.md)
 - [ONT_IMPLEMENTATION_AND_VALIDATION.md](./ONT_IMPLEMENTATION_AND_VALIDATION.md)
-- [LAUNCH_SPEC_V0.md](./LAUNCH_SPEC_V0.md)
-- [UNIVERSAL_AUCTION_LAUNCH_MODEL.md](./UNIVERSAL_AUCTION_LAUNCH_MODEL.md)
+- [ONT_LAUNCH_V1_BRIEF.md](./ONT_LAUNCH_V1_BRIEF.md)
+- [CONTESTED_AUCTION_REFERENCE.md](./CONTESTED_AUCTION_REFERENCE.md)
 
 ## What ONT Is For
 
@@ -43,20 +43,23 @@ Names use bonded bitcoin rather than annual rent:
 
 ## Current Lead Launch Direction
 
-The current lead launch direction is **universal auctions**.
+The current lead launch direction is **one public claim path with auction
+escalation when contested**.
 
 The rule is:
 
-> every launch-eligible name is allocated by auction.
+> every valid name enters public notice; uncontested names finalize through the
+> accumulator, and contested names escalate to bonded L1 auction.
 
 Launch shape:
 
-- every valid name length uses the same auction rule
+- every valid name uses the same public claim rule
 - there is no semantic reserved-word list
 - there is no pre-launch reservation system
-- there is no separate ordinary lane
+- there is no private ordinary lane
 - no list of brands, people, companies, or generic words receives special
   protocol treatment
+- every contested name uses the same auction family
 
 The motivation is neutrality. ONT should not decide which names are important.
 If a name matters to multiple bidders, the auction discovers the bonded BTC
@@ -99,13 +102,14 @@ expect to keep:
 - same-bidder replacement only counts when the later bid spends the prior bid
   bond
 
-The universal-auction model drops the old question of which names belong in a
+The one-path claim model drops the old question of which names belong in a
 special reserved list. The important remaining questions are now objective
 parameters:
 
+- claim fee and public notice window
 - auction window
 - soft-close response window and late-bid increment
-- opening-bond floors
+- opening-bond floors for contested names
 - how aggressive short-name floors should be
 - winner bond maturity duration
 - long-lock/quantum posture

@@ -302,7 +302,6 @@ async function main() {
         auctionId: targetAuction.auctionId,
         title: targetAuction.title,
         normalizedName: targetAuction.normalizedName,
-        auctionClassId: targetAuction.auctionClassId,
         unlockBlock: targetAuction.unlockBlock
       };
       summary.alphaBid = alphaBid;
@@ -474,8 +473,6 @@ async function buildAndMaybeBroadcastAuctionBid({
   const bidPackage = createAuctionBidPackage({
     auctionId: auctionState.auctionId,
     name: auctionState.normalizedName,
-    auctionClassId: auctionState.auctionClassId,
-    classLabel: auctionState.classLabel,
     currentBlockHeight: auctionState.currentBlockHeight,
     phase: auctionState.phase,
     unlockBlock: auctionState.unlockBlock,

@@ -11,8 +11,8 @@ Its job is to make one thing explicit before external review:
 Related notes:
 
 - [BITCOIN_EXPERT_REVIEW_PACKET.md](./BITCOIN_EXPERT_REVIEW_PACKET.md)
-- [LAUNCH_SPEC_V0.md](./LAUNCH_SPEC_V0.md)
-- [UNIVERSAL_AUCTION_LAUNCH_MODEL.md](./UNIVERSAL_AUCTION_LAUNCH_MODEL.md)
+- [ONT_LAUNCH_V1_BRIEF.md](./ONT_LAUNCH_V1_BRIEF.md)
+- [CONTESTED_AUCTION_REFERENCE.md](./CONTESTED_AUCTION_REFERENCE.md)
 - [ONT_IMPLEMENTATION_AND_VALIDATION.md](./ONT_IMPLEMENTATION_AND_VALIDATION.md)
 - [VALUE_RECORD_HISTORY_AND_KEYBASE_NOTES.md](../research/VALUE_RECORD_HISTORY_AND_KEYBASE_NOTES.md)
 
@@ -63,8 +63,8 @@ These items are already in a reviewable state:
 
 - payment-handle framing
 - retired claim prototype as historical context
-- universal auction lead architecture
-- auction mechanics as an experimental but real system slice
+- one-path public claim lead architecture
+- auction mechanics as an experimental but real system slice for contested names
 - legacy scheduled-catalog compatibility only as compatibility context
 - winner materialization into owned names
 
@@ -73,10 +73,10 @@ These items are already in a reviewable state:
 The best first-round ask to technically sophisticated Bitcoin reviewers is:
 
 1. Are the auction transaction and settlement shapes coherent?
-2. Is the footprint acceptable for an auction-first launch prototype?
+2. Is the footprint acceptable for a public claim path with auction escalation?
 3. Are there obvious Bitcoin-native concerns we are missing around policy,
    relay, footprint, or state-machine complexity?
-5. If they care about resolver trust, does the destination-record history direction
+4. If they care about resolver trust, does the destination-record history direction
    look sufficient before we consider heavier transparency machinery?
 
 That is a much better first ask than trying to get them to decide every launch

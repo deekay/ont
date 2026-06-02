@@ -7,7 +7,7 @@ Status note:
 - for what is implemented and validated, use
   [ONT_IMPLEMENTATION_AND_VALIDATION.md](../../launch/ONT_IMPLEMENTATION_AND_VALIDATION.md)
 - for the current launch direction, use
-  [UNIVERSAL_AUCTION_LAUNCH_MODEL.md](../../launch/UNIVERSAL_AUCTION_LAUNCH_MODEL.md)
+  [CONTESTED_AUCTION_REFERENCE.md](../../launch/CONTESTED_AUCTION_REFERENCE.md)
 
 ## The Problem With Payment Handles Today
 

@@ -36,8 +36,6 @@ function createAuctionBidPackageFixture() {
   return createAuctionBidPackage({
     auctionId: "04-soft-close-marble",
     name: "marble",
-    auctionClassId: "launch_name",
-    classLabel: "Public auction",
     currentBlockHeight: 844_360,
     phase: "soft_close",
     unlockBlock: 840_000,

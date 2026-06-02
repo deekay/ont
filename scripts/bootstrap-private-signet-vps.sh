@@ -24,6 +24,9 @@ Environment:
   ONT_PRIVATE_SIGNET_CHALLENGE        Signet challenge hex. Default: 51
   ONT_PRIVATE_SIGNET_BASE_PATH        Web base path. Default: /ont-private
   ONT_PRIVATE_SIGNET_BOOTSTRAP_BLOCKS Initial blocks to mine for mature demo funds. Default: 110
+  ONT_PRIVATE_SIGNET_SHIM_PORT        Esplora-shaped shim port (wallet funding scan + broadcast). Default: 3010
+  ONT_PRIVATE_SIGNET_PUBLISHER_PORT   Publisher (cheap-rail batch anchor) port. Default: 7878
+  ONT_PRIVATE_SIGNET_DOMAIN_WEB_PORT  Root-domain web port (reuses the private resolver). Default: 3002
 EOF
 }
 
@@ -60,6 +63,9 @@ ELECTRUM_PORT="${ONT_PRIVATE_SIGNET_ELECTRUM_PORT:-50001}"
 CHALLENGE="${ONT_PRIVATE_SIGNET_CHALLENGE:-51}"
 BASE_PATH="${ONT_PRIVATE_SIGNET_BASE_PATH:-/ont-private}"
 BOOTSTRAP_BLOCKS="${ONT_PRIVATE_SIGNET_BOOTSTRAP_BLOCKS:-110}"
+SHIM_PORT="${ONT_PRIVATE_SIGNET_SHIM_PORT:-3010}"
+PUBLISHER_PORT="${ONT_PRIVATE_SIGNET_PUBLISHER_PORT:-7878}"
+DOMAIN_WEB_PORT="${ONT_PRIVATE_SIGNET_DOMAIN_WEB_PORT:-3002}"
 PUBLIC_HOST="${REMOTE#*@}"
 
 SSH_ARGS=(
@@ -86,7 +92,7 @@ rsync -az --delete \
   "$ROOT_DIR/" \
   "$REMOTE:/opt/ont/app/"
 
-ssh "${SSH_ARGS[@]}" "$REMOTE" "BITCOIN_VERSION='$BITCOIN_VERSION' WEB_PORT='$WEB_PORT' RESOLVER_PORT='$RESOLVER_PORT' RPC_PORT='$RPC_PORT' P2P_PORT='$P2P_PORT' ELECTRUM_PORT='$ELECTRUM_PORT' CHALLENGE='$CHALLENGE' BASE_PATH='$BASE_PATH' BOOTSTRAP_BLOCKS='$BOOTSTRAP_BLOCKS' PUBLIC_HOST='$PUBLIC_HOST' bash -s" <<'EOF'
+ssh "${SSH_ARGS[@]}" "$REMOTE" "BITCOIN_VERSION='$BITCOIN_VERSION' WEB_PORT='$WEB_PORT' RESOLVER_PORT='$RESOLVER_PORT' RPC_PORT='$RPC_PORT' P2P_PORT='$P2P_PORT' ELECTRUM_PORT='$ELECTRUM_PORT' CHALLENGE='$CHALLENGE' BASE_PATH='$BASE_PATH' BOOTSTRAP_BLOCKS='$BOOTSTRAP_BLOCKS' SHIM_PORT='$SHIM_PORT' PUBLISHER_PORT='$PUBLISHER_PORT' DOMAIN_WEB_PORT='$DOMAIN_WEB_PORT' PUBLIC_HOST='$PUBLIC_HOST' bash -s" <<'EOF'
 set -euo pipefail
 
 export DEBIAN_FRONTEND=noninteractive
@@ -304,8 +310,15 @@ ONT_RESOLVER_PORT=${RESOLVER_PORT}
 ONT_WEB_PORT=${WEB_PORT}
 ONT_WEB_BASE_PATH=${BASE_PATH}
 ONT_EXPERIMENTAL_AUCTION_FIXTURE_DIR=/opt/ont/app/fixtures/auction/private-signet-lab
-ONT_EXPERIMENTAL_AUCTION_BASE_WINDOW_BLOCKS=30
-ONT_EXPERIMENTAL_AUCTION_SOFT_CLOSE_EXTENSION_BLOCKS=28
+# Fast-demo auction windows. Keep soft-close a small tail of the base window
+# (production default is ~144/1008 ≈ 14%); base=8/ext=4 mirrors the original
+# private-signet demo and keeps the full auction lifecycle smoke deterministic
+# (the higher bid lands inside live_bidding, not on the soft-close boundary).
+# LAUNCH_NAME_LOCK_BLOCKS must exceed (initial-maturity + base) so an auction-won
+# name is mature by the time its winner bond unlocks — see private-signet-auction-smoke.
+ONT_EXPERIMENTAL_AUCTION_BASE_WINDOW_BLOCKS=8
+ONT_EXPERIMENTAL_AUCTION_SOFT_CLOSE_EXTENSION_BLOCKS=4
+ONT_EXPERIMENTAL_AUCTION_LAUNCH_NAME_LOCK_BLOCKS=24
 ONT_WEB_NETWORK_LABEL=Private Signet (Fast Maturity Demo)
 ONT_WEB_PRIVATE_AUCTION_SMOKE_STATUS_PATH=/var/lib/ont/private-auction-smoke-summary.json
 ONT_TEST_OVERRIDE_INITIAL_MATURITY_BLOCKS=12
@@ -365,6 +378,117 @@ LimitNOFILE=65536
 WantedBy=multi-user.target
 SERVICE
 
+# --- esplora-shaped shim (wallet funding scan + broadcast over electrs) -------
+cat >/etc/ont/esplora-shim.env <<ENVFILE
+SHIM_BIND=127.0.0.1
+SHIM_PORT=${SHIM_PORT}
+SHIM_BACKEND=electrum
+SHIM_ALLOW_ORIGIN=*
+ELECTRUM_HOST=127.0.0.1
+ELECTRUM_PORT=${ELECTRUM_PORT}
+ELECTRUM_TLS=0
+ELECTRUM_NETWORK=testnet
+ENVFILE
+chown root:ont /etc/ont/esplora-shim.env
+chmod 640 /etc/ont/esplora-shim.env
+
+cat >/etc/systemd/system/ont-esplora-shim.service <<'SERVICE'
+[Unit]
+Description=ONT Esplora-shaped HTTP shim over electrs (wallet funding scan + broadcast)
+After=network-online.target electrs-private-signet.service
+Wants=network-online.target
+Requires=electrs-private-signet.service
+
+[Service]
+User=ont
+Group=ont
+WorkingDirectory=/opt/ont/app
+EnvironmentFile=/etc/ont/esplora-shim.env
+ExecStart=/usr/bin/node scripts/esplora-rpc-shim.mjs
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
+SERVICE
+
+# --- publisher (cheap-rail batch anchor; stub anchor until a funding WIF) -----
+# Real broadcast needs BOTH ONT_PUBLISHER_ESPLORA_URL + ONT_PUBLISHER_FUNDING_WIF.
+# We wire the esplora URL (documents intent, one-line flip) but omit the hot key,
+# so the publisher stays stub by default.
+cat >/etc/ont/ont-publisher.env <<ENVFILE
+ONT_PUBLISHER_PORT=${PUBLISHER_PORT}
+ONT_PUBLISHER_NETWORK=signet
+ONT_PUBLISHER_STORE_PATH=/var/lib/ont/publisher-store.json
+ONT_PUBLISHER_ESPLORA_URL=http://127.0.0.1:${SHIM_PORT}
+ONT_PUBLISHER_OPERATOR_NAME=ONT Private Signet Demo
+ONT_PUBLISHER_CONTACT=ops@${PUBLIC_HOST}
+ENVFILE
+chown root:ont /etc/ont/ont-publisher.env
+chmod 640 /etc/ont/ont-publisher.env
+
+cat >/etc/systemd/system/ont-publisher.service <<'SERVICE'
+[Unit]
+Description=ONT publisher (cheap-rail batch anchor service)
+After=network-online.target ont-esplora-shim.service
+Wants=network-online.target
+Requires=ont-esplora-shim.service
+
+[Service]
+User=ont
+Group=ont
+WorkingDirectory=/opt/ont/app
+EnvironmentFile=/etc/ont/ont-publisher.env
+ExecStart=/usr/bin/npm run dev -w @ont/publisher
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
+SERVICE
+
+# --- root-domain web (reuses the private resolver; no second resolver) --------
+cat >/etc/ont/ont-domain.env <<ENVFILE
+ONT_WEB_PORT=${DOMAIN_WEB_PORT}
+ONT_WEB_BASE_PATH=
+ONT_WEB_RESOLVER_URL=http://127.0.0.1:${RESOLVER_PORT}
+ONT_WEB_NETWORK_LABEL=Open Name Tags
+ONT_WEB_SHOW_LIVE_SMOKE=false
+ONT_WEB_PRIVATE_DEMO_BASE_PATH=${BASE_PATH}
+ONT_WEB_PRIVATE_SIGNET_ELECTRUM_ENDPOINT=${PUBLIC_HOST}:${ELECTRUM_PORT}:t
+ENVFILE
+chown root:ont /etc/ont/ont-domain.env
+chmod 640 /etc/ont/ont-domain.env
+
+cat >/etc/systemd/system/ont-domain-web.service <<'SERVICE'
+[Unit]
+Description=ONT web service (root domain)
+After=network-online.target ont-private-resolver.service
+Wants=network-online.target
+Requires=ont-private-resolver.service
+
+[Service]
+User=ont
+Group=ont
+WorkingDirectory=/opt/ont/app
+EnvironmentFile=/etc/ont/ont-domain.env
+ExecStart=/usr/bin/npm run dev:web
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
+SERVICE
+
 systemctl daemon-reload
 systemctl enable bitcoind-private-signet.service
 systemctl restart bitcoind-private-signet.service
@@ -399,7 +523,12 @@ ONT_PRIVATE_SIGNET_RPC_PASSWORD="${RPC_PASSWORD}" \
 systemctl enable --now ont-private-signet-auto-mine.service
 systemctl enable --now ont-private-resolver.service
 systemctl enable --now ont-private-web.service
+systemctl enable --now ont-esplora-shim.service
+systemctl enable --now ont-publisher.service
+systemctl enable --now ont-domain-web.service
 
+# Only the demo web (private) and the Electrum endpoint are exposed directly;
+# the shim, publisher, and root-domain web stay localhost-only behind Caddy.
 ufw allow ${WEB_PORT}/tcp >/dev/null
 
 wait_for_http() {
@@ -423,6 +552,9 @@ wait_for_http() {
 
 wait_for_http "http://127.0.0.1:${RESOLVER_PORT}/health" "private resolver health" 45
 wait_for_http "http://127.0.0.1:${WEB_PORT}${BASE_PATH}/api/health" "private web health" 30
+wait_for_http "http://127.0.0.1:${SHIM_PORT}/blocks/tip/height" "esplora shim" 30
+wait_for_http "http://127.0.0.1:${PUBLISHER_PORT}/health" "publisher health" 30
+wait_for_http "http://127.0.0.1:${DOMAIN_WEB_PORT}/api/health" "root-domain web health" 30
 
 echo
 echo "[private signet]"

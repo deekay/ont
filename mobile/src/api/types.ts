@@ -166,8 +166,6 @@ export interface AuctionEntry {
   phase: string; // pending_unlock | awaiting_opening_bid | live_bidding | soft_close | settled
   phaseLabel: string;
   normalizedName: string;
-  auctionClassId: string;
-  classLabel: string;
   unlockBlock: number;
   baseMinimumBidSats?: string;
   openingMinimumBidSats?: string;
@@ -198,8 +196,8 @@ export interface BidOutcome {
 
 export interface AuctionPolicy {
   defaultSettlementLockBlocks?: number;
+  openingFloorSats?: string;
   auction?: Record<string, unknown>;
-  auctionClasses?: Record<string, { label: string; floorSats: string; lockBlocks: number }>;
 }
 
 export interface ExperimentalAuctionsResponse {

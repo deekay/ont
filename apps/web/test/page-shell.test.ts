@@ -78,7 +78,7 @@ describe("renderPageHtml", () => {
     expect(html).toContain("protocol-flow");
     expect(html).toContain("Claim It");
     expect(html).toContain("Claim <span class=\"mono\">alice</span> for a small fixed fee");
-    expect(html).toContain("₿1,000 (~$1)");
+    expect(html).toContain("1,000 sats (~$1)");
     expect(html).toContain("Publish Off-Chain");
     expect(html).toContain("Resolvers store that signed record.");
     expect(html).toContain("<strong class=\"mono\">bc1qxy...0wlh</strong>");
@@ -105,7 +105,7 @@ describe("renderPageHtml", () => {
     expect(html).toContain("Works Today");
     expect(html).toContain("Read Next");
     expect(html).toContain("Read from zero");
-    expect(html).toContain("Launch Spec v0");
+    expect(html).toContain("Launch v1 brief");
     expect(html).not.toContain("What ONT Is");
   });
 
@@ -120,7 +120,7 @@ describe("renderPageHtml", () => {
     expect(html).toContain("Most People Can Ignore This");
     expect(html).toContain("Open auctions");
     expect(html).toContain("Testing guide");
-    expect(html).toContain("Launch spec");
+    expect(html).toContain("Launch brief");
     expect(html).toContain(">Advanced<");
     expect(html).toContain("Auction State Gallery");
     expect(html).toContain("Fixture-backed simulator states for documentation and implementation review.");

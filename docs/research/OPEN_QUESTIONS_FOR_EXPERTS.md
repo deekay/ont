@@ -7,7 +7,7 @@ Kept here so the framing isn't re-derived each time. Working notes, not design.
 
 ## Lightning / PTLC availability (for a Lightning protocol expert)
 
-**Why it matters:** ONT's trust-minimized claim flow ("option 3") binds a ₿1,000 (~$1) Lightning
+**Why it matters:** ONT's trust-minimized claim flow ("option 3") binds a 1,000 sats (~$1) Lightning
 payment to a specific on-chain event — the publisher reveals an adaptor secret when it
 broadcasts a particular anchor tx, and that secret unlocks the payment. PTLCs / adaptor
 signatures are the clean primitive. We need to decide whether to design *for* PTLCs as an

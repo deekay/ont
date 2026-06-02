@@ -137,8 +137,8 @@ Needs improvement:
 
 What works:
 
-- It was clearly marked advanced at the time; the current auction-first product
-  direction makes Auctions a primary surface instead.
+- It was clearly marked advanced at the time; the later auction-first product
+  direction made Auctions a primary surface in that historical pass.
 - The read-only policy defaults are safer than exposing simulator knobs to first-time users.
 
 Needs improvement:

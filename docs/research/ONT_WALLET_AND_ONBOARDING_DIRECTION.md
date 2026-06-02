@@ -116,7 +116,7 @@ The ONT **owner key controls a name permanently** — a far higher bar than a ho
   backed by ONT's **armed-recovery** design. A *separate* key — **not** derived from the LN node's
   root seed, and **not** in any shared cloud enclave.
 - **Lightning credential:** Lexe's model (enclave + phone, with a convenience-grade encrypted Google
-  Drive backup) governs only the **₿1,000 (~$1) payment leg**. Fine for that — a Google lockout there is a
+  Drive backup) governs only the **1,000 sats (~$1) payment leg**. Fine for that — a Google lockout there is a
   recoverability annoyance, not a theft surface.
 - The two keys **bind only at swap time**; they are never co-mingled. So Lexe's Google dependency
   never touches the name-controlling key.
@@ -160,11 +160,11 @@ Who writes to the chain: in the common uncontested path the **publisher** writes
 wallet writes L1 directly only for the **self-sovereign fallback, a contested→auction bid, or a
 transfer**.
 
-How the user pays the publisher their ₿1,000 (~$1) gate, by tier of trust-minimization:
+How the user pays the publisher their 1,000 sats (~$1) gate, by tier of trust-minimization:
 
 1. **Now / launch — naive pay to a *reputable* publisher.** Early publishers are known, always-online
    entities (wallet vendors, Lexe-style services, aligned institutions — see the "who runs publishers"
-   analysis). For a **₿1,000 (~$1)** stake, **reputation + the L1 fallback + a rare absorbed ₿1,000** is good enough;
+   analysis). For a **1,000 sats (~$1)** stake, **reputation + the L1 fallback + a rare absorbed 1,000 sats** is good enough;
    pay-on-inclusion-proof reverses the residual risk onto whoever is more trusted. **No PTLC, no
    adaptor signatures, works today.**
 2. **Hardening — the adaptor/conditional-payment swap** (payment ⟺ the specific anchor committing your
@@ -174,7 +174,7 @@ How the user pays the publisher their ₿1,000 (~$1) gate, by tier of trust-mini
 3. **Floor — self-sovereign N=1 L1 claim.** Zero publisher trust, always available.
 
 **Does building on Lexe solve the swap/PTLC problem?** It doesn't *solve* it, but it **largely removes
-it from the critical path**: (a) reputable always-online publishers make naive-pay fine for a ₿1,000 (~$1) stake at
+it from the critical path**: (a) reputable always-online publishers make naive-pay fine for a 1,000 sats (~$1) stake at
 launch; (b) Lexe is the ideal vehicle to later implement the trustless swap *bilaterally*, sidestepping
 network-wide PTLCs; (c) the L1 path is always the trust floor. So the swap is a **hardening upgrade**,
 most valuable for higher-value names (scarce/short) and anonymous-publisher scale — exactly when

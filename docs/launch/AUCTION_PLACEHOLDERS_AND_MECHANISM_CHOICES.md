@@ -7,8 +7,8 @@ This note separates two things that can easily get blurred together:
 
 Related notes:
 
-- [LAUNCH_SPEC_V0.md](./LAUNCH_SPEC_V0.md)
-- [UNIVERSAL_AUCTION_LAUNCH_MODEL.md](./UNIVERSAL_AUCTION_LAUNCH_MODEL.md)
+- [ONT_LAUNCH_V1_BRIEF.md](./ONT_LAUNCH_V1_BRIEF.md)
+- [CONTESTED_AUCTION_REFERENCE.md](./CONTESTED_AUCTION_REFERENCE.md)
 - [BITCOIN_REVIEW_CLOSURE_MATRIX.md](./BITCOIN_REVIEW_CLOSURE_MATRIX.md)
 
 ## Real Mechanism Choices
@@ -16,7 +16,7 @@ Related notes:
 These are the things we currently mean as real design choices, even if they are
 still technically provisional:
 
-- launch-eligible names should be allocated by auction
+- contested names should be allocated by auction
 - ONT should not use a semantic reserved-word list
 - ONT should not use a pre-launch reservation system
 - very short names should use the same auction rule, with scarcity handled by

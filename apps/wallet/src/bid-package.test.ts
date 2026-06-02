@@ -8,8 +8,6 @@ import type { ResolverAuctionState } from "./resolver.js";
 const OPENING_AUCTION: ResolverAuctionState = {
   auctionId: "opening-satoshi",
   normalizedName: "satoshi",
-  auctionClassId: "class-a",
-  classLabel: "Class A",
   currentBlockHeight: 200,
   phase: "awaiting_opening_bid",
   unlockBlock: 100,

@@ -98,7 +98,6 @@ describe("simulateLaunchAuction", () => {
       policy,
       scenario: {
         name: "silverpine",
-        auctionClassId: "launch_name",
         unlockBlock: 840_000,
         bidAttempts: [
           {
@@ -113,7 +112,7 @@ describe("simulateLaunchAuction", () => {
     expect(result.status).toBe("settled");
     expect(result.openingMinimumBidSats).toBe(195_312n);
     expect(result.winner?.amountSats).toBe(25_000_000n);
-    expect(result.settlementLockBlocks).toBe(policy.auctionClasses.launch_name.lockBlocks);
+    expect(result.settlementLockBlocks).toBe(policy.defaultSettlementLockBlocks);
   });
 
   it("rejects bids before opening, rejects low increments, and extends on soft close", () => {
@@ -122,7 +121,6 @@ describe("simulateLaunchAuction", () => {
       policy,
       scenario: {
         name: "marble",
-        auctionClassId: "launch_name",
         unlockBlock: 840_000,
         bidAttempts: [
           {
@@ -182,7 +180,6 @@ describe("simulateLaunchAuction", () => {
       policy,
       scenario: {
         name: "meadow",
-        auctionClassId: "launch_name",
         unlockBlock: 900_000,
         bidAttempts: [
           {
@@ -203,14 +200,12 @@ describe("simulateLaunchAuction", () => {
     const policy = createDefaultLaunchAuctionPolicy();
     const opening = getLaunchAuctionOpeningRequirements({
       policy,
-      name: "silverpine",
-      auctionClassId: "launch_name"
+      name: "silverpine"
     }).openingMinimumBidSats;
     const result = simulateLaunchAuction({
       policy,
       scenario: {
         name: "silverpine",
-        auctionClassId: "launch_name",
         unlockBlock: 900_000,
         bidAttempts: [
           {
@@ -241,7 +236,6 @@ describe("simulateLaunchAuction", () => {
       policy,
       scenario: {
         name: "marble",
-        auctionClassId: "launch_name",
         unlockBlock: 900_000,
         bidAttempts: [
           {
@@ -293,7 +287,6 @@ describe("simulateLaunchAuction", () => {
       policy,
       scenario: {
         name: "silverpine",
-        auctionClassId: "launch_name",
         unlockBlock: 100,
         bidAttempts: [
           {
@@ -368,7 +361,6 @@ describe("simulateLaunchAuction", () => {
       policy,
       scenario: {
         name: "marble",
-        auctionClassId: "launch_name",
         unlockBlock: 900_000,
         bidAttempts: [
           {
@@ -406,7 +398,6 @@ describe("simulateLaunchAuction", () => {
         JSON.stringify(
           serializeLaunchAuctionScenario({
             name: "markzuckerberg",
-            auctionClassId: "launch_name",
             unlockBlock: 910_000,
             bidAttempts: [
               {

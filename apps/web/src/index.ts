@@ -36,7 +36,7 @@ const port = parsePort(
 const resolverUrl =
   process.env.ONT_WEB_RESOLVER_URL
   ?? `http://127.0.0.1:${resolverPort}`;
-// The batching publisher (cheap-rail ₿1,000 claims) — co-located on the box,
+// The batching publisher (cheap-rail 1,000 sats claims) — co-located on the box,
 // bound to localhost. The web /api proxies the claim endpoints so the no-install
 // browser tools can claim an available name end to end.
 const publisherUrl =

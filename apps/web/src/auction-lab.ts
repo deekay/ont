@@ -36,8 +36,6 @@ export interface LaunchAuctionLabPayload {
 interface WebsiteAuctionBidPackageStateInput {
   readonly auctionId: string;
   readonly normalizedName: string;
-  readonly auctionClassId: string;
-  readonly classLabel: string;
   readonly currentBlockHeight: number;
   readonly phase: string;
   readonly unlockBlock: number;
@@ -115,8 +113,6 @@ export async function createLaunchAuctionLabBidPackage(input: {
     auctionState: {
       auctionId: auctionCase.id,
       normalizedName: auctionCase.state.normalizedName,
-      auctionClassId: auctionCase.state.auctionClassId,
-      classLabel: auctionCase.state.classLabel,
       currentBlockHeight: auctionCase.state.currentBlockHeight,
       phase: auctionCase.state.phase,
       unlockBlock: auctionCase.state.unlockBlock,
@@ -148,8 +144,7 @@ export function createLaunchAuctionOpeningBidPackage(input: {
   const policy = createDefaultLaunchAuctionPolicy();
   const requirements = getLaunchAuctionOpeningRequirements({
     policy,
-    name: input.name,
-    auctionClassId: "launch_name"
+    name: input.name
   });
   const unlockBlock = input.unlockBlock ?? UNIVERSAL_LAUNCH_AUCTION_UNLOCK_BLOCK;
 
@@ -160,8 +155,6 @@ export function createLaunchAuctionOpeningBidPackage(input: {
         unlockBlock
       }),
       normalizedName: requirements.normalizedName,
-      auctionClassId: "launch_name",
-      classLabel: requirements.classLabel,
       currentBlockHeight: input.currentBlockHeight,
       phase: input.currentBlockHeight < unlockBlock ? "pending_unlock" : "awaiting_opening_bid",
       unlockBlock,
@@ -210,8 +203,6 @@ function createWebsiteAuctionBidPackage(input: {
   return createAuctionBidPackage({
     auctionId: input.auctionState.auctionId,
     name: input.auctionState.normalizedName,
-    auctionClassId: input.auctionState.auctionClassId,
-    classLabel: input.auctionState.classLabel,
     currentBlockHeight: input.auctionState.currentBlockHeight,
     phase: input.auctionState.phase as
       | "pending_unlock"

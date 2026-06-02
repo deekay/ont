@@ -15,8 +15,6 @@ function buildArtifacts(fundingAddress: string, ownerPubkey: string) {
   const bidPackage = createAuctionBidPackage({
     auctionId: "auction-test",
     name: "satoshi",
-    auctionClassId: "class-a",
-    classLabel: "Class A",
     currentBlockHeight: 200,
     phase: "awaiting_opening_bid",
     unlockBlock: 100,

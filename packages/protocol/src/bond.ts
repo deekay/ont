@@ -1,6 +1,6 @@
 import {
-  BOND_BASE_SATS,
-  BOND_FLOOR_SATS,
+  AUCTION_BOND_BASE_SATS,
+  AUCTION_BOND_FLOOR_SATS,
   EPOCH_LENGTH_BLOCKS,
   INITIAL_MATURITY_BLOCKS,
   MIN_MATURITY_BLOCKS,
@@ -11,10 +11,14 @@ import {
 export function getBondSats(nameLength: number): bigint {
   assertNameLength(nameLength);
 
-  const halved = BOND_BASE_SATS >> BigInt(nameLength - 1);
-  return halved > BOND_FLOOR_SATS ? halved : BOND_FLOOR_SATS;
+  const halved = AUCTION_BOND_BASE_SATS >> BigInt(nameLength - 1);
+  return halved > AUCTION_BOND_FLOOR_SATS ? halved : AUCTION_BOND_FLOOR_SATS;
 }
 
+/**
+ * @deprecated Epoch-based maturity is retained for prototype compatibility.
+ * Current launch docs use a fixed bonded-name maturity.
+ */
 export function getEpochIndex(claimHeight: number, launchHeight: number): number {
   if (!Number.isInteger(claimHeight) || claimHeight < 0) {
     throw new Error("claimHeight must be a non-negative integer");
@@ -31,6 +35,10 @@ export function getEpochIndex(claimHeight: number, launchHeight: number): number
   return Math.floor((claimHeight - launchHeight) / EPOCH_LENGTH_BLOCKS);
 }
 
+/**
+ * @deprecated Epoch-based maturity is retained for prototype compatibility.
+ * Current launch docs use a fixed bonded-name maturity.
+ */
 export function getMaturityBlocks(epochIndex: number): number {
   if (!Number.isInteger(epochIndex) || epochIndex < 0) {
     throw new Error("epochIndex must be a non-negative integer");
@@ -61,4 +69,3 @@ function assertNameLength(nameLength: number): void {
     throw new Error(`name length must be between ${NAME_MIN_LENGTH} and ${NAME_MAX_LENGTH}`);
   }
 }
-

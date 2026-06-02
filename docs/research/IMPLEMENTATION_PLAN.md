@@ -9,12 +9,13 @@ The goal is not to freeze the final mainnet protocol immediately. The goal is
 to:
 
 - build a working reference implementation
-- test the auction-first protocol shape on signet
+- test the one-path claim protocol shape on signet
 - gather feedback from Bitcoin-focused reviewers
 - tighten the spec before any canonical mainnet launch
 
 For the current launch model, see
-[UNIVERSAL_AUCTION_LAUNCH_MODEL.md](../launch/UNIVERSAL_AUCTION_LAUNCH_MODEL.md).
+[ONT_ACQUISITION_STATE_MACHINE.md](../design/ONT_ACQUISITION_STATE_MACHINE.md)
+and [ONT_LAUNCH_V1_BRIEF.md](../launch/ONT_LAUNCH_V1_BRIEF.md).
 
 ## Build Goal
 
@@ -28,7 +29,8 @@ Ship a signet prototype with:
 
 The signet prototype should demonstrate:
 
-- auction-based name allocation
+- public claim, notice, and uncontested finalization
+- auction escalation for contested names
 - bond continuity tracking
 - ownership transfer
 - off-chain value publishing and lookup
@@ -39,7 +41,10 @@ The signet prototype should demonstrate:
 These assumptions are strong enough to build against:
 
 - names are `[a-z0-9]{1,32}` and canonicalized to lowercase
-- every valid name can be opened by public bonded auction
+- every valid name enters the same public claim path
+- uncontested claims finalize through the accumulator rail after their notice
+  window
+- contested claims escalate to public bonded auction
 - there is no reserved-word list, no pre-launch reservation system, and no
   ordinary-vs-reserved split
 - values are off-chain by default

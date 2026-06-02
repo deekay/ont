@@ -227,11 +227,11 @@ The tone should be:
 - humble about the exact mechanics
 - concrete about why names matter
 
-## Universal Auction Moral Intuition
+## Public Claim Moral Intuition
 
-The universal-auction story strengthens the philosophy rather than weakening it.
+The public-claim story strengthens the philosophy rather than weakening it.
 
-The old two-lane story tried to protect the long tail with a simple direct-allocation lane and send salient names to auction. The stronger updated story is simpler: if ONT is allocating scarce human-readable names, every launch-eligible name should face the same market rule.
+The old two-lane story tried to protect the long tail with a simple direct-allocation lane and send salient names to auction. The stronger updated story is simpler: if ONT is allocating scarce human-readable names, every valid name should face the same public notice rule, and only names with demonstrated conflict should consume the full auction path.
 
 The moral center should be:
 
@@ -250,13 +250,15 @@ If bootstrapping comes first, the mechanism can sound extractive. If legitimacy 
 - giving scarce names away cheaply is not neutral
 - insider allocation is not acceptable
 - protocol operators should not hand-price the whole world
-- open competition with visible rules is the more credible answer
+- public notice plus open competition when challenged is the more credible answer
 
 So the launch story says:
 
-- valid names are auctioned under one rule
+- valid names enter one public claim path
+- uncontested names finalize through the accumulator rail
+- contested names are auctioned under one rule
 - there is no reserved-word list
-- there is no ordinary direct-allocation lane
+- there is no private ordinary direct-allocation lane
 - there is no short-name wave
 
 This is not a retreat from fairness. It is a cleaner market-based account of fairness.

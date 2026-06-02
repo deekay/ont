@@ -4,7 +4,6 @@
   "currentBlockHeight": 839990,
   "scenario": {
     "name": "marble",
-    "auctionClassId": "launch_name",
     "unlockBlock": 840000,
     "bidAttempts": [
       {

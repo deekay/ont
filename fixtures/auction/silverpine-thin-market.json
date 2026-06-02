@@ -1,7 +1,6 @@
 {
   "scenario": {
     "name": "silverpine",
-    "auctionClassId": "launch_name",
     "unlockBlock": 860000,
     "bidAttempts": [
       {

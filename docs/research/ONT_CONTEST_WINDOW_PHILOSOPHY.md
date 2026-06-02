@@ -31,7 +31,7 @@ the right time to pick it is now, before it freezes.
 
 ## The threat model: launch capture
 
-A cheap claim costs a flat ₿1,000 (~$1) gate, paid to miners. So the top
+A cheap claim costs a flat 1,000 sats (~$1) gate, paid to miners. So the top
 100,000 global brands cost ≈ ₿100,000,000 (~$100k) to blanket-claim — pocket
 change for a motivated actor. At launch this is the sharp risk: a
 well-capitalized squatter quietly claims tens of thousands of names before
@@ -264,7 +264,7 @@ one-path model and neutrality:
      walks during the lock to hand the name to a colluding "runner-up" at a
      low price. Preference manufactures these games. Re-opening to everyone
      at *current* valuations does not.
-   - The second-price auction already priced the runner-up's loss correctly;
+   - The prior auction already priced the runner-up's loss for that moment;
      a forfeit is a new event deserving a fresh, open contest, not a
      resurrected bid ladder.
 

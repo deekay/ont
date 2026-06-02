@@ -123,8 +123,6 @@ try {
   const bidPackage = createAuctionBidPackage({
     auctionId: "demo-auction",
     name: "satoshi",
-    auctionClassId: "class-a",
-    classLabel: "Class A",
     currentBlockHeight: 200,
     phase: "awaiting_opening_bid",
     unlockBlock: 100,

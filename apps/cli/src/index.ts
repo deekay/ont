@@ -228,7 +228,7 @@ async function inspectAuctionBidPackage(filePath: string | undefined): Promise<v
   console.log("");
   console.log(`Auction: ${parsed.auctionId}`);
   console.log(`Name: ${parsed.name}`);
-  console.log(`Class: ${parsed.classLabel} (${parsed.auctionClassId})`);
+  console.log(`Path: contested auction`);
   console.log(`Observed phase: ${parsed.phase}`);
   console.log(`Observed block: ${parsed.currentBlockHeight}`);
   console.log(`Eligible to open at block: ${parsed.unlockBlock}`);
@@ -422,8 +422,6 @@ async function createAuctionBidPackageCommand(args: readonly string[]): Promise<
       parsed.options.get("auction-id")
       ?? basename(scenarioPath).replace(/\.json$/u, ""),
     name: state.normalizedName,
-    auctionClassId: state.auctionClassId,
-    classLabel: state.classLabel,
     currentBlockHeight: state.currentBlockHeight,
     phase: state.phase,
     unlockBlock: state.unlockBlock,

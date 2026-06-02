@@ -34,20 +34,17 @@ describe("InMemoryOntIndexer auction observations", () => {
     const bidderCommitment = computeAuctionBidderCommitment("operator_satoshi");
     const openingRequirements = getLaunchAuctionOpeningRequirements({
       policy,
-      name,
-      auctionClassId: "launch_name"
+      name
     });
     const auctionLotCommitment = computeAuctionLotCommitment({
       auctionId,
       name,
-      auctionClassId: "launch_name",
       unlockBlock
     });
     const bidAmountSats = openingRequirements.openingMinimumBidSats;
     const auctionCommitment = computeAuctionBidStateCommitment({
       auctionId,
       name,
-      auctionClassId: "launch_name",
       currentBlockHeight,
       phase: "awaiting_opening_bid",
       unlockBlock,
@@ -141,8 +138,7 @@ describe("InMemoryOntIndexer auction observations", () => {
           ownerPubkey: OWNER_PUBKEY,
           bondOutputValueSats: getLaunchAuctionOpeningRequirements({
             policy,
-            name: "shortbond",
-            auctionClassId: "launch_name"
+            name: "shortbond"
           }).openingMinimumBidSats - 1n
         }).block,
         reason: "auction_bid_bond_value_mismatch"
@@ -980,12 +976,6 @@ function createFastAuctionPolicy(): LaunchAuctionPolicy {
       ...policy.auction,
       baseWindowBlocks: 2,
       softCloseExtensionBlocks: 0
-    },
-    auctionClasses: {
-      launch_name: {
-        ...policy.auctionClasses.launch_name,
-        lockBlocks: 5
-      }
     }
   };
 }
@@ -1021,20 +1011,17 @@ function createOpeningBidBlock(input: {
   });
   const openingRequirements = getLaunchAuctionOpeningRequirements({
     policy: input.policy,
-    name: input.name,
-    auctionClassId: "launch_name"
+    name: input.name
   });
   const auctionLotCommitment = computeAuctionLotCommitment({
     auctionId,
     name: input.name,
-    auctionClassId: "launch_name",
     unlockBlock
   });
   const bidAmountSats = openingRequirements.openingMinimumBidSats;
   const auctionCommitment = computeAuctionBidStateCommitment({
     auctionId,
     name: input.name,
-    auctionClassId: "launch_name",
     currentBlockHeight: input.height,
     phase: "awaiting_opening_bid",
     unlockBlock,

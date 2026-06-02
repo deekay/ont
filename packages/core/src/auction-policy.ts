@@ -1,18 +1,10 @@
 import { getBondSats } from "@ont/protocol/bond";
+import {
+  AUCTION_BOND_FLOOR_SATS,
+  AUCTION_MIN_INCREMENT_SATS,
+  BOND_MATURITY_BLOCKS
+} from "@ont/protocol";
 import { normalizeName } from "@ont/protocol/names";
-
-export const LAUNCH_AUCTION_CLASS_IDS = [
-  "launch_name"
-] as const;
-
-export type LaunchAuctionClassId = (typeof LAUNCH_AUCTION_CLASS_IDS)[number];
-
-export interface LaunchAuctionClassPolicy {
-  readonly id: LaunchAuctionClassId;
-  readonly label: string;
-  readonly floorSats: bigint;
-  readonly lockBlocks: number;
-}
 
 export interface LaunchAuctionSettings {
   readonly baseWindowBlocks: number;
@@ -25,18 +17,13 @@ export interface LaunchAuctionSettings {
 
 export interface LaunchAuctionPolicy {
   readonly defaultSettlementLockBlocks: number;
+  readonly openingFloorSats: bigint;
   readonly auction: LaunchAuctionSettings;
-  readonly auctionClasses: Readonly<Record<LaunchAuctionClassId, LaunchAuctionClassPolicy>>;
-}
-
-export interface SerializedLaunchAuctionClassPolicy {
-  readonly label: string;
-  readonly floorSats: string;
-  readonly lockBlocks: number;
 }
 
 export interface SerializedLaunchAuctionPolicy {
   readonly defaultSettlementLockBlocks: number;
+  readonly openingFloorSats: string;
   readonly auction: {
     readonly baseWindowBlocks: number;
     readonly softCloseExtensionBlocks: number;
@@ -45,70 +32,46 @@ export interface SerializedLaunchAuctionPolicy {
     readonly softCloseMinimumIncrementAbsoluteSats: string;
     readonly softCloseMinimumIncrementBasisPoints: number;
   };
-  readonly auctionClasses: Readonly<Record<LaunchAuctionClassId, SerializedLaunchAuctionClassPolicy>>;
 }
 
 export interface LaunchAuctionOpeningRequirements {
   readonly normalizedName: string;
   readonly baseMinimumBidSats: bigint;
-  readonly classMinimumBidSats: bigint;
+  readonly floorMinimumBidSats: bigint;
   readonly openingMinimumBidSats: bigint;
   readonly settlementLockBlocks: number;
-  readonly classLabel: string;
 }
 
 export function createDefaultLaunchAuctionPolicy(): LaunchAuctionPolicy {
   return {
-    defaultSettlementLockBlocks: 52_560,
+    defaultSettlementLockBlocks: BOND_MATURITY_BLOCKS,
+    openingFloorSats: AUCTION_BOND_FLOOR_SATS,
     auction: {
       baseWindowBlocks: 1_008,
       softCloseExtensionBlocks: 144,
-      minimumIncrementAbsoluteSats: 1_000n,
+      minimumIncrementAbsoluteSats: AUCTION_MIN_INCREMENT_SATS,
       minimumIncrementBasisPoints: 500,
-      softCloseMinimumIncrementAbsoluteSats: 1_000n,
+      softCloseMinimumIncrementAbsoluteSats: AUCTION_MIN_INCREMENT_SATS,
       softCloseMinimumIncrementBasisPoints: 1_000
-    },
-    auctionClasses: {
-      launch_name: {
-        id: "launch_name",
-        label: "Public auction",
-        floorSats: 50_000n,
-        lockBlocks: 52_560
-      }
     }
   };
-}
-
-export function getDefaultLaunchAuctionClassIdForName(name: string): LaunchAuctionClassId {
-  void name;
-  return "launch_name";
-}
-
-export function getLaunchAuctionClass(
-  policy: LaunchAuctionPolicy,
-  classId: LaunchAuctionClassId
-): LaunchAuctionClassPolicy {
-  return policy.auctionClasses[classId];
 }
 
 export function getLaunchAuctionOpeningRequirements(input: {
   readonly policy: LaunchAuctionPolicy;
   readonly name: string;
-  readonly auctionClassId: LaunchAuctionClassId;
 }): LaunchAuctionOpeningRequirements {
   const normalizedName = normalizeName(input.name);
-  const auctionClass = getLaunchAuctionClass(input.policy, input.auctionClassId);
   const baseMinimumBidSats = getBondSats(normalizedName.length);
-  const classMinimumBidSats = auctionClass.floorSats;
+  const floorMinimumBidSats = input.policy.openingFloorSats;
 
   return {
     normalizedName,
     baseMinimumBidSats,
-    classMinimumBidSats,
+    floorMinimumBidSats,
     openingMinimumBidSats:
-      baseMinimumBidSats > classMinimumBidSats ? baseMinimumBidSats : classMinimumBidSats,
-    settlementLockBlocks: auctionClass.lockBlocks,
-    classLabel: auctionClass.label
+      baseMinimumBidSats > floorMinimumBidSats ? baseMinimumBidSats : floorMinimumBidSats,
+    settlementLockBlocks: input.policy.defaultSettlementLockBlocks
   };
 }
 
@@ -151,6 +114,7 @@ export function serializeLaunchAuctionPolicy(
 ): SerializedLaunchAuctionPolicy {
   return {
     defaultSettlementLockBlocks: policy.defaultSettlementLockBlocks,
+    openingFloorSats: policy.openingFloorSats.toString(),
     auction: {
       baseWindowBlocks: policy.auction.baseWindowBlocks,
       softCloseExtensionBlocks: policy.auction.softCloseExtensionBlocks,
@@ -158,20 +122,17 @@ export function serializeLaunchAuctionPolicy(
       minimumIncrementBasisPoints: policy.auction.minimumIncrementBasisPoints,
       softCloseMinimumIncrementAbsoluteSats: policy.auction.softCloseMinimumIncrementAbsoluteSats.toString(),
       softCloseMinimumIncrementBasisPoints: policy.auction.softCloseMinimumIncrementBasisPoints
-    },
-    auctionClasses: {
-      launch_name: serializeLaunchAuctionClass(policy.auctionClasses.launch_name)
     }
   };
 }
 
 export function parseLaunchAuctionPolicy(input: unknown): LaunchAuctionPolicy {
   const record = assertRecord(input, "auction policy");
-  const auctionClasses = assertRecord(record.auctionClasses, "auction policy classes");
   const auction = assertRecord(record.auction, "auction policy auction");
 
   return {
     defaultSettlementLockBlocks: parseNonNegativeSafeInteger(record.defaultSettlementLockBlocks, "defaultSettlementLockBlocks"),
+    openingFloorSats: parseBigIntLike(record.openingFloorSats, "openingFloorSats"),
     auction: {
       baseWindowBlocks: parseNonNegativeSafeInteger(auction.baseWindowBlocks, "auction.baseWindowBlocks"),
       softCloseExtensionBlocks: parseNonNegativeSafeInteger(
@@ -194,46 +155,8 @@ export function parseLaunchAuctionPolicy(input: unknown): LaunchAuctionPolicy {
         auction.softCloseMinimumIncrementBasisPoints,
         "auction.softCloseMinimumIncrementBasisPoints"
       )
-    },
-    auctionClasses: {
-      launch_name: parseLaunchAuctionClassPolicy(
-        "launch_name",
-        auctionClasses.launch_name
-      )
     }
   };
-}
-
-function serializeLaunchAuctionClass(
-  auctionClass: LaunchAuctionClassPolicy
-): SerializedLaunchAuctionClassPolicy {
-  return {
-    label: auctionClass.label,
-    floorSats: auctionClass.floorSats.toString(),
-    lockBlocks: auctionClass.lockBlocks
-  };
-}
-
-function parseLaunchAuctionClassPolicy(
-  classId: LaunchAuctionClassId,
-  input: unknown
-): LaunchAuctionClassPolicy {
-  const record = assertRecord(input, `auction class ${classId}`);
-
-  return {
-    id: classId,
-    label: parseString(record.label, `${classId}.label`),
-    floorSats: parseBigIntLike(record.floorSats, `${classId}.floorSats`),
-    lockBlocks: parseNonNegativeSafeInteger(record.lockBlocks, `${classId}.lockBlocks`)
-  };
-}
-
-function parseString(value: unknown, label: string): string {
-  if (typeof value !== "string" || value.length === 0) {
-    throw new Error(`${label} must be a non-empty string`);
-  }
-
-  return value;
 }
 
 function parseBigIntLike(value: unknown, label: string): bigint {

@@ -4,7 +4,6 @@
   "currentBlockHeight": 128,
   "scenario": {
     "name": "crosswinds",
-    "auctionClassId": "launch_name",
     "unlockBlock": 280,
     "bidAttempts": []
   }

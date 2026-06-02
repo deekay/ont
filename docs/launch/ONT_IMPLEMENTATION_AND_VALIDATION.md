@@ -1,5 +1,10 @@
 # ONT Implementation And Validation
 
+Status: Implementation status. This file has been updated to describe the
+current one-path model at a high level, but detailed current design authority
+lives in [`../ONT.md`](../ONT.md) and
+[`../design/ONT_ACQUISITION_STATE_MACHINE.md`](../design/ONT_ACQUISITION_STATE_MACHINE.md).
+
 This note answers a practical question:
 
 > what is actually implemented today, what is still experimental, and what has
@@ -17,7 +22,7 @@ Related notes:
 - [TESTING.md](../core/TESTING.md)
 - [AUCTION_TESTING_AND_LIVE_SURFACES.md](./AUCTION_TESTING_AND_LIVE_SURFACES.md)
 - [AUCTION_SETTLEMENT_AND_OWNERSHIP.md](./AUCTION_SETTLEMENT_AND_OWNERSHIP.md)
-- [UNIVERSAL_AUCTION_LAUNCH_MODEL.md](./UNIVERSAL_AUCTION_LAUNCH_MODEL.md)
+- [CONTESTED_AUCTION_REFERENCE.md](./CONTESTED_AUCTION_REFERENCE.md)
 
 ## Snapshot
 
@@ -31,8 +36,8 @@ The shortest honest summary is:
   enough to inspect
 - the website can compare/fan out across a configured resolver set when a
   deployment opts into that allowlist
-- the universal-auction launch design is the lead direction, but not the fully
-  frozen launch mechanism yet
+- the current launch design is one public claim path: uncontested accumulator
+  finality, contested-name escalation to L1 auction
 
 For external technically sophisticated review, the best current entry point is:
 
@@ -45,7 +50,7 @@ For external technically sophisticated review, the best current entry point is:
 | Auction flow | Implemented prototype | Moderate | Configurable policy, CLI simulation, fixture coverage, website state rendering, bid packages, signable bid artifacts, chain-derived `AUCTION_BID` state, and settled-winner-to-owned-name materialization exist; final launch parameters are still open |
 | Off-chain signed value records | Implemented history-aware prototype | Moderate to high | Current records prove owner authorization, exact sequence, predecessor linkage, ownership-interval binding, CLI multi-resolver publish/read comparison, website-side fanout/compare against a configured resolver set, and browser-level local proof of consistent-versus-lagging resolver views; resolver transparency remains future work |
 | Transfers | Implemented prototype | Moderate to high | Gift and cooperative sale flows exist; browser UX is not the full end-user story yet |
-| Universal auction launch policy | Working launch direction | Moderate | Public bonded auctions for every valid name; no reserved list, no pre-launch reservations, and no direct-allocation lane |
+| One-path acquisition policy | Working launch direction | Moderate | Public claim for every valid name; uncontested claims finalize through the accumulator; contested names escalate to bonded L1 auction |
 
 ## What Is Implemented Today
 
@@ -146,13 +151,13 @@ The strongest implementation claims we can make today are:
 2. The auction stack is implemented enough to inspect policy, generate bid
    packages, build signer artifacts, derive chain state, and materialize winners
    into owned names.
-3. The lead launch direction is now universal auctions: every valid name can be
-   opened by public bonded auction, and no semantic reserved list decides who
-   gets special treatment.
+3. The lead launch direction is now the one-path claim model: every valid name
+   enters through public claim, uncontested names finalize cheaply, and contested
+   names escalate to bonded L1 auction with no semantic reserved list.
 
 ## What Is Still Experimental
 
-The universal-auction launch details still need final review:
+The current acquisition and contested-auction details still need final review:
 
 - auction window
 - soft-close response window and late-bid increment strength
@@ -165,7 +170,7 @@ The universal-auction launch details still need final review:
 
 These are not done yet and should not be implied by the current docs:
 
-- final universal-auction launch engine
+- final accumulator-rail launch engine
 - batched transfers
 - batched value-record updates
 - a fully polished browser signing flow
@@ -176,11 +181,11 @@ These are not done yet and should not be implied by the current docs:
 If we want a reviewer-friendly summary right now, the strongest version is:
 
 > ONT has a real resolver, website, transfer prototype, value-record prototype,
-> and increasingly concrete auction stack. The current launch direction is
-> universal auctions: every valid name can be opened by public bonded auction,
-> and no semantic reserved list decides who gets special treatment. The next
-> big questions are final auction parameters, settlement duration, and
-> long-lock/quantum posture.
+> and increasingly concrete auction stack. The current launch direction is one
+> public claim path: uncontested names finalize through a batched accumulator,
+> while contested names escalate to bonded L1 auction. The next big questions are
+> accumulator-rail integration, final notice/DA windows, auction parameters, and
+> proof bundles.
 
 ## Suggested Next Review Order
 
@@ -189,4 +194,5 @@ For someone trying to evaluate the project without getting lost:
 1. [ONT_FROM_ZERO.md](../core/ONT_FROM_ZERO.md)
 2. [ONT_EXPLAINER.md](../research/archive/ONT_EXPLAINER.md)
 3. [TESTING.md](../core/TESTING.md)
-4. [UNIVERSAL_AUCTION_LAUNCH_MODEL.md](./UNIVERSAL_AUCTION_LAUNCH_MODEL.md)
+4. [ONT_ACQUISITION_STATE_MACHINE.md](../design/ONT_ACQUISITION_STATE_MACHINE.md)
+5. [CONTESTED_AUCTION_REFERENCE.md](./CONTESTED_AUCTION_REFERENCE.md)

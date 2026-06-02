@@ -13,7 +13,8 @@ Related notes:
 - [BITCOIN_EXPERT_ONE_PAGER.md](../launch/BITCOIN_EXPERT_ONE_PAGER.md)
 - [BITCOIN_EXPERT_REVIEW_PACKET.md](../launch/BITCOIN_EXPERT_REVIEW_PACKET.md)
 - [BITCOIN_REVIEW_CLOSURE_MATRIX.md](../launch/BITCOIN_REVIEW_CLOSURE_MATRIX.md)
-- [UNIVERSAL_AUCTION_LAUNCH_MODEL.md](../launch/UNIVERSAL_AUCTION_LAUNCH_MODEL.md)
+- [ONT_LAUNCH_V1_BRIEF.md](../launch/ONT_LAUNCH_V1_BRIEF.md)
+- [CONTESTED_AUCTION_REFERENCE.md](../launch/CONTESTED_AUCTION_REFERENCE.md)
 
 ## The Short Version
 
@@ -68,7 +69,7 @@ But the current story should start with:
 
 There is a single way in, and it only branches if a name is contested:
 
-1. **Claim it.** Pay a small fixed amount of bitcoin — ₿1,000 (~$1) — as a fee
+1. **Claim it.** Pay a small fixed amount of bitcoin — 1,000 sats (~$1) — as a fee
    to Bitcoin miners to claim the name. A few thousand obviously-scarce names
    (very short ones) start higher.
 2. **A short notice window opens.** If no one else claims the same name, it is
@@ -83,7 +84,7 @@ one owner key.
 
 ## Fees And Bonds, Not Rent
 
-The common claim costs a small fixed **fee** — ₿1,000 (~$1) — paid to Bitcoin miners. It is not
+The common claim costs a small fixed **fee** — 1,000 sats (~$1) — paid to Bitcoin miners. It is not
 rent paid to a registrar, treasury, or operator — there is no one to pay, and
 nothing recurring. It keeps spam and squatting expensive while strengthening
 Bitcoin rather than enriching the project. The amount is fixed in bitcoin, so its
@@ -150,7 +151,7 @@ What is real today:
 
 Two honesty notes on maturity:
 
-- The cheap uncontested ₿1,000 (~$1) claim path is prototyped and measured, but it is not
+- The cheap uncontested 1,000 sats (~$1) claim path is prototyped and measured, but it is not
   wired into the hosted demo yet — claiming there currently runs the
   bonded/contested (auction) path end-to-end.
 - An earlier two-lane idea (a separate direct-allocation lane sitting beside the
@@ -183,10 +184,9 @@ sequence right now:
 2. [BITCOIN_EXPERT_ONE_PAGER.md](../launch/BITCOIN_EXPERT_ONE_PAGER.md)
 3. [BITCOIN_EXPERT_REVIEW_PACKET.md](../launch/BITCOIN_EXPERT_REVIEW_PACKET.md)
 4. [ONT_IMPLEMENTATION_AND_VALIDATION.md](../launch/ONT_IMPLEMENTATION_AND_VALIDATION.md)
-5. [UNIVERSAL_AUCTION_LAUNCH_MODEL.md](../launch/UNIVERSAL_AUCTION_LAUNCH_MODEL.md)
-6. [LAUNCH_SPEC_V0.md](../launch/LAUNCH_SPEC_V0.md)
-7. [BITCOIN_PROTOCOL_REVIEW_QUESTIONS.md](../launch/BITCOIN_PROTOCOL_REVIEW_QUESTIONS.md)
-8. [BITCOIN_REVIEW_CLOSURE_MATRIX.md](../launch/BITCOIN_REVIEW_CLOSURE_MATRIX.md)
+5. [CONTESTED_AUCTION_REFERENCE.md](../launch/CONTESTED_AUCTION_REFERENCE.md)
+6. [BITCOIN_PROTOCOL_REVIEW_QUESTIONS.md](../launch/BITCOIN_PROTOCOL_REVIEW_QUESTIONS.md)
+7. [BITCOIN_REVIEW_CLOSURE_MATRIX.md](../launch/BITCOIN_REVIEW_CLOSURE_MATRIX.md)
 
 ## The Right Takeaway
 

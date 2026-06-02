@@ -22,7 +22,7 @@ v1 commitment.
    consensus, no block reward needed); ONT clients *validate* by deterministic
    replay. The one thing Bitcoin's order doesn't supply is the data behind a root —
    that's the **data-availability** assumption.
-4. **Two cost forms:** long-tail names pay a flat **₿1,000 (~$1) sunk gate**; premium /
+4. **Two cost forms:** long-tail names pay a flat **1,000 sats (~$1) sunk gate**; premium /
    contested / short names lock a **returnable bond** (their own BTC, returned at
    maturity).
 5. Claims are public for a **notice window** (~3–4 days). Sole claimant → theirs.
@@ -38,13 +38,13 @@ v1 commitment.
 | Bitcoin blockspace | 1,000,000 vB/block; 144 blocks/day | = 52.56B vB/year |
 | Block subsidy (2026, post-2024 halving) | 3.125 BTC/block | → 164,250 BTC/year |
 | BTC price | **$100,000** | pure parameter; scales $ figures linearly |
-| Anchor blockspace cost (150 vB root tx) | **~$1.50 normal / ~$15 congested** | *blockspace* cost only, independent of batch size. Under the miner-fee gate the anchor *also* carries the aggregate gate `Σg ≈ N×₿1,000` as its fee — see [`ONT_ISSUANCE_FEE_MECHANICS.md`](./ONT_ISSUANCE_FEE_MECHANICS.md) |
+| Anchor blockspace cost (150 vB root tx) | **~$1.50 normal / ~$15 congested** | *blockspace* cost only, independent of batch size. Under the miner-fee gate the anchor *also* carries the aggregate gate `Σg ≈ N×1,000 sats` as its fee — see [`ONT_ISSUANCE_FEE_MECHANICS.md`](./ONT_ISSUANCE_FEE_MECHANICS.md) |
 | Anchor (root) on-chain size | **150 vB** *(measured 162–194 vB — see note)* | independent of names in the batch |
 | Names per batch | **10,000** | → 0.015 vB/name *(measured 0.016–0.019 vB/name)* |
 | ONT blockspace share | **1%** (526M vB/yr) | 5% and 0.1% shown for range |
-| Long-tail gate | **₿1,000/name** (~$1; = 0.00001 BTC) | fixed bitcoin amount, floats with BTC price; **paid to miners** as the anchor tx fee (R13 decided; mechanics in [`ONT_ISSUANCE_FEE_MECHANICS.md`](./ONT_ISSUANCE_FEE_MECHANICS.md)) |
+| Long-tail gate | **1,000 sats/name** (~$1; = 0.00001 BTC) | fixed bitcoin amount, floats with BTC price; **paid to miners** as the anchor tx fee (R13 decided; mechanics in [`ONT_ISSUANCE_FEE_MECHANICS.md`](./ONT_ISSUANCE_FEE_MECHANICS.md)) |
 | Contested name on-chain footprint | **~110 vB** | winner-only L1 hardening + bond UTXO; bids off-chain |
-| Length-floor (bond) | **≤4-char names only**; `₿1/2^(len−1)`; ₿1,000 (~$1) gate is the floor below | bonds are per-name UTXOs → confined so the bonded set stays small |
+| Length-floor (bond) | **≤4-char names only**; `₿1/2^(len−1)`; 1,000 sats (~$1) gate is the floor below | bonds are per-name UTXOs → confined so the bonded set stays small |
 
 > **Measured (signet prototype C2, 2026-05-24):** a real anchor tx (1 P2WPKH in, OP_RETURN, change)
 > is **162 vB** (newRoot only) to **194 vB** (explicit `prev→new` link) — *above* the 150 vB estimate,
@@ -107,7 +107,7 @@ The gate is **~700–7,000× the marginal Bitcoin cost.** That confirms the gate
 *deliberate sink*, not a pass-through of the tx fee. If the gate is routed as a
 miner fee, the batch tx pays ~$10,000 on a ~150 vByte transaction — far above
 market for its size, so it's always top-of-mempool,
-guaranteed inclusion. The alternative is PoW (burns ₿1,000-worth (~$1) of energy, funds nothing,
+guaranteed inclusion. The alternative is PoW (burns about 1,000 sats worth of energy, funds nothing,
 cleaner on neutrality and for the censorship fallback). **Undecided.**
 
 ---
@@ -144,7 +144,7 @@ names ≤4 characters** — see the constraint below. At $100k/BTC:
 | 2 char | ₿0.5 | $50k | $2,500 |
 | 3 char | ₿0.25 | $25k | $1,250 |
 | 4 char | ₿0.125 | $12.5k | $625 |
-| **5+ char** | **none — ₿1,000 gate, priced by contention** | ~$1 | — |
+| **5+ char** | **none — 1,000 sats gate, priced by contention** | ~$1 | — |
 
 **Why ≤4 chars — this is a scalability constraint, not a style choice:** a floor = a
 bond = a **per-name UTXO**, and bonds can't batch (pooling needs a custodian, which

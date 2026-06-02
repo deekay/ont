@@ -5,7 +5,7 @@
 > explorations we did *not* pursue live in `../research/` (historical, not the design).
 
 The system, restated for this folder: ONT is one flat namespace. You claim a name by paying a small
-**fixed bitcoin amount (₿1,000 ≈ $1) to miners**; if no one else claims it during a notice window it's yours
+**fixed bitcoin amount (1,000 sats ≈ $1) to miners**; if no one else claims it during a notice window it's yours
 (cheap, batched into a Bitcoin-anchored accumulator); if it's contested it **escalates to an L1 bonded
 auction**. Either way you get a globally unique name controlled by an owner key, verifiable against
 Bitcoin — no registrar, no token, no rent.
@@ -19,21 +19,27 @@ founder pledges no name pre-grab and a sunset-bound data-availability server.
 
 ## Start here — current design (in reading order)
 
+First read **[../core/CURRENT_ARCHITECTURE_BRIEF.md](../core/CURRENT_ARCHITECTURE_BRIEF.md)** if you are
+new to the repo or refreshing a builder LLM. It is the current handoff after cleanup: active design,
+active code entrypoints, and retired paths.
+
 1. **[ONT_SOVEREIGNTY_MAP.md](./ONT_SOVEREIGNTY_MAP.md)** — the ~7-file trust surface: why no one can take
    your name, and what a reviewer can ignore. Read this first.
 2. **[ONT_DESIGN_REQUIREMENTS.md](./ONT_DESIGN_REQUIREMENTS.md)** — the invariants and requirements the
    design must meet.
 3. **[ONT_REQUIREMENTS_CONFORMANCE.md](./ONT_REQUIREMENTS_CONFORMANCE.md)** — design vs. every
    requirement; current status (no invariant violated, no open conflicts).
-4. **[ONT_DATA_AVAILABILITY_AGREEMENT.md](./ONT_DATA_AVAILABILITY_AGREEMENT.md)** — the convergence/DA
+4. **[ONT_ACQUISITION_STATE_MACHINE.md](./ONT_ACQUISITION_STATE_MACHINE.md)** — the current acquisition
+   reference: claim, notice, uncontested accumulator finality, and contested L1 auction escalation.
+5. **[ONT_DATA_AVAILABILITY_AGREEMENT.md](./ONT_DATA_AVAILABILITY_AGREEMENT.md)** — the convergence/DA
    rule (R1): how honest nodes agree under a withholding adversary.
-5. **[ONT_HARD_PROBLEMS.md](./ONT_HARD_PROBLEMS.md)** — R2 (leaderless chaining) and R4 (now resolved:
+6. **[ONT_HARD_PROBLEMS.md](./ONT_HARD_PROBLEMS.md)** — R2 (leaderless chaining) and R4 (now resolved:
    contests escalate to L1).
-6. **[ONT_MEV_ORDERING_ANALYSIS.md](./ONT_MEV_ORDERING_ANALYSIS.md)** — R9: you can't steal a name via
+7. **[ONT_MEV_ORDERING_ANALYSIS.md](./ONT_MEV_ORDERING_ANALYSIS.md)** — R9: you can't steal a name via
    ordering.
-7. **[ONT_LONG_TAIL_RECOVERY.md](./ONT_LONG_TAIL_RECOVERY.md)** — recovery for UTXO-less names (a
+8. **[ONT_LONG_TAIL_RECOVERY.md](./ONT_LONG_TAIL_RECOVERY.md)** — recovery for UTXO-less names (a
    committed feature; deferred out of the first accumulator freeze).
-8. **[ONT_SIGNET_PROTOTYPE_SCOPE.md](./ONT_SIGNET_PROTOTYPE_SCOPE.md)** — the empirical prototype plan +
+9. **[ONT_SIGNET_PROTOTYPE_SCOPE.md](./ONT_SIGNET_PROTOTYPE_SCOPE.md)** — the empirical prototype plan +
    what's been built/measured.
 
 *(Deeper, older mechanics live in [../research/BITCOIN_ANCHORED_NAME_ACCUMULATOR.md](../research/BITCOIN_ANCHORED_NAME_ACCUMULATOR.md)
@@ -45,7 +51,9 @@ authoritative. The earlier `ONT_FLAT_NAMESPACE_DESIGN` summary is superseded by 
 - **[ONT_RISK_REGISTER.md](./ONT_RISK_REGISTER.md)** + **[ONT_RISKS_PLAIN_LANGUAGE.md](./ONT_RISKS_PLAIN_LANGUAGE.md)** — the living risk register and its jargon-free companion.
 - **[ONT_FLAT_NAMESPACE_ONE_PAGER.md](./ONT_FLAT_NAMESPACE_ONE_PAGER.md)** — modeled $-forward one-pager (some figures annotated with measured values).
 - **[PRELAUNCH_SCALING_CONFIDENCE_PLAN.md](../launch/PRELAUNCH_SCALING_CONFIDENCE_PLAN.md)** — what v1 must preserve to keep scaling additive.
-- **[ONT_LAUNCH_V1_BRIEF.md](../launch/ONT_LAUNCH_V1_BRIEF.md)** — v1 launch brief.
+- **[ONT_LAUNCH_V1_BRIEF.md](../launch/ONT_LAUNCH_V1_BRIEF.md)** — current v1 launch/review brief.
+- **[../core/SIMPLIFICATION_AUDIT.md](../core/SIMPLIFICATION_AUDIT.md)** — cleanup map for removing
+  older design residue from the docs and implementation.
 
 ---
 

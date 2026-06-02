@@ -23,21 +23,38 @@ export const NAME_MIN_LENGTH = 1;
 export const NAME_MAX_LENGTH = 32;
 export const NAME_PATTERN = /^[a-z0-9]{1,32}$/;
 
+export const CLAIM_GATE_SATS = 1_000n;
+export const AUCTION_MIN_INCREMENT_SATS = 1_000n;
+export const AUCTION_BOND_BASE_SATS = 100_000_000n;
+export const AUCTION_BOND_FLOOR_SATS = 50_000n;
+export const BOND_MATURITY_BLOCKS = readTestOverrideInteger(
+  "ONT_TEST_OVERRIDE_BOND_MATURITY_BLOCKS",
+  52_560
+);
+
+// Legacy compatibility constants retained while the prototype still exposes the
+// earlier epoch-maturity helpers. New code should use the explicit claim,
+// auction-bond, and fixed-maturity constants above.
+/** @deprecated Use BOND_MATURITY_BLOCKS for current bonded-name maturity. */
 export const INITIAL_MATURITY_BLOCKS = readTestOverrideInteger(
   "ONT_TEST_OVERRIDE_INITIAL_MATURITY_BLOCKS",
   52_000
 );
+/** @deprecated Epoch-based maturity is prototype residue, not current launch policy. */
 export const EPOCH_LENGTH_BLOCKS = readTestOverrideInteger(
   "ONT_TEST_OVERRIDE_EPOCH_LENGTH_BLOCKS",
   52_000
 );
+/** @deprecated Epoch-based maturity is prototype residue, not current launch policy. */
 export const MIN_MATURITY_BLOCKS = readTestOverrideInteger(
   "ONT_TEST_OVERRIDE_MIN_MATURITY_BLOCKS",
   4_000
 );
 
-export const BOND_BASE_SATS = 100_000_000n;
-export const BOND_FLOOR_SATS = 50_000n;
+/** @deprecated Use AUCTION_BOND_BASE_SATS. */
+export const BOND_BASE_SATS = AUCTION_BOND_BASE_SATS;
+/** @deprecated Use AUCTION_BOND_FLOOR_SATS. */
+export const BOND_FLOOR_SATS = AUCTION_BOND_FLOOR_SATS;
 
 export enum OntEventType {
   Transfer = 0x03,

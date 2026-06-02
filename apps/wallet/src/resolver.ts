@@ -77,8 +77,6 @@ export interface ResolverAuctionBidOutcome {
 export interface ResolverAuctionState {
   readonly auctionId: string;
   readonly normalizedName: string;
-  readonly auctionClassId: string;
-  readonly classLabel: string;
   readonly currentBlockHeight: number;
   readonly phase: "pending_unlock" | "awaiting_opening_bid" | "live_bidding" | "soft_close" | "settled";
   readonly unlockBlock: number;

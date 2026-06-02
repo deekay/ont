@@ -51,7 +51,7 @@ That means we now have:
 
 What we do **not** yet have:
 
-- a final universal-auction protocol we are ready to freeze
+- a final contested-auction protocol we are ready to freeze
 - strict chain-enforced consequences for every currently experimental derived
   rule
 - a full website/operator flow that carries bidders from live auction state all
@@ -114,7 +114,7 @@ entries:
 
 What it still does **not** know:
 
-- final universal-auction settlement semantics
+- final contested-auction settlement semantics
 - whether every currently derived consequence should be promoted to stricter
   chain-enforced behavior
 - a fully registry-backed auction market beyond the experimental prototype

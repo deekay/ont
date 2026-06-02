@@ -165,18 +165,18 @@ These scenes imply certain client behaviors that may deserve stronger emphasis i
 
 These are not all protocol features. Some are product and client behaviors. But they make the narrative more believable because they show how ONT would actually help a human stay in control.
 
-## Relationship To Universal Auctions
+## Relationship To Public Claims
 
 These scenes also help explain why salient names matter.
 
 If names become part of how humans tell software which service they trust, then certain names carry outsized coordination value. Pretending the protocol can know in advance which names are ordinary and which are special no longer looks neutral.
 
-That strengthens the universal-auction case:
+That strengthens the public-claim plus auction-escalation case:
 
-- launch-eligible names should face the same allocation rule
-- the market should discover which names draw real demand
+- valid names should face the same public notice rule
+- the market should discover which names draw real demand by contesting them
 - very short names should be priced by objective floors, not carved into a
-  separate subjective lane
+  separate subjective lane when they reach auction
 
 The fairness argument is not mainly about prestige. It is about coordination pressure, market discovery, and the cost of misallocation.
 

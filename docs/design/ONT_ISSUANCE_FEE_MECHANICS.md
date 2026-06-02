@@ -1,6 +1,6 @@
 # ONT — Issuance Fee Mechanics (how the claim gate reaches miners)
 
-How does the per-name claim fee (₿1,000 — ~$1, fixed in bitcoin) actually work in the **batched** path,
+How does the per-name claim fee (1,000 sats — ~$1, fixed in bitcoin) actually work in the **batched** path,
 such that it is simultaneously a real anti-spam gate, neutral, blockspace-minimal, *and* genuine
 miner revenue? This note works that through, because two of the project's headline claims are in
 tension and the current docs are inconsistent about it.
@@ -21,8 +21,8 @@ Three places say different things:
 
 The third can't coexist with the first two. If a batch of 10,000 names pays one ordinary ~150 vB
 transaction fee (~$1.50), then **miners receive ~$1.50 for 10,000 names — about $0.00015/name, not
-₿1,000 (~$1)/name.** The ₿1,000 gate would be going somewhere *other* than miners (publisher margin,
-a burn, or nothing). That guts the "feeds Bitcoin's security budget" claim and the "₿1,000 to miners"
+1,000 sats (~$1)/name.** The 1,000 sats gate would be going somewhere *other* than miners (publisher margin,
+a burn, or nothing). That guts the "feeds Bitcoin's security budget" claim and the "1,000 sats to miners"
 claim at once.
 
 So we have to decide, precisely, **where the per-name gate goes** — and it turns out the anti-spam
@@ -132,16 +132,16 @@ the still-open "concrete publisher fee/contention design" item; see R2 / the acc
 ## 7. The numbers, corrected
 
 The leverage is that **fee revenue is decoupled from blockspace.** One small anchor carries a fee of
-`N × ₿1,000`.
+`N × 1,000 sats`.
 
 | | Old one-pager line | Under this model |
 | --- | --- | --- |
 | Anchor tx size | 150 vB (meas. 162–194) | unchanged |
-| Anchor tx **fee** | "~$1.50, total, independent of batch size" | **`Σ g` ≈ `N × ₿1,000`** (e.g. ₿10,000,000 ≈ $10,000 for a 10k batch); blockspace cost is rounding error on top |
-| To miners, per name | ~$0.00015 | **₿1,000 (~$1)** |
+| Anchor tx **fee** | "~$1.50, total, independent of batch size" | **`Σ g` ≈ `N × 1,000 sats`** (e.g. 10,000,000 sats ≈ $10,000 for a 10k batch); blockspace cost is rounding error on top |
+| To miners, per name | ~$0.00015 | **1,000 sats (~$1)** |
 | Blockspace per name | 0.015 vB | unchanged |
 
-At the one-pager's own **1% blockspace** scenario (~526M names/year): 526M × ₿1,000 ≈ **₿526 billion
+At the one-pager's own **1% blockspace** scenario (~526M names/year): 526M × 1,000 sats ≈ **526 billion sats
 base units — ~5,260 BTC/year (~$526M) in fees to miners**, from **1% of blockspace.** That is
 comparable to — often exceeding — Bitcoin's recent *total* annual fee revenue, produced from a sliver
 of blockspace. The headline for the security-budget
@@ -161,7 +161,7 @@ blockspace** — arguably the ideal shape of post-subsidy fee pressure.
 - **Pay-on-proof plumbing.** The Lightning/conditional-payment flow that releases a user's `gᵢ`
   against an inclusion proof needs a concrete spec (HODL invoice keyed to the proof; publisher
   includes only paid users so it isn't out-of-pocket).
-- **`g(name)` encoding.** The per-name schedule (long tail ₿1,000 / ~$1; scarce short names higher) must be
+- **`g(name)` encoding.** The per-name schedule (long tail 1,000 sats / ~$1; scarce short names higher) must be
   encoded so the `F ≥ Σ gᵢ` check is mechanical from the batch contents.
 - **Reorg / fee finality.** The fee is spent when the anchor is mined; standard `K`-confirm finality
   and deterministic replay handle reorgs, same as the rest of the rail.
@@ -169,7 +169,7 @@ blockspace** — arguably the ideal shape of post-subsidy fee pressure.
 ## 9. Doc corrections this implies
 
 - `ONT_FLAT_NAMESPACE_ONE_PAGER.md`: the "anchor fee ~$1.50, independent of batch size" line conflates
-  blockspace cost with the gate. The anchor fee under the chosen (miner-fee) gate is `Σ g ≈ N × ₿1,000`;
+  blockspace cost with the gate. The anchor fee under the chosen (miner-fee) gate is `Σ g ≈ N × 1,000 sats`;
   only the *blockspace* cost is batch-size-independent.
 - `BITCOIN_ANCHORED_NAME_ACCUMULATOR.md`: the publisher "keeps the spread" framing must be narrowed to
   a *service* margin on top of the mandated gate, not the gate itself (per C2).

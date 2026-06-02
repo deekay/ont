@@ -583,7 +583,6 @@ export class InMemoryOntIndexer {
             title: `Auction · ${observation.normalizedName}`,
             description: "Live auction opened from on-chain bid activity.",
             name: observation.normalizedName,
-            auctionClassId: "launch_name",
             unlockBlock: observation.unlockBlock
           },
           this.experimentalLaunchAuctionPolicy

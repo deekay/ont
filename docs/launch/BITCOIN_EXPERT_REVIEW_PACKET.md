@@ -19,9 +19,9 @@ Related notes:
 - [BITCOIN_PROTOCOL_REVIEW_QUESTIONS.md](./BITCOIN_PROTOCOL_REVIEW_QUESTIONS.md)
 - [BITCOIN_REVIEW_PREP.md](./BITCOIN_REVIEW_PREP.md)
 - [ONT_FROM_ZERO.md](../core/ONT_FROM_ZERO.md)
+- [ONT_ACQUISITION_STATE_MACHINE.md](../design/ONT_ACQUISITION_STATE_MACHINE.md)
 - [ONT_IMPLEMENTATION_AND_VALIDATION.md](./ONT_IMPLEMENTATION_AND_VALIDATION.md)
-- [LAUNCH_SPEC_V0.md](./LAUNCH_SPEC_V0.md)
-- [UNIVERSAL_AUCTION_LAUNCH_MODEL.md](./UNIVERSAL_AUCTION_LAUNCH_MODEL.md)
+- [CONTESTED_AUCTION_REFERENCE.md](./CONTESTED_AUCTION_REFERENCE.md)
 - [AUCTION_SETTLEMENT_AND_OWNERSHIP.md](./AUCTION_SETTLEMENT_AND_OWNERSHIP.md)
 - [VALUE_RECORD_HISTORY_AND_KEYBASE_NOTES.md](../research/VALUE_RECORD_HISTORY_AND_KEYBASE_NOTES.md)
 - [BITCOIN_REVIEW_CLOSURE_MATRIX.md](./BITCOIN_REVIEW_CLOSURE_MATRIX.md)
@@ -100,49 +100,53 @@ Validated today:
 
 The strongest honest claims we can make now are:
 
-1. the universal-auction launch direction is concrete enough to inspect
-2. auction bid, settlement, destination, transfer, and release checks run on private signet
-3. the experimental auction slice is far enough along to inspect,
-   test, and critique as a real system rather than only prose
+1. the one-path acquisition direction is concrete enough to inspect
+2. auction bid, settlement, destination, transfer, and release checks run on
+   private signet for contested names
+3. the experimental claim, auction, and owner-record slices are far enough along
+   to inspect, test, and critique as a real system rather than only prose
 
 ## 4. Current Working Assumptions
 
-The main current working assumption is a universal-auction launch model.
+The main current working assumption is a one-path public claim model.
 
 The launch rule is:
 
-> every launch-eligible name is allocated by auction.
+> every valid name enters the same public claim path; uncontested claims finalize
+> through the accumulator rail, while contested claims escalate to L1 auction.
 
 Current launch shape:
 
-- every valid name length uses the same public auction rule
+- every valid name length uses the same public claim rule
 - no semantic reserved-word list
 - no pre-launch reservation system
-- no separate ordinary lane
+- no private ordinary lane
 - no editorial distinction between brands, public figures, generic words, and
   ordinary names
+- contested names use the same public auction family
 
 The current lead recommendation is:
 
-- build around universal auctions
-- treat old direct-allocation batching work as historical context only
-- review compactness after the auction-first transaction shape is clearer
-- keep auction mechanics visible and testable, but do not overstate placeholder
-  windows, floors, or settlement durations as final protocol constants
+- build around the one-path claim state machine
+- treat old direct-allocation batching and auction-only launch work as
+  historical context
+- make the claim proof bundle and data-availability rules reviewer-readable
+- keep contested auction mechanics visible and testable, but do not overstate
+  placeholder windows, floors, or settlement durations as final constants
 
-## 5. Footprint: Auction Lifecycle First
+## 5. Footprint: Claim Lifecycle First
 
-The current scaling story has shifted with the auction-first launch direction.
-The immediate question is no longer how to compress a hidden direct-allocation
-flow. The immediate question is how much footprint the auction bid, transfer,
-and destination-record lifecycle creates under realistic usage.
+The current scaling story has shifted to a public claim path with auction
+escalation. The immediate question is how much footprint the claim, availability,
+auction, transfer, and value-record lifecycle creates under realistic usage.
 
 ### Mainline implemented path
 
-- auction bid packages and bid artifacts
+- claim notices and accumulator commitments
+- auction bid packages and bid artifacts for contested names
 - transfer packages and transfer artifacts
 - owner-signed off-chain destination records
-- resolver/indexer provenance for observed auction bid transactions
+- resolver/indexer provenance for observed claim, auction, and owner-record data
 
 ### What is already proven
 
@@ -184,14 +188,15 @@ What is still provisional:
 
 - final launch semantics for every auction rule
 - exact floors, windows, late-bid increments, and settlement durations
-- auction-opening tooling for the universal launch flow
+- claim-opening and auction-escalation tooling for the launch flow
 - whether every current experimental derivation should become stricter
   chain-enforced behavior
 
 So the right wording is:
 
 > the auction path is now implemented enough to test and critique, but the
-> universal-auction launch parameters are not yet frozen protocol constants.
+> claim, auction-escalation, and settlement parameters are not yet frozen
+> protocol constants.
 
 ## 7. What We Are Actually Asking Bitcoin Experts To Review
 
@@ -257,10 +262,10 @@ These are the current house recommendations for the next review revision.
 
 ### Treat as current working assumptions
 
-- universal-auction lead architecture
+- one-path public claim lead architecture
 - current auction family: open ascending, soft close, meaningful minimum
   increments, stronger extension increments
-- opening-bid starts the auction clock
+- contest escalates a claim into the auction clock
 - winner materialization from the winning bid
 
 ### Keep open or experimental
@@ -290,8 +295,8 @@ give them the best signal with the least confusion:
 
 1. [ONT_FROM_ZERO.md](../core/ONT_FROM_ZERO.md)
 2. [ONT_IMPLEMENTATION_AND_VALIDATION.md](./ONT_IMPLEMENTATION_AND_VALIDATION.md)
-3. [UNIVERSAL_AUCTION_LAUNCH_MODEL.md](./UNIVERSAL_AUCTION_LAUNCH_MODEL.md)
-4. [LAUNCH_SPEC_V0.md](./LAUNCH_SPEC_V0.md)
+3. [CONTESTED_AUCTION_REFERENCE.md](./CONTESTED_AUCTION_REFERENCE.md)
+4. [ONT_LAUNCH_V1_BRIEF.md](./ONT_LAUNCH_V1_BRIEF.md)
 5. [BITCOIN_REVIEW_CLOSURE_MATRIX.md](./BITCOIN_REVIEW_CLOSURE_MATRIX.md)
 
 Optional deeper appendices after that:
@@ -307,6 +312,8 @@ If we want one honest paragraph for technically serious reviewers, it is this:
 > human-readable payment resolution. The current auction prototype is real,
 > bid packages, resolver-derived auction state, and settlement/continuity checks
 > are implemented enough to inspect as a real system rather than only a design
-> sketch. The current lead launch model
-> is universal auctions: every valid name uses the same public auction rule,
-> and no semantic reserved list decides who gets special treatment.
+> sketch. The current lead launch model is one public claim path: every valid
+> name gets the same notice and challenge process, uncontested names finalize
+> through the accumulator rail, and contested names escalate to the same public
+> L1 auction family. No semantic reserved list decides who gets special
+> treatment.

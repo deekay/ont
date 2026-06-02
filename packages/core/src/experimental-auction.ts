@@ -8,7 +8,6 @@ import {
   calculateLaunchAuctionMinimumIncrementBidSats,
   getLaunchAuctionOpeningRequirements,
   isLaunchAuctionSoftCloseWindow,
-  type LaunchAuctionClassId,
   type LaunchAuctionPolicy
 } from "./auction-policy.js";
 
@@ -62,7 +61,6 @@ export interface ExperimentalLaunchAuctionCatalogEntryInput {
   readonly title: string;
   readonly description: string;
   readonly name: string;
-  readonly auctionClassId: LaunchAuctionClassId;
   readonly unlockBlock: number;
 }
 
@@ -71,8 +69,6 @@ export interface ExperimentalLaunchAuctionCatalogEntry {
   readonly title: string;
   readonly description: string;
   readonly normalizedName: string;
-  readonly auctionClassId: LaunchAuctionClassId;
-  readonly classLabel: string;
   readonly unlockBlock: number;
   readonly baseMinimumBidSats: bigint;
   readonly openingMinimumBidSats: bigint;
@@ -141,8 +137,6 @@ export interface ExperimentalLaunchAuctionState {
   readonly phase: ExperimentalLaunchAuctionPhase;
   readonly phaseLabel: string;
   readonly normalizedName: string;
-  readonly auctionClassId: LaunchAuctionClassId;
-  readonly classLabel: string;
   readonly unlockBlock: number;
   readonly baseMinimumBidSats: bigint;
   readonly openingMinimumBidSats: bigint;
@@ -202,8 +196,6 @@ export interface SerializedExperimentalLaunchAuctionState {
   readonly phase: ExperimentalLaunchAuctionPhase;
   readonly phaseLabel: string;
   readonly normalizedName: string;
-  readonly auctionClassId: LaunchAuctionClassId;
-  readonly classLabel: string;
   readonly unlockBlock: number;
   readonly baseMinimumBidSats: string;
   readonly openingMinimumBidSats: string;
@@ -248,8 +240,7 @@ export function createExperimentalLaunchAuctionCatalogEntry(
 ): ExperimentalLaunchAuctionCatalogEntry {
   const openingRequirements = getLaunchAuctionOpeningRequirements({
     policy,
-    name: input.name,
-    auctionClassId: input.auctionClassId
+    name: input.name
   });
 
   return {
@@ -257,8 +248,6 @@ export function createExperimentalLaunchAuctionCatalogEntry(
     title: input.title,
     description: input.description,
     normalizedName: openingRequirements.normalizedName,
-    auctionClassId: input.auctionClassId,
-    classLabel: openingRequirements.classLabel,
     unlockBlock: input.unlockBlock,
     baseMinimumBidSats: openingRequirements.baseMinimumBidSats,
     openingMinimumBidSats: openingRequirements.openingMinimumBidSats,
@@ -266,7 +255,6 @@ export function createExperimentalLaunchAuctionCatalogEntry(
     auctionLotCommitment: computeAuctionLotCommitment({
       auctionId: input.auctionId,
       name: input.name,
-      auctionClassId: input.auctionClassId,
       unlockBlock: input.unlockBlock
     })
   };
@@ -753,8 +741,6 @@ export function deriveExperimentalLaunchAuctionState(input: {
     phase,
     phaseLabel: formatExperimentalLaunchAuctionPhaseLabel(phase),
     normalizedName: input.catalogEntry.normalizedName,
-    auctionClassId: input.catalogEntry.auctionClassId,
-    classLabel: input.catalogEntry.classLabel,
     unlockBlock: input.catalogEntry.unlockBlock,
     baseMinimumBidSats: input.catalogEntry.baseMinimumBidSats,
     openingMinimumBidSats: input.catalogEntry.openingMinimumBidSats,
@@ -796,8 +782,6 @@ export function serializeExperimentalLaunchAuctionState(
     phase: state.phase,
     phaseLabel: state.phaseLabel,
     normalizedName: state.normalizedName,
-    auctionClassId: state.auctionClassId,
-    classLabel: state.classLabel,
     unlockBlock: state.unlockBlock,
     baseMinimumBidSats: state.baseMinimumBidSats.toString(),
     openingMinimumBidSats: state.openingMinimumBidSats.toString(),
@@ -895,7 +879,6 @@ function createPreBidAuctionState(input: {
         observationAuctionCommitment: input.observedAuctionCommitment,
         auctionId: input.catalogEntry.auctionId,
         name: input.catalogEntry.normalizedName,
-        auctionClassId: input.catalogEntry.auctionClassId,
         unlockBlock: input.catalogEntry.unlockBlock,
         settlementLockBlocks: input.catalogEntry.settlementLockBlocks,
         openingMinimumBidSats: input.catalogEntry.openingMinimumBidSats,
@@ -918,7 +901,6 @@ function createPreBidAuctionState(input: {
         observationAuctionCommitment: input.observedAuctionCommitment,
         auctionId: input.catalogEntry.auctionId,
         name: input.catalogEntry.normalizedName,
-        auctionClassId: input.catalogEntry.auctionClassId,
         unlockBlock: input.catalogEntry.unlockBlock,
         settlementLockBlocks: input.catalogEntry.settlementLockBlocks,
         openingMinimumBidSats: input.catalogEntry.openingMinimumBidSats,
@@ -944,7 +926,6 @@ function createPreBidAuctionState(input: {
         observationAuctionCommitment: input.observedAuctionCommitment,
         auctionId: input.catalogEntry.auctionId,
         name: input.catalogEntry.normalizedName,
-        auctionClassId: input.catalogEntry.auctionClassId,
         unlockBlock: input.catalogEntry.unlockBlock,
         settlementLockBlocks: input.catalogEntry.settlementLockBlocks,
         openingMinimumBidSats: input.catalogEntry.openingMinimumBidSats,
@@ -981,7 +962,6 @@ function createPreBidAuctionState(input: {
       observationAuctionCommitment: input.observedAuctionCommitment,
       auctionId: input.catalogEntry.auctionId,
       name: input.catalogEntry.normalizedName,
-      auctionClassId: input.catalogEntry.auctionClassId,
       unlockBlock: input.catalogEntry.unlockBlock,
       settlementLockBlocks: input.catalogEntry.settlementLockBlocks,
       openingMinimumBidSats: input.catalogEntry.openingMinimumBidSats,
@@ -1000,7 +980,6 @@ function matchAuctionStateCommitmentWithinWindow(input: {
   readonly observationAuctionCommitment: string;
   readonly auctionId: string;
   readonly name: string;
-  readonly auctionClassId: LaunchAuctionClassId;
   readonly unlockBlock: number;
   readonly settlementLockBlocks: number;
   readonly openingMinimumBidSats: bigint;
@@ -1020,7 +999,6 @@ function matchAuctionStateCommitmentWithinWindow(input: {
     const expectedCommitment = computeAuctionBidStateCommitment({
       auctionId: input.auctionId,
       name: input.name,
-      auctionClassId: input.auctionClassId,
       currentBlockHeight: candidateHeight,
       phase: input.phase,
       unlockBlock: input.unlockBlock,

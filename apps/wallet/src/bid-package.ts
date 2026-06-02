@@ -20,8 +20,6 @@ export function bidPackageFromAuction(auction: ResolverAuctionState, bidder: Bid
   return createAuctionBidPackage({
     auctionId: auction.auctionId,
     name: auction.normalizedName,
-    auctionClassId: auction.auctionClassId,
-    classLabel: auction.classLabel,
     currentBlockHeight: auction.currentBlockHeight,
     phase: auction.phase,
     unlockBlock: auction.unlockBlock,
