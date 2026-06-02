@@ -18,10 +18,10 @@ If you're here to evaluate the **design** (not to use the product), read these t
    alternatives, and the open questions we most want pushed on.
 3. **[docs/ONT.md](./docs/ONT.md)** — the plain-language source of truth.
 
-In one line: claim a name for a flat ₿1,000 miner fee; a public notice window opens; if no one
-else claims it, it finalizes cheaply through a batched Bitcoin commitment; if it's contested,
-ownership is decided by a returnable-bond L1 auction. Either way the same owner key controls
-transfers, off-chain records, and recovery.
+In one line: claim a name for a flat ₿1,000 fee to Bitcoin miners; a public notice window opens;
+if no one else claims it, it finalizes cheaply through a batched Bitcoin commitment; if it's
+contested, ownership goes to whoever commits the largest returnable bond. Either way the same
+owner key controls transfers, off-chain records, and recovery.
 
 ## The trust surface
 
