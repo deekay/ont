@@ -1,99 +1,81 @@
 # Open Name Tags (ONT) — one-pager
 
-**ONT is a way to own a short, human-readable name — like `alice` — that is genuinely
-yours: secured by Bitcoin, with no company, registrar, token, or rent.** Ownership is a
-key you hold. Anyone can look a name up and verify the owner against Bitcoin instead of
-trusting a server.
+**A short, human-readable name — like `alice` — that is genuinely yours.** No company,
+registrar, token, or rent. Ownership is a key you hold; no one can move it, take it, or
+make you pay to keep it, and anyone can verify the owner without trusting a server.
 
-This is the short version for technical reviewers. The plain-language source of truth is
-[`ONT.md`](./ONT.md); the level below this page is [`ONT_DESIGN_BRIEF.md`](./ONT_DESIGN_BRIEF.md).
+The value is in those properties, not the plumbing:
 
----
+- **truly owned** — one-time cost, then yours: no rent, renewal, expiry, or revocation.
+- **neutral** — names go by a fixed mechanical rule, never anyone's judgment; no reserved
+  list, no founder grab.
+- **verifiable without trust** — you can prove ownership, and anyone can check it.
 
-## Why a sovereign name could matter
+Bitcoin is *how* we get those (it supplies ordering, settlement, and a scarce cost), but
+the properties are the point. For technical reviewers; deeper level is
+[`ONT_DESIGN_BRIEF.md`](./ONT_DESIGN_BRIEF.md), plain-language source is [`ONT.md`](./ONT.md).
 
-ONT is a bet that a neutral, ownable name on Bitcoin is worth having. We are **not**
-claiming everyone needs one. The concrete use cases we find credible, narrowest first:
+## What it's for
 
-- **Payment handles.** A wallet resolves `alice` → *who gets paid* before money moves —
-  a Bitcoin/Lightning destination you control and can rotate, not a custodial username.
-- **Sovereign identity handles.** A username for open-source / decentralized messengers
-  and social apps that no platform can reassign or revoke.
-- **Addressing for publishing or agent endpoints** *(speculative)* — a stable, owner-
-  controlled pointer to a service or agent.
+- **payment handles** — resolve `alice` → *who gets paid*, before money moves.
+- **identity handles** — a username for open-source / decentralized messengers and apps
+  that no platform can reassign.
+- **service / agent addressing** *(early)*.
 
-The owner key signs **off-chain destination records**, so one name can carry several
-destinations and update them over time without touching Bitcoin for routine changes.
+The owner key signs *off-chain* destination records, so one name carries several
+destinations and updates without touching the chain.
 
-## How it works — one path
+## How it works — one path, branches only if contested
 
-There is a single way in; it only branches if a name is contested.
+1. **Claim** a name for a flat **₿1,000 (~$1)** miner fee (₿1 = 1 satoshi).
+2. **A public notice window** opens. Uncontested → it's yours, finalized through a single
+   batched Bitcoin commitment (thousands of claims per anchor — how it scales to billions).
+3. **Contested** → escalates to an **auction backed by a returnable bond**: bitcoin the
+   bidder keeps in self-custody, committed for a maturity period, then released. The name
+   stays theirs. No rent, no burn, no payment to the project.
 
-1. **Claim it.** Pay a small fixed amount of bitcoin — **₿1,000 (~$1, where ₿1 = 1
-   satoshi)** — as a fee to Bitcoin miners. (A few thousand obviously-scarce names — very
-   short ones, ≤4 characters — carry length-based opening floors and effectively start at
-   auction. Everything 5+ chars uses the flat gate plus contention.)
-2. **A public notice window opens.** If no one else claims the same name in the window, it
-   is yours — the common case, and it is cheap. Thousands of uncontested claims batch into
-   a **single Bitcoin commitment** (a sparse-Merkle accumulator), which is how the design
-   targets billions of names without bloating Bitcoin.
-3. **If someone else wants it too, it is contested** — and *only then* does it escalate to
-   an **L1 returnable-bond auction**. The winner's bitcoin stays in their own custody,
-   committed for a maturity period, then released; the name stays theirs. No rent, no burn,
-   no payment to the project.
+Either way: one globally-unique name your key controls (records, transfers, recovery).
 
-Either way you end up with the same object: a globally unique name controlled by your
-owner key, which authorizes records, transfers, and recovery.
+## Proposed numbers & assumptions (several are placeholders — all open to challenge)
 
-## Why you can trust it without trusting us
+| | proposed | note |
+|---|---|---|
+| claim gate, every name | **₿1,000** (~$1), sunk, to miners | fixed in bitcoin; USD drifts (~$100k/BTC) |
+| contested-auction min bond | **₿50,000** (~$50), returnable | placeholder |
+| scarce short names (≤4 chars) | length-scaled opening bond: ~**₿100,000,000 (≈1 BTC, ~$100k)** for 1 char, halving per added char | only the very short set |
+| 5+ char names | gate only; auctioned (≥ min bond) **only if contested** | no length floor |
+| bond maturity | ~**52,560 blocks (~1 yr)** | placeholder |
+| notice window | **weeks**, height-keyed | placeholder; the launch-fairness lever |
+| on-chain footprint | ~**0.016 vB/name** batched (10k/batch); one ~150-vB anchor/batch; **anchor fee = Σ gates** | the gate reaches miners, not us |
 
-- **Bitcoin orders and settles.** Two honest observers replay Bitcoin and compute the same
-  owner for every name. Resolvers and publishers mirror and serve data; they cannot decide
-  ownership.
-- **The trust surface is small.** Who-owns-what is a deterministic function of Bitcoin,
-  implemented in a **frozen ~7-file core** (`@ont/consensus` + the protocol primitives). A
-  CI test fails if that core grows a dependency on anything but Bitcoin/protocol
-  primitives, so the surface a newcomer must audit cannot quietly expand.
-- **Ownership is portable + Bitcoin-checkable.** A proof bundle lets a fresh verifier
-  re-derive ownership. The verifier now checks the cited anchor is **Merkle-committed by a
-  real block header that meets its proof-of-work target** — not just internal consistency.
-- **Neutral by construction.** No registrar, admin, token, founder name-grab, rent, or
-  revocation. Names are handed out by a fixed mechanical rule, never by anyone's judgment.
+**Assumptions we're least sure of:** the **contest rate** is unknown until launch — we
+assume it's high early (everyone wants `bitcoin`, dictionary words) and low for the long
+tail (`sallysmith2165`); and the notice window must be long enough that real owners can
+contest a day-one land-rush.
 
-## Status — honest
+## Why you can trust it
 
-ONT is an **active prototype**, not mainnet-ready.
+- Ownership is a **deterministic function of Bitcoin**, computed by replaying it through a
+  **frozen ~7-file core**; a CI test fails if that core grows a dependency beyond
+  Bitcoin/protocol primitives. Resolvers mirror data — they can't decide ownership.
+- A portable proof bundle lets a fresh verifier re-derive ownership, now checking the cited
+  anchor is **Merkle-committed by a real block header that meets its proof-of-work target**.
 
-**Runs on-chain today (private signet, proven end-to-end):** claim, owner-key transfer,
-owner-signed value records, recovery descriptors, and a **bonded auction bid that the
-resolver observes and accepts**. The consensus engine, wire formats, and signatures are
-real and cross-checked byte-for-byte against an independent mobile implementation.
+## Status (honest — maturity, not direction)
 
-**Prototype / not yet wired:** the cheap accumulator rail is built and unit-tested
-(commutativity, convergence against a data-withholding adversary) but **not yet consumed by
-the live indexer** — so cheap claims aren't canonical resolver state yet. The publisher is
-single-writer (the leaderless multi-publisher design is simulated, not deployed). Proof
-bundles can be *verified* against Bitcoin, but producers don't yet *emit* the inclusion
-proofs a light client needs.
+**Live on signet, end-to-end:** claim, owner-key transfer, owner-signed records, recovery,
+and a **bonded auction bid the resolver accepts** (engine + signatures cross-checked
+byte-for-byte against a second implementation). **Prototype / not yet wired:** the cheap
+batched-claim rail into the canonical indexer (built + unit-tested, incl. convergence vs. a
+withholding adversary); single-writer publisher; producers don't yet emit the light-client
+proofs the verifier can already check. Not mainnet-ready.
 
-This is a matter of **maturity, not direction**.
+## What we most want you to push on
 
-## What we most want Bitcoin developers to push on
+DA + convergence soundness (fail-closed, height-keyed) · on-chain footprint (≤135-byte
+OP_RETURN events, confirmed on signet) vs. a script/covenant carrier · light-client
+verification — launch blocker or post-launch? · a long notice window vs. a decaying launch
+gate against premium-name capture.
 
-1. **Data-availability + convergence:** is the fail-closed DA rule (a batch counts only if
-   its bytes surface by a Bitcoin-height-keyed deadline) sound against reorgs and
-   withholding, and are the windows right?
-2. **On-chain footprint:** ONT events use OP_RETURN payloads up to ~135 bytes (we've
-   confirmed they relay + confirm on signet). Acceptable, or should the root anchor hide in
-   script via a covenant?
-3. **Light-client verification:** how much is a launch blocker — full Merkle/PoW proof
-   bundles emitted end-to-end vs. trusting a resolver set with fanout disagreement
-   detection?
-4. **Launch fairness / cold-start:** the notice window defends against a day-one premium-
-   name land-rush; is a window enough, or is a decaying launch gate worth the added rule?
-
-Deeper treatment, the prior-art comparison, the full risk register, and the parameter
-table are in [`ONT_DESIGN_BRIEF.md`](./ONT_DESIGN_BRIEF.md).
-
-- Repository: [github.com/deekay/ont](https://github.com/deekay/ont)
-- Product surface (not needed for review): [opennametags.org](https://opennametags.org)
+Repo: [github.com/deekay/ont](https://github.com/deekay/ont) · full risk register, prior-art
+comparison, and parameters: [`ONT_DESIGN_BRIEF.md`](./ONT_DESIGN_BRIEF.md).

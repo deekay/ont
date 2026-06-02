@@ -45,17 +45,29 @@ We are not the first to want this. The honest comparison:
   squatting, merge-mining security is contested, and the chain stagnated. ONT keeps the
   goal but replaces first-come-free with a **sunk gate + long-tail substitutability +
   contested-only auction**, and settles on Bitcoin itself rather than a separate chain.
-- **ENS** — excellent UX, but on Ethereum, with **annual rent** (renewal) and an
-  increasingly L2 footprint (new trust/DA assumptions). ONT is Bitcoin-settled, **no
-  rent**, and ownership is sovereign after acquisition.
+- **ENS** — excellent UX, but on Ethereum, with **annual rent** (renewal), an increasingly
+  L2 footprint (new trust/DA assumptions), and — the deeper issue — **a governing DAO**. The
+  ENS DAO is a token-weighted body that sets pricing/renewal policy and controls the
+  registrar and root; it *can change the rules and adjudicate names by vote*. That is a
+  centralized decider by another name. ONT has **no governance body**: the rule is
+  mechanical, changes are opt-in only, and no committee can re-price, reassign, or
+  reinterpret your name. It is Bitcoin-settled and charges **no rent**.
 - **BNS / Stacks** — Bitcoin-*adjacent*, but depends on the **Stacks token** and its
   consensus. ONT adds **no token and no new chain**.
+- **Handshake (HNS)** — decentralized root-zone/TLD naming with its own proof-of-work coin.
+  Different target (top-level domains, not handles) and a separate coin/chain. ONT issues
+  handles, adds **no coin**, and settles on Bitcoin.
 - **DNS and platform handles** — centralized and revocable by design. ONT has **no
   revocation path** for anyone but the owner.
 - **Pkarr / Pubky** — self-sovereign keys publishing records over a DHT. ONT borrows the
   "a key owns its records" idea but adds a **scarce, globally-unique human-readable
   namespace with Bitcoin-ordered uniqueness and contest resolution** — the part a DHT
   alone doesn't give you. See [`research/ONT_VS_PUBKY_PKARR.md`](./research/ONT_VS_PUBKY_PKARR.md).
+- **Today's payment / identity handles (Lightning Address, NIP-05, Unstoppable Domains)** —
+  the closest existing "name → who gets paid / who is this." They are **domain-bound**
+  (Lightning Address and NIP-05 resolve through a DNS domain you don't ultimately control) or
+  **sold as NFTs by a company** (Unstoppable). ONT's first use case is the same — a payment
+  handle — but neutrally allocated and self-sovereign, not custodial, domain-tied, or for-sale.
 
 **Why Bitcoin.** Bitcoin supplies neutral global ordering, final settlement, and a security
 budget the claim gate pays into. The cost is blockspace discipline (hence batching) and
