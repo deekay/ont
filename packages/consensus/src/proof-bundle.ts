@@ -1,13 +1,9 @@
-import { normalizeName, sha256Hex, utf8ToBytes } from "@ont/protocol";
+import { concatBytes, normalizeName, sha256Bytes, sha256Hex, utf8ToBytes } from "@ont/protocol";
 
-export type ProofBundleSource =
-  // Current acquisition paths:
-  | "bitcoin_l1_direct_auction"
-  | "accumulator_batch_claim"
-  // Experimental / research sources (superseded explorations — not the current launch path):
-  | "ark_auction_transcript"
-  | "ark_sponsored_claim"
-  | "rgb_style_state_transition";
+// The two current acquisition paths. Ark/RGB explorations were removed from the
+// frozen verifier: they were never the launch path, and the sovereignty core
+// must stay small enough to audit. See docs/core/SIMPLIFICATION_AUDIT.md (Phase 4).
+export type ProofBundleSource = "bitcoin_l1_direct_auction" | "accumulator_batch_claim";
 
 export type ProofBundleCheckStatus = "passed" | "failed";
 
@@ -33,13 +29,19 @@ type JsonRecord = Record<string, unknown>;
 
 const PROOF_BUNDLE_SOURCES = new Set<string>([
   "bitcoin_l1_direct_auction",
-  "accumulator_batch_claim",
-  "ark_auction_transcript",
-  "ark_sponsored_claim",
-  "rgb_style_state_transition"
+  "accumulator_batch_claim"
 ]);
 
-export function verifyProofBundle(input: unknown): ProofBundleVerificationReport {
+/**
+ * STRUCTURAL verification only. Checks that a proof bundle is internally
+ * consistent: well-formed, the ownership chain and value-record chain line up,
+ * and the cited auction/accumulator data has the right shape. It does NOT verify
+ * that the cited Bitcoin transactions are actually in proof-of-work-backed blocks
+ * — for that, see verifyProofBundleAgainstBitcoin. A passing structural report
+ * means "this bundle is well-formed and self-consistent", not "this ownership is
+ * settled on Bitcoin".
+ */
+export function verifyProofBundleStructure(input: unknown): ProofBundleVerificationReport {
   const checks: ProofBundleVerificationCheck[] = [];
   const addCheck = (id: string, condition: boolean, message: string): void => {
     checks.push({
@@ -106,27 +108,6 @@ export function verifyProofBundle(input: unknown): ProofBundleVerificationReport
           normalizedName: normalizedFromName
         });
         break;
-      case "ark_auction_transcript":
-        validateArkAuctionBundle({
-          bundle,
-          addCheck,
-          currentOwnerPubkey
-        });
-        break;
-      case "ark_sponsored_claim":
-        validateArkSponsoredClaimBundle({
-          bundle,
-          addCheck,
-          currentOwnerPubkey
-        });
-        break;
-      case "rgb_style_state_transition":
-        validateRgbStyleStateTransitionBundle({
-          bundle,
-          addCheck,
-          currentOwnerPubkey
-        });
-        break;
     }
   }
 
@@ -149,6 +130,15 @@ export function verifyProofBundle(input: unknown): ProofBundleVerificationReport
     checks,
     summary
   };
+}
+
+/**
+ * @deprecated Use {@link verifyProofBundleStructure} (renamed to make the
+ * structural-only scope explicit). Bitcoin inclusion is verified separately by
+ * {@link verifyProofBundleAgainstBitcoin}.
+ */
+export function verifyProofBundle(input: unknown): ProofBundleVerificationReport {
+  return verifyProofBundleStructure(input);
 }
 
 function validateDirectL1AuctionBundle(input: {
@@ -257,189 +247,6 @@ function validateAccumulatorBatchClaimBundle(input: {
   addCheck("accumulator.anchor.object", batchAnchor !== null, "batch anchor metadata is present");
   addCheck("accumulator.anchor.txid", isHexOfLength(getString(batchAnchor, "anchorTxid"), 32), "batch anchor txid is 32-byte hex");
   addCheck("accumulator.anchor.height", getNumber(batchAnchor, "anchorHeight") !== null, "batch anchor height is present");
-}
-
-function validateArkAuctionBundle(input: {
-  readonly bundle: JsonRecord;
-  readonly addCheck: (id: string, condition: boolean, message: string) => void;
-  readonly currentOwnerPubkey: string | null;
-}): void {
-  const { bundle, addCheck, currentOwnerPubkey } = input;
-  const transcript = getRecord(bundle, "auctionTranscript");
-  const batch = getRecord(transcript, "transcriptBatch");
-  const bids = getRecordArray(transcript, "acceptedBids");
-  const winner = getRecord(transcript, "winner");
-  const settlement = getRecord(bundle, "settlementProof");
-  const currentBondOutpoint = getRecord(settlement, "currentBondOutpoint");
-  const winningBidId = getString(winner, "bidId");
-  const winnerOwnerPubkey = getString(winner, "winnerOwnerPubkey");
-  const winningAmount = parseNonNegativeBigInt(getField(winner, "winningAmountSats"));
-  const winningBid = bids.find((bid) => getString(bid, "bidId") === winningBidId) ?? null;
-  const winningBidAmount = parseNonNegativeBigInt(getField(winningBid, "amountSats"));
-  const currentBondValue = parseNonNegativeBigInt(getField(currentBondOutpoint, "valueSats"));
-  const requiredBondSats = parseNonNegativeBigInt(getField(settlement, "requiredBondSats"));
-
-  addCheck("arkAuction.transcript.object", transcript !== null, "Ark auction transcript is present");
-  addCheck(
-    "arkAuction.transcript.source",
-    getString(transcript, "transcriptSource") === "ark_batch_transcript",
-    "Ark auction transcript source is an Ark batch transcript"
-  );
-  addCheck(
-    "arkAuction.rules.sameAsL1",
-    getBoolean(transcript, "sameAuctionRulesAsL1") === true,
-    "Ark auction uses the same ONT auction rules as L1"
-  );
-  addCheck("arkAuction.batch.object", batch !== null, "Ark auction transcript batch metadata is present");
-  addCheck("arkAuction.batch.merkleRoot", isHexOfLength(getString(batch, "merkleRoot"), 32), "Ark batch Merkle root is 32-byte hex");
-  addCheck("arkAuction.bids.nonempty", bids.length > 0, "Ark auction has at least one accepted bid");
-
-  for (const [index, bid] of bids.entries()) {
-    const collateral = getRecord(bid, "collateralProof");
-    addCheck(`arkAuction.bids.${index}.bidId`, hasNonEmptyString(bid, "bidId"), `bid ${index + 1} has a bid id`);
-    addCheck(
-      `arkAuction.bids.${index}.ownerPubkey`,
-      isHexOfLength(getString(bid, "ownerPubkey"), 32),
-      `bid ${index + 1} has a 32-byte owner pubkey`
-    );
-    addCheck(`arkAuction.bids.${index}.inclusionProof`, hasNonEmptyString(bid, "inclusionProof"), `bid ${index + 1} has an inclusion proof`);
-    addCheck(`arkAuction.bids.${index}.collateral`, collateral !== null, `bid ${index + 1} has collateral proof metadata`);
-  }
-
-  addCheck("arkAuction.winner.object", winner !== null, "Ark auction winner is present");
-  addCheck("arkAuction.winner.bidFound", winningBid !== null, "winner references an accepted Ark bid");
-  addCheck(
-    "arkAuction.winner.ownerMatchesBid",
-    winningBid !== null && winnerOwnerPubkey === getString(winningBid, "ownerPubkey"),
-    "winner owner pubkey matches the winning Ark bid owner pubkey"
-  );
-  addCheck(
-    "arkAuction.winner.amountMatchesBid",
-    winningAmount !== null && winningBidAmount !== null && winningAmount === winningBidAmount,
-    "winner amount matches the winning Ark bid amount"
-  );
-  addCheck(
-    "arkAuction.ownership.ownerMatchesWinner",
-    typeof currentOwnerPubkey === "string" && currentOwnerPubkey === winnerOwnerPubkey,
-    "current owner pubkey matches the Ark auction winner"
-  );
-  addCheck(
-    "arkAuction.settlement.kind",
-    getString(settlement, "kind") === "l1_winner_bond_after_ark_transcript",
-    "Ark auction winner settles into a normal L1 name bond"
-  );
-  addCheck(
-    "arkAuction.settlement.bondValue",
-    currentBondValue !== null && requiredBondSats !== null && currentBondValue >= requiredBondSats,
-    "current L1 bond value satisfies the required bond amount"
-  );
-}
-
-function validateArkSponsoredClaimBundle(input: {
-  readonly bundle: JsonRecord;
-  readonly addCheck: (id: string, condition: boolean, message: string) => void;
-  readonly currentOwnerPubkey: string | null;
-}): void {
-  const { bundle, addCheck, currentOwnerPubkey } = input;
-  const ownershipProof = getRecord(bundle, "ownershipProof");
-  const sponsorCreditProof = getRecord(bundle, "sponsorCreditProof");
-  const creditStateBefore = getRecord(sponsorCreditProof, "creditStateBefore");
-  const creditSpend = getRecord(sponsorCreditProof, "creditSpend");
-  const creditStateAfter = getRecord(sponsorCreditProof, "creditStateAfter");
-  const sponsoredClaim = getRecord(bundle, "sponsoredClaim");
-  const challengeWindow = getRecord(bundle, "challengeWindow");
-  const beforeCredits = parseNonNegativeBigInt(getField(creditStateBefore, "availableCredits"));
-  const creditsSpent = parseNonNegativeBigInt(getField(creditSpend, "creditsSpent"));
-  const afterCredits = parseNonNegativeBigInt(getField(creditStateAfter, "availableCredits"));
-  const startHeight = getNumber(challengeWindow, "startHeight");
-  const endHeight = getNumber(challengeWindow, "endHeight");
-
-  addCheck("arkSponsored.sponsorCreditProof.object", sponsorCreditProof !== null, "sponsor credit proof is present");
-  addCheck(
-    "arkSponsored.sponsor.ownerPubkey",
-    isHexOfLength(getString(sponsorCreditProof, "sponsorOwnerPubkey"), 32),
-    "sponsor owner pubkey is 32-byte hex"
-  );
-  addCheck("arkSponsored.claim.object", sponsoredClaim !== null, "sponsored claim is present");
-  addCheck("arkSponsored.claim.inclusionProof", hasNonEmptyString(sponsoredClaim, "inclusionProof"), "sponsored claim has an inclusion proof");
-  addCheck(
-    "arkSponsored.claim.recipientMatchesOwner",
-    typeof currentOwnerPubkey === "string" && getString(sponsoredClaim, "recipientOwnerPubkey") === currentOwnerPubkey,
-    "sponsored claim recipient owner pubkey matches current owner"
-  );
-  addCheck(
-    "arkSponsored.credits.beforeCoversSpend",
-    beforeCredits !== null && creditsSpent !== null && beforeCredits >= creditsSpent,
-    "available credits before the transition cover the credit spend"
-  );
-  addCheck(
-    "arkSponsored.credits.afterMatchesSpend",
-    beforeCredits !== null && creditsSpent !== null && afterCredits !== null && afterCredits === beforeCredits - creditsSpent,
-    "available credits after the transition equal prior credits minus spent credits"
-  );
-  addCheck(
-    "arkSponsored.challengeWindow.ordering",
-    startHeight !== null && endHeight !== null && endHeight >= startHeight,
-    "challenge window end height is at or after start height"
-  );
-  addCheck(
-    "arkSponsored.challengeWindow.uncontestedFinal",
-    getString(challengeWindow, "challengeResult") !== "uncontested" ||
-      getString(ownershipProof, "state") === "sponsored_final",
-    "uncontested sponsored claims finalize into sponsored_final ownership state"
-  );
-  addCheck(
-    "arkSponsored.transferPolicy.afterFinality",
-    getString(ownershipProof, "transferPolicy") === "owner_key_transfer_after_finality_preserves_assurance",
-    "sponsored names transfer by owner key after finality while preserving assurance tier"
-  );
-}
-
-function validateRgbStyleStateTransitionBundle(input: {
-  readonly bundle: JsonRecord;
-  readonly addCheck: (id: string, condition: boolean, message: string) => void;
-  readonly currentOwnerPubkey: string | null;
-}): void {
-  const { bundle, addCheck, currentOwnerPubkey } = input;
-  const contract = getRecord(bundle, "rgbLikeContract");
-  const transitions = getRecordArray(bundle, "stateTransitionChain");
-  const ownership = getRecord(bundle, "ownershipProof");
-  const latestTransition = transitions.length > 0 ? transitions[transitions.length - 1] ?? null : null;
-
-  addCheck("rgb.contract.object", contract !== null, "RGB-like contract metadata is present");
-  addCheck("rgb.contract.schema", hasNonEmptyString(contract, "schemaId"), "RGB-like schema id is present");
-  addCheck("rgb.transitions.nonempty", transitions.length > 0, "RGB-like state transition chain is present");
-
-  for (const [index, transition] of transitions.entries()) {
-    addCheck(`rgb.transitions.${index}.transitionId`, hasNonEmptyString(transition, "transitionId"), `transition ${index + 1} has an id`);
-    addCheck(
-      `rgb.transitions.${index}.newOwnerPubkey`,
-      isHexOfLength(getString(transition, "newOwnerPubkey"), 32),
-      `transition ${index + 1} has a 32-byte new owner pubkey`
-    );
-
-    if (index > 0) {
-      const previousTransition = transitions[index - 1] ?? null;
-      addCheck(
-        `rgb.transitions.${index}.previousTransitionId`,
-        getString(transition, "previousTransitionId") === getString(previousTransition, "transitionId"),
-        `transition ${index + 1} references the previous transition id`
-      );
-    }
-  }
-
-  addCheck(
-    "rgb.ownership.latestTransition",
-    latestTransition !== null && getString(ownership, "latestTransitionId") === getString(latestTransition, "transitionId"),
-    "ownership proof references the latest transition"
-  );
-  addCheck(
-    "rgb.ownership.currentOwner",
-    latestTransition !== null &&
-      typeof currentOwnerPubkey === "string" &&
-      currentOwnerPubkey === getString(latestTransition, "newOwnerPubkey"),
-    "current owner pubkey matches the latest state transition"
-  );
 }
 
 function validateValueRecordChain(input: {
