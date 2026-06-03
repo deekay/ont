@@ -105,6 +105,18 @@ target, etc.) is an owner-signed record: sequence-numbered and predecessor-hash-
 within the current ownership interval, stored and served by resolvers. Mutable updates
 never touch Bitcoin.
 
+**Privacy — a name is a public directory entry.** Everything a name points to is public and
+crawlable; resolvers serve these records to anyone. That is by design: a name is for what you
+*want* public — a payment address (public by nature; it is how you get paid), a website, a
+verified profile — not for private contact details (personal email, Signal). Putting sensitive
+data behind a public name exposes it, and a less-obvious second name does not help, since all
+records are crawlable — obscurity is not privacy. Genuinely private, name-addressable data would
+require an **encrypted-records** layer — a payload sealed to chosen recipient keys (Nostr-style
+selective disclosure) — layered on top of the public directory. That is a deliberate future
+direction, **not v1**: v1 is the public layer, and a prominent name like `marc` is a public
+payment/identity handle, which is precisely its value (a canonical, ownable, impersonation-proof
+pointer), not a private address book.
+
 **Recovery.** Recovery is owner-armed and **not** revocation: you pre-sign a recovery
 descriptor and store it with a chosen backup party; invoking it posts an on-chain request
 through a temporary UTXO, and your original key holds a **veto** during a challenge window.
@@ -184,9 +196,11 @@ but forfeits the security-budget contribution and a censorship fallback. **Curre
 miner-fee gate, drift accepted** — and explicitly up for debate.
 
 **The bond (contested names only).** The auction is backed by *returnable* bonds: a bidder
-locks bitcoin **they still own** (a plain owner-controlled UTXO), released at maturity. The
-cost is liquidity/opportunity, not a burn or a payment to anyone. Bond continuity is
-enforced at consensus-replay time (ONT-level), not by Bitcoin script.
+locks bitcoin **they still own** (a plain owner-controlled UTXO). The winner **becomes owner —
+and can point and transfer the name — the moment the auction settles**; the bond simply stays
+locked until maturity and is then released, so the ~1-year maturity is a *capital* lockup, not a
+gate on using the name. The cost is liquidity/opportunity, not a burn or a payment to anyone.
+Bond continuity is enforced at consensus-replay time (ONT-level), not by Bitcoin script.
 
 **Parameters — frozen vs placeholder (be skeptical of the placeholders):**
 
