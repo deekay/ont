@@ -691,7 +691,7 @@ function renderHomeModelSection(): string {
           <p class="protocol-flow-place">Bitcoin</p>
         </div>
         <h3>Claim It</h3>
-        <p>Claim <span class="mono">alice</span> for a small fixed fee. If no one else wants it, it's simply yours; if it's contested, it escalates to a bonded auction. Either way Bitcoin records that an owner key controls it.</p>
+        <p>Claim <span class="mono">alice</span> for a small fixed fee, then a public notice window opens. If no one contests it, it's simply yours; if someone else claims it too, the name goes to whoever locks the largest returnable bond. Either way Bitcoin records that an owner key controls it.</p>
         <div class="protocol-example" aria-label="Claim ownership example">
           <p><span>name</span><strong class="mono">alice</strong></p>
           <p><span>claim</span><strong>uncontested</strong></p>
