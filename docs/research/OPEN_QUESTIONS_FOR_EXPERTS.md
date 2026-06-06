@@ -38,26 +38,22 @@ endpoints* to support PTLCs, not the whole network, which could be the differenc
 
 ---
 
-## Lexe founders (substrate for an ONT wallet)
+## Wallet / LN-node substrate requirements
 
-**Why it matters:** the plan is to build the ONT client layer on top of a non-custodial,
-always-online, programmable LN node (Lexe is the reference shape) rather than a wallet from scratch —
-build-on-top + upstream PRs, not a fork.
+**Why it matters:** the ONT client layer is best built on top of an existing non-custodial,
+always-online, programmable Lightning node rather than a wallet from scratch. The open questions are
+what capabilities such a substrate must expose:
 
-1. Does the SDK/sidecar expose **conditional payments / adaptor signatures bound to an external
-   on-chain event** today? If not, would you take it as an upstream contribution? (decides
-   build-on-top vs. upstream-PR for the trust-minimized swap)
-2. On the on-chain (BDK) side, does the SDK expose **arbitrary PSBT construction / sign / broadcast** —
-   custom outputs, an OP_RETURN — or only high-level "send to address"? (decides whether the
-   contested-name bonded auction, transfers, recovery, and the self-claim L1 fallback — all on-chain —
-   can live in the app rather than bouncing to an external signer like Sparrow. This is a more
-   conventional ask than #1.)
-3. Can an ONT integration hold a **separate, on-device-only owner key entirely outside the Google-Drive
-   backup flow** — i.e., *not* derived from the node's root seed? (the ONT owner key controls a name
-   permanently; it must not ride the LN credential's convenience backup)
-4. At first login, exactly what lands in Google Drive — just the **password/client-side-encrypted**
-   root seed? What's your threat model for Google + a weak user password? (confirms "storage, not
-   recovery authority")
-5. Your read on **PTLC vs. ECDSA-adaptor-today** for a bilateral user↔publisher swap. (You may be the
-   Lightning expert above, or adjacent.)
-6. Appetite to be the **flagship ONT-compatible wallet**, or do you prefer ONT builds entirely on top?
+1. **Conditional payments / adaptor signatures bound to an external on-chain event** — do current
+   LN-node SDKs expose these? (needed for the trust-minimized publisher swap — pay-against-inclusion-proof)
+2. **Arbitrary PSBT construction / sign / broadcast** on the on-chain side (custom outputs, an
+   `OP_RETURN`) vs. only high-level "send to address"? (decides whether the contested-name bonded
+   auction, transfers, recovery, and the self-claim L1 fallback can live in the app rather than
+   bouncing to an external signer)
+3. **A separate, on-device-only owner key** outside any cloud-backup flow — i.e. *not* derived from the
+   node's root seed? (the ONT owner key controls a name permanently; it must not ride an LN
+   credential's convenience backup)
+4. **Backup threat model** — at first login, what lands in cloud storage (just the
+   client-side-encrypted root seed)? What's the threat model for the cloud provider + a weak user
+   password? (confirms "storage, not recovery authority")
+5. **PTLC vs. ECDSA-adaptor-today** for a bilateral user↔publisher swap — which is the right tool now?

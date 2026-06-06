@@ -87,17 +87,21 @@ layer is the cleanest, most settled part of the system.
 ```
 claim (₿1,000 gate, owner pubkey committed)
    -> public notice window
-        -> uncontested  -> accumulator finalization -> owner (accumulator_final)
-        -> contested (≥2 distinct claimants)
-              -> L1 returnable-bond auction -> bonded owner -> (maturity) -> mature owner
+        -> no bond, one claim   -> accumulator finalization -> owner
+        -> no bond, >=2 claims   -> nullified (no owner) -> reopens for claiming
+        -> a qualifying bond      -> L1 returnable-bond auction -> largest bond wins
+                                        -> bonded owner -> (maturity) -> mature owner
+   (bond-first: a bond with no prior claim opens the auction directly)
    -> owner key thereafter signs transfer / value records / recovery
 ```
 
-Uniqueness is enforced **at insertion time**, not retrospectively: only one claim per name
-can be in-window-and-uncontested. A second distinct claim makes the name contested, and
-ownership is then decided by who commits the largest returnable bond — not by who claimed
-first. That insertion-time rule avoids "prove no challenge ever happened" non-inclusion
-proofs. See
+Acquisition has exactly two outcomes: a cheap claim that **finalizes uncontested**, or the
+**winning bond in an auction**. An auction is opened by a **bond** — posted against an existing
+claim, or **bond-first** with no prior claim (the natural path for a name you already know is
+premium, e.g. `bitcoin`) — *never* by a bare second claim. A bare cheap collision can **nullify** a
+name (it reopens for claiming) but can never *take* it. So ordering a cheap claim first buys
+nothing — the only way to acquire a contested name is to lock a real returnable bond, identical for
+a miner and for everyone else; this closes the former ordering grab (R16) at the root. See
 [`design/ONT_ACQUISITION_STATE_MACHINE.md`](./design/ONT_ACQUISITION_STATE_MACHINE.md).
 
 **Off-chain records.** What a name *points to* (a Bitcoin/Lightning destination, an HTTPS
@@ -161,7 +165,9 @@ Billions of names cannot each be a Bitcoin transaction, so cheap uncontested cla
 
 - **The rail.** Publishers collect claims and apply them as deltas to a sparse-Merkle
   **accumulator**; only the root is anchored on Bitcoin (`prevRoot -> newRoot` in an
-  OP_RETURN). At ~10k claims/batch this is ~0.016 vB/name amortized.
+  OP_RETURN) — a ~150-byte root regardless of batch size, so the per-name cost falls as batches grow;
+  at ~10k claims/batch it is ~0.015 vB/name amortized (the practical cap is data availability, not the
+  Merkle structure).
 - **Data availability (the crux).** The batch *bytes* must be available for anyone to
   recompute the root. The rule is **fail-closed**: a delta counts toward the canonical root
   only if its bytes surface by a Bitcoin-height-keyed deadline (`anchorHeight + W + C`).
@@ -185,6 +191,22 @@ state from single-publisher anchors. Promoting the rail from research into the c
 indexer is the single largest remaining architecture step, and the DA windows
 (`W`, `C`, `K`) are unpinned.
 
+**Publisher payment and trust-minimization.** A publisher fronts the aggregate miner fee and is
+paid by claimants off-chain (Lightning). That payment and the on-chain inclusion are not yet
+*atomically* bound, so today a reputable operator verifies payment before anchoring a claim — a
+trust assumption. Trust-minimizing it likely needs a Lightning construction that binds the two
+(PTLCs / adapter signatures that release payment only against an inclusion proof) — an open design
+item. The trust is **bounded**: a publisher never controls a *name* (ownership remains the owner key
++ Bitcoin), the worst it can do is refuse or fail a batch, and a user can always claim directly on
+L1. **v1 starts with a few reputable publishers and minimizes this trust over time.**
+
+**The ~0.015 vB/name figure is issuance only.** It is the amortized cost of *getting* a name.
+Ongoing **transfers** are a separate load: a bonded name's transfer must carry its bond UTXO forward
+(necessarily L1), and a mature/accumulator transfer is an owner-signed event that is L1 today and
+batchable through the same rail in the target design. *Pointing or updating* a name (value records)
+is fully off-chain and free. So "cheap at scale" describes issuance and updates; trading names is the
+part whose throughput depends on the batched rail.
+
 ## 6. Economics
 
 **The claim gate.** ₿1,000 per name, **sunk**, paid to miners. It keeps spam and squatting
@@ -201,6 +223,20 @@ and can point and transfer the name — the moment the auction settles**; the bo
 locked until maturity and is then released, so the ~1-year maturity is a *capital* lockup, not a
 gate on using the name. The cost is liquidity/opportunity, not a burn or a payment to anyone.
 Bond continuity is enforced at consensus-replay time (ONT-level), not by Bitcoin script.
+
+**Bond-first / the escalation trigger.** An auction is opened by a **bond**, not a bare second
+claim — posted against an existing in-window claim, or *bond-first* with no prior claim (the
+natural path for a name you already know is premium, e.g. `bitcoin`). A bare cheap collision can
+only **nullify** a name (it resolves to no owner and reopens for claiming), never award it. This is
+what makes ordering worthless for acquisition: front-running a cheap claim can at most *deny*
+(₿1,000, no payoff), while *taking* a contested name requires locking a real returnable bond —
+identical cost for a miner and for anyone else, which closes the former ordering grab (R16). The
+≤4-char opening bonds are the *mandatory* bond-first case of this one mechanism, and the ₿50,000
+escalation floor (the cost to open/contest an auction) graduates from placeholder to a real launch
+decision. See
+[`design/ONT_ACQUISITION_STATE_MACHINE.md`](./design/ONT_ACQUISITION_STATE_MACHINE.md),
+[`design/ONT_MEV_ORDERING_ANALYSIS.md`](./design/ONT_MEV_ORDERING_ANALYSIS.md) §D3, and R16 in
+[`design/ONT_RISK_REGISTER.md`](./design/ONT_RISK_REGISTER.md).
 
 **Parameters — frozen vs placeholder (be skeptical of the placeholders):**
 
@@ -222,7 +258,7 @@ they're decided.
 | Area | State | Notes |
 | --- | --- | --- |
 | Owner-key model (transfer / value / recovery auth) | **Solved + live** | Enforced at replay; proven on signet; byte-identical across two implementations |
-| Minimal ~7-file trust surface | **Solved** | CI-enforced boundary |
+| Minimal frozen trust surface | **Solved** | 3 consensus files CI-locked (no-growth test); the protocol rules they build on are audit surface, pinned by review |
 | Returnable-bond contested auction | **Solved + live** | Bid → resolver-accepted end-to-end on signet |
 | Bitcoin-inclusion proof verification (Merkle + PoW) | **Solved (verifier)** | Tested vs real mainnet block; producers don't emit inclusion proofs yet |
 | Accumulator rail + fail-closed DA + leaderless merge | **Prototype** | Built + unit-tested; **not wired into the live indexer** |
@@ -236,11 +272,11 @@ they're decided.
 | Choice | Our stance | Alternative a Bitcoin dev might propose |
 | --- | --- | --- |
 | **OP_RETURN payloads up to ~135 bytes** (anchors, transfers, bids) | Simpler; we confirmed a 135-byte ONT OP_RETURN relays + confirms on signet | Hide the root in script via a covenant (e.g. CTV-family) — needs a soft fork, limits to upgraded nodes |
-| **Batched rail + DA** vs pure L1 | Required to hit the billions-of-names target (~0.016 vB/name); contested escalate to L1 | Pure L1: every claim a tx (~1 vB/name, 1000× footprint) — simpler, no DA risk, but won't scale |
+| **Batched rail + DA** vs pure L1 | Required to hit the billions-of-names target (~0.015 vB/name); contested escalate to L1 | Pure L1: every claim a tx (~1 vB/name, 1000× footprint) — simpler, no DA risk, but won't scale |
 | **Open ascending auction** | Visible bids, soft close, returnable bond; matches L1 transparency | Sealed second-price — sidesteps MEV/relay-bid timing (see [`design/ONT_MEV_ORDERING_ANALYSIS.md`](./design/ONT_MEV_ORDERING_ANALYSIS.md)) |
 | **Bond enforced at ONT-replay, not script** | Simpler; deterrent is "lose the name," sufficient for denial-seekers | Script-level slashing (covenant / presigned penalty) — stronger deterrent, "lose the bitcoin," but a real script construction |
 | **Gate fixed in ₿ (drifts in USD)** | No oracle; neutral | USD-peg (oracle, breaks I3) or PoW/burn (no drift, no security-budget contribution) |
-| **Cold-start premium-name land-rush** | Long, pre-announced, height-keyed notice window buys real owners time to contest | Decaying launch gate (start high, decay to ₿1,000) — punishes early sweepers uniformly; the leading contingency. Or accept the one-time rush. See [`design/ONT_RISK_REGISTER.md`](./design/ONT_RISK_REGISTER.md) (R7) |
+| **Cold-start premium-name land-rush** | Long, pre-announced, height-keyed notice window buys time for a competitive early market to form (so premium names aren't swept cheaply) | Decaying launch gate (start high, decay to ₿1,000) — punishes early sweepers uniformly; the leading contingency. Or accept the one-time rush. See [`design/ONT_RISK_REGISTER.md`](./design/ONT_RISK_REGISTER.md) (R7) |
 | **Bond can be spent without a valid successor** → name invalidates (reopens to claim) | Effective against a griefer who wants *denial* | Weaker against a pure grief-maximizer; script slashing would punish the coin too |
 | **Miner self-issuance** (a miner mines its own anchor fee-free) | Bounded by hashrate share; endemic to Bitcoin (miners already include own txs fee-free) | Accepted; not a unique ONT break |
 

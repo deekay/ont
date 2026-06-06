@@ -547,6 +547,53 @@ Implications:
 - public signet should only appear in historical notes or explicit cleanup
   context, not as an active user path
 
+37. Bond opens the auction (escalation trigger = bond, not bare claim) — 2026-06-04
+
+When a contested name's auction window expires with **zero qualifying bonds**, an
+earlier draft resolved it by lowest `(anchor height, tx-index, claim txid)`
+ordering. **That is rejected** — it let a block-winning miner self-claim and *take*
+a low-value contested name for ~₿1,000 paid to itself, converting ordering power
+into acquisition (R16).
+
+**Decision: a bond — not a bare claim — opens the auction.** The escalation trigger
+moves from "≥2 claims" to "a qualifying bond." Outcomes:
+
+- One cheap claim, no bond by the deadline → finalizes (the long tail, unchanged).
+- A qualifying bond — posted against an existing claim, or **bond-first** with no
+  prior claim → opens the L1 auction; **largest bond wins**. Bond-first is the
+  natural path for a known-premium name (`bitcoin`): no cheap-claim collision is
+  needed to start the auction.
+- Two+ cheap claims, no bond → the name is **nullified** (no owner) and reopens for
+  claiming. A bare collision can deny, never award.
+
+Invariant: a name is acquired only by (a) an uncontested cheap claim that
+finalizes, or (b) the winning bond in an auction. A bare claim can finalize or be
+nullified — never *take* a contested name.
+
+Why: this resolves R16 at the root. Front-running a cheap claim buys nothing (worst
+case it nullifies the name — denial, no payoff); acquiring a contested name requires
+a returnable bond, identical cost for a miner and for anyone. It also unifies the
+short-name design — the ≤4-char opening bonds are the *mandatory* bond-first case of
+the same mechanism. Deadline-derived in the engine (a verifier checks, at
+`currentHeight ≥ anchorHeight + W_notice`, whether a qualifying bond landed); no
+ordering-based award path, so no randomness beacon needed.
+
+Tradeoffs: it's a protocol change — the escalation trigger moves from claim to bond,
+which touches the state machine's contest definition and adds a bond-first /
+auction-open entry. The ₿50,000 escalation floor becomes load-bearing (the cost to
+open/contest an auction) and graduates from placeholder to a launch decision. Denial
+is still possible — a spite-griefer can collide a cheap claim to nullify a targeted
+name (₿1,000) — but with no payoff and defendable by the target bonding;
+unprofitable, accepted (R16 residual).
+
+Documentation impact:
+- `design/ONT_ACQUISITION_STATE_MACHINE.md` — Public Notice, Contested Auction, and
+  the "Bond opens the auction; a bare collision can only nullify" section.
+- `design/ONT_MEV_ORDERING_ANALYSIS.md` — D1, D3, §2 conclusion, §3 tie-break row
+  revised; ordering buys nothing.
+- `ONT_DESIGN_BRIEF.md` §3 acquisition model + §6 "Bond-first / the escalation trigger".
+- `design/ONT_RISK_REGISTER.md` R16 → Resolved by design.
+
 ## Fairness Principles To Carry Into The Launch Rewrite
 
 The rewritten launch draft should explicitly state:

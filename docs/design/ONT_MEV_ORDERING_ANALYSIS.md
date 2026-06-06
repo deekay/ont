@@ -38,24 +38,38 @@ Worth extracting: (1) **front-running** a valuable name, (2) **manipulating an a
 
 ## 2. The structural defenses already in the design
 
-**D1 — Front-running a claim only triggers an auction you must win by bidding.** *(Updated 2026-05-24.)*
+**D1 — Front-running a cheap claim wins nothing; acquisition is bond-gated.** *(Revised 2026-06-04.)*
 The accumulator rail's claims may be **public** (not commit-reveal-hidden), so a watcher can see
-`coffee` being claimed. But front-running it doesn't grant a free steal: a second claim makes the
-name **contested**, which (by the contests-escalate-to-L1 decision) routes it to the **L1 bonded
-auction** — the front-runner then has to *outbid*, not out-order. So name front-running is defused by
-contest-escalation, not by hiding names. (This supersedes the earlier reliance on commit-reveal name
-hiding; sealed-bid commitments still apply within the L1 auction itself, but the rail needs no
-name-hiding.)
+`coffee` being claimed. Front-running it grants no steal: an auction is opened only by a **bond**, not
+a bare claim, so a second cheap claim doesn't take the name — a no-bond collision **nullifies** it (it
+reopens for claiming), and to *acquire* the name the front-runner must post a real returnable bond and
+win the auction (*outbid*, not out-order). So name front-running is defused by bond-gated acquisition,
+not by hiding names. (This supersedes the earlier reliance on commit-reveal name hiding; sealed-bid
+commitments still apply within the L1 auction itself, but the rail needs no name-hiding.)
+
+**Why ordering can't substitute for a bond (R16).** A cheap collision with no bond doesn't award the
+name to anyone — it **nullifies** it (reopens for claiming). There is no ordering-based award path, so
+a block-winning miner ordering its own cheap claim first gains *nothing* (worst case it denies the
+name — ₿1,000, no payoff). Acquiring a contested name requires a qualifying bond — identical cost for a
+miner and for anyone — which is what makes ordering worthless for acquisition. See
+[`ONT_ACQUISITION_STATE_MACHINE.md`](./ONT_ACQUISITION_STATE_MACHINE.md) and R16.
 
 **D2 — Disjoint names commute, so ordering is irrelevant for the long tail.** A million people
 claiming a million *different* names don't compete; their insertions merge order-independently
 (proven in `delta-merge-sim.ts`). Ordering only has value when two parties want the *same* name — so
 the entire MEV surface collapses onto **contested names**, a small set (the R3 long-tail bet).
 
-**D3 — Contested names are won by bidding, not by ordering.** When 2+ parties want a name, it goes to
-**auction** (notice window → auction at/above the reserve). The winner is the highest bidder, *not*
-the first committer. So a miner/publisher who can reorder or insert-first gains **nothing** — they'd
-still have to outbid everyone, i.e. pay the most. Ordering power doesn't convert to name acquisition.
+**D3 — Contested names are won by bidding, not by ordering.** A name goes to **auction** when a
+**bond** is posted (notice window → auction at/above the reserve), and the winner is the highest
+bidder, *not* the first committer. So a miner/publisher who can reorder or insert-first gains
+**nothing** — they'd still have to outbid everyone, i.e. pay the most. Ordering power doesn't convert
+to name acquisition, because the acquisition gate is a bond, not ordering.
+
+*(Revised 2026-06-04 — bond opens the auction.)* This now holds with no exception. A cheap collision
+with no bond doesn't award the name by ordering — it **nullifies** it (reopens for claiming); only a
+bond opens an auction. So a miner ordering its own cheap claim first converts to *nothing*: at most
+denial (₿1,000, no payoff), never acquisition (former R16, resolved). See
+`ONT_ACQUISITION_STATE_MACHINE.md` and `ONT_RISK_REGISTER.md` R16.
 
 **D4 — Direct-L1 fallback bounds censorship.** Any user can bypass publishers and anchor a claim (or
 settle a bid) directly on Bitcoin. A censoring publisher or miner can impose a *cost/delay* (push you
@@ -63,9 +77,12 @@ to L1), never a *denial*. Combined with competitive, permissionless publishers, 
 is an efficiency attack, not a sovereignty attack.
 
 **Together, D1–D4 mean the thing that would be catastrophic — stealing a name via ordering — is not
-possible.** The (height, tx-index) commit-priority tie-break in the merge is only a determinism
-floor *after* allocation; it isn't the mechanism that awards a contested name, so gaming tx-index by
-fee buys no name.
+possible.** A name is acquired only by an uncontested cheap claim that finalizes or by the winning
+bond in an auction, and an auction is opened by a **bond**, never by a bare claim. The (height,
+tx-index) commit-priority tie-break in the merge is only a determinism floor for delta ordering — it
+never awards a contested name, so gaming tx-index by fee buys no name. A cheap collision can at most
+**nullify** a name (deny, no payoff), never take it (former R16, resolved by making the bond the
+escalation trigger).
 
 ## 3. Residual MEV — real, but bounded (none of it theft)
 
@@ -73,7 +90,7 @@ fee buys no name.
 | --- | --- | --- |
 | **Reveal-contestation** | Once a name is revealed, a watcher can contest it within the notice window, forcing an auction on a name someone hoped to get cheaply | Not theft — the contester must *bid and win*, paying real value. Forces fair price discovery, the design's intent. This is really **R7 (cold start)** wearing an MEV hat; same mitigations (generous window, loud launch, watchers). |
 | **Relay bid manipulation** | In the *open* auction, a relay/publisher selectively delays or drops bids to help a colluding bidder | Bounded by **direct-L1 fallback** (a censored bidder settles on L1) and **anti-snipe** (activity-extended close). Removed entirely by sealed second-price (§4). |
-| **Tie-break gaming** | Pay a higher fee to win a same-block (height, tx-index) tie | Low value — contested names go to auction, so winning the tie doesn't win the name. |
+| **Tie-break gaming** | Pay a higher fee to win a same-block (height, tx-index) tie | **Low value.** A name is acquired only by an uncontested cheap claim or a winning bond; an auction is opened by a bond, never by a bare claim. So winning a same-block tie never wins a contested name — a cheap collision can at most *nullify* it (R16 resolved). The tie-break is only a delta-determinism floor for merge ordering. |
 | **Selective inclusion** | Publisher refuses to batch your claim | Bounded by L1 fallback + competitive publishers; costs you latency, not the name. Overlaps R8. |
 
 ## 4. By-product: MEV resistance argues for sealed second-price (Option B)

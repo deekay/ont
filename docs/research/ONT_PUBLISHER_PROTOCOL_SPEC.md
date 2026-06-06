@@ -237,8 +237,8 @@ The interesting design questions are downstream:
 
 - **Trustless payment-on-inclusion-proof** (PTLC / ECDSA adaptor): pay
   only if the publisher delivers a specific anchor that commits your leaf.
-  Bilateral, no network-wide PTLC routing. **Open question for Lexe** — see
-  `OPEN_QUESTIONS_FOR_EXPERTS.md`.
+  Bilateral, no network-wide PTLC routing. **Open question** (LN-node substrate
+  capabilities) — see `OPEN_QUESTIONS_FOR_EXPERTS.md`.
 - **Multi-publisher convergence**: the `delta-merge-sim.ts` simulator
   models it; the resolver/indexer applies the deterministic rule
   (Bitcoin commit priority, txid tiebreak). The publisher spec is unaware
