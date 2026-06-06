@@ -76,9 +76,9 @@ recovery and UTXO-less accumulator-name recovery should not be conflated.
 | Name | A valid flat handle such as `alice`. |
 | Owner key | The key that controls transfers and mutable records. |
 | Claim gate | The fixed sunk bitcoin fee paid to miners for a claim attempt. |
-| Notice window | The public period during which another claimant can contest the same name. |
+| Notice window | The public period during which the name can be contested — by posting a bond (→ auction) or nullified by a bare collision. |
 | Accumulator | The Bitcoin-anchored Merkle structure that finalizes uncontested claims compactly. |
-| Contested | A state reached when two or more DA-valid claims for the same name land in the notice window. |
+| Contested | A name a qualifying bond is posted against in the notice window (against a claim, or bond-first); the bond — not a bare second claim — escalates it to auction. Two bare claims with no bond nullify the name instead. |
 | Bond | Returnable bitcoin capital used in the L1 auction path. |
 | Bond UTXO | The dedicated output backing an immature auction-settled name. |
 | Maturity | The point after which owner-key authority can survive bond release. |
@@ -111,11 +111,13 @@ Rules:
 ```mermaid
 flowchart LR
   A["Unowned valid name"] --> B["Provisional claim"]
-  B --> C["Notice window closes uncontested"]
+  B --> C["Notice window closes, no bond"]
   C --> D["Accumulator-final owner"]
-  B --> E["Competing claim in window"]
+  B --> E["Qualifying bond posted in window"]
   E --> F["Contested L1 auction"]
   F --> G["Bonded owner"]
+  B --> J["Bare collision, no bond"]
+  J --> K["Nullified — reopens for claiming"]
   G --> H["Mature owner"]
   D --> I["Owner-key transfer"]
   G --> I

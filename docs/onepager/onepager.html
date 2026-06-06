@@ -86,7 +86,7 @@
       are bundled into one small Bitcoin record — which is what keeps it cheap across billions of names.</li>
     <li><strong>If someone else wants it too, the name is <em>contested</em></strong>
       and goes to auction: each bidder locks up bitcoin as a <strong>returnable ~one-year bond</strong>
-      (they keep custody; it's released at maturity), and the largest bond wins. Contests can be common early (everyone wants <code>bitcoin</code> and dictionary words) but
+      (they keep custody; it's released at maturity), and the largest bond wins. Contests can be common early (everyone wants <code>bitcoin</code>, popular brands, or dictionary words) but
       are rare across the long tail at scale, so for most names the auction never happens.</li>
   </ol>
 
@@ -142,19 +142,22 @@
       backup key you chose can use it, so recovery can never become a way for someone to take your name.</li>
   </ul>
 
-  <h2>How it scales — and the open problem</h2>
+  <h2>How it scales</h2>
   <p>Billions of names can't each be a Bitcoin transaction, so <strong>publishers</strong> batch many
     claims into one Merkle commitment and anchor only its root — a ~150-byte root that commits to the
     whole batch <em>whatever its size</em>, so the more you batch the lower the per-name cost
     (~<span class="b">0.015 vB</span>/name at ten thousand per batch, less as batches grow). A batch counts
     only if its miner fee covers the claims inside it, so each name still buys the blockspace it uses.</p>
-  <p>You pay a publisher for your claim off-chain over Lightning, and it fronts the aggregate miner fee.
-    The honest gap: that payment and the on-chain inclusion aren't yet <em>atomically</em> bound — so
-    today you rely on a reputable operator (it verifies payment before anchoring you), and
-    trust-minimizing it likely needs newer Lightning tooling (PTLCs / adapter signatures that release
-    payment only against an inclusion proof). A publisher never holds your <em>name</em> — only the
-    batching is intermediated, and you can always claim directly on L1 instead.
-    <strong>v1 starts with a few reputable publishers and minimizes that trust over time.</strong></p>
+  <p>You pay a publisher off-chain over Lightning; it bundles many claims and pays the single aggregate
+    miner fee. <strong>Your cost is the ₿1,000 gate (sunk, to miners) plus a thin publisher service
+    fee</strong> — the publisher's own per-name cost is tiny, and any markup is capped by the
+    always-available option of claiming directly on L1. The flow is <strong>pay-first</strong> (you pay,
+    then you're included; a non-payer is left out), so the publisher risks no capital — you take a small,
+    bounded one. And a publisher <strong>can't steal a name</strong>: if it pockets your payment or commits
+    the wrong owner key, you contest on-chain, which forces an auction the rightful owner wins; worst case
+    you're out about a dollar and re-claim elsewhere. Binding the payment to inclusion atomically is a
+    possible future refinement, not a v1 dependency.
+    <strong>v1 starts with a few reputable publishers and minimizes even that small trust over time.</strong></p>
 </div>
 
 <!-- ============================ PAGE 2 ============================ -->
@@ -162,7 +165,7 @@
   <h2>Why you can trust it</h2>
   <p>No company, server, or founder decides who owns a name — Bitcoin does. The rules that turn Bitcoin
     transactions into ownership live in a small, <strong>frozen core — three consensus files</strong> that
-    anyone can audit; a CI test fails if that core grows a dependency beyond Bitcoin/protocol primitives.
+    anyone can audit, locked so its trust surface can't silently grow.
     Run it over Bitcoin's history and you get the same answer everyone else does, and
     you can check that answer against Bitcoin's own block headers and proof-of-work — so a server that
     lies about who owns a name gets caught, not believed. The services that help you find and publish
@@ -202,7 +205,7 @@
   </div>
 
   <p class="note"><strong>Least sure of:</strong> the <strong>contest rate</strong> is unknown until
-    launch — we assume it's high early (everyone wants <code>bitcoin</code>, dictionary words) and low
+    launch — we assume it's high early (everyone wants <code>bitcoin</code>, popular brands, or dictionary words) and low
     for the long tail (<code>sallysmith2165</code>); and the notice window has to be long enough for a
     competitive early market to form, so premium names aren't swept cheaply before other bidders show up.</p>
 
@@ -220,9 +223,10 @@
       the claim data off-chain; our defense if someone withholds it (or a reorg reshuffles it) is a
       deadline — data that isn't public by a set Bitcoin height simply doesn't count. Is that sound, and
       should availability be proven on-chain or by timing alone?</li>
-    <li><strong>Publisher trust-minimization</strong> — what's the cleanest Lightning construction (PTLC /
-      adapter signature) to make "pay the publisher" atomic with "claim anchored on-chain," so neither
-      side has to trust the other?</li>
+    <li><strong>Publisher trust-minimization</strong> — v1 leans on reputable, pay-first publishers (a
+      non-payer is left out). Is there a clean, <em>deployable-today</em> way to bind "pay the publisher"
+      to "claim anchored on-chain" without depending on long-roadmap primitives — or is
+      reputable-publisher trust the right v1 stance, with atomic binding left as later research?</li>
     <li><strong>Discovery &amp; censorship-resistance</strong> — config-seeded today; is a registry-free,
       on-chain service-announcement scan the right trustless discovery primitive, with Bitcoin + verification
       as the only trust root?</li>

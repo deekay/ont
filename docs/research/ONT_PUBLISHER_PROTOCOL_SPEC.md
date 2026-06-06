@@ -235,10 +235,11 @@ one. A user who can't find one falls back to direct-L1.
 
 The interesting design questions are downstream:
 
-- **Trustless payment-on-inclusion-proof** (PTLC / ECDSA adaptor): pay
-  only if the publisher delivers a specific anchor that commits your leaf.
-  Bilateral, no network-wide PTLC routing. **Open question** (LN-node substrate
-  capabilities) — see `OPEN_QUESTIONS_FOR_EXPERTS.md`.
+- **Atomic payment-on-inclusion binding**: pay only if the publisher delivers a
+  specific anchor that commits your leaf. This is a **longer-term research item, not a
+  v1 dependency** — v1 uses a pay-first flow with reputable publishers (a non-payer is
+  left out). We are *not* designing v1 around adaptor-conditional Lightning payments
+  (e.g. PTLCs), which are long-roadmap. See `OPEN_QUESTIONS_FOR_EXPERTS.md`.
 - **Multi-publisher convergence**: the `delta-merge-sim.ts` simulator
   models it; the resolver/indexer applies the deterministic rule
   (Bitcoin commit priority, txid tiebreak). The publisher spec is unaware

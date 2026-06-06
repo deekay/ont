@@ -33,7 +33,7 @@ There is one path for every name. It forks only if two people want the same one.
 4. **If someone else wants it too, the name is *contested*** and goes to
    auction: each bidder locks bitcoin as a **returnable ~one-year bond** (they keep custody;
    it's released at maturity), and the **largest bond wins**.
-   Contests can be common early (everyone wants `bitcoin` and dictionary words) but are rare
+   Contests can be common early (everyone wants `bitcoin`, popular brands, or dictionary words) but are rare
    across the long tail at scale, so for most names the auction never happens.
 
 ```mermaid
@@ -65,7 +65,7 @@ A name is controlled by one key — your **owner key**. With it you can:
 - **Set up recovery** ahead of time, so a lost key isn't the end — and only the backup key you
   chose can use it, so recovery can never become a way for someone to take your name.
 
-## How it scales — and the open problem
+## How it scales
 
 Billions of names can't each be a Bitcoin transaction, so **publishers** batch many claims into one
 Merkle commitment and anchor only its root — a ~150-byte root that commits to the whole batch *whatever
@@ -73,19 +73,21 @@ its size*, so the more you batch the lower the per-name cost (~**0.015 vB/name**
 batch, less as batches grow). A batch counts only if its miner fee covers the claims inside it, so each
 name still buys the blockspace it uses. ONT's on-chain events fit in a ≤135-byte `OP_RETURN`.
 
-You pay a publisher for your claim off-chain over Lightning, and it fronts the aggregate miner fee.
-The honest gap: that payment and the on-chain inclusion aren't yet *atomically* bound — so today you
-rely on a reputable operator (it verifies payment before anchoring you), and trust-minimizing it likely
-needs newer Lightning tooling (PTLCs / adapter signatures that release payment only against an inclusion
-proof). A publisher never holds your *name* — only the batching is intermediated, and you can always
-claim directly on L1 instead. **v1 starts with a few reputable publishers and minimizes that trust over
-time.**
+You pay a publisher off-chain over Lightning; it bundles many claims and pays the single aggregate miner
+fee. **Your cost is the ₿1,000 gate (sunk, to miners) plus a thin publisher service fee** — the
+publisher's own per-name cost is tiny, and any markup is capped by the always-available option of
+claiming directly on L1. The flow is **pay-first** (you pay, then you're included; a non-payer is left
+out), so the publisher risks no capital — you take a small, bounded one. And a publisher **can't steal a
+name**: if it pockets your payment or commits the wrong owner key, you contest on-chain, which forces an
+auction the rightful owner wins; worst case you're out about a dollar and re-claim elsewhere. Binding the
+payment to inclusion atomically is a possible future refinement, not a v1 dependency. **v1 starts with a
+few reputable publishers and minimizes even that small trust over time.**
 
 ## Why you can trust it
 
 No company, server, or founder decides who owns a name — Bitcoin does. The rules that turn Bitcoin
 transactions into ownership live in a small, **frozen core — three consensus files** that anyone can
-audit; a CI test fails if that core grows a dependency beyond Bitcoin/protocol primitives. Run it
+audit, locked so its trust surface can't silently grow. Run it
 over Bitcoin's history and you get the same answer everyone else does, and you can check that answer
 against Bitcoin's own block headers and proof-of-work — so a server that lies about who owns a name
 gets caught, not believed. The services that help you find and publish names — *resolvers* — only
@@ -102,7 +104,7 @@ registry-free, on-chain discovery scan is designed, not yet built.
 | --- | --- | --- |
 | Claim fee (every name) | **₿1,000** (~$1), sunk, to miners | baseline |
 | Contested-auction min bond | **₿50,000** (~$50), returnable | placeholder |
-| Bond maturity | ~52,560 blocks (~1 yr) | test override |
+| Bond maturity | ≈52,560 blocks (≈1 yr) | test override |
 | Notice window | weeks, height-keyed | placeholder · fairness lever |
 | Data-availability windows | unset | deadline for batch bytes to surface + reorg depth |
 | On-chain footprint | ~0.015 vB/name; anchor fee = Σ gates | measured |
@@ -117,10 +119,10 @@ bond only if contested:
 | 2 char | ₿50,000,000 | ~$50k |
 | 3 char | ₿25,000,000 | ~$25k |
 | 4 char | ₿12,500,000 | ~$12.5k |
-| 5+ char | flat fee; ₿50,000 floor if contested | ~$1 / ~$50 |
+| 5+ char | flat fee; ₿50,000 floor if contested | ≈$1 / ≈$50 |
 
 **Least sure of:** the **contest rate** is unknown until launch — we assume it's high early
-(everyone wants `bitcoin`, dictionary words) and low for the long tail (`sallysmith2165`); and the
+(everyone wants `bitcoin`, popular brands, or dictionary words) and low for the long tail (`sallysmith2165`); and the
 notice window has to be long enough for a competitive early market to form, so premium names aren't
 swept cheaply before other bidders show up.
 
@@ -139,9 +141,10 @@ emit the proofs a phone/browser would check. Not mainnet-ready.
    data off-chain; our defense if someone withholds it (or a reorg reshuffles it) is a deadline —
    data that isn't public by a set Bitcoin height simply doesn't count. Is that sound, and should
    availability be proven on-chain or by timing alone?
-2. **Publisher trust-minimization** — what's the cleanest Lightning construction (PTLC / adapter
-   signature) to make "pay the publisher" atomic with "claim anchored on-chain," so neither side has
-   to trust the other?
+2. **Publisher trust-minimization** — v1 leans on reputable, pay-first publishers (a non-payer is left
+   out). Is there a clean, *deployable-today* way to bind "pay the publisher" to "claim anchored
+   on-chain" without depending on long-roadmap primitives — or is reputable-publisher trust the right
+   v1 stance, with atomic binding left as later research?
 3. **Discovery & censorship-resistance** — config-seeded today; is a registry-free, on-chain
    service-announcement scan the right trustless discovery primitive, with Bitcoin + verification as
    the only trust root?

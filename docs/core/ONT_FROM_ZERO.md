@@ -75,8 +75,10 @@ There is a single way in, and it only branches if a name is contested:
    simply yours. This is the common case, it is cheap, and thousands of these
    uncontested claims are bundled into a single Bitcoin commitment so the system
    can scale to billions of names.
-3. **If someone else wants it too, it is contested**, and only then does it
-   escalate to a bonded auction.
+3. **If someone else wants it too, it is contested.** Posting a returnable
+   **bond** opens the auction (largest bond wins) — a bond, not a bare second
+   claim, is what escalates it. Two bare claims with no bond cancel out: the name
+   is nullified and reopens for claiming.
 
 Either way you end up with the same thing: a globally unique name controlled by
 one owner key.

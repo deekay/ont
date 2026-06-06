@@ -42,8 +42,11 @@ only thing that can move a name.
 2. **A short notice window opens.** If no one else claims the same name during it, the name is simply
    yours — the common case, and it's cheap. Behind the scenes, thousands of these uncontested claims
    are bundled into a single Bitcoin commitment, which is how the system scales to billions of names.
-3. **If someone else wants it too, it's contested** — and *only then* does it escalate to an
-   **auction**. Contestation is the one thing that turns a name into a bond-backed, auctioned name.
+3. **If someone else wants it too, it's contested.** Posting a returnable **bond** opens an
+   **auction** for the name (largest bond wins) — that bond, not a bare second claim, is what
+   escalates it (and you can post a bond up front for a name you already know is contested, like
+   `bitcoin`). Two bare claims with no bond simply cancel out: the name is *nullified* and reopens
+   for claiming, so no one can take it just by racing.
 
 **How the auction works.** Everyone who wants the contested name bids, and each bid is backed by a
 *returnable* Bitcoin bond — real skin in the game, not destroyed money. The highest bid wins; the

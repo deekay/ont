@@ -191,14 +191,25 @@ state from single-publisher anchors. Promoting the rail from research into the c
 indexer is the single largest remaining architecture step, and the DA windows
 (`W`, `C`, `K`) are unpinned.
 
-**Publisher payment and trust-minimization.** A publisher fronts the aggregate miner fee and is
-paid by claimants off-chain (Lightning). That payment and the on-chain inclusion are not yet
-*atomically* bound, so today a reputable operator verifies payment before anchoring a claim — a
-trust assumption. Trust-minimizing it likely needs a Lightning construction that binds the two
-(PTLCs / adapter signatures that release payment only against an inclusion proof) — an open design
-item. The trust is **bounded**: a publisher never controls a *name* (ownership remains the owner key
-+ Bitcoin), the worst it can do is refuse or fail a batch, and a user can always claim directly on
-L1. **v1 starts with a few reputable publishers and minimizes this trust over time.**
+**Publisher payment and trust-minimization.** A publisher bundles many claims and pays the single
+aggregate miner fee for the batch, out of payments it has already collected off-chain (Lightning).
+v1 uses a **pay-first flow with reputable publishers**: the operator includes a claim only after
+payment, and a non-paying claim is simply left out — so the publisher takes **no capital risk** (it
+never pays a fee for a claim it hasn't been paid for); the small, bounded risk sits with the *user*.
+The residual trust is that a *paid-but-excluded* claimant relies on the operator's reputation
+and the L1 fallback. Crucially, **a publisher cannot steal a name**: if it pockets the payment or
+commits the wrong owner key, the rightful party **contests on-chain, which forces an auction they
+win** — so the worst a bad publisher can do is cost a claimant ~₿1,000 (~$1) and a re-claim, never
+take the name. **Atomically binding** the off-chain payment to on-chain inclusion is a
+**longer-term research item, not a v1 dependency** — we are deliberately *not* designing v1 around
+adaptor-conditional Lightning payments, which are a long-roadmap capability. The trust is **bounded**
+either way: a publisher never controls a *name* (ownership remains the owner key + Bitcoin), the
+worst it can do is refuse or fail a batch, and a user can always claim directly on L1.
+
+The user's all-in cost is the **₿1,000 gate (sunk, to miners) plus a thin publisher service fee** —
+the publisher's marginal per-name cost is single-digit sats (an amortized channel-close + anchor), and
+any markup is capped by the direct-L1 alternative (≈₿1,000 at low fee rates), so the fee stays thin.
+**v1 starts with a few reputable publishers and minimizes this trust over time.**
 
 **The ~0.015 vB/name figure is issuance only.** It is the amortized cost of *getting* a name.
 Ongoing **transfers** are a separate load: a bonded name's transfer must carry its bond UTXO forward

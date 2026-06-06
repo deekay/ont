@@ -19,7 +19,7 @@ reviewer should hold is **real-and-on-chain** vs **library/CLI-only** vs
 | Owner-signed value records | **Built + on-chain (signet)** | Sequence-numbered, predecessor-linked, ownership-interval-scoped; resolver ingests/serves; clients verify without trusting the resolver; CLI multi-resolver fan-out/compare. |
 | Recovery descriptors | **Built + on-chain (signet)** | Owner-armed, owner-vetoable (recovery, not revocation). The on-chain invoke path is partially specified. |
 | Contested auction — on-chain bonded bid | **Built + on-chain (signet)** | Returnable bond output + OP_RETURN bid payload, engine-validated (bond value = bid at `bondVout`); resolver derives auction state from observed `AUCTION_BID` txs; settled winner materializes into an owned name. |
-| Cheap ₿1,000 claim — Lightning rail | **Structure wired, payment stubbed** | `apps/publisher` quote → invoice → pay → verify exists, but invoice creation + payment verification are stub / Lexe-sidecar interfaces, and there is **no HODL/PTLC atomic binding** yet (v0 — repudiation-vulnerable). The wallet does not pay a real Lightning invoice for a claim today. |
+| Cheap ₿1,000 claim — Lightning rail | **Structure wired, payment stubbed** | `apps/publisher` quote → invoice → pay → verify exists, but invoice creation + payment verification are stub / Lexe-sidecar interfaces. v1 is a **pay-first flow with reputable publishers** (pay, then included; a non-payer is left out); atomic payment-on-inclusion binding is a longer-term research item, not a v1 dependency. The wallet does not pay a real Lightning invoice for a claim today. |
 | Accumulator cheap-rail → canonical state | **Prototype, not wired** | `batch-rail` is built and unit-tested (insert commutativity, fail-closed DA convergence vs. a withholding adversary), but the live indexer does **not** ingest it — so cheap claims are not yet canonical resolver state. |
 | Publisher | **Single-writer prototype** | The leaderless multi-publisher convergence design is simulated and tested, not deployed. |
 | Mobile wallet | **HD (BIP32), seed-backed** | One seed → a per-name owner key (`m/696969'/0'/i'`) + a funding key (`m/84'/1'/0'/0/0`); seed backup/restore proven on signet; keys in the device keystore. |
@@ -38,7 +38,7 @@ reviewer should hold is **real-and-on-chain** vs **library/CLI-only** vs
 ## Still open / not done (do not imply otherwise)
 
 - The accumulator-rail launch engine wired into the canonical indexer.
-- A real (HODL/PTLC-bound) Lightning payment for the cheap claim.
+- A real Lightning payment for the cheap claim (v1 = pay-first with reputable publishers; atomic payment-on-inclusion binding is later research, not a v1 dependency).
 - Leaderless multi-publisher deployment + a discovery mechanism.
 - Light-client proof bundles emitted end-to-end.
 - Final notice/DA windows, bond floors, and maturity (placeholders today).
