@@ -291,18 +291,54 @@ interface AddressStats {
   readonly chain_stats?: { readonly funded_txo_sum?: number; readonly spent_txo_sum?: number };
   readonly mempool_stats?: { readonly funded_txo_sum?: number; readonly spent_txo_sum?: number };
 }
+async function fetchBalanceSats(addr: string): Promise<number> {
+  const stats = await requestJson<AddressStats>(`/api/address/${addr}`);
+  const chain = (stats.chain_stats?.funded_txo_sum ?? 0) - (stats.chain_stats?.spent_txo_sum ?? 0);
+  const mem = (stats.mempool_stats?.funded_txo_sum ?? 0) - (stats.mempool_stats?.spent_txo_sum ?? 0);
+  return chain + mem;
+}
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => { setTimeout(resolve, ms); });
+}
+
 async function onCheckBalance(): Promise<void> {
   const addr = el<HTMLElement>("funding-address").textContent ?? "";
   if (!addr) return;
   const out = el<HTMLElement>("balance");
   out.textContent = " checking…";
   try {
-    const stats = await requestJson<AddressStats>(`/api/address/${addr}`);
-    const chain = (stats.chain_stats?.funded_txo_sum ?? 0) - (stats.chain_stats?.spent_txo_sum ?? 0);
-    const mem = (stats.mempool_stats?.funded_txo_sum ?? 0) - (stats.mempool_stats?.spent_txo_sum ?? 0);
-    out.textContent = ` balance: ₿${(chain + mem).toLocaleString()}${mem ? " (incl. unconfirmed)" : ""}`;
+    out.textContent = ` balance: ₿${(await fetchBalanceSats(addr)).toLocaleString()}`;
   } catch (error) {
     out.textContent = ` couldn't load balance: ${esc(error instanceof Error ? error.message : "error")}`;
+  }
+}
+
+async function onFaucet(): Promise<void> {
+  const addr = el<HTMLElement>("funding-address").textContent ?? "";
+  if (!addr) return;
+  const out = el<HTMLElement>("balance");
+  const btn = el<HTMLButtonElement>("faucet-btn");
+  btn.disabled = true;
+  try {
+    let start = 0;
+    try { start = await fetchBalanceSats(addr); } catch { /* treat as 0 */ }
+    await requestJson(`/api/faucet`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ address: addr })
+    });
+    out.textContent = " requested — mining a block (~60s)…";
+    for (let i = 0; i < 9; i += 1) {
+      await sleep(15_000);
+      let now = start;
+      try { now = await fetchBalanceSats(addr); } catch { continue; }
+      if (now > start) { out.textContent = ` funded — balance: ₿${now.toLocaleString()}`; return; }
+    }
+    out.textContent = " still pending — click Check balance in a moment.";
+  } catch (error) {
+    out.textContent = ` faucet failed: ${esc(error instanceof Error ? error.message : "error")}`;
+  } finally {
+    btn.disabled = false;
   }
 }
 
@@ -314,6 +350,7 @@ function init(): void {
   });
   el<HTMLButtonElement>("claim-btn").addEventListener("click", () => { void onClaim(); });
   el<HTMLButtonElement>("check-balance").addEventListener("click", () => { void onCheckBalance(); });
+  el<HTMLButtonElement>("faucet-btn").addEventListener("click", () => { void onFaucet(); });
 }
 
 if (document.readyState === "loading") {

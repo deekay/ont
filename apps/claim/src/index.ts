@@ -7,15 +7,25 @@
 // front door, meant to run on its own origin (e.g. claim.opennametags.org),
 // isolated from the marketing/docs site so a key-handling page shares no origin
 // with general web content.
+import { execFile } from "node:child_process";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { promisify } from "node:util";
 import { getClaimClientBundle } from "./bundle.js";
 import { renderClaimPage } from "./page.js";
+
+const execFileAsync = promisify(execFile);
 
 const port = parsePort(process.env.CLAIM_WEB_PORT ?? process.env.PORT ?? "3001");
 const publisherUrl = (process.env.CLAIM_PUBLISHER_URL ?? process.env.ONT_WEB_PUBLISHER_URL ?? "http://127.0.0.1:8788").replace(/\/$/, "");
 const networkLabel = (process.env.CLAIM_NETWORK_LABEL ?? "signet").trim();
 const rateLimitPerMinute = parseRate(process.env.CLAIM_RATE_LIMIT_PER_MINUTE ?? "10");
 const esploraUrl = (process.env.CLAIM_ESPLORA_URL ?? "http://127.0.0.1:3010").replace(/\/$/, "");
+// Faucet (signet only): fixed amount, server-side; mines a block, so rate-limited hard.
+const faucetCmd = process.env.CLAIM_FAUCET_CMD ?? "ont-private-signet-fund";
+const faucetAmountBtc = process.env.CLAIM_FAUCET_AMOUNT_BTC ?? "0.0005"; // 50,000 sats
+const faucetEnabled = (process.env.CLAIM_FAUCET_ENABLED ?? "true") === "true";
+const faucetPerHour = parseRate(process.env.CLAIM_FAUCET_PER_HOUR ?? "6");
+const ADDRESS_RE = /^(tb1|bcrt1)[a-z0-9]{6,90}$/;
 
 const CLIENT_BUNDLE_PATH = "/claim.js";
 
@@ -87,7 +97,24 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
     return;
   }
 
-  writeJson(response, 404, { error: "not_found", message: "Supported: /, /claim.js, /healthz, /api/claim/quote, /api/claim/submit, /api/claim/{id}, /api/publisher/info, /api/address/{addr}" });
+  // Signet faucet: drips a fixed amount to a validated address. execFile (no shell)
+  // + strict address regex + hard hourly rate limit, because each call mines a block.
+  if (pathname === "/api/faucet") {
+    if (!faucetEnabled) { writeJson(response, 404, { error: "faucet_disabled", message: "Faucet is not enabled." }); return; }
+    if (method !== "POST") { writeJson(response, 405, { error: "method_not_allowed", message: "Use POST." }); return; }
+    if (faucetExceeded(clientIp(request))) { writeJson(response, 429, { error: "rate_limited", message: "Faucet limit reached — try again later." }); return; }
+    const body = (await readJsonBody(request)) as { address?: unknown };
+    const address = typeof body.address === "string" ? body.address.trim() : "";
+    if (!ADDRESS_RE.test(address)) { writeJson(response, 400, { error: "bad_address", message: "Provide a valid signet address." }); return; }
+    // The fund command mines a block (~60s), so don't hold the request open —
+    // kick it off and let the client poll the balance.
+    void execFileAsync(faucetCmd, [address, faucetAmountBtc], { timeout: 180_000 })
+      .catch((error) => console.error("faucet fund failed:", error instanceof Error ? error.message : error));
+    writeJson(response, 202, { ok: true, pending: true, address, amountBtc: faucetAmountBtc, etaSeconds: 75 });
+    return;
+  }
+
+  writeJson(response, 404, { error: "not_found", message: "Supported: /, /claim.js, /healthz, /api/claim/quote, /api/claim/submit, /api/claim/{id}, /api/publisher/info, /api/address/{addr}, /api/faucet" });
 }
 
 async function proxyJson(response: ServerResponse, targetUrl: string, init?: RequestInit): Promise<void> {
@@ -128,6 +155,15 @@ function rateExceeded(ip: string): boolean {
   recent.push(now);
   hits.set(ip, recent);
   return recent.length > rateLimitPerMinute;
+}
+const faucetHits = new Map<string, number[]>();
+function faucetExceeded(ip: string): boolean {
+  const now = Date.now();
+  const windowStart = now - 3_600_000; // 1 hour
+  const recent = (faucetHits.get(ip) ?? []).filter((t) => t > windowStart);
+  recent.push(now);
+  faucetHits.set(ip, recent);
+  return recent.length > faucetPerHour;
 }
 function clientIp(request: IncomingMessage): string {
   const forwarded = request.headers["x-forwarded-for"];
