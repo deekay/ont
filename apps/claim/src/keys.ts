@@ -8,9 +8,14 @@ import { generateMnemonic as bip39Generate, mnemonicToSeedSync, validateMnemonic
 import { wordlist } from "@scure/bip39/wordlists/english";
 import { HDKey } from "@scure/bip32";
 import { schnorr } from "@noble/curves/secp256k1.js";
+import { sha256 } from "@noble/hashes/sha2.js";
+import { ripemd160 } from "@noble/hashes/ripemd160.js";
+import { bech32 } from "@scure/base";
 
 const OWNER_PURPOSE = 696969; // hardened "ONT owner" branch (matches the app)
 const ownerPath = (index: number): string => `m/${OWNER_PURPOSE}'/0'/${index}'`;
+const FUNDING_PATH = "m/84'/1'/0'/0/0"; // P2WPKH funding (matches the app)
+const SIGNET_HRP = "tb"; // signet shares testnet's bech32 prefix
 
 export interface OwnerKey {
   readonly ownerPubkey: string;
@@ -40,6 +45,19 @@ export function deriveOwnerKey(mnemonic: string, index = 0): OwnerKey {
     ownerPrivateKeyHex: bytesToHex(node.privateKey),
     ownerPubkey: bytesToHex(schnorr.getPublicKey(node.privateKey)),
   };
+}
+
+/**
+ * Derive the P2WPKH funding address (signet) from the same phrase, at the app's
+ * m/84'/1'/0'/0/0 path — this is the address you deposit signet bitcoin into to
+ * bid in an auction or claim directly on L1. Byte-identical to the app's
+ * deriveFundingKey (same seed + path + P2WPKH/tb encoding).
+ */
+export function deriveFundingAddress(mnemonic: string): string {
+  const node = HDKey.fromMasterSeed(masterSeed(mnemonic)).derive(FUNDING_PATH);
+  if (!node.publicKey) throw new Error("derived funding node has no public key");
+  const hash160 = ripemd160(sha256(node.publicKey)); // compressed pubkey → witness program
+  return bech32.encode(SIGNET_HRP, [0, ...bech32.toWords(hash160)]); // v0 witness, P2WPKH
 }
 
 function bytesToHex(bytes: Uint8Array): string {

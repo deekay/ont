@@ -4,7 +4,7 @@
 // locally from a 12-word phrase (see ./keys.ts), verifies the publisher's inclusion
 // proof against its own anchored root, and trusts nothing the publisher returns.
 import { sha256 } from "@noble/hashes/sha2.js";
-import { deriveOwnerKey, generateMnemonic12, type OwnerKey } from "./keys.js";
+import { deriveFundingAddress, deriveOwnerKey, generateMnemonic12, type OwnerKey } from "./keys.js";
 
 // ---------- bytes / hex ----------
 function bytesToHex(bytes: Uint8Array): string {
@@ -217,6 +217,10 @@ function showKeyBackup(name: string, mnemonic: string, key: OwnerKey): void {
   el<HTMLElement>("owner-pubkey").textContent = key.ownerPubkey;
   (el<HTMLInputElement>("backup-confirm")).checked = false;
   (el<HTMLButtonElement>("claim-btn")).disabled = true;
+  // Wallet: the deposit address from the same phrase (for auctions / direct-L1).
+  el<HTMLElement>("funding-address").textContent = deriveFundingAddress(mnemonic);
+  el<HTMLElement>("balance").textContent = "";
+  el<HTMLElement>("wallet-section").hidden = false;
 }
 
 function downloadKey(): void {
@@ -237,6 +241,7 @@ async function onCheck(event: Event): Promise<void> {
   event.preventDefault();
   el<HTMLElement>("key-section").hidden = true;
   el<HTMLElement>("result-section").hidden = true;
+  el<HTMLElement>("wallet-section").hidden = true;
   const raw = (el<HTMLInputElement>("name")).value;
   if (!isValidName(raw)) {
     setStatus("error", "Enter a valid name — lowercase a–z and 0–9, 1–32 characters.");
@@ -282,6 +287,25 @@ async function onClaim(): Promise<void> {
   }
 }
 
+interface AddressStats {
+  readonly chain_stats?: { readonly funded_txo_sum?: number; readonly spent_txo_sum?: number };
+  readonly mempool_stats?: { readonly funded_txo_sum?: number; readonly spent_txo_sum?: number };
+}
+async function onCheckBalance(): Promise<void> {
+  const addr = el<HTMLElement>("funding-address").textContent ?? "";
+  if (!addr) return;
+  const out = el<HTMLElement>("balance");
+  out.textContent = " checking…";
+  try {
+    const stats = await requestJson<AddressStats>(`/api/address/${addr}`);
+    const chain = (stats.chain_stats?.funded_txo_sum ?? 0) - (stats.chain_stats?.spent_txo_sum ?? 0);
+    const mem = (stats.mempool_stats?.funded_txo_sum ?? 0) - (stats.mempool_stats?.spent_txo_sum ?? 0);
+    out.textContent = ` balance: ₿${(chain + mem).toLocaleString()}${mem ? " (incl. unconfirmed)" : ""}`;
+  } catch (error) {
+    out.textContent = ` couldn't load balance: ${esc(error instanceof Error ? error.message : "error")}`;
+  }
+}
+
 function init(): void {
   el<HTMLFormElement>("claim-form").addEventListener("submit", (e) => { void onCheck(e); });
   el<HTMLButtonElement>("download-key").addEventListener("click", downloadKey);
@@ -289,6 +313,7 @@ function init(): void {
     (el<HTMLButtonElement>("claim-btn")).disabled = !(e.target as HTMLInputElement).checked;
   });
   el<HTMLButtonElement>("claim-btn").addEventListener("click", () => { void onClaim(); });
+  el<HTMLButtonElement>("check-balance").addEventListener("click", () => { void onCheckBalance(); });
 }
 
 if (document.readyState === "loading") {

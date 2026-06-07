@@ -64,6 +64,14 @@ export function renderClaimPage(networkLabel: string, clientBundlePath: string):
     <div id="result"></div>
   </section>
 
+  <section id="wallet-section" hidden>
+    <h3 style="margin:.2rem 0 .35rem">Your wallet</h3>
+    <p class="muted" style="margin-top:0">Derived from the same phrase. You only need to fund this to bid in an auction or contest a name — a bare-claim needs no deposit.</p>
+    <div>deposit address (signet)<span id="funding-address" class="key"></span></div>
+    <button id="check-balance" class="secondary" type="button">Check balance</button>
+    <span id="balance" class="muted"></span>
+  </section>
+
   <footer>
     Your key is generated in your browser and never sent to us. This page verifies the publisher's
     inclusion proof locally before showing a claim as real. Auctions and contesting a name need the

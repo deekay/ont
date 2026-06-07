@@ -15,6 +15,7 @@ const port = parsePort(process.env.CLAIM_WEB_PORT ?? process.env.PORT ?? "3001")
 const publisherUrl = (process.env.CLAIM_PUBLISHER_URL ?? process.env.ONT_WEB_PUBLISHER_URL ?? "http://127.0.0.1:8788").replace(/\/$/, "");
 const networkLabel = (process.env.CLAIM_NETWORK_LABEL ?? "signet").trim();
 const rateLimitPerMinute = parseRate(process.env.CLAIM_RATE_LIMIT_PER_MINUTE ?? "10");
+const esploraUrl = (process.env.CLAIM_ESPLORA_URL ?? "http://127.0.0.1:3010").replace(/\/$/, "");
 
 const CLIENT_BUNDLE_PATH = "/claim.js";
 
@@ -78,7 +79,15 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
     return;
   }
 
-  writeJson(response, 404, { error: "not_found", message: "Supported: /, /claim.js, /healthz, /api/claim/quote, /api/claim/submit, /api/claim/{id}, /api/publisher/info" });
+  // Wallet balance: read-only esplora address lookup (the client computes the
+  // balance from chain_stats/mempool_stats). Restricted to bech32 addresses.
+  const addrMatch = pathname.match(/^\/api\/address\/(tb1[a-z0-9]{6,90}|bcrt1[a-z0-9]{6,90})$/);
+  if (method === "GET" && addrMatch && addrMatch[1]) {
+    await proxyJson(response, `${esploraUrl}/address/${addrMatch[1]}`);
+    return;
+  }
+
+  writeJson(response, 404, { error: "not_found", message: "Supported: /, /claim.js, /healthz, /api/claim/quote, /api/claim/submit, /api/claim/{id}, /api/publisher/info, /api/address/{addr}" });
 }
 
 async function proxyJson(response: ServerResponse, targetUrl: string, init?: RequestInit): Promise<void> {

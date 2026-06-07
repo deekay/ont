@@ -1,5 +1,5 @@
 // Test for the 12-word wallet derivation. Run: npx tsx apps/claim/checks/keys.mts
-import { deriveOwnerKey, generateMnemonic12, isValidMnemonic } from "../src/keys.js";
+import { deriveFundingAddress, deriveOwnerKey, generateMnemonic12, isValidMnemonic } from "../src/keys.js";
 
 let failures = 0;
 const check = (name: string, ok: boolean) => {
@@ -25,6 +25,15 @@ check("matches interop golden (index 0)", a.ownerPubkey === GOLDEN_INDEX0);
 
 // Distinct names get distinct keys (per-name unlinkability).
 check("index 1 differs from index 0", deriveOwnerKey(FIXED, 1).ownerPubkey !== a.ownerPubkey);
+
+// Funding address (P2WPKH signet) — the wallet's deposit address.
+const fundA = deriveFundingAddress(FIXED);
+const fundB = deriveFundingAddress(FIXED);
+check("funding address is deterministic", fundA === fundB);
+check("funding address is a signet P2WPKH (tb1q…)", /^tb1q[ac-hj-np-z02-9]{38}$/.test(fundA));
+const FUNDING_GOLDEN = "tb1qm8csr6yc05u9p260lrzvv68rwk8ukzsuey3cx2";
+check("matches funding-address golden", fundA === FUNDING_GOLDEN);
+console.log(`funding address:    ${fundA}`);
 
 const fresh = generateMnemonic12();
 check("fresh mnemonic is 12 words", fresh.trim().split(/\s+/).length === 12);
