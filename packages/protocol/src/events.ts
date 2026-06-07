@@ -328,8 +328,11 @@ function computeTransferAuthorizationDigest(input: TransferAuthorizationFields):
   assertByte(input.flags, "flags");
   assertByte(input.successorBondVout, "successorBondVout");
 
+  // Domain-separated like recovery auth (ont-recover-owner): a transfer signature
+  // can never be mistaken for a signature over the same fields in another context.
   return sha256Bytes(
     concatBytes(
+      ...lengthPrefixedUtf8("ont-transfer-owner"),
       hexToBytes(assertHexBytes(input.prevStateTxid, 32, "prevStateTxid")),
       hexToBytes(assertHexBytes(input.newOwnerPubkey, 32, "newOwnerPubkey")),
       Uint8Array.of(input.flags, input.successorBondVout)

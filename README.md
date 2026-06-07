@@ -13,7 +13,8 @@ fixed; USD equivalents assume **~$100,000/BTC** and drift with the price (so the
 
 > **Status: active prototype on a Bitcoin test network (signet) — not mainnet-ready.** We are
 > deliberately honest about what runs today vs. what's designed; see
-> [What's live vs. prototype](#whats-live-vs-prototype).
+> [What's live vs. prototype](#whats-live-vs-prototype). The **canonical status + numbers** live in
+> **[docs/core/STATUS.md](./docs/core/STATUS.md)** — if any doc disagrees, that file wins.
 
 ---
 
