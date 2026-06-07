@@ -1,0 +1,15 @@
+[Unit]
+Description=ONT bare-claim site (claim.opennametags.org)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=ont
+WorkingDirectory=/opt/ont-claim
+EnvironmentFile=/etc/ont/ont-claim.env
+ExecStart=/usr/bin/npm run dev
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

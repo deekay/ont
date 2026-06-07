@@ -1,0 +1,6 @@
+# Append to /etc/caddy/Caddyfile (additive — do not edit the opennametags.org block).
+# Caddy auto-provisions TLS once claim.opennametags.org resolves to this host.
+claim.opennametags.org {
+  encode zstd gzip
+  reverse_proxy 127.0.0.1:3003
+}

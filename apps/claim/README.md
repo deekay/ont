@@ -29,7 +29,12 @@ Environment:
 On signet the Lightning payment is stubbed by the publisher, so claim is one-shot. On mainnet
 the publisher returns a real BOLT11 to pay before submit (invoice/QR display is the next step).
 
-## Deploy (own origin)
-Build (`npm run build -w @ont/claim`) and run `node dist/index.js` behind the same Caddy/VPS as
-the rest, on the `claim.opennametags.org` host, proxying to the localhost publisher. DNS + the
-vhost are the remaining manual infra step.
+## Deploy — LIVE at https://claim.opennametags.org (signet)
+
+Deployed **isolated** (own dir `/opt/ont-claim` + its own node_modules, outside the shared
+workspace) so it can't disturb the live web/resolver/publisher. Runs as user `ont` via `tsx`
+on `:3003`, behind a Caddy vhost (auto-TLS), proxying to the droplet publisher on `:7878`.
+Artifacts in [`deploy/`](deploy/): `ont-claim.service`, `ont-claim.env.example`, `Caddyfile.snippet`.
+
+Reproduce/update: `rsync src package.json` → `/opt/ont-claim`, `npm install` (+ `tsx`),
+`systemctl restart ont-claim`. Needs a DNS A record `claim.opennametags.org → <droplet IP>` (done).
