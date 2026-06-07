@@ -59,6 +59,12 @@ jobs:
       - name: Install workspace dependencies (engine + tsx)
         run: npm ci
 
+      # The checks import engine SOURCE via tsx, but that source imports the workspace
+      # packages (@ont/protocol et al.), which resolve to their dist/. A fresh CI
+      # checkout has no dist, so build the workspace before the cross-check.
+      - name: Build workspace packages (engine dist)
+        run: npm run build
+
       - name: Install mobile dependencies
         run: npm ci
         working-directory: mobile
