@@ -234,9 +234,10 @@ function renderHeroSection(
       <h1 id="homeHeroTitle">Own your name like you own your bitcoin.</h1>
       <p class="hero-home-lede">
         Open Name Tags is a neutral naming protocol anchored to Bitcoin. No registrar, no token, no
-        rent, no gatekeeper &mdash; you hold the keys, and Bitcoin settles who owns what. The rules are
-        frozen and auditable, and anyone can run the infrastructure. You use it from the app; this site
-        just explains it and lets you verify it yourself.
+        rent, no gatekeeper &mdash; you hold the keys, and Bitcoin settles who owns what. The consensus
+        core is small and auditable (launch parameters are still being finalized), and anyone can run
+        the infrastructure. You use it from the app; this site just explains it and lets you verify it
+        yourself.
       </p>
       <div class="hero-home-proof-row" aria-label="What makes it sovereign">
         <span>You hold the keys</span>
@@ -640,7 +641,7 @@ function renderHomeAppSection(configuredBasePath: string): string {
     <div class="guide-grid guide-grid-balanced">
       <article class="guide-card">
         <h3>Self-custodial by default</h3>
-        <p>Owner + funding keys are generated and stored on-device (iOS Keychain), revealed only for your own backup. Every record is BIP340-signed locally; the app verifies inclusion proofs against Bitcoin before it trusts anything a server says.</p>
+        <p>Owner + funding keys are generated and stored on-device (iOS Keychain), revealed only for your own backup. Every record is BIP340-signed and checked locally, and the app re-derives state from the data instead of trusting a server's word. (Full light-client inclusion-proof checking against Bitcoin's headers is being wired up — producers don't emit those proofs yet.)</p>
       </article>
       <article class="guide-card">
         <h3>On signet for testing</h3>

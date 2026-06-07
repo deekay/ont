@@ -105,15 +105,14 @@ async function assertHomePage(page) {
     waitUntil: "domcontentloaded"
   });
 
-  await waitForVisibleText(page, "Human-Readable Names You Can Actually Own");
-  await waitForVisibleText(page, "Choose A Workflow");
-  await waitForVisibleText(page, "Set Up Signing");
-  await waitForVisibleText(page, "Claim A Name");
-  await waitForVisibleText(page, "Inspect Live State");
+  await waitForVisibleText(page, "Own your name like you own your bitcoin.");
+  await waitForVisibleText(page, "Sovereign names on Bitcoin");
+  await waitForVisibleText(page, "Check a name");
+  await waitForVisibleText(page, "Verify, don't trust");
   const html = await page.content();
   assert(
-    html.includes("/auctions"),
-    "home page should link users to auctions"
+    html.includes("/explore"),
+    "home page should link users to the live registry (/explore)"
   );
 }
 

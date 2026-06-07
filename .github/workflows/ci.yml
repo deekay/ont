@@ -34,15 +34,61 @@ jobs:
       - name: Private signet auto-miner script smoke
         run: npm run test:private-signet-auto-mine-script
 
-  # The website fixture smoke needs a Playwright browser download that has been
-  # flaky/hanging on CI runners. It is a product-UI check, not protocol
-  # verification, so it runs as a separate NON-BLOCKING job: it never gates the
-  # protocol CI from going green, and step timeouts keep it from hanging.
-  browser-smoke:
-    name: Browser Fixture Smoke (non-blocking)
+  mobile:
+    name: Mobile Typecheck + Crypto
     runs-on: ubuntu-latest
-    timeout-minutes: 12
-    continue-on-error: true
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            mobile/package-lock.json
+
+      # The crypto cross-check runs each *.mts against the real engine SOURCE using
+      # the repo-root tsx (checks/run.mjs resolves ../../node_modules/.bin/tsx) and
+      # imports from ../../packages/*. Without the root workspace installed, every
+      # check group fails to even launch — so install root deps before mobile's.
+      - name: Install workspace dependencies (engine + tsx)
+        run: npm ci
+
+      # The checks import engine SOURCE via tsx, but that source imports the workspace
+      # packages (@ont/protocol et al.), which resolve to their dist/. A fresh CI
+      # checkout has no dist, so build the workspace before the cross-check.
+      - name: Build workspace packages (engine dist)
+        run: npm run build
+
+      - name: Install mobile dependencies
+        run: npm ci
+        working-directory: mobile
+
+      - name: Mobile typecheck
+        run: npm run typecheck
+        working-directory: mobile
+
+      - name: Mobile offline crypto cross-check (byte-identical to the engine)
+        run: npm run check:crypto
+        working-directory: mobile
+
+  # The website fixture smoke (product-UI check, not protocol verification). It RUNS
+  # and GATES whenever the browser is available — no silently-stale coverage. But the
+  # Playwright install hangs indefinitely AFTER the download completes on these
+  # runners (a known CI flake: the 170 MiB Chromium fetches to 100% in seconds, then
+  # the post-download step stalls). We will NOT block every merge on that infra hang,
+  # so the install is non-fatal: on success the smoke runs and gates; on a hung/failed
+  # install the smoke is skipped with a loud CI warning. The browser is cached, so the
+  # first run that completes the install makes every later run fast and fully gating.
+  browser-smoke:
+    name: Browser Fixture Smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
 
     steps:
       - name: Check out repository
@@ -57,10 +103,23 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
+
       - name: Install Playwright browser
+        id: pw_install
+        continue-on-error: true
         timeout-minutes: 6
         run: npm run playwright:install
 
       - name: Browser fixture smoke
+        if: steps.pw_install.outcome == 'success'
         timeout-minutes: 4
         run: npm run test:e2e:fixture-web
+
+      - name: Report skipped smoke (browser install failed — infra, not a regression)
+        if: steps.pw_install.outcome != 'success'
+        run: echo "::warning title=Browser smoke skipped::Playwright browser install hung/failed on this runner (infra, not a UX regression). The smoke runs and gates whenever the browser installs; it's cached on the first successful run."

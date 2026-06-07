@@ -296,7 +296,7 @@ they're decided.
 
 | Choice | Our stance | Alternative a Bitcoin dev might propose |
 | --- | --- | --- |
-| **OP_RETURN payloads up to ~135 bytes** (anchors, transfers, bids) | Simpler; we confirmed a 135-byte ONT OP_RETURN relays + confirms on signet | Hide the root in script via a covenant (e.g. CTV-family) — needs a soft fork, limits to upgraded nodes |
+| **OP_RETURN payloads up to ~171 bytes** (recover-owner; most events smaller) | Simpler; we confirmed ONT OP_RETURNs relay + confirm on signet | Hide the root in script via a covenant (e.g. CTV-family) — needs a soft fork, limits to upgraded nodes |
 | **Batched rail + DA** vs pure L1 | Required to hit the billions-of-names target (~0.015 vB/name); contested escalate to L1 | Pure L1: every claim a tx (~1 vB/name, 1000× footprint) — simpler, no DA risk, but won't scale |
 | **Open ascending auction** | Visible bids, soft close, returnable bond; matches L1 transparency | Sealed second-price — sidesteps MEV/relay-bid timing (see [`design/ONT_MEV_ORDERING_ANALYSIS.md`](./design/ONT_MEV_ORDERING_ANALYSIS.md)) |
 | **Bond enforced at ONT-replay, not script** | Simpler; deterrent is "lose the name," sufficient for denial-seekers | Script-level slashing (covenant / presigned penalty) — stronger deterrent, "lose the bitcoin," but a real script construction |
@@ -314,7 +314,7 @@ The deeper adversarial treatment (publisher fee-theft/censorship, eclipse, MEV, 
 1. **DA + convergence soundness.** Is the fail-closed height-keyed DA rule correct against
    reorgs and withholding? Are `W`/`C`/`K` the right shape (on-chain availability marker vs.
    pure timing)?
-2. **On-chain footprint + relay.** Are ~135-byte OP_RETURN ONT events acceptable as a
+2. **On-chain footprint + relay.** Are ~171-byte OP_RETURN ONT events acceptable as a
    prototype baseline, or is the standardness/relay/datacarrier story a real obstacle on
    mainnet — and is a script/covenant carrier worth the soft-fork dependency?
 3. **Light-client verification.** Launch blocker or post-launch? What's the minimum honest
