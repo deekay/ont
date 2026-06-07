@@ -48,7 +48,16 @@ jobs:
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: mobile/package-lock.json
+          cache-dependency-path: |
+            package-lock.json
+            mobile/package-lock.json
+
+      # The crypto cross-check runs each *.mts against the real engine SOURCE using
+      # the repo-root tsx (checks/run.mjs resolves ../../node_modules/.bin/tsx) and
+      # imports from ../../packages/*. Without the root workspace installed, every
+      # check group fails to even launch — so install root deps before mobile's.
+      - name: Install workspace dependencies (engine + tsx)
+        run: npm ci
 
       - name: Install mobile dependencies
         run: npm ci
@@ -63,12 +72,13 @@ jobs:
         working-directory: mobile
 
   # The website fixture smoke (product-UI check). Now GATING: a non-blocking,
-  # silently-stale UX test reads as coverage while verifying nothing. Step
-  # timeouts keep the Playwright browser download from hanging the run.
+  # silently-stale UX test reads as coverage while verifying nothing. The Chromium
+  # binary is cached so a slow download can't flake the gate; step timeouts keep a
+  # cache-miss download from hanging the run.
   browser-smoke:
     name: Browser Fixture Smoke
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 18
 
     steps:
       - name: Check out repository
@@ -83,8 +93,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
+
       - name: Install Playwright browser
-        timeout-minutes: 6
+        timeout-minutes: 10
         run: npm run playwright:install
 
       - name: Browser fixture smoke
