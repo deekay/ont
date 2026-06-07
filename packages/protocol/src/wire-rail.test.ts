@@ -42,4 +42,32 @@ describe("scaling-rail wire codecs", () => {
     badMagic[0] = 0x00;
     expect(() => decodeRootAnchorPayload(badMagic)).toThrow(/magic/);
   });
+
+  // Cross-language conformance: these exact bytes are pinned in the Rust encoder's
+  // golden-vector test (rust/ont-core/src/root_anchor.rs). If you change the wire
+  // format here, the Rust test MUST be regenerated in lockstep — a drift on either
+  // side breaks byte-identical read-back by @ont/consensus.
+  it("emits the byte-pinned cross-language golden vectors", () => {
+    const toHex = (b: Uint8Array) => Buffer.from(b).toString("hex");
+    expect(toHex(encodeRootAnchorPayload({ prevRoot: "00".repeat(32), newRoot: "11".repeat(32), batchSize: 1 }))).toBe(
+      "4f4e54010b" + "00".repeat(32) + "11".repeat(32) + "00000001"
+    );
+    expect(toHex(encodeRootAnchorPayload({ prevRoot: "aa".repeat(32), newRoot: "bb".repeat(32), batchSize: 4096 }))).toBe(
+      "4f4e54010b" + "aa".repeat(32) + "bb".repeat(32) + "00001000"
+    );
+    expect(
+      toHex(
+        encodeRootAnchorPayload({
+          prevRoot: "0123456789abcdef".repeat(4),
+          newRoot: "fedcba9876543210".repeat(4),
+          batchSize: 0xdeadbeef
+        })
+      )
+    ).toBe(
+      "4f4e54010b" +
+        "0123456789abcdef".repeat(4) +
+        "fedcba9876543210".repeat(4) +
+        "deadbeef"
+    );
+  });
 });

@@ -18,6 +18,7 @@
 
 pub mod payload; // OP_RETURN claim/anchor payload codec (S4)
 pub mod bond_tx; // build_bond_tx with TxOrdering::Custom, bond at vout 0 (S3)
+pub mod root_anchor; // root-anchor payload codec, byte-identical to TS wire format (S6)
 
 #[cfg(test)]
 mod tests {
