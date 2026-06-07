@@ -6,10 +6,15 @@ publish = false
 description = "ONT Rust transaction-construction core (BDK). Spike scaffold — see ~/.sprout/RESEARCH/ONT_BDK_RUST_BUILD_PLAN_2026_06_06.md"
 
 [dependencies]
-# bdk_esplora (async) lands at S7 (signet broadcast); bond-tx construction needs
-# only bdk_wallet.
 bdk_wallet = "3"
+# S7: async Esplora sync + broadcast against the signet shim.
+bdk_esplora = { version = "0.22", features = ["async-https", "tokio"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 anyhow = "1"
+
+[[bin]]
+name = "signet-broadcast"
+path = "src/bin/signet_broadcast.rs"
 
 [dev-dependencies]
 # Enable bdk_wallet's test-utils for hermetic funded wallets in unit tests.
