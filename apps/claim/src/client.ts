@@ -136,6 +136,15 @@ async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
   return parsed as T;
 }
 
+function unavailableMessage(name: string, reason?: string): string {
+  switch (reason) {
+    case "taken": return `"${name}" is already owned.`;
+    case "reserved": return `"${name}" has a pending claim right now — it frees up within a few minutes if that claim isn't completed. Try again shortly.`;
+    case "auction_pending": return `"${name}" is being auctioned.`;
+    default: return `"${name}" is unavailable${reason ? ` (${reason})` : ""}.`;
+  }
+}
+
 async function fetchVerifiedQuote(name: string, ownerPubkey: string): Promise<ClaimQuote> {
   const normalized = normalizeName(name);
   const quote = await requestJson<ClaimQuote>(`/api/claim/quote`, {
@@ -143,8 +152,8 @@ async function fetchVerifiedQuote(name: string, ownerPubkey: string): Promise<Cl
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ name: normalized, ownerPubkey, paymentRail: "lightning" })
   });
+  if (!quote.available) throw new Error(unavailableMessage(normalized, quote.reason));
   const problems: string[] = [];
-  if (!quote.available) problems.push(`publisher reports "${normalized}" unavailable (${quote.reason ?? "no reason"})`);
   if ((quote.leaf ?? "").toLowerCase() !== accumulatorKeyForName(normalized)) problems.push("quote leaf does not match H(name)");
   if ((quote.ownerCommitment ?? "").toLowerCase() !== ownerPubkey.toLowerCase()) problems.push("quote does not commit this owner key");
   if (problems.length > 0) throw new Error(problems.join("; "));
