@@ -52,12 +52,12 @@ export function renderClaimPage(networkLabel: string, clientBundlePath: string):
   <div id="status" class="status"></div>
 
   <section id="key-section" hidden>
-    <p class="warn">Save your private key. It alone controls the name forever — no one can recover it for you.</p>
-    <div>your private key — the only thing to save<span id="owner-privkey" class="key"></span></div>
-    <button id="download-key" class="secondary" type="button">Download key file</button>
-    <label class="check"><input id="backup-confirm" type="checkbox" /> I have saved my private key somewhere safe.</label>
+    <p class="warn">Save your 12-word recovery phrase. It alone controls the name forever — no one can recover it for you.</p>
+    <div>your 12-word recovery phrase — the only thing to save<span id="mnemonic" class="key"></span></div>
+    <button id="download-key" class="secondary" type="button">Download backup</button>
+    <label class="check"><input id="backup-confirm" type="checkbox" /> I have saved my recovery phrase somewhere safe.</label>
     <button id="claim-btn" type="button" disabled>Claim it</button>
-    <p class="muted">Public owner ID (derived from your key, safe to share — no need to save it): <span id="owner-pubkey" class="key"></span></p>
+    <p class="muted">Public owner ID (derived from your phrase, safe to share — no need to save it): <span id="owner-pubkey" class="key"></span></p>
   </section>
 
   <section id="result-section" hidden>

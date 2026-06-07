@@ -1,13 +1,10 @@
-// Bare-claim browser client — self-contained, @noble-only.
+// Bare-claim browser client.
 //
-// This is the entire trust-sensitive surface of the claim site, deliberately in
-// one small auditable file: it generates the owner key locally, verifies the
-// publisher's inclusion proof against its own anchored root, and never trusts
-// anything the publisher returns. A faithful port of apps/web's browser-claim +
-// browser-accumulator + browser-key-tools (kept self-contained so esbuild bundles
-// it with no local .ts resolution and so the app can be hosted/audited alone).
-import { schnorr, secp256k1 } from "@noble/curves/secp256k1.js";
+// The trust-sensitive surface, kept small and auditable: it derives the owner key
+// locally from a 12-word phrase (see ./keys.ts), verifies the publisher's inclusion
+// proof against its own anchored root, and trusts nothing the publisher returns.
 import { sha256 } from "@noble/hashes/sha2.js";
+import { deriveOwnerKey, generateMnemonic12, type OwnerKey } from "./keys.js";
 
 // ---------- bytes / hex ----------
 function bytesToHex(bytes: Uint8Array): string {
@@ -88,13 +85,6 @@ function verifyAccumulatorProof(rootHex: string, proof: AccumulatorProof): boole
     digest = keyBit(key, parentLevel) === 0 ? hashInternal(digest, sibling) : hashInternal(sibling, digest);
   }
   return bytesToHex(digest) === rootHex.toLowerCase();
-}
-
-// ---------- owner key ----------
-interface OwnerKey { readonly ownerPubkey: string; readonly privateKeyHex: string; }
-function generateOwnerKey(): OwnerKey {
-  const privateKey = secp256k1.utils.randomSecretKey();
-  return { ownerPubkey: bytesToHex(schnorr.getPublicKey(privateKey)), privateKeyHex: bytesToHex(privateKey) };
 }
 
 // ---------- claim API (trust nothing the publisher returns) ----------
@@ -214,29 +204,31 @@ function esc(value: string): string {
   return value.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c] ?? c));
 }
 
+let currentMnemonic: string | null = null;
 let currentKey: OwnerKey | null = null;
 let currentName = "";
 
-function showKeyBackup(name: string, key: OwnerKey): void {
+function showKeyBackup(name: string, mnemonic: string, key: OwnerKey): void {
+  currentMnemonic = mnemonic;
   currentKey = key;
   currentName = name;
   el<HTMLElement>("key-section").hidden = false;
+  el<HTMLElement>("mnemonic").textContent = mnemonic;
   el<HTMLElement>("owner-pubkey").textContent = key.ownerPubkey;
-  el<HTMLElement>("owner-privkey").textContent = key.privateKeyHex;
   (el<HTMLInputElement>("backup-confirm")).checked = false;
   (el<HTMLButtonElement>("claim-btn")).disabled = true;
 }
 
 function downloadKey(): void {
-  if (!currentKey) return;
+  if (!currentMnemonic || !currentKey) return;
   const blob = new Blob(
-    [`ONT owner key for "${currentName}"\n\nowner pubkey: ${currentKey.ownerPubkey}\nPRIVATE KEY (keep secret, controls the name forever):\n${currentKey.privateKeyHex}\n`],
+    [`ONT recovery phrase for "${currentName}"\n\n12-word recovery phrase (keep secret — it controls the name forever):\n${currentMnemonic}\n\npublic owner ID (safe to share): ${currentKey.ownerPubkey}\n`],
     { type: "text/plain" }
   );
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `ont-key-${currentName}.txt`;
+  a.download = `ont-recovery-${currentName}.txt`;
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -251,13 +243,14 @@ async function onCheck(event: Event): Promise<void> {
     return;
   }
   const name = normalizeName(raw);
-  setStatus("info", `Generating your owner key and checking <strong>${esc(name)}</strong>…`);
-  const key = generateOwnerKey();
+  setStatus("info", `Generating your recovery phrase and checking <strong>${esc(name)}</strong>…`);
+  const mnemonic = generateMnemonic12();
+  const key = deriveOwnerKey(mnemonic, 0);
   try {
     const quote = await fetchVerifiedQuote(name, key.ownerPubkey);
-    showKeyBackup(name, key);
+    showKeyBackup(name, mnemonic, key);
     const cost = quote.totalBaseSats ? `₿${quote.totalBaseSats}` : "the ₿1,000 gate + a small publisher fee";
-    setStatus("ok", `<strong>${esc(name)}</strong> is available — about ${esc(cost)}. Save your key below, then claim it.`);
+    setStatus("ok", `<strong>${esc(name)}</strong> is available — about ${esc(cost)}. Save your phrase below, then claim it.`);
   } catch (error) {
     setStatus("error", esc(error instanceof Error ? error.message : "Could not check that name."));
   }
@@ -275,7 +268,7 @@ async function onClaim(): Promise<void> {
         `<strong>${esc(currentName)} is yours.</strong> Anchored in <code>${esc(result.anchorTxid ?? "")}</code>. ` +
         `A public notice window runs until block ${result.noticeWindowCloseHeight}; if no one contests it with a bond, it finalizes. ` +
         `Inclusion proof verified locally: ${result.proofVerified ? "yes" : "no"}.`;
-      setStatus("ok", "Claimed. Keep your key safe — it is the only thing that controls this name.");
+      setStatus("ok", "Claimed. Keep your recovery phrase safe — it is the only thing that controls this name.");
     } else {
       el<HTMLElement>("result").innerHTML =
         `Status: <code>${esc(result.status)}</code>.` +
