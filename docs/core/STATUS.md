@@ -16,7 +16,7 @@ Last updated: 2026-06-06.
 | Component | Status | Notes |
 | --- | --- | --- |
 | Owner-key model (transfer / value record / recovery) | **Live (signet)** | Enforced at replay; byte-identical across the engine + mobile crypto. |
-| Contested-auction bonded bid | **Live (signet)** | Bid → resolver-accepted on signet. Proof bundle now enforces **highest-bid-wins** (was a gap). |
+| Contested-auction bonded bid | **Live (signet)** | Bid → resolver-accepted on signet. Proof bundle now enforces **highest-bid-wins** + **distinct-bid** well-formedness (was a gap). Set-*completeness* vs L1 still needs the light-client path — see Known-incomplete. |
 | Bitcoin-inclusion verifier (Merkle + PoW) | **Prototype** | The verifier exists and is tested vs a real mainnet block, but **producers don't emit the `bitcoinInclusion` section**, so the light-client path is **not closed end-to-end**. |
 | Accumulator cheap-rail (batch claims + fail-closed DA) | **Prototype** | Built + tested (incl. convergence vs a withholding adversary); **not wired into the live indexer/resolver** — so the one-path cheap claim is not yet the canonical path. |
 | Publisher (cheap-rail batch anchor) | **Prototype** | Single-writer; pay-first; Lightning stubbed on signet (Lexe is mainnet-only). |
@@ -52,5 +52,11 @@ determine **owner-key authority and replay validation** (transfers, value record
 - Cheap-rail not wired into the live indexer → the one-path claim is architecture, not yet canonical.
 - Light-client inclusion proofs not emitted end-to-end → "verify against Bitcoin" is the verifier's
   capability, not yet the live app/resolver path.
+- **Auction-transcript completeness is not self-certified by the proof bundle.** The bundle now
+  enforces that the winner is the highest *listed* accepted bid and that the bid set is well-formed
+  (distinct txids, no duplicate-stuffing). It does **not** prove the listed set is the *complete* set of
+  L1 bids — a producer that omits a genuinely higher bid still passes structural verification.
+  Set-completeness vs. Bitcoin can only be closed by independently enumerating the auction's L1 bid
+  transactions, which is the same `bitcoinInclusion` light-client work above.
 - Launch parameters above are **placeholders** and must be frozen before launch — until then,
   user-facing copy should not call the rules "frozen."

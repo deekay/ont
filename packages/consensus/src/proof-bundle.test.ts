@@ -85,6 +85,28 @@ describe("proof bundle structural verifier", () => {
     });
   });
 
+  it("rejects a direct L1 bundle that lists the same bid txid twice", async () => {
+    const bundle = await loadProofBundleFixture("direct-l1-auction-proof.json");
+    const auctionTranscript = bundle.auctionTranscript as Record<string, unknown>;
+    const bids = auctionTranscript.acceptedBids as Record<string, unknown>[];
+    const first = bids[0];
+    if (first === undefined) {
+      throw new Error("fixture expected to contain at least one accepted bid");
+    }
+    // Duplicate-stuff the transcript: re-list an existing bid under its own txid.
+    // The set is no longer well-formed — distinct txids must equal listed bids.
+    bids.push({ ...first });
+
+    const report = verifyProofBundleStructure(bundle);
+
+    expect(report.valid).toBe(false);
+    expect(report.checks).toContainEqual({
+      id: "direct.bids.unique",
+      status: "failed",
+      message: "every accepted bid is a distinct L1 transaction (no duplicate txids)"
+    });
+  });
+
   it("rejects value records that do not belong to the current owner key", async () => {
     const bundle = await loadProofBundleFixture("direct-l1-auction-proof.json");
     const valueRecordChain = bundle.valueRecordChain as Record<string, unknown>;

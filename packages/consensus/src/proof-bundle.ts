@@ -474,6 +474,30 @@ function validateDirectL1AuctionBundle(input: {
     winningAmount !== null && highestAcceptedBid !== null && winningAmount === highestAcceptedBid,
     "winner is the highest accepted bid (no accepted bid exceeds it)"
   );
+
+  // Set well-formedness: each accepted bid must be a distinct L1 transaction.
+  // Without this, a producer could list the same txid twice (or pad the set with
+  // duplicates) — inflating the apparent bid count or smuggling a second "winner"
+  // row. We dedupe on txid and require the listed count to match the distinct
+  // count. (We only count syntactically valid 32-byte txids so a malformed txid
+  // can't masquerade as "unique".)
+  const bidTxids = bids
+    .map((bid) => getString(bid, "txid"))
+    .filter((txid): txid is string => isHexOfLength(txid, 32));
+  const distinctBidTxids = new Set(bidTxids);
+  addCheck(
+    "direct.bids.unique",
+    bidTxids.length === bids.length && distinctBidTxids.size === bids.length,
+    "every accepted bid is a distinct L1 transaction (no duplicate txids)"
+  );
+
+  // HONEST RESIDUAL TRUST (not self-certified here): these checks prove the winner
+  // is the highest among the *listed* accepted bids and that the list is internally
+  // well-formed — but NOT that the list is the COMPLETE set of L1 bids for this
+  // auction. A producer that omits a genuinely higher bid still passes the bundle.
+  // Set-completeness vs. Bitcoin can only be established by independently
+  // enumerating the auction's L1 bid transactions (the light-client closure,
+  // tracked as the open "bitcoinInclusion" work). Documented in docs/core/STATUS.md.
 }
 
 function validateAccumulatorBatchClaimBundle(input: {
