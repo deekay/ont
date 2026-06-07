@@ -458,6 +458,22 @@ function validateDirectL1AuctionBundle(input: {
     currentBondValue !== null && requiredBondSats !== null && currentBondValue >= requiredBondSats,
     "current bond value satisfies the required bond amount"
   );
+
+  // Soundness: the declared winner must be the highest accepted bid. Without this,
+  // a bundle can certify a lower bid as winner (internally consistent) while a
+  // higher accepted bid sits in the same transcript — the verifier would accept a
+  // loser as the owner. "Highest accepted bid wins" is replayed here from the
+  // transcript the bundle itself commits to.
+  const highestAcceptedBid = bids.reduce<bigint | null>((max, bid) => {
+    const amount = parseNonNegativeBigInt(getField(bid, "amountSats"));
+    if (amount === null) return max;
+    return max === null || amount > max ? amount : max;
+  }, null);
+  addCheck(
+    "direct.winner.isHighestBid",
+    winningAmount !== null && highestAcceptedBid !== null && winningAmount === highestAcceptedBid,
+    "winner is the highest accepted bid (no accepted bid exceeds it)"
+  );
 }
 
 function validateAccumulatorBatchClaimBundle(input: {

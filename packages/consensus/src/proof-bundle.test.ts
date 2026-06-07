@@ -64,6 +64,27 @@ describe("proof bundle structural verifier", () => {
     });
   });
 
+  it("rejects a direct L1 bundle that declares a non-highest bid the winner", async () => {
+    const bundle = await loadProofBundleFixture("direct-l1-auction-proof.json");
+    const auctionTranscript = bundle.auctionTranscript as Record<string, unknown>;
+    const bids = auctionTranscript.acceptedBids as Record<string, unknown>[];
+    const winner = auctionTranscript.winner as Record<string, unknown>;
+    // Inject a strictly-higher accepted bid. The declared winner is no longer the
+    // highest accepted bid, so the bundle must be rejected — even though every
+    // internal-consistency check (owner/amount/bond) still passes.
+    const higher = (BigInt(winner.winningAmountSats as string) + 50_000n).toString();
+    bids.push({ txid: "aa".repeat(32), ownerPubkey: "bb".repeat(32), amountSats: higher });
+
+    const report = verifyProofBundleStructure(bundle);
+
+    expect(report.valid).toBe(false);
+    expect(report.checks).toContainEqual({
+      id: "direct.winner.isHighestBid",
+      status: "failed",
+      message: "winner is the highest accepted bid (no accepted bid exceeds it)"
+    });
+  });
+
   it("rejects value records that do not belong to the current owner key", async () => {
     const bundle = await loadProofBundleFixture("direct-l1-auction-proof.json");
     const valueRecordChain = bundle.valueRecordChain as Record<string, unknown>;
