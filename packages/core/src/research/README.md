@@ -7,11 +7,9 @@ can ignore this entire directory (see [`ONT_SOVEREIGNTY_MAP.md`](../../../../doc
 
 | Module | What it proves |
 | --- | --- |
-| `accumulator.ts` | Sparse-Merkle name accumulator + serialized proofs; measures proof size (~log₂ N) |
 | `delta-merge-sim.ts` | Leaderless per-block delta-merge: disjoint insertions commute, conflicts by commit priority (R2) |
 | `da-convergence-sim.ts` | The data-availability agreement rule: naive rule forks, proposed Bitcoin-timed rule converges (R1) |
 | `recovery-sim.ts` | Recovery state machine: thief-can't-steal, owner-recovers, prior-owner-can't-recover-sold-name |
-| `root-anchor.ts` | Anchored root chain: OP_RETURN codec, stale-transition rejection, anchor vByte measurement |
 | `batch-rail.ts` | The production long-tail rail (DA-filtered deltas → real accumulator → anchored roots). Uncontested-only: contested names **escalate to the L1 bonded auction**, they are not resolved on the accumulator |
 | `sponsored-flat-issuance-sim.ts` | Numerical issuance/credit model |
 
@@ -19,3 +17,9 @@ These would become (or inform) the **long-tail accumulator rail** — an *additi
 auditable* layer that must never weaken the sovereignty of names on the frozen consensus core.
 They are deliberately kept out of that core. See `feedback-freeze-minimal-auditable-core` and
 [`ONT_SIGNET_PROTOTYPE_SCOPE.md`](../../../../docs/design/ONT_SIGNET_PROTOTYPE_SCOPE.md).
+
+**Graduated to production (no longer here):** `accumulator.ts` and `root-anchor.ts` moved up to
+`packages/core/src/` once the live indexer began observing the anchored root chain. They are the
+cheap rail's Bitcoin-anchored data layer — still *not* the frozen consensus core (a lying indexer is
+caught by verifying against Bitcoin), but no longer pure simulation. The `batch-rail` simulation
+imports them from `../`.

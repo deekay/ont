@@ -24,13 +24,19 @@ export * from "./experimental-auction.js";
 // is caught by verifying against Bitcoin, not obeyed.
 export * from "./indexer.js";
 
+// --- Cheap-rail core (graduated from research/, now wired into the indexer) ---
+// The accumulator and its anchored root chain are no longer pure simulation: the
+// live indexer observes the root chain (see indexer.ts). They produce/verify the
+// cheap rail's Bitcoin-anchored state. Still NOT the frozen consensus core — a
+// lying indexer is caught by verifying against Bitcoin, not obeyed.
+export * from "./accumulator.js";
+export * from "./root-anchor.js";
+
 // --- Research / simulations (NOT consensus) ---
 // Property prototypes and numerical models. None of these can take or change a name;
 // they exist to validate scaling-design claims. See src/research/README.md.
-export * from "./research/accumulator.js";
 export * from "./research/delta-merge-sim.js";
 export * from "./research/da-convergence-sim.js";
 export * from "./research/recovery-sim.js";
-export * from "./research/root-anchor.js";
 export * from "./research/batch-rail.js";
 export * from "./research/sponsored-flat-issuance-sim.js";

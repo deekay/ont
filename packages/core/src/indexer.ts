@@ -34,6 +34,7 @@ import {
   type SerializedExperimentalLaunchAuctionState
 } from "./experimental-auction.js";
 import { createDefaultLaunchAuctionPolicy, type LaunchAuctionPolicy } from "./auction-policy.js";
+import { RootChain } from "./root-anchor.js";
 
 export interface IndexerStats {
   readonly currentHeight: number | null;
@@ -59,6 +60,25 @@ export interface ExperimentalAuctionBidPayloadSnapshot {
   readonly unlockBlock: number;
 }
 
+/**
+ * One root anchor observed on-chain, recorded as the indexer walks blocks. The
+ * `status` reflects whether the anchored `prevRoot -> newRoot` transition extended
+ * the confirmed accumulator chain (`applied`) or was rejected (e.g. built on a
+ * stale tip). This is the indexer-side observation log for the cheap rail; the
+ * confirmed tip is the head of the applied chain. Phase 1 records the chain — it
+ * does not yet merge accumulator-claimed names into name state.
+ */
+export interface RootAnchorObservation {
+  readonly txid: string;
+  readonly txIndex: number;
+  readonly blockHeight: number;
+  readonly prevRoot: string;
+  readonly newRoot: string;
+  readonly batchSize: number;
+  readonly status: "applied" | "rejected";
+  readonly reason: string;
+}
+
 export interface InMemoryOntIndexerPersistedState {
   readonly launchHeight: number;
   readonly currentHeight: number | null;
@@ -67,6 +87,7 @@ export interface InMemoryOntIndexerPersistedState {
   readonly names: readonly NameRecordSnapshot[];
   readonly spentOutpoints?: readonly ExperimentalSpentOutpointObservation[];
   readonly transactionProvenance: readonly TransactionProvenanceSnapshot[];
+  readonly rootAnchorObservations?: readonly RootAnchorObservation[];
 }
 
 export interface NameRecordSnapshot extends Omit<NameRecord, "requiredBondSats" | "currentBondValueSats" | "lastStateHeight"> {
@@ -124,6 +145,8 @@ export class InMemoryOntIndexer {
   private currentHeight: number | null;
   private currentBlockHash: string | null;
   private processedBlocks: number;
+  private rootChain: RootChain;
+  private rootAnchorObservations: RootAnchorObservation[];
 
   public constructor(input: {
     launchHeight: number;
@@ -145,6 +168,8 @@ export class InMemoryOntIndexer {
     this.currentHeight = null;
     this.currentBlockHash = null;
     this.processedBlocks = 0;
+    this.rootChain = new RootChain();
+    this.rootAnchorObservations = [];
   }
 
   public static fromSnapshot(
@@ -193,6 +218,7 @@ export class InMemoryOntIndexer {
     );
     refreshDerivedState(this.state, block.height);
     this.recordSpentOutpoints(block);
+    this.applyRootAnchors(block);
 
     for (const transaction of provenance) {
       this.transactionProvenance.set(transaction.txid, serializeTransactionProvenanceRecord(transaction));
@@ -335,6 +361,25 @@ export class InMemoryOntIndexer {
     return true;
   }
 
+  /**
+   * The current confirmed accumulator root — the head of the anchored root chain
+   * after applying every observed root anchor in Bitcoin order. Starts at the
+   * empty-accumulator genesis root until the first valid anchor lands.
+   */
+  public getConfirmedAccumulatorRoot(): string {
+    return this.rootChain.currentTip();
+  }
+
+  /** Count of root anchors that successfully extended the confirmed chain. */
+  public getAppliedRootAnchorCount(): number {
+    return this.rootChain.anchorCount();
+  }
+
+  /** The full observation log of root anchors seen on-chain (applied and rejected). */
+  public listRootAnchorObservations(): readonly RootAnchorObservation[] {
+    return this.rootAnchorObservations.map((observation) => ({ ...observation }));
+  }
+
   public getStats(): IndexerStats {
     return {
       currentHeight: this.currentHeight,
@@ -385,6 +430,20 @@ export class InMemoryOntIndexer {
         `${spentOutpoint.outpointTxid}:${spentOutpoint.outpointVout}`,
         structuredClone(spentOutpoint)
       );
+    }
+
+    // Rebuild the root chain by replaying observed anchors in order. apply() is
+    // deterministic, so the reconstructed tip/height match the original exactly
+    // (rejected anchors re-reject and leave the tip unchanged).
+    this.rootChain = new RootChain();
+    this.rootAnchorObservations = [];
+    for (const observation of snapshot.rootAnchorObservations ?? []) {
+      this.rootAnchorObservations.push({ ...observation });
+      this.rootChain.apply({
+        prevRoot: observation.prevRoot,
+        newRoot: observation.newRoot,
+        batchSize: observation.batchSize
+      });
     }
 
     this.currentHeight = snapshot.currentHeight;
@@ -440,7 +499,9 @@ export class InMemoryOntIndexer {
         }
 
         return left.txid.localeCompare(right.txid);
-      })
+      }),
+      // Already in Bitcoin order (appended as blocks/txs are walked).
+      rootAnchorObservations: this.rootAnchorObservations.map((observation) => ({ ...observation }))
     };
   }
 
@@ -457,6 +518,27 @@ export class InMemoryOntIndexer {
           checkpoint.currentHeight !== snapshot.currentHeight || checkpoint.currentBlockHash !== snapshot.currentBlockHash
       )
     ].slice(0, this.recentCheckpointLimit);
+  }
+
+  /**
+   * Walk the block's root anchors in transaction order, extend the confirmed root
+   * chain where each anchor's `prevRoot` matches the current tip, and append every
+   * anchor (applied or rejected) to the observation log. A stale or forged parent
+   * link leaves the tip unchanged — the R2 stale-root-chaining hazard.
+   */
+  private applyRootAnchors(block: BitcoinBlock): void {
+    for (const entry of this.rootChain.applyBlock(block)) {
+      this.rootAnchorObservations.push({
+        txid: entry.txid,
+        txIndex: entry.txIndex,
+        blockHeight: block.height,
+        prevRoot: entry.anchor.prevRoot,
+        newRoot: entry.anchor.newRoot,
+        batchSize: entry.anchor.batchSize,
+        status: entry.result.status,
+        reason: entry.result.reason
+      });
+    }
   }
 
   private recordSpentOutpoints(block: BitcoinBlock): void {
