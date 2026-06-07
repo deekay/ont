@@ -640,7 +640,7 @@ function renderHomeAppSection(configuredBasePath: string): string {
     <div class="guide-grid guide-grid-balanced">
       <article class="guide-card">
         <h3>Self-custodial by default</h3>
-        <p>Owner + funding keys are generated and stored on-device (iOS Keychain), revealed only for your own backup. Every record is BIP340-signed locally; the app verifies inclusion proofs against Bitcoin before it trusts anything a server says.</p>
+        <p>Owner + funding keys are generated and stored on-device (iOS Keychain), revealed only for your own backup. Every record is BIP340-signed and checked locally, and the app re-derives state from the data instead of trusting a server's word. (Full light-client inclusion-proof checking against Bitcoin's headers is being wired up — producers don't emit those proofs yet.)</p>
       </article>
       <article class="guide-card">
         <h3>On signet for testing</h3>

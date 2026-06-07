@@ -71,7 +71,7 @@ Billions of names can't each be a Bitcoin transaction, so **publishers** batch m
 Merkle commitment and anchor only its root — a ~150-byte root that commits to the whole batch *whatever
 its size*, so the more you batch the lower the per-name cost (~**0.015 vB/name** at ten thousand per
 batch, less as batches grow). A batch counts only if its miner fee covers the claims inside it, so each
-name still buys the blockspace it uses. ONT's on-chain events fit in a ≤135-byte `OP_RETURN`.
+name still buys the blockspace it uses. ONT's on-chain events are single `OP_RETURN` payloads up to ~171 bytes (the recover-owner event; most are smaller).
 
 You pay a publisher off-chain over Lightning; it bundles many claims and pays the single aggregate miner
 fee. **Your cost is the ₿1,000 gate (sunk, to miners) plus a thin publisher service fee** — the
@@ -128,6 +128,8 @@ swept cheaply before other bidders show up.
 
 ## Status — honest (maturity, not direction)
 
+*Canonical status + numbers: [`core/STATUS.md`](./core/STATUS.md) — the source of truth if anything here drifts.*
+
 **Live on a Bitcoin test network (signet), end-to-end:** claim, owner-key transfer, owner-signed
 records, recovery, and a bonded auction bid the resolver accepts — with the consensus code and
 signatures cross-checked byte-for-byte against a second independent implementation. **Prototype /
@@ -148,7 +150,7 @@ emit the proofs a phone/browser would check. Not mainnet-ready.
 3. **Discovery & censorship-resistance** — config-seeded today; is a registry-free, on-chain
    service-announcement scan the right trustless discovery primitive, with Bitcoin + verification as
    the only trust root?
-4. **On-chain footprint** — are the ≤135-byte `OP_RETURN` events acceptable on mainnet, or is a
+4. **On-chain footprint** — are the ~171-byte `OP_RETURN` events acceptable on mainnet, or is a
    script/covenant carrier worth a soft-fork dependency?
 5. **Light-client verification** — a launch blocker, or fine post-launch?
 6. **Auction form** — open ascending vs. sealed second-price, given MEV and relay-bid timing?
