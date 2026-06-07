@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { Publisher, PublisherError } from "./publisher.js";
 
 const OWNER = "ab".repeat(32);
+const OTHER = "cd".repeat(32);
 
 function fresh(): Publisher {
   return new Publisher({ network: "regtest" });
@@ -27,12 +28,20 @@ describe("Publisher quote → submit → confirmed flow", () => {
       .rejects.toThrow(PublisherError);
   });
 
-  it("returns unavailable for a name reserved by a live quote", async () => {
+  it("returns unavailable for a name reserved by a DIFFERENT owner's live quote", async () => {
     const publisher = fresh();
     await publisher.quote({ name: "alice", ownerPubkey: OWNER, paymentRail: "lightning" });
-    const second = await publisher.quote({ name: "alice", ownerPubkey: OWNER, paymentRail: "lightning" });
+    const second = await publisher.quote({ name: "alice", ownerPubkey: OTHER, paymentRail: "lightning" });
     expect(second.available).toBe(false);
     expect(second.reason).toBe("reserved");
+  });
+
+  it("re-quoting your own pending name is idempotent (same quote, still available)", async () => {
+    const publisher = fresh();
+    const first = await publisher.quote({ name: "alice", ownerPubkey: OWNER, paymentRail: "lightning" });
+    const second = await publisher.quote({ name: "alice", ownerPubkey: OWNER, paymentRail: "lightning" });
+    expect(second.available).toBe(true);
+    expect(second.quoteId).toBe(first.quoteId);
   });
 
   it("walks quoted → confirmed on submit, producing a verifying inclusion proof", async () => {
@@ -228,7 +237,7 @@ describe("Publisher snapshot + restore", () => {
     const restored = fresh();
     restored.restore(original.snapshot());
 
-    const second = await restored.quote({ name: "bob", ownerPubkey: OWNER, paymentRail: "lightning" });
+    const second = await restored.quote({ name: "bob", ownerPubkey: OTHER, paymentRail: "lightning" });
     expect(second.available).toBe(false);
     expect(second.reason).toBe("reserved");
     expect(restored.status(quote.quoteId).status).toBe("quoted");

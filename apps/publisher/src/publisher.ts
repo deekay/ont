@@ -204,8 +204,31 @@ export class Publisher {
     this.expireStaleQuotes();
 
     const taken = this.accumulator.has(leaf);
-    const reserved = this.leafToQuote.has(leaf);
-    if (taken || reserved) {
+    const existingQuoteId = this.leafToQuote.get(leaf);
+    const existing = existingQuoteId !== undefined ? this.quotes.get(existingQuoteId) : undefined;
+
+    // Idempotent re-quote: the SAME owner re-quoting their own pending name gets
+    // their existing quote back (available), not "reserved". Without this, a client
+    // that re-checks a name — or re-quotes at submit time — blocks itself, which
+    // makes every name the user touches look reserved.
+    if (!taken && existing !== undefined && existing.status === "quoted" && existing.ownerPubkey === value) {
+      return {
+        kind: "ont-publisher-quote",
+        quoteId: existing.quoteId,
+        name,
+        available: true,
+        gateBaseSats: existing.gateBaseSats.toString(),
+        serviceBaseSats: existing.serviceBaseSats.toString(),
+        totalBaseSats: (existing.gateBaseSats + existing.serviceBaseSats).toString(),
+        expiresAt: existing.expiresAt.toISOString(),
+        paymentRail: existing.paymentRail,
+        lightningInvoice: existing.paymentReference,
+        ownerCommitment: existing.value,
+        leaf
+      };
+    }
+
+    if (taken || existing !== undefined) {
       return {
         kind: "ont-publisher-quote",
         quoteId: "",

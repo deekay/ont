@@ -186,16 +186,13 @@ function evaluateReceipt(name: string, ownerPubkey: string, receipt: ClaimReceip
   };
 }
 
-async function claimAvailableName(name: string, ownerPubkey: string): Promise<ClaimResult> {
-  const normalized = normalizeName(name);
-  const owner = ownerPubkey.toLowerCase();
-  const quote = await fetchVerifiedQuote(normalized, owner);
+async function submitClaim(quoteId: string, name: string, ownerPubkey: string): Promise<ClaimResult> {
   const receipt = await requestJson<ClaimReceipt>(`/api/claim/submit`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ quoteId: quote.quoteId, paymentProof: { rail: "lightning" } })
+    body: JSON.stringify({ quoteId, paymentProof: { rail: "lightning" } })
   });
-  return evaluateReceipt(normalized, owner, receipt);
+  return evaluateReceipt(normalizeName(name), ownerPubkey.toLowerCase(), receipt);
 }
 
 // ---------- UI ----------
@@ -215,6 +212,7 @@ function esc(value: string): string {
 
 let currentMnemonic: string | null = null;
 let currentKey: OwnerKey | null = null;
+let currentQuote: ClaimQuote | null = null;
 let currentName = "";
 
 function showKeyBackup(name: string, mnemonic: string, key: OwnerKey): void {
@@ -257,11 +255,21 @@ async function onCheck(event: Event): Promise<void> {
     return;
   }
   const name = normalizeName(raw);
-  setStatus("info", `Generating your recovery phrase and checking <strong>${esc(name)}</strong>…`);
-  const mnemonic = generateMnemonic12();
-  const key = deriveOwnerKey(mnemonic, 0);
+  // Reuse the same key when re-checking the same name, so a re-check is the same
+  // owner — the publisher then returns your existing quote instead of "reserved".
+  let mnemonic: string;
+  let key: OwnerKey;
+  if (currentMnemonic !== null && currentKey !== null && name === currentName) {
+    mnemonic = currentMnemonic;
+    key = currentKey;
+  } else {
+    mnemonic = generateMnemonic12();
+    key = deriveOwnerKey(mnemonic, 0);
+  }
+  setStatus("info", `Checking <strong>${esc(name)}</strong>…`);
   try {
     const quote = await fetchVerifiedQuote(name, key.ownerPubkey);
+    currentQuote = quote;
     showKeyBackup(name, mnemonic, key);
     const cost = quote.totalBaseSats ? `₿${quote.totalBaseSats}` : "the ₿1,000 gate + a small publisher fee";
     setStatus("ok", `<strong>${esc(name)}</strong> is available — about ${esc(cost)}. Save your phrase below, then claim it.`);
@@ -271,11 +279,11 @@ async function onCheck(event: Event): Promise<void> {
 }
 
 async function onClaim(): Promise<void> {
-  if (!currentKey) return;
+  if (!currentKey || !currentQuote) return;
   (el<HTMLButtonElement>("claim-btn")).disabled = true;
   setStatus("info", `Claiming <strong>${esc(currentName)}</strong>…`);
   try {
-    const result = await claimAvailableName(currentName, currentKey.ownerPubkey);
+    const result = await submitClaim(currentQuote.quoteId, currentName, currentKey.ownerPubkey);
     el<HTMLElement>("result-section").hidden = false;
     if (result.ok) {
       el<HTMLElement>("result").innerHTML =
