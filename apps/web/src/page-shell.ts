@@ -234,9 +234,10 @@ function renderHeroSection(
       <h1 id="homeHeroTitle">Own your name like you own your bitcoin.</h1>
       <p class="hero-home-lede">
         Open Name Tags is a neutral naming protocol anchored to Bitcoin. No registrar, no token, no
-        rent, no gatekeeper &mdash; you hold the keys, and Bitcoin settles who owns what. The rules are
-        frozen and auditable, and anyone can run the infrastructure. You use it from the app; this site
-        just explains it and lets you verify it yourself.
+        rent, no gatekeeper &mdash; you hold the keys, and Bitcoin settles who owns what. The consensus
+        core is small and auditable (launch parameters are still being finalized), and anyone can run
+        the infrastructure. You use it from the app; this site just explains it and lets you verify it
+        yourself.
       </p>
       <div class="hero-home-proof-row" aria-label="What makes it sovereign">
         <span>You hold the keys</span>
