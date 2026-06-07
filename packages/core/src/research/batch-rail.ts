@@ -1,6 +1,6 @@
 import { normalizeName } from "@ont/protocol";
 
-import { Accumulator, accumulatorKeyForName } from "./accumulator.js";
+import { Accumulator, accumulatorKeyForName } from "../accumulator.js";
 import {
   type AnchoredDelta,
   type DaWindows,
@@ -9,7 +9,7 @@ import {
   isCanonical,
   isLocallyIncluded
 } from "./da-convergence-sim.js";
-import { RootChain } from "./root-anchor.js";
+import { RootChain } from "../root-anchor.js";
 
 /**
  * Production long-tail batch rail (signet-prototype Phase 2, C3 + C4).

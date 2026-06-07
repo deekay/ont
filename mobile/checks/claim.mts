@@ -2,7 +2,7 @@
 import {
   Accumulator,
   accumulatorKeyForName as engineKey,
-} from "../../packages/core/src/research/accumulator.ts";
+} from "../../packages/core/src/accumulator.ts";
 
 const claimMod = await import("../../mobile/src/wallet/claim.ts");
 const claim = (claimMod as any).default ?? claimMod;

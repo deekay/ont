@@ -34,6 +34,8 @@ import {
   type SerializedExperimentalLaunchAuctionState
 } from "./experimental-auction.js";
 import { createDefaultLaunchAuctionPolicy, type LaunchAuctionPolicy } from "./auction-policy.js";
+import { RootChain } from "./root-anchor.js";
+import { type AccumulatorProof, accumulatorKeyForName, verifyAccumulatorProof } from "./accumulator.js";
 
 export interface IndexerStats {
   readonly currentHeight: number | null;
@@ -59,6 +61,73 @@ export interface ExperimentalAuctionBidPayloadSnapshot {
   readonly unlockBlock: number;
 }
 
+/**
+ * One root anchor observed on-chain, recorded as the indexer walks blocks. The
+ * `status` reflects whether the anchored `prevRoot -> newRoot` transition extended
+ * the confirmed accumulator chain (`applied`) or was rejected (e.g. built on a
+ * stale tip). This is the indexer-side observation log for the cheap rail; the
+ * confirmed tip is the head of the applied chain. Phase 1 records the chain — it
+ * does not yet merge accumulator-claimed names into name state.
+ */
+export interface RootAnchorObservation {
+  readonly txid: string;
+  readonly txIndex: number;
+  readonly blockHeight: number;
+  readonly prevRoot: string;
+  readonly newRoot: string;
+  readonly batchSize: number;
+  readonly status: "applied" | "rejected";
+  readonly reason: string;
+}
+
+/**
+ * One finalized leaf in an accumulator batch: a `name -> ownerPubkey` binding plus
+ * the membership proof that binds it to the batch's accumulator root. The indexer
+ * VERIFIES this proof against the Bitcoin-anchored `newRoot` — the provider is never
+ * trusted, so a lying batch-data source cannot mint ownership.
+ */
+export interface AccumulatorBatchLeaf {
+  readonly name: string;
+  readonly ownerPubkey: string;
+  readonly proof: AccumulatorProof;
+}
+
+/**
+ * Pluggable data-availability seam for the cheap rail. Given a confirmed anchor's
+ * `newRoot`, returns the batch's finalized leaves (or null if the batch data is not
+ * available to this node). In tests this is an in-memory map; in production it is
+ * backed by the availability-marker data store / publisher archive. The transport
+ * is swappable precisely because the indexer re-verifies every leaf against the root.
+ */
+export interface AccumulatorBatchDataProvider {
+  leavesForRoot(newRoot: string): readonly AccumulatorBatchLeaf[] | null;
+}
+
+/**
+ * A name owned via the cheap (accumulator) rail. Deliberately NOT a {@link NameRecord}:
+ * an accumulator name has no L1 bond / commit-reveal, so it carries only the fields
+ * the rail actually establishes — owner, the anchor that finalized it, and the
+ * accumulator root the ownership was proven against.
+ */
+export interface AccumulatorNameRecord {
+  readonly name: string;
+  readonly normalizedName: string;
+  readonly currentOwnerPubkey: string;
+  readonly acquisitionKind: "accumulator";
+  /** Height of the anchor transaction that finalized this name. */
+  readonly claimHeight: number;
+  readonly anchorTxid: string;
+  /** The accumulator root the membership proof verified against. */
+  readonly accumulatorRoot: string;
+  /** Leaf key = H(name). */
+  readonly leafKey: string;
+}
+
+/** A name resolved from either rail; L1 ownership takes precedence over the rail. */
+export type ResolvedName =
+  | { readonly source: "l1"; readonly record: NameRecord }
+  | { readonly source: "accumulator"; readonly record: AccumulatorNameRecord };
+
 export interface InMemoryOntIndexerPersistedState {
   readonly launchHeight: number;
   readonly currentHeight: number | null;
@@ -67,6 +136,8 @@ export interface InMemoryOntIndexerPersistedState {
   readonly names: readonly NameRecordSnapshot[];
   readonly spentOutpoints?: readonly ExperimentalSpentOutpointObservation[];
   readonly transactionProvenance: readonly TransactionProvenanceSnapshot[];
+  readonly rootAnchorObservations?: readonly RootAnchorObservation[];
+  readonly accumulatorNames?: readonly AccumulatorNameRecord[];
 }
 
 export interface NameRecordSnapshot extends Omit<NameRecord, "requiredBondSats" | "currentBondValueSats" | "lastStateHeight"> {
@@ -124,6 +195,10 @@ export class InMemoryOntIndexer {
   private currentHeight: number | null;
   private currentBlockHash: string | null;
   private processedBlocks: number;
+  private rootChain: RootChain;
+  private rootAnchorObservations: RootAnchorObservation[];
+  private readonly accumulatorNames: Map<string, AccumulatorNameRecord>;
+  private readonly batchDataProvider: AccumulatorBatchDataProvider | undefined;
 
   public constructor(input: {
     launchHeight: number;
@@ -131,6 +206,7 @@ export class InMemoryOntIndexer {
     experimentalLaunchAuctionCatalog?: readonly ExperimentalLaunchAuctionCatalogEntry[];
     experimentalLaunchAuctionPolicy?: LaunchAuctionPolicy;
     recoveryWalletProofAvailable?: RecoveryWalletProofAvailabilityChecker;
+    batchDataProvider?: AccumulatorBatchDataProvider;
   }) {
     this.launchHeight = input.launchHeight;
     this.recentCheckpointLimit = Math.max(1, input.recentCheckpointLimit ?? 100);
@@ -145,6 +221,10 @@ export class InMemoryOntIndexer {
     this.currentHeight = null;
     this.currentBlockHash = null;
     this.processedBlocks = 0;
+    this.rootChain = new RootChain();
+    this.rootAnchorObservations = [];
+    this.accumulatorNames = new Map();
+    this.batchDataProvider = input.batchDataProvider;
   }
 
   public static fromSnapshot(
@@ -153,6 +233,7 @@ export class InMemoryOntIndexer {
       readonly experimentalLaunchAuctionCatalog?: readonly ExperimentalLaunchAuctionCatalogEntry[];
       readonly experimentalLaunchAuctionPolicy?: LaunchAuctionPolicy;
       readonly recoveryWalletProofAvailable?: RecoveryWalletProofAvailabilityChecker;
+      readonly batchDataProvider?: AccumulatorBatchDataProvider;
     }
   ): InMemoryOntIndexer {
     const indexer = new InMemoryOntIndexer({
@@ -166,7 +247,10 @@ export class InMemoryOntIndexer {
         : { experimentalLaunchAuctionPolicy: options.experimentalLaunchAuctionPolicy }),
       ...(options?.recoveryWalletProofAvailable === undefined
         ? {}
-        : { recoveryWalletProofAvailable: options.recoveryWalletProofAvailable })
+        : { recoveryWalletProofAvailable: options.recoveryWalletProofAvailable }),
+      ...(options?.batchDataProvider === undefined
+        ? {}
+        : { batchDataProvider: options.batchDataProvider })
     });
     indexer.hydrate(snapshot);
 
@@ -193,6 +277,7 @@ export class InMemoryOntIndexer {
     );
     refreshDerivedState(this.state, block.height);
     this.recordSpentOutpoints(block);
+    this.applyRootAnchors(block);
 
     for (const transaction of provenance) {
       this.transactionProvenance.set(transaction.txid, serializeTransactionProvenanceRecord(transaction));
@@ -335,6 +420,51 @@ export class InMemoryOntIndexer {
     return true;
   }
 
+  /**
+   * The current confirmed accumulator root — the head of the anchored root chain
+   * after applying every observed root anchor in Bitcoin order. Starts at the
+   * empty-accumulator genesis root until the first valid anchor lands.
+   */
+  public getConfirmedAccumulatorRoot(): string {
+    return this.rootChain.currentTip();
+  }
+
+  /** Count of root anchors that successfully extended the confirmed chain. */
+  public getAppliedRootAnchorCount(): number {
+    return this.rootChain.anchorCount();
+  }
+
+  /** The full observation log of root anchors seen on-chain (applied and rejected). */
+  public listRootAnchorObservations(): readonly RootAnchorObservation[] {
+    return this.rootAnchorObservations.map((observation) => ({ ...observation }));
+  }
+
+  /** A name owned via the cheap (accumulator) rail, verified against the anchored root. */
+  public getAccumulatorName(name: string): AccumulatorNameRecord | null {
+    return this.accumulatorNames.get(normalizeName(name)) ?? null;
+  }
+
+  public listAccumulatorNames(): AccumulatorNameRecord[] {
+    return [...this.accumulatorNames.values()].sort((left, right) => left.name.localeCompare(right.name));
+  }
+
+  /**
+   * Resolve a name across both rails. An L1 record (auction / direct) takes
+   * precedence over an accumulator record for the same name — the bonded core wins
+   * any collision, so the cheap rail can never override a name settled on L1.
+   */
+  public resolveName(name: string): ResolvedName | null {
+    const l1 = this.getName(name);
+    if (l1 !== null) {
+      return { source: "l1", record: l1 };
+    }
+    const accumulator = this.accumulatorNames.get(normalizeName(name));
+    if (accumulator !== undefined) {
+      return { source: "accumulator", record: accumulator };
+    }
+    return null;
+  }
+
   public getStats(): IndexerStats {
     return {
       currentHeight: this.currentHeight,
@@ -385,6 +515,27 @@ export class InMemoryOntIndexer {
         `${spentOutpoint.outpointTxid}:${spentOutpoint.outpointVout}`,
         structuredClone(spentOutpoint)
       );
+    }
+
+    // Rebuild the root chain by replaying observed anchors in order. apply() is
+    // deterministic, so the reconstructed tip/height match the original exactly
+    // (rejected anchors re-reject and leave the tip unchanged).
+    this.rootChain = new RootChain();
+    this.rootAnchorObservations = [];
+    for (const observation of snapshot.rootAnchorObservations ?? []) {
+      this.rootAnchorObservations.push({ ...observation });
+      this.rootChain.apply({
+        prevRoot: observation.prevRoot,
+        newRoot: observation.newRoot,
+        batchSize: observation.batchSize
+      });
+    }
+
+    // Accumulator names were verified against their anchored root before they were
+    // persisted, so restore them directly (same trust model as the L1 `names` map).
+    this.accumulatorNames.clear();
+    for (const record of snapshot.accumulatorNames ?? []) {
+      this.accumulatorNames.set(record.normalizedName, { ...record });
     }
 
     this.currentHeight = snapshot.currentHeight;
@@ -440,7 +591,10 @@ export class InMemoryOntIndexer {
         }
 
         return left.txid.localeCompare(right.txid);
-      })
+      }),
+      // Already in Bitcoin order (appended as blocks/txs are walked).
+      rootAnchorObservations: this.rootAnchorObservations.map((observation) => ({ ...observation })),
+      accumulatorNames: this.listAccumulatorNames().map((record) => ({ ...record }))
     };
   }
 
@@ -457,6 +611,78 @@ export class InMemoryOntIndexer {
           checkpoint.currentHeight !== snapshot.currentHeight || checkpoint.currentBlockHash !== snapshot.currentBlockHash
       )
     ].slice(0, this.recentCheckpointLimit);
+  }
+
+  /**
+   * Walk the block's root anchors in transaction order, extend the confirmed root
+   * chain where each anchor's `prevRoot` matches the current tip, and append every
+   * anchor (applied or rejected) to the observation log. A stale or forged parent
+   * link leaves the tip unchanged — the R2 stale-root-chaining hazard.
+   */
+  private applyRootAnchors(block: BitcoinBlock): void {
+    for (const entry of this.rootChain.applyBlock(block)) {
+      this.rootAnchorObservations.push({
+        txid: entry.txid,
+        txIndex: entry.txIndex,
+        blockHeight: block.height,
+        prevRoot: entry.anchor.prevRoot,
+        newRoot: entry.anchor.newRoot,
+        batchSize: entry.anchor.batchSize,
+        status: entry.result.status,
+        reason: entry.result.reason
+      });
+      if (entry.result.status === "applied") {
+        this.mergeAccumulatorBatch(entry.anchor.newRoot, entry.txid, block.height);
+      }
+    }
+  }
+
+  /**
+   * For an anchor that just extended the confirmed chain, pull the batch's finalized
+   * leaves and merge the ones that VERIFY against the anchored `newRoot` into the
+   * accumulator-name map. Each leaf must (1) carry a membership proof whose key is
+   * H(name), (2) bind the claimed owner as the proof value, and (3) verify against
+   * `newRoot`. The provider is untrusted — a forged or stale leaf simply fails to
+   * verify and is dropped. No provider configured → the chain is observed only.
+   */
+  private mergeAccumulatorBatch(newRoot: string, anchorTxid: string, blockHeight: number): void {
+    if (this.batchDataProvider === undefined) {
+      return;
+    }
+    const leaves = this.batchDataProvider.leavesForRoot(newRoot);
+    if (leaves === null || leaves === undefined) {
+      return;
+    }
+    for (const leaf of leaves) {
+      let normalizedName: string;
+      try {
+        normalizedName = normalizeName(leaf.name);
+      } catch {
+        continue; // not a valid ONT name
+      }
+      const leafKey = accumulatorKeyForName(normalizedName);
+      const value = leaf.proof.value;
+      const ownerMatches =
+        typeof value === "string" && value.toLowerCase() === leaf.ownerPubkey.toLowerCase();
+      if (
+        leaf.proof.keyHex.toLowerCase() !== leafKey
+        || !ownerMatches
+        || !/^[0-9a-fA-F]{64}$/.test(leaf.ownerPubkey)
+        || !verifyAccumulatorProof(newRoot, leaf.proof)
+      ) {
+        continue; // unverifiable against the anchored root — ignore
+      }
+      this.accumulatorNames.set(normalizedName, {
+        name: leaf.name,
+        normalizedName,
+        currentOwnerPubkey: leaf.ownerPubkey.toLowerCase(),
+        acquisitionKind: "accumulator",
+        claimHeight: blockHeight,
+        anchorTxid,
+        accumulatorRoot: newRoot.toLowerCase(),
+        leafKey
+      });
+    }
   }
 
   private recordSpentOutpoints(block: BitcoinBlock): void {

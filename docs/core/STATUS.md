@@ -49,7 +49,12 @@ determine **owner-key authority and replay validation** (transfers, value record
   move settlement into the frozen boundary, or keep this scoped statement. (Tracked as A3.)
 
 ## Known-incomplete (disclosed, on the roadmap)
-- Cheap-rail not wired into the live indexer → the one-path claim is architecture, not yet canonical.
+- Cheap-rail wiring is **partial**: the live indexer now observes the anchored root chain and
+  resolves accumulator-claimed names, re-verifying each batch leaf against the Bitcoin-anchored
+  root (a lying data source can't mint ownership). Still open: the batch-data (data-availability)
+  transport is a pluggable, in-memory seam — not yet a production source — and the resolver/web
+  surface doesn't expose accumulator names yet. So the one-path claim resolves in the indexer but
+  is not yet end-to-end canonical in the running services.
 - Light-client inclusion proofs not emitted end-to-end → "verify against Bitcoin" is the verifier's
   capability, not yet the live app/resolver path.
 - **Auction-transcript completeness is not self-certified by the proof bundle.** The bundle now

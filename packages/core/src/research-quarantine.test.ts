@@ -10,6 +10,13 @@ const srcDir = dirname(fileURLToPath(import.meta.url));
 // none of it can take or change a name. It must stay a leaf that the rest of
 // @ont/core (allocation, indexer) never depends on, just as the frozen core in
 // @ont/consensus never does. See docs/design/ONT_SOVEREIGNTY_MAP.md.
+//
+// NOTE: the accumulator + anchored root chain GRADUATED out of src/research/ once
+// the live indexer began observing the root chain (accumulator.ts, root-anchor.ts
+// now live in src/). They are cheap-rail production, not simulation — so the
+// indexer depending on them is correct and does not violate this boundary. What
+// remains under src/research/ is genuinely non-load-bearing (batch-rail and the
+// DA / merge / recovery / issuance simulations).
 function importSpecifiers(file: string): readonly string[] {
   const text = readFileSync(join(srcDir, file), "utf8");
   const specifiers: string[] = [];

@@ -11,7 +11,7 @@ import {
   serializeAccumulatorProof,
   treeRoot,
   verifyAccumulatorProof
-} from "../index.js";
+} from "./index.js";
 
 function leafKey(i: number): string {
   return accumulatorKeyForName(`leaf${i}`);

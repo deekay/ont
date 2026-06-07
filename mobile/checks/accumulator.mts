@@ -4,7 +4,7 @@ import {
   accumulatorKeyForName as engineKey,
   verifyAccumulatorProof as engineVerify,
   emptyAccumulatorRoot,
-} from "../../packages/core/src/research/accumulator.ts";
+} from "../../packages/core/src/accumulator.ts";
 
 // tsx transpiles the mobile file (no "type":"module") to CJS, so its real
 // exports land on the default-interop namespace rather than as named bindings.
