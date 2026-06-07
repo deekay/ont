@@ -69,6 +69,20 @@ We are not the first to want this. The honest comparison:
   **sold as NFTs by a company** (Unstoppable). ONT's first use case is the same — a payment
   handle — but neutrally allocated and self-sovereign, not custodial, domain-tied, or for-sale.
 
+**ONT vs. human-readable Bitcoin addresses (BIP-353 / Lightning Address).** ONT replaces the
+*naming/lookup* layer, not the payment payload — a name's value record carries the same
+BIP-21/BIP-353-shaped bytes a wallet already understands, so a wallet adds ONT support by swapping
+the resolution step (the payment-flow code is unchanged):
+
+| | Lightning Address | BIP-353 | ONT |
+|---|---|---|---|
+| Identifier shape | `alice@domain` | `₿alice@domain` | `alice` (flat) |
+| Lookup transport | HTTPS to the domain | DNSSEC TXT record | resolver returns an owner-signed record |
+| Authority over the name | domain operator | DNSSEC + domain operator | Bitcoin |
+| Record signed by the payee | no | no (DNSSEC signs the zone) | yes |
+| Survives losing the domain | no | no | n/a — there is no domain |
+| Cost floor | a domain + hosting | a DNSSEC-capable domain | ₿1,000 claim gate + possible bond |
+
 **Why Bitcoin.** Bitcoin supplies neutral global ordering, final settlement, and a security
 budget the claim gate pays into. The cost is blockspace discipline (hence batching) and
 inheriting Bitcoin's own liveness/censorship assumptions. We think that trade is the whole
