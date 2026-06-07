@@ -59,18 +59,39 @@ function bytesToHex(bytes: Uint8Array): string {
   return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
+const transferTextEncoder = new TextEncoder();
+function uint16ToBytes(value: number): Uint8Array {
+  return Uint8Array.of((value >> 8) & 0xff, value & 0xff);
+}
+function concatBytes(...parts: Uint8Array[]): Uint8Array {
+  const total = parts.reduce((sum, p) => sum + p.length, 0);
+  const out = new Uint8Array(total);
+  let offset = 0;
+  for (const part of parts) {
+    out.set(part, offset);
+    offset += part.length;
+  }
+  return out;
+}
+
 export function computeTransferAuthorizationDigest(fields: TransferAuthorizationFields): Uint8Array {
   const prevStateTxid = assertHexBytes(fields.prevStateTxid, 32, "prevStateTxid");
   const newOwnerPubkey = assertHexBytes(fields.newOwnerPubkey, 32, "newOwnerPubkey");
   const flags = assertByte(fields.flags, "flags");
   const successorBondVout = assertByte(fields.successorBondVout, "successorBondVout");
 
-  const buf = new Uint8Array(32 + 32 + 2);
-  buf.set(hexToBytes(prevStateTxid), 0);
-  buf.set(hexToBytes(newOwnerPubkey), 32);
-  buf[64] = flags;
-  buf[65] = successorBondVout;
-  return sha256(buf);
+  // Domain-separated to match the engine (ont-transfer-owner; see
+  // packages/protocol/src/events.ts computeTransferAuthorizationDigest).
+  const tag = transferTextEncoder.encode("ont-transfer-owner");
+  return sha256(
+    concatBytes(
+      uint16ToBytes(tag.length),
+      tag,
+      hexToBytes(prevStateTxid),
+      hexToBytes(newOwnerPubkey),
+      Uint8Array.of(flags, successorBondVout)
+    )
+  );
 }
 
 export function computeTransferAuthorizationHash(fields: TransferAuthorizationFields): string {
