@@ -9,6 +9,31 @@ Nothing here is committed. This is the plan to approve before more code.
 
 ---
 
+## Update — 2026-06-05 (Max Fang / Lexe call): on-chain layer → Rust BDK
+
+This supersedes the on-chain *implementation* choice below (it does **not** change the
+signer/non-custodial model or the Lexe-as-provider stance):
+
+- **On-chain tx construction moves from `bitcoinjs-lib` (TS) to Rust BDK, bridged into React
+  Native** (`bdk-rn` / `bdk-ffi` UniFFI). This is the substrate for the real on-chain PSBT bid
+  (A1/#60), bonds, transfers, recovery, and any direct-L1 claim. A **BDK↔RN bridge spike is the
+  first build task** — model the structure on established BDK/Rust repos (Lexe, the bitcoindevkit
+  org) rather than inventing it.
+- **The verification engine `@ont/consensus` stays TypeScript** — BDK *builds* txs, the engine
+  *verifies* them. Hard requirement: Rust-built txs must be **byte-identical** to what
+  `@ont/consensus` validates on read-back (same cross-language conformance as `check:crypto`).
+- **Lexe stays the switchable LN *provider*** (publisher receiver side); the app shows the BOLT11
+  and the user pays from their own Lightning wallet — unchanged.
+- **Funding is gated to auction/contest only:** bare-claims pay any LN invoice with **no deposit**
+  (web or app); you fund the wallet only to bid/contest (on-chain). Refines "Deposit" (A3) into
+  progressive disclosure.
+- **Cost:** ₿1,000 gate (to miners) + a *thin* publisher service fee; no PTLCs in v1 (trust the
+  publisher with ~$1; recourse is on-chain contestation). Mainnet still deferred.
+
+Full call notes: `~/.sprout/RESEARCH/ONT_WALLET_AND_PUBLISHER_ARCHITECTURE_2026_06_05.md`.
+
+---
+
 ## Where we are today
 
 | Capability | State |

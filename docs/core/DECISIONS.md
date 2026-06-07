@@ -547,6 +547,91 @@ Implications:
 - public signet should only appear in historical notes or explicit cleanup
   context, not as an active user path
 
+37. Bond opens the auction (escalation trigger = bond, not bare claim) — 2026-06-04
+
+When a contested name's auction window expires with **zero qualifying bonds**, an
+earlier draft resolved it by lowest `(anchor height, tx-index, claim txid)`
+ordering. **That is rejected** — it let a block-winning miner self-claim and *take*
+a low-value contested name for ~₿1,000 paid to itself, converting ordering power
+into acquisition (R16).
+
+**Decision: a bond — not a bare claim — opens the auction.** The escalation trigger
+moves from "≥2 claims" to "a qualifying bond." Outcomes:
+
+- One cheap claim, no bond by the deadline → finalizes (the long tail, unchanged).
+- A qualifying bond — posted against an existing claim, or **bond-first** with no
+  prior claim → opens the L1 auction; **largest bond wins**. Bond-first is the
+  natural path for a known-premium name (`bitcoin`): no cheap-claim collision is
+  needed to start the auction.
+- Two+ cheap claims, no bond → the name is **nullified** (no owner) and reopens for
+  claiming. A bare collision can deny, never award.
+
+Invariant: a name is acquired only by (a) an uncontested cheap claim that
+finalizes, or (b) the winning bond in an auction. A bare claim can finalize or be
+nullified — never *take* a contested name.
+
+Why: this resolves R16 at the root. Front-running a cheap claim buys nothing (worst
+case it nullifies the name — denial, no payoff); acquiring a contested name requires
+a returnable bond, identical cost for a miner and for anyone. It also unifies the
+short-name design — the ≤4-char opening bonds are the *mandatory* bond-first case of
+the same mechanism. Deadline-derived in the engine (a verifier checks, at
+`currentHeight ≥ anchorHeight + W_notice`, whether a qualifying bond landed); no
+ordering-based award path, so no randomness beacon needed.
+
+Tradeoffs: it's a protocol change — the escalation trigger moves from claim to bond,
+which touches the state machine's contest definition and adds a bond-first /
+auction-open entry. The ₿50,000 escalation floor becomes load-bearing (the cost to
+open/contest an auction) and graduates from placeholder to a launch decision. Denial
+is still possible — a spite-griefer can collide a cheap claim to nullify a targeted
+name (₿1,000) — but with no payoff and defendable by the target bonding;
+unprofitable, accepted (R16 residual).
+
+Documentation impact:
+- `design/ONT_ACQUISITION_STATE_MACHINE.md` — Public Notice, Contested Auction, and
+  the "Bond opens the auction; a bare collision can only nullify" section.
+- `design/ONT_MEV_ORDERING_ANALYSIS.md` — D1, D3, §2 conclusion, §3 tie-break row
+  revised; ordering buys nothing.
+- `ONT_DESIGN_BRIEF.md` §3 acquisition model + §6 "Bond-first / the escalation trigger".
+- `design/ONT_RISK_REGISTER.md` R16 → Resolved by design.
+
+38. PTLCs are not a near-term dependency — v1 publisher payment is pay-first with reputable publishers — 2026-06-05
+
+Earlier drafts framed the trust-minimized publisher swap (bind the off-chain
+Lightning payment to on-chain inclusion) around **PTLCs / adaptor-conditional
+payments** as the clean primitive, and carried an open question about designing
+*for* vs. *around* them.
+
+**Decision: drop PTLCs as a near-term design tradeoff.** Per feedback from Max
+(Lightning), 2026-06-05: **don't add technical complexity for trust-minimization in
+this case** — the amount at risk per claim is tiny (~₿1,000 / ~$1), so an
+adaptor-bound construction (PTLCs and similar) isn't worth the complexity for the
+small risk it removes. ONT v1 uses a **pay-first flow with reputable publishers**:
+the operator includes a claim only after payment; a non-payer is simply left out,
+so the publisher's exposure is bounded structurally. The residual trust (a
+paid-but-excluded claimant relies on the operator's reputation + the L1 fallback)
+is accepted for v1.
+
+Atomically binding payment to inclusion remains a **longer-term research item** with
+no v1 dependency on any specific primitive (PTLC, ECDSA-adaptor + hash-locked HTLC,
+or otherwise). It is not designed around, not blocking, and reopens only if
+revisited later.
+
+Why: the trust is already bounded — a publisher never controls a *name* (ownership
+is the owner key + Bitcoin), the worst it can do is refuse or fail a batch, and a
+user can always claim directly on L1. With ~$1 at risk per claim, elaborate
+trust-minimization isn't worth its complexity. Pay-first is deployable today with
+vanilla Lightning; betting the issuance rail on a more involved construction would
+add complexity (and external dependencies) for a small benefit.
+
+Documentation impact:
+- `research/OPEN_QUESTIONS_FOR_EXPERTS.md` — Lightning/PTLC section → Resolved;
+  adaptor requirement removed from the LN-node substrate list.
+- `ONT_DESIGN_BRIEF.md` §5 publisher payment + `ONT_ONE_PAGER.md` (md/html) — reframed
+  to pay-first; PTLC mechanism dropped.
+- `research/ONT_PUBLISHER_PROTOCOL_SPEC.md`, `design/ONT_ISSUANCE_FEE_MECHANICS.md`,
+  `launch/ONT_IMPLEMENTATION_AND_VALIDATION.md` — PTLC references demoted to
+  longer-term / non-v1.
+
 ## Fairness Principles To Carry Into The Launch Rewrite
 
 The rewritten launch draft should explicitly state:

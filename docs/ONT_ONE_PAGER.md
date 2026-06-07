@@ -15,7 +15,6 @@ it. Anyone can look up who owns a name and confirm the answer for themselves.
   she wants to be paid.
 - **An identity handle** — one username for open-source / decentralized apps and messengers
   that no platform can reassign or revoke.
-- **Addressing for services or software agents** *(early)*.
 
 These are what a sovereign name is *good for* — not a claim that everyone needs one. Adoption
 is unproven; the design is what's up for review.
@@ -27,31 +26,33 @@ There is one path for every name. It forks only if two people want the same one.
 1. **Claim it.** Pay a small, one-time Bitcoin fee — about $1 (**₿1,000**) — paid to Bitcoin's
    miners, not to ONT.
 2. **A public notice window opens** (a few weeks). This is everyone else's chance to *contest*
-   the name — to put in a competing claim if they want it too. A competing claim doesn't take
-   the name; it forces the auction in step 4.
+   the name — if someone else wants it too, that sends it to the auction in step 4 instead of
+   finalizing cheaply.
 3. **If no one else does, the name is yours.** Thousands of these uncontested claims are bundled
    into one small Bitcoin record — which is what keeps it cheap across billions of names.
-4. **If someone else also claims it during the window, the name is *contested*** — and only then
-   is it settled by an auction: each bidder locks bitcoin as a **returnable bond** (they keep
-   custody; it is released later), and the **largest bond wins** — not whoever claimed first.
-   Genuinely contested names are rare, so auctions are the exception.
+4. **If someone else wants it too, the name is *contested*** and goes to
+   auction: each bidder locks bitcoin as a **returnable ~one-year bond** (they keep custody;
+   it's released at maturity), and the **largest bond wins**.
+   Contests can be common early (everyone wants `bitcoin`, popular brands, or dictionary words) but are rare
+   across the long tail at scale, so for most names the auction never happens.
 
 ```mermaid
 flowchart LR
   C["Claim<br/>₿1,000 fee · your key"] --> N["Public notice<br/>window (weeks)"]
-  N -->|no competing claim| U["Uncontested<br/>→ finalized"] --> O1["Owned ✓ (usable)"]
-  N -->|competing claim| K["Contested<br/>→ bonded auction"] --> S["Settled → Owned ✓ (usable)"]
-  S -.->|bond stays locked ~1 yr,<br/>then returns| R["Bond returned · held free"]
+  N -->|no one else| U["Uncontested<br/>→ finalized"] --> O["Owned ✓<br/>either path · your key"]
+  N -->|someone else wants it| K["Contested<br/>→ bonded auction"] --> O
 ```
 
-A second claim *during* the notice window is what makes a name contested; the auction is then
-decided by the largest returnable bond. Most names are never contested — they finalize when the
-window closes. Either way, you end up with the same thing: a globally unique name controlled by
-your key.
+If someone else wants the same name during the notice window, it's contested — settled by an
+auction, decided by the largest returnable bond. Most names are never contested — they finalize
+when the window closes. Either way, you end up with the same thing: a globally unique name
+controlled by your key.
 
 **When can you use a contested name?** The moment the auction **settles** — you own it and can
-point or transfer it right away. The winning bond simply stays locked through maturity (~1 year),
-then returns; that period is about your *capital*, not your ability to use the name.
+point or transfer it right away. The winning bond simply stays posted through maturity (~1 year),
+then returns; that period is about your *capital*, not your ability to use the name. (The bond is a
+UTXO you still control — staying "bonded" is an ONT rule, not a Bitcoin timelock: break it before
+maturity and you forfeit the name.)
 
 ## What owning a name lets you do
 
@@ -64,32 +65,38 @@ A name is controlled by one key — your **owner key**. With it you can:
 - **Set up recovery** ahead of time, so a lost key isn't the end — and only the backup key you
   chose can use it, so recovery can never become a way for someone to take your name.
 
-## What it costs Bitcoin
+## How it scales
 
-Claiming isn't free chain-spam. The fee you pay covers the Bitcoin transaction your claim rides in
-— a batch only counts if its miner fee is at least the sum of the claims inside it — so each name
-buys the blockspace it uses. And that space is tiny: about **0.016 vB per name** once batched (one
-~150-byte anchor carries ~10,000 claims). ONT's on-chain events fit in a ≤135-byte `OP_RETURN`.
+Billions of names can't each be a Bitcoin transaction, so **publishers** batch many claims into one
+Merkle commitment and anchor only its root — a ~150-byte root that commits to the whole batch *whatever
+its size*, so the more you batch the lower the per-name cost (~**0.015 vB/name** at ten thousand per
+batch, less as batches grow). A batch counts only if its miner fee covers the claims inside it, so each
+name still buys the blockspace it uses. ONT's on-chain events fit in a ≤135-byte `OP_RETURN`.
+
+You pay a publisher off-chain over Lightning; it bundles many claims and pays the single aggregate miner
+fee. **Your cost is the ₿1,000 gate (sunk, to miners) plus a thin publisher service fee** — the
+publisher's own per-name cost is tiny, and any markup is capped by the always-available option of
+claiming directly on L1. The flow is **pay-first** (you pay, then you're included; a non-payer is left
+out), so the publisher risks no capital — you take a small, bounded one. And a publisher **can't steal a
+name**: if it pockets your payment or commits the wrong owner key, you contest on-chain, which forces an
+auction the rightful owner wins; worst case you're out about a dollar and re-claim elsewhere. Binding the
+payment to inclusion atomically is a possible future refinement, not a v1 dependency. **v1 starts with a
+few reputable publishers and minimizes even that small trust over time.**
 
 ## Why you can trust it
 
 No company, server, or founder decides who owns a name — Bitcoin does. The rules that turn Bitcoin
-transactions into ownership live in a small, **frozen program (about seven files)** that anyone can
-audit; a CI test fails if that core grows a dependency beyond Bitcoin/protocol primitives. Run it
+transactions into ownership live in a small, **frozen core — three consensus files** that anyone can
+audit, locked so its trust surface can't silently grow. Run it
 over Bitcoin's history and you get the same answer everyone else does, and you can check that answer
 against Bitcoin's own block headers and proof-of-work — so a server that lies about who owns a name
 gets caught, not believed. The services that help you find and publish names — *resolvers* — only
 mirror this data; they never decide it.
 
-## Privacy
-
-A name's records are a **public directory entry** — everything you map to a name is public and
-crawlable. So a name is for the things you *want* public: a payment address (it's *meant* to be
-public — that's how you get paid), a website, a verified profile. It is **not** the place for private
-contact info (personal email, Signal). For sensitive details you simply don't publish them in any
-public name; an obscure second name doesn't help, since all records are crawlable — obscurity is not
-privacy. "Private data addressable by a name" would need an **encrypted-records** layer (a payload
-encrypted to chosen recipients) — a possible future layer on top of the public directory, not v1.
+And no operator is privileged: **anyone can run a resolver or publisher**. Because ownership is fixed
+by Bitcoin, you don't need a *trusted* node — only a reachable one whose answer you can verify (a
+lying node is caught; a slow one is routed around). Finding nodes is config-seeded today; a
+registry-free, on-chain discovery scan is designed, not yet built.
 
 ## The numbers we're proposing (several are placeholders, all open to challenge)
 
@@ -97,10 +104,10 @@ encrypted to chosen recipients) — a possible future layer on top of the public
 | --- | --- | --- |
 | Claim fee (every name) | **₿1,000** (~$1), sunk, to miners | baseline |
 | Contested-auction min bond | **₿50,000** (~$50), returnable | placeholder |
-| Bond maturity | ~52,560 blocks (~1 yr) | test override |
+| Bond maturity | ≈52,560 blocks (≈1 yr) | test override |
 | Notice window | weeks, height-keyed | placeholder · fairness lever |
 | Data-availability windows | unset | deadline for batch bytes to surface + reorg depth |
-| On-chain footprint | ~0.016 vB/name; anchor fee = Σ gates | measured |
+| On-chain footprint | ~0.015 vB/name; anchor fee = Σ gates | measured |
 
 **Opening bond for scarce short names** — only the very short set (≤4 chars) carries a high
 length-scaled opening bond, halving per added character; everything else uses the flat fee plus a
@@ -112,11 +119,12 @@ bond only if contested:
 | 2 char | ₿50,000,000 | ~$50k |
 | 3 char | ₿25,000,000 | ~$25k |
 | 4 char | ₿12,500,000 | ~$12.5k |
-| 5+ char | flat fee; ₿50,000 floor if contested | ~$1 / ~$50 |
+| 5+ char | flat fee; ₿50,000 floor if contested | ≈$1 / ≈$50 |
 
 **Least sure of:** the **contest rate** is unknown until launch — we assume it's high early
-(everyone wants `bitcoin`, dictionary words) and low for the long tail (`sallysmith2165`); and the
-notice window has to be long enough that real owners can contest a day-one land-rush.
+(everyone wants `bitcoin`, popular brands, or dictionary words) and low for the long tail (`sallysmith2165`); and the
+notice window has to be long enough for a competitive early market to form, so premium names aren't
+swept cheaply before other bidders show up.
 
 ## Status — honest (maturity, not direction)
 
@@ -129,14 +137,22 @@ emit the proofs a phone/browser would check. Not mainnet-ready.
 
 ## What we most want Bitcoin developers to push on
 
-1. **Data availability + convergence** — is the fail-closed, height-keyed rule (a batch counts only
-   if its bytes surface by a deadline) sound against reorgs and withholding? On-chain availability
-   marker, or pure timing?
-2. **On-chain footprint** — are the ≤135-byte `OP_RETURN` events acceptable on mainnet, or is a
+1. **Data availability** — we batch claims and anchor only a summary on Bitcoin, leaving the claim
+   data off-chain; our defense if someone withholds it (or a reorg reshuffles it) is a deadline —
+   data that isn't public by a set Bitcoin height simply doesn't count. Is that sound, and should
+   availability be proven on-chain or by timing alone?
+2. **Publisher trust-minimization** — v1 leans on reputable, pay-first publishers (a non-payer is left
+   out). Is there a clean, *deployable-today* way to bind "pay the publisher" to "claim anchored
+   on-chain" without depending on long-roadmap primitives — or is reputable-publisher trust the right
+   v1 stance, with atomic binding left as later research?
+3. **Discovery & censorship-resistance** — config-seeded today; is a registry-free, on-chain
+   service-announcement scan the right trustless discovery primitive, with Bitcoin + verification as
+   the only trust root?
+4. **On-chain footprint** — are the ≤135-byte `OP_RETURN` events acceptable on mainnet, or is a
    script/covenant carrier worth a soft-fork dependency?
-3. **Light-client verification** — a launch blocker, or fine post-launch?
-4. **Auction form** — open ascending vs. sealed second-price, given MEV and relay-bid timing?
-5. **Launch fairness** — is a long notice window enough against a day-one rush on premium names, or
+5. **Light-client verification** — a launch blocker, or fine post-launch?
+6. **Auction form** — open ascending vs. sealed second-price, given MEV and relay-bid timing?
+7. **Launch fairness** — is a long notice window enough against a day-one rush on premium names, or
    do we need a decaying launch fee?
 
 ---

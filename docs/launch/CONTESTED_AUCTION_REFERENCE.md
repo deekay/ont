@@ -14,8 +14,8 @@ ONT has one entry path:
 
 1. claim a valid name
 2. wait through public notice
-3. finalize cheaply if uncontested
-4. escalate to auction if contested
+3. finalize cheaply if no bond is posted (single claim)
+4. escalate to the bonded auction when a qualifying bond is posted
 
 The auction is the escalation path. It exists so a name with visible competing
 demand is priced by bonded bitcoin rather than by a reserved list, registrar, or
@@ -23,9 +23,14 @@ editorial judgment.
 
 ## Core Rule
 
-If two or more DA-valid claims for the same name land inside the notice window,
-the name is contested and does not finalize through the accumulator. It enters
-the L1 bonded auction path.
+A name escalates to the L1 bonded auction when a **qualifying bond** is posted —
+either against an in-window claim or **bond-first** (no prior claim). The bond,
+not a bare second claim, is the escalation trigger.
+
+If two or more bare DA-valid claims for the same name land inside the notice
+window with **no bond**, the name does not finalize and is **nullified** — it
+resolves to no owner and reopens for claiming (a bare collision can deny, never
+award). A single uncontested claim with no bond finalizes through the accumulator.
 
 The auction path should preserve these properties:
 
@@ -136,5 +141,5 @@ The remaining auction questions are narrower than the old launch-design problem:
 ## One-Sentence Summary
 
 In current ONT, auctions are not the ordinary entry path; they are the neutral,
-Bitcoin-bonded escalation path for names that receive competing claims during
-public notice.
+Bitcoin-bonded escalation path for names a qualifying bond is posted against
+during public notice.

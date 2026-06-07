@@ -111,11 +111,14 @@ By tier:
 - **Pay-first / pay-upfront** (the launch path with reputable publishers): the non-payer is simply
   **not included** — the publisher builds the anchor from paid claims only. Attacker gets nothing;
   publisher loses nothing.
-- **Locked-payment swap** (HODL invoice / adaptor / PTLC): a claim enters the broadcast batch only with
-  a *live payment lock*, and **the act of broadcasting captures that lock.** There is no "have a live
-  lock and then not pay" — the lock *is* the payment, claimed by the broadcast. (This is why the swap
-  protects the publisher as much as the user.) The publisher's exposure is only ever `Σ g` against
-  claims with committed payment, captured atomically by the single anchor broadcast.
+- **Locked-payment swap** (a *longer-term* research direction, **not v1**): a claim enters the broadcast
+  batch only with a *live payment lock*, and **the act of broadcasting captures that lock.** There is no
+  "have a live lock and then not pay" — the lock *is* the payment, claimed by the broadcast. (This is why
+  the swap protects the publisher as much as the user.) The publisher's exposure is only ever `Σ g`
+  against claims with committed payment, captured atomically by the single anchor broadcast. This needs a
+  construction that binds an off-chain payment to a specific on-chain anchor; the clean primitives for it
+  (e.g. adaptor-conditional / PTLC payments) are long-roadmap, so v1 does **not** depend on this — it
+  ships on the pay-first tier above.
 
 So **economic safety is structural**: the "10k names, don't pay" attacker cannot make a publisher lose
 money — they just don't get included.

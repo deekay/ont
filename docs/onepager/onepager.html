@@ -13,7 +13,7 @@
   *{ box-sizing:border-box; }
   html,body{ margin:0; padding:0; }
   body{
-    font:10.5px/1.42 Helvetica, "Helvetica Neue", Arial, "Arial Unicode MS", sans-serif;
+    font:10.5px/1.37 Helvetica, "Helvetica Neue", Arial, "Arial Unicode MS", sans-serif;
     color:var(--ink); -webkit-print-color-adjust:exact; print-color-adjust:exact;
   }
   .page{ position:relative; }
@@ -21,15 +21,15 @@
   h1{ font-size:21px; margin:0 0 1px; letter-spacing:-.3px; }
   .tag{ color:var(--mute); font-size:11px; margin:0 0 9px; }
   h2{ font-size:11px; text-transform:uppercase; letter-spacing:.6px; color:var(--mute);
-      margin:13px 0 5px; padding-bottom:2px; border-bottom:1px solid var(--line); }
+      margin:10px 0 4px; padding-bottom:2px; border-bottom:1px solid var(--line); }
   .hdr{ font-weight:700; text-transform:uppercase; letter-spacing:.5px; font-size:9.3px;
         color:var(--mute); margin:8px 0 3px; }
-  p{ margin:0 0 6px; }
+  p{ margin:0 0 5px; }
   strong{ font-weight:650; }
   .b{ color:var(--accent); font-weight:650; }       /* ₿ amounts / key numbers */
   .lead{ font-size:12px; line-height:1.45; }
   ul,ol{ margin:0 0 6px; padding-left:16px; }
-  li{ margin:0 0 3px; }
+  li{ margin:0 0 2px; }
   ol li{ margin:0 0 4px; padding-left:2px; }
   .cols{ display:flex; gap:16px; }
   .cols > div{ flex:1; }
@@ -42,7 +42,7 @@
   .fig{ margin:5px 0 7px; }
   .figcap{ color:var(--mute); font-size:9px; margin-top:1px; }
   .pill{ display:inline-block; border:1px solid var(--line); border-radius:10px; padding:0 6px; font-size:9px; color:var(--mute); }
-  .foot{ margin-top:10px; padding-top:6px; border-top:1px solid var(--line); color:var(--mute); font-size:9.3px; }
+  .foot{ margin-top:6px; padding-top:5px; border-top:1px solid var(--line); color:var(--mute); font-size:9.3px; }
   /* SVG diagram shared styles */
   svg{ width:100%; height:auto; }
   .box{ fill:var(--soft); stroke:#c2c6cd; }
@@ -72,7 +72,6 @@
       name points to wherever she wants to be paid.</li>
     <li><strong>An identity handle</strong> — one username for open-source / decentralized apps that
       no platform can reassign or revoke.</li>
-    <li><strong>Addressing for services or software agents</strong> <span class="note">(early)</span>.</li>
   </ul>
 
   <h2>How you get a name</h2>
@@ -81,14 +80,14 @@
     <li><strong>Claim it.</strong> Pay a small, one-time Bitcoin fee — about $1
       (<span class="b">₿1,000</span>) — paid to Bitcoin's miners, not to ONT.</li>
     <li><strong>A public notice window opens</strong> (a few weeks). This is everyone else's chance to
-      contest the name — to put in a competing claim if they want it too. (A competing claim doesn't
-      take the name; it forces the auction in step 4.)</li>
+      contest the name — if someone else wants it too, that sends it to the auction in step 4 instead
+      of finalizing cheaply.</li>
     <li><strong>If no one else does, the name is yours.</strong> Thousands of these uncontested claims
       are bundled into one small Bitcoin record — which is what keeps it cheap across billions of names.</li>
-    <li><strong>If someone else also claims it, the name is <em>contested</em></strong> — and only then
-      is it settled by an auction: each bidder locks up bitcoin as a <strong>returnable bond</strong>
-      (they keep custody; it is released later), and the largest bond wins. Genuinely contested names
-      are rare, so auctions are the exception.</li>
+    <li><strong>If someone else wants it too, the name is <em>contested</em></strong>
+      and goes to auction: each bidder locks up bitcoin as a <strong>returnable ~one-year bond</strong>
+      (they keep custody; it's released at maturity), and the largest bond wins. Contests can be common early (everyone wants <code>bitcoin</code>, popular brands, or dictionary words) but
+      are rare across the long tail at scale, so for most names the auction never happens.</li>
   </ol>
 
   <div class="fig">
@@ -104,30 +103,30 @@
       <text class="tx" x="228" y="93" text-anchor="middle">Public notice</text>
       <text class="txs" x="228" y="107" text-anchor="middle">window (weeks)</text>
 
-      <rect class="box" x="346" y="10" width="150" height="46" rx="6"/>
-      <text class="tx" x="421" y="29" text-anchor="middle">Uncontested</text>
-      <text class="txs" x="421" y="43" text-anchor="middle">→ finalized</text>
+      <rect class="box" x="344" y="10" width="150" height="46" rx="6"/>
+      <text class="tx" x="419" y="29" text-anchor="middle">Uncontested</text>
+      <text class="txs" x="419" y="43" text-anchor="middle">→ finalized</text>
 
-      <rect class="boxk" x="540" y="10" width="150" height="46" rx="6"/>
-      <text class="tx" x="615" y="33" text-anchor="middle">Owned ✓</text>
+      <rect class="box" x="344" y="138" width="150" height="46" rx="6"/>
+      <text class="tx" x="419" y="157" text-anchor="middle">Contested</text>
+      <text class="txs" x="419" y="171" text-anchor="middle">→ bonded auction</text>
 
-      <rect class="box" x="346" y="138" width="150" height="46" rx="6"/>
-      <text class="tx" x="421" y="157" text-anchor="middle">Contested</text>
-      <text class="txs" x="421" y="171" text-anchor="middle">→ bonded auction</text>
-
-      <rect class="boxk" x="540" y="138" width="150" height="46" rx="6"/>
-      <text class="tx" x="615" y="157" text-anchor="middle">Bonded → mature</text>
-      <text class="txs" x="615" y="171" text-anchor="middle">owner (bond returned)</text>
+      <rect class="boxk" x="548" y="74" width="146" height="46" rx="6"/>
+      <text class="tx" x="621" y="93" text-anchor="middle">Owned ✓</text>
+      <text class="txs" x="621" y="107" text-anchor="middle">either path · your key</text>
 
       <path class="ar" d="M126,97 L165,97"/>
-      <path class="ar" d="M288,90 C320,90 318,33 343,33"/>
-      <path class="ar" d="M288,104 C320,104 318,161 343,161"/>
-      <path class="ar" d="M496,33 L537,33"/>
-      <path class="ar" d="M496,161 L537,161"/>
+      <path class="ar" d="M288,90 C320,90 316,33 341,33"/>
+      <path class="ar" d="M288,104 C320,104 316,161 341,161"/>
+      <path class="ar" d="M494,33 C522,33 518,97 545,97"/>
+      <path class="ar" d="M494,161 C522,161 518,97 545,97"/>
     </svg>
-    <div class="figcap">A second claim during the notice window is what makes a name contested; the
-      auction is then decided by the largest returnable bond, not by who claimed first. Most names are
-      never contested — they finalize when the window closes.</div>
+    <div class="figcap"><strong>Either path ends in the same place</strong> — you own the name, controlled
+      by your key. Most names are never contested (they finalize at window close). If someone else wants the
+      same name, it's contested — settled by an auction, decided by the largest returnable bond; you own and
+      can use it the moment the auction <strong>settles</strong>, and the winning bond just stays posted through
+      maturity (~1 yr) then returns (an ONT rule — break it early and you forfeit the name — not a Bitcoin
+      timelock).</div>
   </div>
 
   <p>Either way, you end up with the same thing: a globally unique name controlled by your key.</p>
@@ -143,61 +142,40 @@
       backup key you chose can use it, so recovery can never become a way for someone to take your name.</li>
   </ul>
 
-  <h2>What it costs Bitcoin</h2>
-  <p>Claiming isn't free chain-spam. The fee you pay covers the Bitcoin transaction your claim rides in
-    — a batch only counts if its miner fee is at least the sum of the claims inside it — so each name
-    buys the blockspace it uses. And that space is tiny: about <span class="b">0.016 virtual bytes</span>
-    per name once batched (one ~150-byte anchor carries ~10,000 claims).</p>
+  <h2>How it scales</h2>
+  <p>Billions of names can't each be a Bitcoin transaction, so <strong>publishers</strong> batch many
+    claims into one Merkle commitment and anchor only its root — a ~150-byte root that commits to the
+    whole batch <em>whatever its size</em>, so the more you batch the lower the per-name cost
+    (~<span class="b">0.015 vB</span>/name at ten thousand per batch, less as batches grow). A batch counts
+    only if its miner fee covers the claims inside it, so each name still buys the blockspace it uses.</p>
+  <p>You pay a publisher off-chain over Lightning; it bundles many claims and pays the single aggregate
+    miner fee. <strong>Your cost is the ₿1,000 gate (sunk, to miners) plus a thin publisher service
+    fee</strong> — the publisher's own per-name cost is tiny, and any markup is capped by the
+    always-available option of claiming directly on L1. The flow is <strong>pay-first</strong> (you pay,
+    then you're included; a non-payer is left out), so the publisher risks no capital — you take a small,
+    bounded one. And a publisher <strong>can't steal a name</strong>: if it pockets your payment or commits
+    the wrong owner key, you contest on-chain, which forces an auction the rightful owner wins; worst case
+    you're out about a dollar and re-claim elsewhere. Binding the payment to inclusion atomically is a
+    possible future refinement, not a v1 dependency.
+    <strong>v1 starts with a few reputable publishers and minimizes even that small trust over time.</strong></p>
 </div>
 
 <!-- ============================ PAGE 2 ============================ -->
 <div class="page pbreak">
   <h2>Why you can trust it</h2>
   <p>No company, server, or founder decides who owns a name — Bitcoin does. The rules that turn Bitcoin
-    transactions into ownership live in a small, <strong>frozen program (about seven files)</strong> that
-    anyone can audit. Run it over Bitcoin's history and you get the same answer everyone else does, and
+    transactions into ownership live in a small, <strong>frozen core — three consensus files</strong> that
+    anyone can audit, locked so its trust surface can't silently grow.
+    Run it over Bitcoin's history and you get the same answer everyone else does, and
     you can check that answer against Bitcoin's own block headers and proof-of-work — so a server that
     lies about who owns a name gets caught, not believed. The services that help you find and publish
     names — <em>resolvers</em> — only mirror this data; they never decide it.</p>
+  <p>And no operator is privileged: <strong>anyone can run a resolver or publisher</strong>. Because ownership
+    is fixed by Bitcoin, you don't need a <em>trusted</em> node — only a reachable one whose answer you can
+    verify (a lying node is caught; a slow one is routed around). Finding nodes is config-seeded today; a
+    registry-free, on-chain discovery scan is designed, not yet built.</p>
 
   <h2>The numbers we're proposing — several are placeholders, all open to challenge</h2>
-
-  <div class="fig">
-    <svg viewBox="0 0 700 134" role="img" aria-label="claim timeline — forks to contested during the window">
-      <defs><marker id="t" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
-        <path d="M0,0 L7,3.5 L0,7 z" fill="#9aa0a9"/></marker></defs>
-
-      <line x1="16" y1="50" x2="470" y2="50" stroke="#9aa0a9" stroke-width="1.4" marker-end="url(#t)"/>
-      <g stroke="#9aa0a9" stroke-width="1.2">
-        <line x1="16" y1="44" x2="16" y2="56"/>
-        <line x1="296" y1="44" x2="296" y2="56"/>
-      </g>
-      <text class="txs" x="16" y="66" text-anchor="start">claim</text>
-      <text class="txs" x="296" y="66" text-anchor="middle">window closes</text>
-      <g stroke="#c2410c" stroke-width="1.2" fill="none"><path d="M20,44 L20,38 L292,38 L292,44"/></g>
-      <text class="tx" x="156" y="31" text-anchor="middle" fill="#c2410c">notice window (weeks)</text>
-      <circle cx="180" cy="50" r="2.6" fill="#c2410c"/>
-      <text class="tx" x="386" y="44" text-anchor="middle">uncontested → owned ✓ (usable)</text>
-
-      <path d="M180,50 C198,50 200,104 220,104" stroke="#9aa0a9" stroke-width="1.4" fill="none"/>
-      <text class="txs" x="176" y="76" text-anchor="end" fill="#c2410c">competing claim →</text>
-      <line x1="220" y1="104" x2="688" y2="104" stroke="#9aa0a9" stroke-width="1.4" marker-end="url(#t)"/>
-      <g stroke="#9aa0a9" stroke-width="1.2"><line x1="486" y1="98" x2="486" y2="110"/></g>
-      <text class="txs" x="224" y="120" text-anchor="start">contested</text>
-      <text class="tx" x="490" y="120" text-anchor="middle" fill="#16181d">settled → owned ✓ (usable now)</text>
-      <text class="txs" x="684" y="120" text-anchor="end">bond returned · held free</text>
-      <g stroke="#c2410c" stroke-width="1.2" fill="none">
-        <path d="M300,98 L300,92 L470,92 L470,98"/>
-        <path d="M508,98 L508,92 L664,92 L664,98"/>
-      </g>
-      <text class="tx" x="385" y="85" text-anchor="middle" fill="#c2410c">bonded L1 auction + soft-close</text>
-      <text class="tx" x="586" y="85" text-anchor="middle" fill="#c2410c">bond stays locked (~1 yr)</text>
-    </svg>
-    <div class="figcap">Either path gives you a usable, owned name — uncontested at window close, contested
-      the moment the auction <strong>settles</strong>. For a contested name you can use and transfer it right
-      away; the bond just stays locked through maturity (~1 yr) and then returns, after which the name is held
-      with no bond at all.</div>
-  </div>
 
   <div class="cols">
     <div>
@@ -208,7 +186,7 @@
         <tr><td>Bond maturity</td><td>~52,560 blocks (~1 yr)</td><td>test override</td></tr>
         <tr><td>Notice window</td><td>weeks, height-keyed</td><td>placeholder · fairness lever</td></tr>
         <tr><td>Data-availability windows</td><td>unset</td><td>deadline for batch bytes to surface + reorg depth; unpinned</td></tr>
-        <tr><td>On-chain footprint</td><td>~0.016 vB/name; fee = Σ fees</td><td>measured</td></tr>
+        <tr><td>On-chain footprint</td><td>~0.015 vB/name; fee = Σ fees</td><td>measured</td></tr>
       </table>
     </div>
     <div>
@@ -227,9 +205,9 @@
   </div>
 
   <p class="note"><strong>Least sure of:</strong> the <strong>contest rate</strong> is unknown until
-    launch — we assume it's high early (everyone wants <code>bitcoin</code>, dictionary words) and low
-    for the long tail (<code>sallysmith2165</code>); and the notice window has to be long enough that
-    real owners can contest a day-one land-rush.</p>
+    launch — we assume it's high early (everyone wants <code>bitcoin</code>, popular brands, or dictionary words) and low
+    for the long tail (<code>sallysmith2165</code>); and the notice window has to be long enough for a
+    competitive early market to form, so premium names aren't swept cheaply before other bidders show up.</p>
 
   <h2>Status — honest (maturity, not direction)</h2>
   <p><strong>Live on a Bitcoin test network (signet), end-to-end:</strong> claim, owner-key transfer,
@@ -241,9 +219,17 @@
 
   <h2>What we most want you to push on</h2>
   <ul>
-    <li><strong>Data availability + convergence</strong> — is the fail-closed, height-keyed rule (a
-      batch counts only if its bytes surface by a deadline) sound against reorgs and withholding? Is the
-      right signal an on-chain availability marker, or pure timing?</li>
+    <li><strong>Data availability</strong> — we batch claims and anchor only a summary on Bitcoin, leaving
+      the claim data off-chain; our defense if someone withholds it (or a reorg reshuffles it) is a
+      deadline — data that isn't public by a set Bitcoin height simply doesn't count. Is that sound, and
+      should availability be proven on-chain or by timing alone?</li>
+    <li><strong>Publisher trust-minimization</strong> — v1 leans on reputable, pay-first publishers (a
+      non-payer is left out). Is there a clean, <em>deployable-today</em> way to bind "pay the publisher"
+      to "claim anchored on-chain" without depending on long-roadmap primitives — or is
+      reputable-publisher trust the right v1 stance, with atomic binding left as later research?</li>
+    <li><strong>Discovery &amp; censorship-resistance</strong> — config-seeded today; is a registry-free,
+      on-chain service-announcement scan the right trustless discovery primitive, with Bitcoin + verification
+      as the only trust root?</li>
     <li><strong>On-chain footprint</strong> — are the ≤135-byte OP_RETURN events acceptable on mainnet,
       or is a script/covenant carrier worth a soft-fork dependency?</li>
     <li><strong>Light-client verification</strong> — a launch blocker, or fine post-launch?</li>

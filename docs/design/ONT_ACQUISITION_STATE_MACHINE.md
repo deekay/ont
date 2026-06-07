@@ -69,12 +69,16 @@ gates. Batching saves blockspace; it must not discount the anti-spam gate.
 An anchored claim is provisional. It does not become owned merely because a
 publisher issued a receipt.
 
-Finality requires a public notice window:
+Finality requires a public notice window, during which the name can be escalated
+to auction **by a bond** (see Contested Auction):
 
-- if exactly one DA-valid claimant exists for the name during the window, the
-  claim finalizes through the accumulator
-- if two or more DA-valid claimants exist for the name during the window, the
-  name becomes contested and leaves the accumulator path
+- if the window expires with **exactly one cheap claim and no qualifying bond**,
+  that claim finalizes through the accumulator
+- if the window expires with **two or more cheap claims and no bond**, the name is
+  **nullified** — it resolves to *no owner* and reopens for claiming (a bare
+  collision can deny, never award)
+- if a **qualifying bond** is posted (against an existing claim, or *bond-first*
+  with no prior claim), the name escalates to the L1 bonded auction
 - claims that arrive after a name is already final are already-owned attempts,
   not contests
 
@@ -101,7 +105,11 @@ for the deeper R1 treatment.
 
 ## Contested Auction
 
-A contested name escalates to the bonded L1 auction path.
+A name escalates to the bonded L1 auction when a **qualifying bond** is posted —
+either against an existing in-window claim, or **bond-first** with no prior cheap
+claim (the natural path for a name you already know is premium, e.g. `bitcoin`).
+The escalation trigger is the **bond**, not a bare second claim: a cheap collision
+alone can nullify a name (above) but can never open an auction or award the name.
 
 The auction exists for price discovery and anti-griefing when more than one party
 actually wants the same name. The intended auction family is:
@@ -113,8 +121,35 @@ actually wants the same name. The intended auction family is:
 - objective minimum increments
 - winner's bond becomes the live name bond
 
-The auction is not a second ordinary acquisition lane. It starts because the
-claim window found contention.
+The auction is not a second ordinary acquisition lane. It is opened by a bond, and
+the **largest bond wins**. (The ≤4-char length-scaled opening bonds are the
+*mandatory* bond-first case of this same mechanism.)
+
+### Bond opens the auction; a bare collision can only nullify
+
+The escalation trigger is a **bond**, not a bare claim. Two consequences:
+
+- A cheap collision (≥2 claims, no bond) **nullifies** the name — it resolves to
+  no owner and reopens for claiming. A bare claim can deny, never award.
+- Acquiring a contested name requires a **qualifying bond** (largest wins);
+  **bond-first** (a bond with no prior cheap claim) is allowed and is the natural
+  path for a known-premium name.
+
+This closes the ordering grab (former **R16**) at the root. Front-running a cheap
+claim — even a miner ordering its own claim first in a block it mines — buys
+*nothing*: worst case it nullifies the name (denial, ₿1,000, no payoff). To *take*
+a contested name you lock a real returnable bond — identical cost for a miner and
+for everyone else, because the acquisition gate is a **bond**, not a fee-priority
+claim. Both outcomes are deadline-derived (a verifier observes, at
+`currentHeight ≥ anchorHeight + W_notice`, whether a qualifying bond landed).
+
+Residual: a spite-griefer can still *deny* a targeted name by colliding a cheap
+claim (₿1,000, nullify) — no payoff, defendable by the target bonding; unprofitable
+and accepted. The ₿50,000 escalation floor (the cost to open/contest an auction) is
+now load-bearing — high enough to deter frivolous escalation, low enough not to
+block legitimate contests. See
+[`ONT_MEV_ORDERING_ANALYSIS.md`](./ONT_MEV_ORDERING_ANALYSIS.md) §D3 and
+[`ONT_RISK_REGISTER.md`](./ONT_RISK_REGISTER.md) R16.
 
 ## Bonded Ownership
 
