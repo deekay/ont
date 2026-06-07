@@ -69,7 +69,7 @@ export function renderClaimPage(networkLabel: string, clientBundlePath: string):
     <p class="muted" style="margin-top:0">Derived from the same phrase. You only need to fund this to bid in an auction or contest a name — a bare-claim needs no deposit.</p>
     <div>deposit address (signet)<span id="funding-address" class="key"></span></div>
     <button id="check-balance" class="secondary" type="button">Check balance</button>
-    <button id="faucet-btn" class="secondary" type="button">Get test sats</button>
+    <button id="faucet-btn" class="secondary" type="button">Get test ₿</button>
     <span id="balance" class="muted"></span>
   </section>
 
