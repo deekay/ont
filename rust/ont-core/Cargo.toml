@@ -1,0 +1,11 @@
+[package]
+name = "ont-core"
+version = "0.0.0"
+edition = "2021"
+publish = false
+description = "ONT Rust transaction-construction core (BDK). Spike scaffold — see ~/.sprout/RESEARCH/ONT_BDK_RUST_BUILD_PLAN_2026_06_06.md"
+
+[dependencies]
+# Pinned per the build plan. bdk_esplora (async) is added at S7 to keep the S1
+# scaffold's compile light; bond-tx construction (S3) only needs bdk_wallet.
+bdk_wallet = "3"
