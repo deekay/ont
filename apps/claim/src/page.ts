@@ -25,6 +25,7 @@ code, .key { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-s
 .key { display: block; padding: .5rem .6rem; margin: .35rem 0 .75rem; background: var(--bg); border: 1px solid var(--muted); border-radius: 6px; }
 label.check { display: flex; gap: .5rem; align-items: flex-start; margin: .75rem 0; }
 footer { margin-top: 3rem; color: var(--muted); font-size: .85rem; }
+.muted { color: var(--muted); font-size: .85rem; margin-top: 1rem; }
 a { color: var(--accent); }
 `;
 
@@ -51,12 +52,12 @@ export function renderClaimPage(networkLabel: string, clientBundlePath: string):
   <div id="status" class="status"></div>
 
   <section id="key-section" hidden>
-    <p class="warn">Save this key. It controls the name forever — no one can recover it for you.</p>
-    <div>owner pubkey<span id="owner-pubkey" class="key"></span></div>
-    <div>private key (secret)<span id="owner-privkey" class="key"></span></div>
+    <p class="warn">Save your private key. It alone controls the name forever — no one can recover it for you.</p>
+    <div>your private key — the only thing to save<span id="owner-privkey" class="key"></span></div>
     <button id="download-key" class="secondary" type="button">Download key file</button>
     <label class="check"><input id="backup-confirm" type="checkbox" /> I have saved my private key somewhere safe.</label>
     <button id="claim-btn" type="button" disabled>Claim it</button>
+    <p class="muted">Public owner ID (derived from your key, safe to share — no need to save it): <span id="owner-pubkey" class="key"></span></p>
   </section>
 
   <section id="result-section" hidden>
