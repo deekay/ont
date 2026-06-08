@@ -348,8 +348,46 @@ function updateClaimEnabled(): void {
   (el<HTMLButtonElement>("claim-btn")).disabled = !(confirmed && currentQuote !== null);
 }
 
-/** Import a 12-word phrase (fresh wallet) or a wallet backup (full continuity). */
-function onImport(): void {
+interface OwnerNames {
+  readonly names?: readonly string[];
+}
+
+/**
+ * Gap-scan: rediscover which HD indices a seed already uses by asking the publisher
+ * which names each derived owner key owns. This makes the 12-word phrase a SUFFICIENT
+ * backup — import the words alone and your names + next index are reconstructed, no
+ * saved map needed. Stops after GAP_LIMIT consecutive empty indices (BIP44-style).
+ */
+async function discoverWallet(mnemonic: string): Promise<{ names: Record<string, number>; nextIndex: number }> {
+  const GAP_LIMIT = 5;
+  const MAX_SCAN = 200;
+  const names: Record<string, number> = {};
+  let nextIndex = 0;
+  let gap = 0;
+  for (let i = 0; gap < GAP_LIMIT && i < MAX_SCAN; i += 1) {
+    const key = deriveOwnerKey(mnemonic, i);
+    let owned: readonly string[] = [];
+    try {
+      owned = (await requestJson<OwnerNames>(`/api/owner/${key.ownerPubkey}`)).names ?? [];
+    } catch {
+      // Offline / publisher unreachable: stop scanning and treat the rest as unused.
+      break;
+    }
+    if (owned.length > 0) {
+      for (const n of owned) {
+        try { names[normalizeName(n)] = i; } catch { /* skip malformed */ }
+      }
+      nextIndex = i + 1;
+      gap = 0;
+    } else {
+      gap += 1;
+    }
+  }
+  return { names, nextIndex };
+}
+
+/** Import a 12-word phrase (gap-scan to rediscover names) or a wallet backup. */
+async function onImport(): Promise<void> {
   const raw = (el<HTMLTextAreaElement>("import-input")).value.trim();
   if (!raw) {
     setStatus("error", "Paste your 12-word phrase or a wallet backup file first.");
@@ -374,7 +412,11 @@ function onImport(): void {
     } else {
       const mnemonic = raw.replace(/\s+/g, " ").trim().toLowerCase();
       if (!isValidMnemonic(mnemonic)) throw new Error("that is not a valid 12-word recovery phrase");
-      imported = { mnemonic, names: {}, nextIndex: 0 };
+      // Gap-scan the chain to rediscover this seed's names + next index, so the
+      // 12 words alone are a sufficient backup (no saved map required).
+      setStatus("info", "Phrase valid — scanning for names already claimed under it…");
+      const discovered = await discoverWallet(mnemonic);
+      imported = { mnemonic, names: discovered.names, nextIndex: discovered.nextIndex };
     }
     wallet = imported;
     currentQuote = null;
@@ -499,7 +541,7 @@ function init(): void {
   el<HTMLButtonElement>("download-key").addEventListener("click", downloadKey);
   el<HTMLInputElement>("backup-confirm").addEventListener("change", updateClaimEnabled);
   el<HTMLButtonElement>("claim-btn").addEventListener("click", () => { void onClaim(); });
-  el<HTMLButtonElement>("import-btn").addEventListener("click", onImport);
+  el<HTMLButtonElement>("import-btn").addEventListener("click", () => { void onImport(); });
   el<HTMLButtonElement>("download-wallet").addEventListener("click", downloadWallet);
   el<HTMLButtonElement>("check-balance").addEventListener("click", () => { void onCheckBalance(); });
   el<HTMLButtonElement>("faucet-btn").addEventListener("click", () => { void onFaucet(); });

@@ -503,6 +503,26 @@ export class Publisher {
     return this.accumulator.has(accumulatorKeyForName(normalizeName(name)));
   }
 
+  /**
+   * Names confirmed-owned by an owner pubkey, across this publisher's anchored
+   * batches. Lets a wallet reconstruct which HD key indices are in use from the
+   * seed alone (the gap-scan that makes the seed a sufficient backup), without
+   * preserving a name→index map. Scoped to what THIS publisher anchored.
+   */
+  namesOwnedBy(ownerPubkey: string): string[] {
+    if (!/^[0-9a-fA-F]{64}$/.test(ownerPubkey)) {
+      throw new PublisherError("ownerPubkey must be 32-byte hex", 400);
+    }
+    const target = ownerPubkey.toLowerCase();
+    const names = new Set<string>();
+    for (const batch of this.batches.values()) {
+      for (const leaf of batch.leaves) {
+        if (leaf.ownerPubkey.toLowerCase() === target) names.add(leaf.name);
+      }
+    }
+    return [...names].sort();
+  }
+
   private async sealBatch(claims: InternalQuote[]): Promise<void> {
     const prevRoot = this.accumulator.root();
     for (const claim of claims) {

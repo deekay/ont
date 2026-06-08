@@ -93,6 +93,14 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
     return;
   }
 
+  // Reverse lookup (gap-scan): names this publisher anchored to an owner pubkey, so
+  // a wallet can rediscover its HD indices from the seed alone.
+  const ownerMatch = pathname.match(/^\/api\/owner\/([0-9a-fA-F]{64})$/);
+  if (method === "GET" && ownerMatch && ownerMatch[1]) {
+    await proxyJson(response, `${publisherUrl}/owner/${ownerMatch[1].toLowerCase()}`);
+    return;
+  }
+
   // Wallet balance: read-only esplora address lookup (the client computes the
   // balance from chain_stats/mempool_stats). Restricted to bech32 addresses.
   const addrMatch = pathname.match(/^\/api\/address\/(tb1[a-z0-9]{6,90}|bcrt1[a-z0-9]{6,90})$/);
@@ -118,7 +126,7 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
     return;
   }
 
-  writeJson(response, 404, { error: "not_found", message: "Supported: /, /claim.js, /healthz, /api/claim/quote, /api/claim/submit, /api/claim/{id}, /api/publisher/info, /api/address/{addr}, /api/faucet" });
+  writeJson(response, 404, { error: "not_found", message: "Supported: /, /claim.js, /healthz, /api/claim/quote, /api/claim/submit, /api/claim/{id}, /api/owner/{pubkey}, /api/publisher/info, /api/address/{addr}, /api/faucet" });
 }
 
 async function proxyJson(response: ServerResponse, targetUrl: string, init?: RequestInit): Promise<void> {

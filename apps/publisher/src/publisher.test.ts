@@ -88,6 +88,24 @@ describe("Publisher quote → submit → confirmed flow", () => {
     expect(first.anchorTxid).toBe(second.anchorTxid);
   });
 
+  it("lists names owned by a pubkey (gap-scan reverse lookup), scoped to confirmed claims", async () => {
+    const publisher = fresh();
+    const q1 = await publisher.quote({ name: "alice", ownerPubkey: OWNER, paymentRail: "lightning" });
+    await publisher.submit({ quoteId: q1.quoteId, paymentProof: { rail: "lightning" } });
+    const q2 = await publisher.quote({ name: "bob", ownerPubkey: OTHER, paymentRail: "lightning" });
+    await publisher.submit({ quoteId: q2.quoteId, paymentProof: { rail: "lightning" } });
+
+    expect(publisher.namesOwnedBy(OWNER)).toEqual(["alice"]);
+    expect(publisher.namesOwnedBy(OTHER)).toEqual(["bob"]);
+    // A different (unused) HD index owns nothing → the gap-scan stops there.
+    expect(publisher.namesOwnedBy("ef".repeat(32))).toEqual([]);
+  });
+
+  it("rejects a non-hex owner pubkey in the reverse lookup", () => {
+    const publisher = fresh();
+    expect(() => publisher.namesOwnedBy("nope")).toThrow(PublisherError);
+  });
+
   it("exposes batch data for data-availability checks", async () => {
     const publisher = fresh();
     const quote = await publisher.quote({ name: "alice", ownerPubkey: OWNER, paymentRail: "lightning" });

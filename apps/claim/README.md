@@ -16,12 +16,13 @@ content shares no origin with the code that generates an owner key.
 - Claiming a **second** name reuses your phrase at the **next key index** — one backup for all your
   names, and each name gets a distinct key so they aren't publicly linkable. The deposit address is one
   fixed path per phrase (fund once).
-- **Import** an existing phrase or a **wallet backup** (`Already have names?`): a bare 12-word phrase
-  starts a fresh wallet at key #1; a wallet backup (`{ mnemonic, names, nextIndex }`) restores the
-  name→key map so new claims resume at the right index (and names don't collide). Because sequential
-  indices need that map, **download the wallet backup** to continue on another device / in the app.
-  (Auto-discovering the next index from a bare phrase needs an indexer reverse-lookup — future; the
-  wallet backup is the robust path until then.)
+- **Import** just your **12 words** and the site **gap-scans** to rediscover your wallet: it derives
+  owner keys 0, 1, 2… and asks the publisher (`GET /owner/{pubkey}`, proxied as `/api/owner/{pubkey}`)
+  which names each owns, stopping after a run of empty indices (BIP44-style). So the **seed alone is a
+  sufficient backup** — claim a name today, come back next month with only your phrase, and you can add
+  a second name under the same wallet at the right key. (Scoped to names this publisher anchored;
+  cross-publisher discovery would use the resolver.) A **wallet backup** (`{ mnemonic, names,
+  nextIndex }`) still imports instantly without a scan and is handy for moving to the app.
 - **To unify names already under two different phrases:** there's no merge primitive — you **transfer**
   each name from the old phrase's key to the next index under your main phrase (owner-key → owner-key,
   signed by the old key). That's a full-app action (PSBTs), not a bare-claim, and the transfer is

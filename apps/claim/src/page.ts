@@ -57,7 +57,7 @@ export function renderClaimPage(networkLabel: string, clientBundleSource: string
     <div style="margin-top:.6rem">
       <textarea id="import-input" rows="3" placeholder="paste your 12-word phrase, or a wallet backup file" aria-label="import phrase or wallet backup" style="width:100%;padding:.6rem .7rem;font-size:.95rem;border:1px solid var(--muted);border-radius:8px;background:var(--bg);color:var(--fg);font-family:ui-monospace,Menlo,monospace"></textarea>
       <button id="import-btn" class="secondary" type="button" style="margin-top:.5rem">Import wallet</button>
-      <p class="muted" style="margin-top:.5rem">A <strong>12-word phrase alone</strong> is treated as a fresh wallet starting at name #1 — only use it for a phrase you haven't claimed names with elsewhere. To <em>continue</em> a wallet you already use (here or in the app), import its <strong>wallet backup</strong> so we resume at the right key and your names don't collide.</p>
+      <p class="muted" style="margin-top:.5rem">Paste just your <strong>12 words</strong> — we scan the chain to find the names already claimed under it and continue at the next key (so your phrase alone is enough; no saved map needed). A <strong>wallet backup</strong> file imports instantly without a scan.</p>
     </div>
   </details>
 
