@@ -24,6 +24,7 @@ import {
 import {
   createDefaultLaunchAuctionPolicy,
   createExperimentalLaunchAuctionCatalogEntry,
+  type AccumulatorBatchLeaf,
   InMemoryOntIndexer,
   parseLaunchAuctionScenario,
   serializeLaunchAuctionPolicy,
@@ -102,6 +103,11 @@ const defaultPollIntervalMs = Number.parseInt(
   process.env.ONT_RPC_POLL_INTERVAL_MS ?? "10000",
   10
 );
+// Optional cheap-rail DA source: a publisher's /da/{root} endpoint. When set, the
+// resolver fetches batch leaves for each observed-but-unresolved anchor and merges
+// the ones that verify against the on-chain root — making accumulator-claimed names
+// (e.g. from the claim site) resolvable here. Unset → L1-only, as before.
+const publisherDaUrl = (process.env.ONT_RESOLVER_PUBLISHER_DA_URL ?? "").replace(/\/$/, "");
 const currentDir = dirname(fileURLToPath(import.meta.url));
 const auctionFixtureDir =
   normalizeOptionalText(process.env.ONT_EXPERIMENTAL_AUCTION_FIXTURE_DIR)
@@ -785,7 +791,10 @@ async function main(): Promise<void> {
 
     if (url.pathname === "/names") {
       return writeJson(response, 200, {
-        names: indexer.listNames()
+        names: indexer.listNames(),
+        // Cheap-rail names (claim site / batched), surfaced separately so they aren't
+        // mistaken for L1-bonded records. Empty until a DA source is configured.
+        accumulatorNames: indexer.listAccumulatorNames()
       });
     }
 
@@ -1067,6 +1076,12 @@ async function main(): Promise<void> {
         const record = indexer.getName(normalized);
 
         if (record === null) {
+          // Fall back to the cheap rail: a name claimed via the accumulator (e.g. the
+          // claim site) resolves here once its batch DA has been fetched + verified.
+          const accumulator = indexer.getAccumulatorName(normalized);
+          if (accumulator !== null) {
+            return writeJson(response, 200, { ...accumulator, source: "accumulator" });
+          }
           return writeJson(response, 404, {
             error: "name_not_found",
             name: normalized
@@ -1109,6 +1124,31 @@ async function main(): Promise<void> {
       `${PRODUCT_NAME} resolver listening on http://127.0.0.1:${port} (${source}/${syncMode}: ${descriptor})`
     );
   });
+
+  // Cheap-rail DA loop: periodically fetch batch leaves for any observed-but-
+  // unresolved anchor and merge the verified ones, so accumulator-claimed names
+  // become resolvable. applyBatchData re-verifies every proof against the on-chain
+  // root, so trusting the publisher's bytes is unnecessary (verify-don't-trust).
+  if (publisherDaUrl !== "") {
+    const resolveBatchData = async (): Promise<void> => {
+      const roots = indexer.unresolvedAnchorRoots();
+      let mergedAny = false;
+      for (const root of roots) {
+        try {
+          const res = await fetch(`${publisherDaUrl}/da/${root}`);
+          if (!res.ok) continue; // bytes not available yet — retry next tick
+          const bundle = (await res.json()) as { leaves?: readonly AccumulatorBatchLeaf[] };
+          if (indexer.applyBatchData(root, bundle.leaves ?? []) > 0) mergedAny = true;
+        } catch {
+          // publisher unreachable — retry next tick
+        }
+      }
+      if (mergedAny) await saveSnapshot(database, snapshotPath, snapshotDocumentKey, indexer);
+    };
+    setInterval(() => void resolveBatchData(), defaultPollIntervalMs);
+    void resolveBatchData();
+    console.log(`cheap-rail DA: resolving batch leaves from ${publisherDaUrl}`);
+  }
 }
 
 interface AuctionLabFixtureFile {

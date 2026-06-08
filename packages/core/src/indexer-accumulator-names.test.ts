@@ -152,6 +152,30 @@ describe("InMemoryOntIndexer accumulator-name merge (cheap-rail phase 2)", () =>
     expect(indexer.getAccumulatorName("alice")).toBeNull(); // but nothing merged
   });
 
+  it("applyBatchData merges externally-fetched leaves for an anchored root (the live DA path)", () => {
+    const batch = buildBatch([["alice", OWNER_A], ["bob", OWNER_B]]);
+    const indexer = new InMemoryOntIndexer({ launchHeight: 100 }); // NO provider — fetched externally
+    indexer.ingestBlock(block(100, "aa".repeat(32), [anchorTx("a1".repeat(32), { prevRoot: GENESIS, newRoot: batch.newRoot, batchSize: 2 })]));
+
+    // Before fetching the bytes: chain observed, name not resolvable, root unresolved.
+    expect(indexer.getAccumulatorName("alice")).toBeNull();
+    expect(indexer.unresolvedAnchorRoots()).toEqual([batch.newRoot.toLowerCase()]);
+
+    // The resolver fetched the leaves from the publisher and hands them in.
+    expect(indexer.applyBatchData(batch.newRoot, batch.leaves)).toBe(2);
+    expect(indexer.getAccumulatorName("alice")?.currentOwnerPubkey).toBe(OWNER_A.toLowerCase());
+    expect(indexer.resolveName("bob")?.source).toBe("accumulator");
+    expect(indexer.unresolvedAnchorRoots()).toEqual([]); // resolved
+  });
+
+  it("applyBatchData refuses leaves for a root that was never an applied anchor", () => {
+    const batch = buildBatch([["alice", OWNER_A]]);
+    const indexer = new InMemoryOntIndexer({ launchHeight: 100 });
+    // No anchor ingested for batch.newRoot → must refuse (can't inject against an unanchored root).
+    expect(indexer.applyBatchData(batch.newRoot, batch.leaves)).toBe(0);
+    expect(indexer.getAccumulatorName("alice")).toBeNull();
+  });
+
   it("round-trips accumulator names through snapshot/restore", () => {
     const batch = buildBatch([["alice", OWNER_A], ["bob", OWNER_B]]);
     const original = new InMemoryOntIndexer({ launchHeight: 100, batchDataProvider: provider([batch]) });

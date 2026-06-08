@@ -1,4 +1,5 @@
-import { verifyAccumulatorProof } from "@ont/core";
+import { encodeRootAnchorPayload, InMemoryOntIndexer, verifyAccumulatorProof } from "@ont/core";
+import { bytesToHex } from "@ont/protocol";
 import { describe, expect, it } from "vitest";
 
 import { Publisher, PublisherError } from "./publisher.js";
@@ -118,6 +119,67 @@ describe("Publisher quote → submit → confirmed flow", () => {
     expect(batch.leaves[0]?.name).toBe("alice");
     expect(batch.leaves[0]?.ownerPubkey).toBe(OWNER);
     expect(batch.anchorTxid).toBe(receipt.anchorTxid);
+  });
+
+  it("serves a DA bundle whose leaf proofs verify against the anchored root", async () => {
+    const publisher = fresh();
+    const quote = await publisher.quote({ name: "alice", ownerPubkey: OWNER, paymentRail: "lightning" });
+    const receipt = await publisher.submit({ quoteId: quote.quoteId, paymentProof: { rail: "lightning" } });
+    const root = receipt.inclusionProof!.root;
+
+    const bundle = publisher.daBundle(root);
+    expect(bundle.root).toBe(root);
+    expect(bundle.leaves).toHaveLength(1);
+    const leaf = bundle.leaves[0]!;
+    expect(leaf.name).toBe("alice");
+    expect(leaf.ownerPubkey).toBe(OWNER);
+    // The proof must verify against the anchored root with @ont/core's verifier —
+    // this is exactly what the indexer re-checks before merging.
+    expect(verifyAccumulatorProof(root, leaf.proof)).toBe(true);
+  });
+
+  it("404s a DA bundle for an unknown root", () => {
+    const publisher = fresh();
+    expect(() => publisher.daBundle("ab".repeat(32))).toThrow(PublisherError);
+  });
+
+  it("closes the cheap-rail loop: publisher anchor + DA → indexer resolves the name", async () => {
+    // 1. Claim on the publisher (as the claim site does) → it seals + anchors a batch.
+    const publisher = fresh();
+    const quote = await publisher.quote({ name: "alice", ownerPubkey: OWNER, paymentRail: "lightning" });
+    const receipt = await publisher.submit({ quoteId: quote.quoteId, paymentProof: { rail: "lightning" } });
+    const batch = publisher.batch(receipt.batchId!);
+
+    // 2. A fresh indexer (the resolver's) sees the publisher's RootAnchor on-chain.
+    //    The first batch's prevRoot must equal the indexer's genesis tip — the bug we fixed.
+    const indexer = new InMemoryOntIndexer({ launchHeight: 100 });
+    const anchorTx = {
+      txid: "a1".repeat(32),
+      inputs: [{ txid: null, vout: null, coinbase: false }],
+      outputs: [
+        {
+          valueSats: 0n,
+          scriptType: "op_return" as const,
+          dataHex: bytesToHex(
+            encodeRootAnchorPayload({ prevRoot: batch.prevRoot, newRoot: batch.newRoot, batchSize: batch.leaves.length })
+          )
+        }
+      ]
+    };
+    indexer.ingestBlock({ height: 100, hash: "bb".repeat(32), transactions: [anchorTx] });
+    // The anchor was ACCEPTED (genesis prevRoot matched) and is awaiting its data.
+    expect(indexer.getConfirmedAccumulatorRoot()).toBe(batch.newRoot);
+    expect(indexer.unresolvedAnchorRoots()).toEqual([batch.newRoot.toLowerCase()]);
+    expect(indexer.getAccumulatorName("alice")).toBeNull();
+
+    // 3. The resolver fetches the publisher's DA bundle and applies it (re-verifying).
+    const bundle = publisher.daBundle(batch.newRoot);
+    expect(indexer.applyBatchData(batch.newRoot, bundle.leaves)).toBe(1);
+
+    // 4. The name claimed on the claim site now resolves through the indexer.
+    expect(indexer.getAccumulatorName("alice")?.currentOwnerPubkey).toBe(OWNER.toLowerCase());
+    expect(indexer.resolveName("alice")?.source).toBe("accumulator");
+    expect(indexer.unresolvedAnchorRoots()).toEqual([]);
   });
 
   it("rejects an unknown quoteId", () => {

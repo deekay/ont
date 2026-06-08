@@ -678,6 +678,21 @@ export class InMemoryOntIndexer {
     if (leaves === null || leaves === undefined) {
       return;
     }
+    this.mergeVerifiedLeaves(newRoot, anchorTxid, blockHeight, leaves);
+  }
+
+  /**
+   * Merge only the leaves that VERIFY against the anchored root: leaf key = H(name),
+   * proof value = claimed owner, and the membership proof checks out against
+   * `newRoot`. A forged/mismatched leaf is dropped. Returns the count merged.
+   */
+  private mergeVerifiedLeaves(
+    newRoot: string,
+    anchorTxid: string,
+    blockHeight: number,
+    leaves: readonly AccumulatorBatchLeaf[]
+  ): number {
+    let merged = 0;
     for (const leaf of leaves) {
       let normalizedName: string;
       try {
@@ -707,7 +722,47 @@ export class InMemoryOntIndexer {
         accumulatorRoot: newRoot.toLowerCase(),
         leafKey
       });
+      merged += 1;
     }
+    return merged;
+  }
+
+  /**
+   * Apply externally-fetched batch leaves for an anchored root — the production
+   * data-availability path: the resolver fetches the bytes from a publisher/mirror
+   * and hands them in here. We only accept a root the indexer ALREADY observed as an
+   * *applied* on-chain anchor (so a caller can't inject names against an unanchored
+   * root), then merge only the leaves that verify against it. Returns the count
+   * merged. Consensus-safe regardless of transport — every leaf is checked against
+   * Bitcoin-anchored state.
+   */
+  public applyBatchData(newRoot: string, leaves: readonly AccumulatorBatchLeaf[]): number {
+    const root = newRoot.toLowerCase();
+    const anchor = this.rootAnchorObservations.find(
+      (observation) => observation.status === "applied" && observation.newRoot.toLowerCase() === root
+    );
+    if (anchor === undefined) {
+      return 0; // not an anchored, applied root — refuse
+    }
+    return this.mergeVerifiedLeaves(root, anchor.txid, anchor.blockHeight, leaves);
+  }
+
+  /** Applied-anchor roots with no accumulator names merged yet — the DA fetch work-list. */
+  public unresolvedAnchorRoots(): string[] {
+    const merged = new Set<string>();
+    for (const record of this.accumulatorNames.values()) {
+      merged.add(record.accumulatorRoot.toLowerCase());
+    }
+    const roots: string[] = [];
+    const seen = new Set<string>();
+    for (const observation of this.rootAnchorObservations) {
+      if (observation.status !== "applied") continue;
+      const root = observation.newRoot.toLowerCase();
+      if (seen.has(root) || merged.has(root)) continue;
+      seen.add(root);
+      roots.push(root);
+    }
+    return roots;
   }
 
   private recordSpentOutpoints(block: BitcoinBlock): void {

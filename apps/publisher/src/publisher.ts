@@ -8,7 +8,7 @@
 // is real, the chain effects are not. Plug a real verifier + broadcaster in
 // the constructor when wiring against a live network.
 
-import { Accumulator, accumulatorKeyForName, emptyAccumulatorRoot } from "@ont/core";
+import { Accumulator, type AccumulatorProof, accumulatorKeyForName, emptyAccumulatorRoot } from "@ont/core";
 import { createRootAnchorPayload, normalizeName } from "@ont/protocol";
 import { randomBytes } from "node:crypto";
 
@@ -118,11 +118,30 @@ interface InternalBatch {
   readonly anchoredAt: Date;
 }
 
+/**
+ * The data-availability bundle for one batch: the leaves WITH membership proofs
+ * against the batch's anchored `newRoot`. Captured at seal time (when the
+ * accumulator is exactly at `newRoot`), since later batches advance the root.
+ * This is what an indexer fetches and re-verifies against the on-chain anchor.
+ */
+export interface DaBundle {
+  readonly kind: "ont-publisher-da-bundle";
+  readonly root: string;
+  readonly anchorTxid: string;
+  readonly anchorHeight: number;
+  readonly leaves: ReadonlyArray<{
+    readonly name: string;
+    readonly ownerPubkey: string;
+    readonly proof: AccumulatorProof;
+  }>;
+}
+
 export class Publisher {
   readonly network: PublisherInfo["network"];
   private accumulator = new Accumulator();
   private readonly quotes = new Map<string, InternalQuote>();
   private readonly batches = new Map<string, InternalBatch>();
+  private readonly daByRoot = new Map<string, DaBundle>(); // batch leaves + proofs, keyed by anchored newRoot
   private readonly leafToQuote = new Map<string, string>(); // active reservations
   private pendingPaid: InternalQuote[] = []; // paid claims waiting to be sealed
   private pendingPaidSince: Date | null = null;
@@ -530,8 +549,11 @@ export class Publisher {
     }
     const newRoot = this.accumulator.root();
     const batchId = randomBytes(8).toString("hex");
+    // Anchor the real prevRoot — for the first batch this IS emptyAccumulatorRoot(),
+    // which is exactly the indexer's RootChain genesis tip. (A "00"×32 sentinel here
+    // would be rejected by the indexer as a stale/wrong parent, breaking the chain.)
     const payload = createRootAnchorPayload({
-      prevRoot: prevRoot === emptyAccumulatorRoot() ? "00".repeat(32) : prevRoot,
+      prevRoot,
       newRoot,
       batchSize: claims.length
     });
@@ -557,10 +579,36 @@ export class Publisher {
       anchorHeight: result.height,
       anchoredAt: this.clock()
     });
+    // Capture the DA bundle while the accumulator is still at `newRoot`: membership
+    // proofs generated now verify against the anchored root an indexer will see.
+    this.daByRoot.set(newRoot.toLowerCase(), {
+      kind: "ont-publisher-da-bundle",
+      root: newRoot,
+      anchorTxid: result.txid,
+      anchorHeight: result.height,
+      leaves: claims.map((claim) => ({
+        name: claim.name,
+        ownerPubkey: claim.ownerPubkey,
+        proof: this.accumulator.proveMembership(claim.leaf)
+      }))
+    });
     for (const claim of claims) {
       claim.status = "confirmed";
       this.leafToQuote.delete(claim.leaf);
     }
+  }
+
+  /**
+   * The data-availability bundle for an anchored root: leaves + membership proofs
+   * against that root, for an indexer to fetch and re-verify. The transport half of
+   * the cheap rail; the indexer trusts none of it (every proof is checked).
+   */
+  daBundle(root: string): DaBundle {
+    const bundle = this.daByRoot.get(root.toLowerCase());
+    if (bundle === undefined) {
+      throw new PublisherError(`no batch data for root ${root}`, 404);
+    }
+    return bundle;
   }
 
   private receiptFor(quote: InternalQuote): ClaimReceipt {
