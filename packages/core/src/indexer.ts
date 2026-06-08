@@ -465,6 +465,31 @@ export class InMemoryOntIndexer {
     return null;
   }
 
+  /**
+   * The reverse of {@link resolveName}: all names this node resolves to a given
+   * owner pubkey, across BOTH rails (L1 name records + accumulator-claimed names).
+   * This is the authoritative, chain-derived, cross-publisher source a wallet uses
+   * to rediscover which HD key indices it occupies from the seed alone (gap-scan) —
+   * unlike a single publisher's view, which only sees what that operator anchored.
+   * L1 precedence holds: a name covered by an L1 record is reported as L1 and not
+   * double-listed from the accumulator.
+   */
+  public namesOwnedBy(ownerPubkey: string): ReadonlyArray<{ readonly name: string; readonly source: "l1" | "accumulator" }> {
+    const target = ownerPubkey.toLowerCase();
+    const out: { name: string; source: "l1" | "accumulator" }[] = [];
+    for (const record of this.state.names.values()) {
+      if (record.currentOwnerPubkey.toLowerCase() === target) {
+        out.push({ name: record.name, source: "l1" });
+      }
+    }
+    for (const record of this.accumulatorNames.values()) {
+      if (record.currentOwnerPubkey.toLowerCase() === target && !this.state.names.has(record.normalizedName)) {
+        out.push({ name: record.name, source: "accumulator" });
+      }
+    }
+    return out.sort((left, right) => left.name.localeCompare(right.name));
+  }
+
   public getStats(): IndexerStats {
     return {
       currentHeight: this.currentHeight,
