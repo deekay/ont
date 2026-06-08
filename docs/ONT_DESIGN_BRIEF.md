@@ -187,8 +187,11 @@ Billions of names cannot each be a Bitcoin transaction, so cheap uncontested cla
   only if its bytes surface by a Bitcoin-height-keyed deadline (`anchorHeight + W + C`).
   Bytes that never surface are **excluded, not fatal** — honest nodes converge by dropping
   them. Contested leaves rely on the hard deadline so a withheld claim cannot reappear
-  later and steal priority. See
-  [`design/ONT_DATA_AVAILABILITY_AGREEMENT.md`](./design/ONT_DATA_AVAILABILITY_AGREEMENT.md).
+  later and steal priority. The *witnessing* (an on-chain availability marker, Bitcoin-timed) is
+  settled; the **transport** — how the bytes are served and mirrored — is the live open call,
+  with content-addressed/marker-committed bytes (publisher-served + anyone-mirrorable, not
+  consensus-critical) as the working direction and a **core area flagged for feedback**. See
+  [`design/ONT_DATA_AVAILABILITY_AGREEMENT.md`](./design/ONT_DATA_AVAILABILITY_AGREEMENT.md) (§8b transport).
 - **Leaderless multi-publisher.** Distinct-name inserts commute; genuine conflicts resolve
   by deterministic priority (block height, then tx index, then txid). No single publisher
   owns the root. See
@@ -310,7 +313,7 @@ they're decided.
 | Minimal frozen trust surface | **Solved** | 3 consensus files CI-locked (no-growth test); the protocol rules they build on are audit surface, pinned by review |
 | Returnable-bond contested auction | **Solved + live** | Bid → resolver-accepted end-to-end on signet |
 | Bitcoin-inclusion proof verification (Merkle + PoW) | **Solved (verifier)** | Tested vs real mainnet block; producers don't emit inclusion proofs yet |
-| Accumulator rail + fail-closed DA + leaderless merge | **Prototype** | Built + unit-tested; **not wired into the live indexer** |
+| Accumulator rail + fail-closed DA + leaderless merge | **Partial** | Indexer now observes the anchored root chain + resolves accumulator names (verify-don't-trust); **open: batch-data transport (§8b), resolver/web surface, leaderless multi-publisher** |
 | Publisher | **Prototype** | Single-writer; multi-publisher convergence simulated, not deployed |
 | Light-client (phone/browser) verification | **Open** | Verifier ready; emit-side + header sourcing unbuilt |
 | Launch parameters (window, maturity, DA, bond floor) | **Open** | Placeholders; must freeze + publish |

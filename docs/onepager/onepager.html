@@ -223,16 +223,21 @@
   <p><strong>Live on a Bitcoin test network (signet), end-to-end:</strong> claim, owner-key transfer,
     owner-signed records, recovery, and a bonded auction bid the resolver accepts — with the consensus
     code and signatures cross-checked byte-for-byte against a second independent implementation.
-    <strong>Prototype / not yet wired:</strong> the cheap batched-claim path into the live indexer
-    (built and unit-tested, including convergence against a data-withholding adversary); a single-writer
-    publisher; and producers don't yet emit the proofs a phone/browser would check. Not mainnet-ready.</p>
+    <strong>Prototype / partial:</strong> the cheap batched-claim path is now wired into the live indexer
+    — it observes the anchored root chain and resolves accumulator-claimed names, re-verifying each against
+    Bitcoin — but the batch-data <em>transport</em> is still a pluggable seam (not a production source) and
+    the resolver/web surface doesn't expose those names yet; a single-writer publisher; and producers don't
+    yet emit the proofs a phone/browser would check. Not mainnet-ready.</p>
 
   <h2>What we most want you to push on</h2>
   <ul>
-    <li><strong>Data availability</strong> — we batch claims and anchor only a summary on Bitcoin, leaving
-      the claim data off-chain; our defense if someone withholds it (or a reorg reshuffles it) is a
-      deadline — data that isn't public by a set Bitcoin height simply doesn't count. Is that sound, and
-      should availability be proven on-chain or by timing alone?</li>
+    <li><strong>Data availability — incl. how the bytes are transported</strong> — we batch claims and
+      anchor only a summary on Bitcoin, leaving the claim data off-chain; our defense if someone withholds
+      it (or a reorg reshuffles it) is a deadline — data that isn't public by a set Bitcoin height simply
+      doesn't count. Is that sound, and should availability be proven on-chain or by timing alone? And the
+      <em>transport</em>: we lean toward content-addressed bytes any node can mirror, verified against an
+      on-chain digest (so it's <strong>not consensus-critical</strong>, backend swappable) — is
+      publisher-served + voluntary mirrors enough for v1, or is a gossip/DA-sampling layer needed sooner?</li>
     <li><strong>Publisher trust-minimization</strong> — v1 leans on reputable, pay-first publishers (a
       non-payer is left out). Is there a clean, <em>deployable-today</em> way to bind "pay the publisher"
       to "claim anchored on-chain" without depending on long-roadmap primitives — or is
@@ -246,6 +251,11 @@
     <li><strong>Auction form</strong> — open ascending vs. sealed second-price, given MEV and relay-bid timing?</li>
     <li><strong>Launch fairness</strong> — is a long notice window enough against a day-one rush on
       premium names, or do we need a decaying launch fee?</li>
+    <li><strong>Recovery you can leave unattended</strong> — recovery is opt-in (skip it and a name is one
+      key, like cold-storage bitcoin); if enabled, its veto should be postable by a <em>non-custodial
+      watcher</em> (can abort, never move the name), not the owner. A literal pre-signed veto can't
+      reference the recovery UTXO (outpoint unknown until invoke) — what's the cleanest name-scoped,
+      abort-only credential?</li>
   </ul>
 
   <div class="foot">Repo: github.com/deekay/ont · the full design brief, prior-art comparison, risk
