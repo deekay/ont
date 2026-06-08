@@ -278,7 +278,25 @@ async function bootstrap() {
 
     state.config = config;
     state.health = health;
-    state.names = Array.isArray(namesPayload.names) ? namesPayload.names : [];
+    // L1 names + cheap-rail (accumulator) names mapped to the same row shape. Cheap-rail
+    // names have no bond, so the bond fields are empty/zero (honest, not fabricated);
+    // they resolve as owned (status "mature") and carry acquisitionKind "accumulator".
+    const l1Names = Array.isArray(namesPayload.names) ? namesPayload.names : [];
+    const accumulatorNames = Array.isArray(namesPayload.accumulatorNames)
+      ? namesPayload.accumulatorNames.map((record) => ({
+          name: record.name,
+          status: "mature",
+          currentOwnerPubkey: record.currentOwnerPubkey,
+          claimHeight: record.claimHeight,
+          maturityHeight: record.claimHeight,
+          currentBondTxid: "",
+          currentBondVout: 0,
+          currentBondValueSats: "0",
+          requiredBondSats: "0",
+          acquisitionKind: "accumulator"
+        }))
+      : [];
+    state.names = [...l1Names, ...accumulatorNames];
     state.activity = Array.isArray(activityPayload.activity) ? activityPayload.activity : [];
     state.privateAuctionSmokeStatus = privateAuctionSmokeStatus;
     state.auctionLab = auctionLabPayload;

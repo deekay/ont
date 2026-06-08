@@ -506,8 +506,11 @@ export class Publisher {
     }
     const newRoot = this.accumulator.root();
     const batchId = randomBytes(8).toString("hex");
+    // Anchor the real prevRoot — for the first batch this IS emptyAccumulatorRoot(),
+    // which is exactly the indexer's RootChain genesis tip. (A "00"×32 sentinel here
+    // would be rejected by the indexer as a stale/wrong parent, breaking the chain.)
     const payload = createRootAnchorPayload({
-      prevRoot: prevRoot === emptyAccumulatorRoot() ? "00".repeat(32) : prevRoot,
+      prevRoot,
       newRoot,
       batchSize: claims.length
     });
