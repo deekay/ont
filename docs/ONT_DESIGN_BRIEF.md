@@ -225,6 +225,30 @@ the publisher's marginal per-name cost is single-digit sats (an amortized channe
 any markup is capped by the direct-L1 alternative (≈₿1,000 at low fee rates), so the fee stays thin.
 **v1 starts with a few reputable publishers and minimizes this trust over time.**
 
+**Operator roles and packaging.** ONT has exactly two service roles, both unprivileged — neither
+decides ownership; Bitcoin does. A **publisher** is the *write-side*: it accepts paid claims (Lightning),
+batches them, broadcasts the anchor, and serves receipts/inclusion proofs. A **resolver** (indexer) is
+the *read-side*: it replays Bitcoin-derived state and serves ownership + owner-signed value records.
+
+| | Publisher | Resolver |
+| --- | --- | --- |
+| Side | Write | Read |
+| Payment rail (Lightning) | Required | Not required |
+| On-chain funds / liquidity | Required (anchor broadcast) | Not required |
+| Bitcoin node | Required | Required |
+| Storage | Batch data + receipts | Full indexed state |
+| Uptime profile | Burstable (per batch cycle) | Continuous |
+| Decides ownership | **No** (Bitcoin does) | **No** (Bitcoin does) |
+| Client trust model | Trust-on-use, on-chain recourse | Verify-don't-trust |
+
+The roles stay **separate at the protocol/API layer** but ship **bundled as one operator stack**
+(publisher + resolver + indexer + archive in a single deployable). Bundling is operational convenience,
+not protocol coupling: a wallet can claim through publisher A, verify against resolver B, compare
+resolvers C/D, or self-host either piece. Operator sets overlap but differ — wallets / exchanges / LN
+providers / app platforms tend to run **both**; block explorers, researchers, and independent verifiers
+run **resolver-only**; a high-volume onboarding funnel might run **publisher-only** and hand lookups off
+to public resolvers.
+
 **The ~0.015 vB/name figure is issuance only.** It is the amortized cost of *getting* a name.
 Ongoing **transfers** are a separate load: a bonded name's transfer must carry its bond UTXO forward
 (necessarily L1), and a mature/accumulator transfer is an owner-signed event that is L1 today and

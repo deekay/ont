@@ -65,6 +65,24 @@ A name is controlled by one key — your **owner key**. With it you can:
 - **Set up recovery** ahead of time, so a lost key isn't the end — and only the backup key you
   chose can use it, so recovery can never become a way for someone to take your name.
 
+## Two services that help — neither decides
+
+Using ONT at scale leans on two **unprivileged** services. Neither owns or decides anything; Bitcoin does.
+
+- **Publisher** — the service you *pay* (over Lightning) to get your claim into Bitcoin. It accepts
+  payment, batches thousands of claims into one Merkle commitment, and broadcasts the on-chain anchor.
+  *Write-side.*
+- **Resolver** — the service you *query* to look up a name. It replays Bitcoin and serves the answer
+  (and your owner-signed records), but never decides ownership. *Read-side.*
+
+**What each needs to run.** A publisher needs a Lightning rail, on-chain funds to broadcast anchors,
+and batching infrastructure. A resolver needs only a Bitcoin node and storage to replay and serve state.
+Both are unprivileged — anyone can run either, and clients *verify* the answers rather than trust them.
+
+The same operator usually runs both, shipped together as one operator stack — but they are **separate at
+the protocol layer**: your wallet can claim through publisher A, verify against resolver B, compare
+resolvers, or self-host either piece. Bundling is operational convenience, not protocol coupling.
+
 ## How it scales
 
 Billions of names can't each be a Bitcoin transaction, so **publishers** batch many claims into one
@@ -74,9 +92,10 @@ batch, less as batches grow). A batch counts only if its miner fee covers the cl
 name still buys the blockspace it uses. ONT's on-chain events are single `OP_RETURN` payloads up to ~171 bytes (the recover-owner event; most are smaller).
 
 You pay a publisher off-chain over Lightning; it bundles many claims and pays the single aggregate miner
-fee. **Your cost is the ₿1,000 gate (sunk, to miners) plus a thin publisher service fee** — the
-publisher's own per-name cost is tiny, and any markup is capped by the always-available option of
-claiming directly on L1. The flow is **pay-first** (you pay, then you're included; a non-payer is left
+fee — so the ₿1,000 still reaches **Bitcoin's miners**, even though your immediate payment goes to the
+publisher (it's not a fee to the publisher or a resolver). **Your cost is the ₿1,000 gate (sunk, to
+miners) plus a thin publisher service fee** — the publisher's own per-name cost is tiny, and any markup
+is capped by the always-available option of claiming directly on L1. The flow is **pay-first** (you pay, then you're included; a non-payer is left
 out), so the publisher risks no capital — you take a small, bounded one. And a publisher **can't steal a
 name**: if it pockets your payment or commits the wrong owner key, you contest on-chain, which forces an
 auction the rightful owner wins; worst case you're out about a dollar and re-claim elsewhere. Binding the
@@ -90,10 +109,10 @@ transactions into ownership live in a small, **frozen core — three consensus f
 audit, locked so its trust surface can't silently grow. Run it
 over Bitcoin's history and you get the same answer everyone else does, and you can check that answer
 against Bitcoin's own block headers and proof-of-work — so a server that lies about who owns a name
-gets caught, not believed. The services that help you find and publish names — *resolvers* — only
-mirror this data; they never decide it.
+gets caught, not believed. Resolvers only mirror this Bitcoin-derived data; they never decide it.
 
-And no operator is privileged: **anyone can run a resolver or publisher**. Because ownership is fixed
+And no operator is privileged: **anyone can run a resolver or publisher** (see the two roles above).
+Because ownership is fixed
 by Bitcoin, you don't need a *trusted* node — only a reachable one whose answer you can verify (a
 lying node is caught; a slow one is routed around). Finding nodes is config-seeded today; a
 registry-free, on-chain discovery scan is designed, not yet built.
