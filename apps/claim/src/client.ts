@@ -322,17 +322,30 @@ async function onCheck(event: Event): Promise<void> {
   const w = ensureWallet();
   const index = indexForName(w, name);
   const key = deriveOwnerKey(w.mnemonic, index);
-  setStatus("info", `Checking <strong>${esc(name)}</strong>…`);
+  // Reveal the derived key FIRST — this is pure local crypto and works with no
+  // network (the offline / air-gapped path). Claiming is gated separately on a
+  // verified quote, so being offline still lets you generate and save your keys.
+  currentQuote = null;
+  showKeyBackup(name, w, key, index);
+  updateClaimEnabled();
+  setStatus("info", `Key derived for <strong>${esc(name)}</strong> — checking availability…`);
   try {
     const quote = await fetchVerifiedQuote(name, key.ownerPubkey);
     currentQuote = quote;
-    showKeyBackup(name, w, key, index);
+    updateClaimEnabled();
     const cost = quote.totalBaseSats ? `₿${quote.totalBaseSats}` : "the ₿1,000 gate + a small publisher fee";
     const nth = Object.keys(w.names).length > 0 ? " It joins your existing wallet under a new key." : "";
     setStatus("ok", `<strong>${esc(name)}</strong> is available — about ${esc(cost)}.${nth} Save your phrase below, then claim it.`);
   } catch (error) {
-    setStatus("error", esc(error instanceof Error ? error.message : "Could not check that name."));
+    const message = error instanceof Error ? error.message : "Could not check that name.";
+    setStatus("error", `${esc(message)} Your key for <strong>${esc(name)}</strong> is shown below regardless (keys generate offline) — connect to claim it.`);
   }
+}
+
+/** Claim is allowed only once a verified quote exists AND the backup is confirmed. */
+function updateClaimEnabled(): void {
+  const confirmed = (el<HTMLInputElement>("backup-confirm")).checked;
+  (el<HTMLButtonElement>("claim-btn")).disabled = !(confirmed && currentQuote !== null);
 }
 
 /** Import a 12-word phrase (fresh wallet) or a wallet backup (full continuity). */
@@ -484,9 +497,7 @@ async function onFaucet(): Promise<void> {
 function init(): void {
   el<HTMLFormElement>("claim-form").addEventListener("submit", (e) => { void onCheck(e); });
   el<HTMLButtonElement>("download-key").addEventListener("click", downloadKey);
-  el<HTMLInputElement>("backup-confirm").addEventListener("change", (e) => {
-    (el<HTMLButtonElement>("claim-btn")).disabled = !(e.target as HTMLInputElement).checked;
-  });
+  el<HTMLInputElement>("backup-confirm").addEventListener("change", updateClaimEnabled);
   el<HTMLButtonElement>("claim-btn").addEventListener("click", () => { void onClaim(); });
   el<HTMLButtonElement>("import-btn").addEventListener("click", onImport);
   el<HTMLButtonElement>("download-wallet").addEventListener("click", downloadWallet);

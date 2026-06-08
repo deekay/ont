@@ -29,8 +29,11 @@ footer { margin-top: 3rem; color: var(--muted); font-size: .85rem; }
 a { color: var(--accent); }
 `;
 
-export function renderClaimPage(networkLabel: string, clientBundlePath: string): string {
+export function renderClaimPage(networkLabel: string, clientBundleSource: string, auditBundlePath: string): string {
   const net = networkLabel ? `<span class="lede"> · ${escapeHtml(networkLabel)}</span>` : "";
+  // Inline the bundle so the page is self-contained / offline-saveable. Only `</script`
+  // needs neutralizing; everything else is valid inside a module script verbatim.
+  const inlineScript = clientBundleSource.replace(/<\/script/gi, "<\\/script");
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -90,12 +93,18 @@ export function renderClaimPage(networkLabel: string, clientBundlePath: string):
   </section>
 
   <footer>
-    Your key is generated in your browser and never sent to us. This page verifies the publisher's
-    inclusion proof locally before showing a claim as real. Auctions and contesting a name need the
-    full app. <a href="https://github.com/deekay/ont">How it works</a>.
+    <p><strong>Runs entirely in your browser.</strong> Your recovery phrase and keys are generated and
+    derived locally and <strong>never sent</strong> — the only things that leave this page are your
+    <em>public</em> owner ID, the name, and your deposit address. This page verifies the publisher's
+    inclusion proof locally before showing a claim as real.</p>
+    <p>It's a <strong>single self-contained file</strong>, like a BIP39 calculator: save it (⌘/Ctrl-S)
+    and open it <strong>offline</strong> — generating your phrase and keys works with no network
+    (you only need to be online to submit the claim itself). Audit the exact code inline here or at
+    <a href="${escapeHtml(auditBundlePath)}"><code>${escapeHtml(auditBundlePath)}</code></a>.</p>
+    <p>Auctions and contesting a name need the full app. <a href="https://github.com/deekay/ont">How it works</a>.</p>
   </footer>
 </main>
-<script type="module" src="${escapeHtml(clientBundlePath)}"></script>
+<script type="module">${inlineScript}</script>
 </body>
 </html>`;
 }

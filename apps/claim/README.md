@@ -31,6 +31,14 @@ Auctions and contesting a name need the full app (on-chain PSBTs); this site is 
 
 The entire trust-sensitive surface is one small, auditable file: [`src/client.ts`](src/client.ts).
 
+### Client-side & offline (BIP39-calculator style)
+All seed/key work is **in the browser** — generate the phrase, derive owner keys (`m/696969'/0'/i'`)
+and the funding address — and the **secret never leaves the page**. The only things sent to the server
+are *public*: the name, your owner pubkey, and your deposit address (see every `fetch` in `client.ts`).
+The page **inlines** its JS into a single self-contained file (also served at `/claim.js` for
+auditing/diffing), so you can **save it and run it offline**: key generation works with no network, and
+you only need to be online to submit the claim itself.
+
 ## Run (local / signet)
 ```
 npm install            # from repo root (workspaces)

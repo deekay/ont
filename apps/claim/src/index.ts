@@ -41,7 +41,11 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
   const pathname = url.pathname;
 
   if (method === "GET" && (pathname === "/" || pathname === "")) {
-    const html = renderClaimPage(networkLabel, CLIENT_BUNDLE_PATH);
+    // Inline the client bundle so the page is ONE self-contained file: it can be
+    // saved (⌘S) and run offline, and there's no separate script fetch a server
+    // could swap. The same bytes are also served at /claim.js for auditing/diffing.
+    const bundle = await getClaimClientBundle();
+    const html = renderClaimPage(networkLabel, bundle, CLIENT_BUNDLE_PATH);
     response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
     response.end(html);
     return;
