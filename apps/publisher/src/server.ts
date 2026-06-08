@@ -74,6 +74,16 @@ async function handle(publisher: Publisher, req: IncomingMessage, res: ServerRes
   if (method === "GET" && daMatch && daMatch[1] !== undefined) {
     return writeJson(res, 200, publisher.daBundle(daMatch[1]));
   }
+  // Reverse lookup: names this publisher anchored to a given owner pubkey. Lets a
+  // wallet rediscover its HD indices from the seed alone (gap-scan).
+  const ownerMatch = url.pathname.match(/^\/owner\/([0-9a-fA-F]{64})$/);
+  if (method === "GET" && ownerMatch && ownerMatch[1] !== undefined) {
+    return writeJson(res, 200, {
+      kind: "ont-publisher-owner-names",
+      ownerPubkey: ownerMatch[1].toLowerCase(),
+      names: publisher.namesOwnedBy(ownerMatch[1])
+    });
+  }
   writeError(res, new PublisherError(`no route for ${method} ${url.pathname}`, 404));
 }
 

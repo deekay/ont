@@ -798,6 +798,20 @@ async function main(): Promise<void> {
       });
     }
 
+    // Reverse lookup: all names (both rails) this node resolves to an owner pubkey.
+    // Lets a wallet rediscover its HD key indices from the seed alone (gap-scan),
+    // chain-derived and cross-publisher — the authoritative counterpart to a single
+    // publisher's view.
+    const ownerMatch = url.pathname.match(/^\/owner\/([0-9a-fA-F]{64})$/);
+    if (ownerMatch && ownerMatch[1]) {
+      const ownerPubkey = ownerMatch[1].toLowerCase();
+      return writeJson(response, 200, {
+        kind: "ont-owner-names",
+        ownerPubkey,
+        names: indexer.namesOwnedBy(ownerPubkey)
+      });
+    }
+
     if (url.pathname === "/experimental-auctions") {
       return writeJson(response, 200, {
         kind: "experimental_auctions",

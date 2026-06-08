@@ -186,4 +186,20 @@ describe("InMemoryOntIndexer accumulator-name merge (cheap-rail phase 2)", () =>
     expect(restored.getAccumulatorName("bob")?.currentOwnerPubkey).toBe(OWNER_B.toLowerCase());
     expect(restored.resolveName("alice")?.source).toBe("accumulator");
   });
+
+  it("namesOwnedBy reverse-lookup returns an owner's names across the rail (gap-scan source)", () => {
+    const batch = buildBatch([["alice", OWNER_A], ["bob", OWNER_B], ["carol", OWNER_A]]);
+    const indexer = new InMemoryOntIndexer({ launchHeight: 100, batchDataProvider: provider([batch]) });
+    indexer.ingestBlock(block(100, "aa".repeat(32), [anchorTx("a1".repeat(32), { prevRoot: GENESIS, newRoot: batch.newRoot, batchSize: 3 })]));
+
+    expect(indexer.namesOwnedBy(OWNER_A)).toEqual([
+      { name: "alice", source: "accumulator" },
+      { name: "carol", source: "accumulator" }
+    ]);
+    expect(indexer.namesOwnedBy(OWNER_B)).toEqual([{ name: "bob", source: "accumulator" }]);
+    // A different (unused) HD key owns nothing — where a gap-scan stops.
+    expect(indexer.namesOwnedBy("ee".repeat(32))).toEqual([]);
+    // Case-insensitive on the owner pubkey.
+    expect(indexer.namesOwnedBy(OWNER_A.toUpperCase())).toHaveLength(2);
+  });
 });
