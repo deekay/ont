@@ -62,8 +62,10 @@ A name is controlled by one key — your **owner key**. With it you can:
   change it whenever you like. These mappings live *off-chain*, signed by your key, so updates are
   instant, free, and never touch Bitcoin.
 - **Transfer** the name to someone else's key.
-- **Set up recovery** ahead of time, so a lost key isn't the end — and only the backup key you
-  chose can use it, so recovery can never become a way for someone to take your name.
+- **Optionally set up recovery** so a lost key isn't the end. It's opt-in — skip it and a name is just
+  one key you keep safe (like cold-storage bitcoin). Only the backup key you chose can use it, and your
+  main key vetoes any misuse within a window you set — a veto you can hand to a non-custodial watcher,
+  so a set-and-forget name never needs you online.
 
 ## Two services that help — neither decides
 

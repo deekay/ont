@@ -23,6 +23,11 @@ Status: design analysis, 2026-05-24. Builds on the existing v1 recovery mechanis
 - **Why it's safe:** the veto lives on Bitcoin, so a thief can't win and the system never has to
   prove "nothing happened" off-chain. Sovereignty holds: only your own pre-set keys can ever move
   the name.
+- **It's optional, and it shouldn't make you a chain-watcher.** Arming recovery is opt-in — skip it
+  and a name is just one key you keep safe (cold-storage model), with nothing to monitor. If you *do*
+  arm it, the veto must be **delegable to a non-custodial watcher** so you needn't be online; a name
+  is set-and-forget, so "check the app weekly" is the wrong design. Making that veto delegable without
+  giving the watcher power to steal is the one real open piece (subtlety 6 / open item 5).
 
 ---
 
@@ -116,6 +121,30 @@ Recovery becomes available to the whole namespace, not just locked bonds.
 5. **The recovery-proof availability gate already exists.** Today's flow checks the recovery wallet
    proof is *available* before accepting it — a mini data-availability requirement that the long-tail
    version inherits and the R1 agreement rule already covers.
+6. **Who watches for a malicious invoke — and keeping it *off* the owner.** The cancel is the main
+   key's, so *someone* must notice a malicious invoke within the window and post the veto. A name is a
+   **set-and-forget** asset (more like a domain or cold-storage key than a payment you make weekly), so
+   this **cannot** depend on the owner being online — "open the app to check" is the wrong ask. The
+   honest framing:
+   - **Default is no monitoring at all.** With no descriptor armed (subtlety 4), there is no window and
+     nothing to watch — one key, cold-storage model, lose-it-and-it's-gone like bitcoin. Many holders
+     will rationally pick this. The watch requirement is a property *only* of opting into recovery.
+   - **If you do arm recovery, delegate the watch — to a party that can't steal.** The target shape is
+     a **watchtower**: a non-custodial watcher that can *abort* a recovery but never *move* the name, so
+     compromising it costs nothing; redundancy (several independent watchers, one honest-and-live
+     suffices) covers the only thing it can do wrong, which is fail to act. This is the trust-minimized
+     pattern Lightning and covenant vaults already use, and it slots in as a third unprivileged service
+     beside publisher/resolver. An *alert-only* service ("we'll ping you") does **not** suffice — it
+     still needs the owner online with the main key to act.
+   - **Open mechanism question (the sharpest gap).** In approach B the veto spends the *recovery UTXO*,
+     whose outpoint isn't known until invoke time — so a literally pre-signed cancel can't reference it,
+     and you can't hand a watcher a ready-to-broadcast veto the way an LN justice tx is handed over.
+     Making the veto delegable without giving the watcher signing custody likely needs a **name-scoped
+     cancel the main key pre-authorizes** (a credential a watcher can only use to *abort* a recovery on
+     that name, never to transfer it) — to be specified. Until that exists, recovery's safety still
+     leans on the owner (or a trusted agent) actually seeing the invoke; this is the real gap between
+     "recovery exists" and "recovery you can leave unattended." A longer challenge window (subtlety 3)
+     buys every watcher more slack and is the cheap partial mitigation in the meantime.
 
 ## 6. Invariant check
 
@@ -142,6 +171,11 @@ namespace (not just immature bonds); approach B keeps it DA-independent and cons
 3. **Specify the transfer-resets-arming rule** in the accumulator (subtlety 1) — the sharpest
    correctness item.
 4. ~~Prototype it~~ — **done (see below).**
+5. **Specify a delegable, non-custodial veto (watchtower credential)** so a malicious invoke can be
+   cancelled without the owner online and without giving the watcher power to move the name (subtlety
+   6). The recovery-UTXO outpoint isn't known at arming time, so a naive pre-signed cancel doesn't
+   work — this needs a name-scoped, abort-only authorization. Unbuilt; the gap between "recovery
+   exists" and "recovery you can leave unattended."
 
 ## 8. Prototype (2026-05-24)
 
