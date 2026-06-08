@@ -348,15 +348,42 @@ function updateClaimEnabled(): void {
   (el<HTMLButtonElement>("claim-btn")).disabled = !(confirmed && currentQuote !== null);
 }
 
-interface OwnerNames {
-  readonly names?: readonly string[];
+// The publisher returns names as a string[]; the resolver returns [{name, source}].
+interface OwnerNamesResponse {
+  readonly names?: ReadonlyArray<string | { readonly name?: string }>;
+}
+
+function extractNames(payload: OwnerNamesResponse): string[] {
+  return (payload.names ?? [])
+    .map((entry) => (typeof entry === "string" ? entry : entry?.name))
+    .filter((n): n is string => typeof n === "string");
 }
 
 /**
- * Gap-scan: rediscover which HD indices a seed already uses by asking the publisher
- * which names each derived owner key owns. This makes the 12-word phrase a SUFFICIENT
- * backup — import the words alone and your names + next index are reconstructed, no
- * saved map needed. Stops after GAP_LIMIT consecutive empty indices (BIP44-style).
+ * Names owned by one derived key, unioning the publisher (local/fast) and the
+ * resolver (authoritative/cross-publisher, if configured). `reachable` is true if
+ * either source responded — so the scan can stop cleanly when fully offline.
+ */
+async function ownedNamesFor(ownerPubkey: string): Promise<{ names: string[]; reachable: boolean }> {
+  const names = new Set<string>();
+  let reachable = false;
+  for (const path of [`/api/owner/${ownerPubkey}`, `/api/resolver/owner/${ownerPubkey}`]) {
+    try {
+      for (const n of extractNames(await requestJson<OwnerNamesResponse>(path))) names.add(n);
+      reachable = true;
+    } catch {
+      // This source is unreachable/not-configured — fall back to the other.
+    }
+  }
+  return { names: [...names], reachable };
+}
+
+/**
+ * Gap-scan: rediscover which HD indices a seed already uses by asking which names
+ * each derived owner key owns (publisher ∪ resolver). This makes the 12-word phrase
+ * a SUFFICIENT backup — import the words alone and your names + next index are
+ * reconstructed, no saved map needed. Stops after GAP_LIMIT consecutive empty
+ * indices (BIP44-style), or early if every source is offline.
  */
 async function discoverWallet(mnemonic: string): Promise<{ names: Record<string, number>; nextIndex: number }> {
   const GAP_LIMIT = 5;
@@ -366,13 +393,8 @@ async function discoverWallet(mnemonic: string): Promise<{ names: Record<string,
   let gap = 0;
   for (let i = 0; gap < GAP_LIMIT && i < MAX_SCAN; i += 1) {
     const key = deriveOwnerKey(mnemonic, i);
-    let owned: readonly string[] = [];
-    try {
-      owned = (await requestJson<OwnerNames>(`/api/owner/${key.ownerPubkey}`)).names ?? [];
-    } catch {
-      // Offline / publisher unreachable: stop scanning and treat the rest as unused.
-      break;
-    }
+    const { names: owned, reachable } = await ownedNamesFor(key.ownerPubkey);
+    if (!reachable) break; // fully offline — stop and treat the rest as unused
     if (owned.length > 0) {
       for (const n of owned) {
         try { names[normalizeName(n)] = i; } catch { /* skip malformed */ }

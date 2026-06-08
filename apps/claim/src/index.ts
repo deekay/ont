@@ -20,6 +20,9 @@ const publisherUrl = (process.env.CLAIM_PUBLISHER_URL ?? process.env.ONT_WEB_PUB
 const networkLabel = (process.env.CLAIM_NETWORK_LABEL ?? "signet").trim();
 const rateLimitPerMinute = parseRate(process.env.CLAIM_RATE_LIMIT_PER_MINUTE ?? "10");
 const esploraUrl = (process.env.CLAIM_ESPLORA_URL ?? "http://127.0.0.1:3010").replace(/\/$/, "");
+// Optional: the resolver's owner→names endpoint (authoritative, cross-publisher) for
+// the gap-scan to union with the publisher's local view. Unset → publisher-only.
+const resolverUrl = (process.env.CLAIM_RESOLVER_URL ?? "").replace(/\/$/, "");
 // Faucet (signet only): fixed amount, server-side; mines a block, so rate-limited hard.
 const faucetCmd = process.env.CLAIM_FAUCET_CMD ?? "ont-private-signet-fund";
 const faucetAmountBtc = process.env.CLAIM_FAUCET_AMOUNT_BTC ?? "0.0005"; // 50,000 sats
@@ -101,6 +104,18 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
     return;
   }
 
+  // Authoritative, cross-publisher reverse lookup via the resolver (if configured).
+  // Unset → return empty so the client's union degrades to publisher-only.
+  const resolverOwnerMatch = pathname.match(/^\/api\/resolver\/owner\/([0-9a-fA-F]{64})$/);
+  if (method === "GET" && resolverOwnerMatch && resolverOwnerMatch[1]) {
+    if (resolverUrl === "") {
+      writeJson(response, 200, { kind: "ont-owner-names", names: [] });
+      return;
+    }
+    await proxyJson(response, `${resolverUrl}/owner/${resolverOwnerMatch[1].toLowerCase()}`);
+    return;
+  }
+
   // Wallet balance: read-only esplora address lookup (the client computes the
   // balance from chain_stats/mempool_stats). Restricted to bech32 addresses.
   const addrMatch = pathname.match(/^\/api\/address\/(tb1[a-z0-9]{6,90}|bcrt1[a-z0-9]{6,90})$/);
@@ -126,7 +141,7 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
     return;
   }
 
-  writeJson(response, 404, { error: "not_found", message: "Supported: /, /claim.js, /healthz, /api/claim/quote, /api/claim/submit, /api/claim/{id}, /api/owner/{pubkey}, /api/publisher/info, /api/address/{addr}, /api/faucet" });
+  writeJson(response, 404, { error: "not_found", message: "Supported: /, /claim.js, /healthz, /api/claim/quote, /api/claim/submit, /api/claim/{id}, /api/owner/{pubkey}, /api/resolver/owner/{pubkey}, /api/publisher/info, /api/address/{addr}, /api/faucet" });
 }
 
 async function proxyJson(response: ServerResponse, targetUrl: string, init?: RequestInit): Promise<void> {

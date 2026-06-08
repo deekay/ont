@@ -17,11 +17,13 @@ content shares no origin with the code that generates an owner key.
   names, and each name gets a distinct key so they aren't publicly linkable. The deposit address is one
   fixed path per phrase (fund once).
 - **Import** just your **12 words** and the site **gap-scans** to rediscover your wallet: it derives
-  owner keys 0, 1, 2… and asks the publisher (`GET /owner/{pubkey}`, proxied as `/api/owner/{pubkey}`)
-  which names each owns, stopping after a run of empty indices (BIP44-style). So the **seed alone is a
-  sufficient backup** — claim a name today, come back next month with only your phrase, and you can add
-  a second name under the same wallet at the right key. (Scoped to names this publisher anchored;
-  cross-publisher discovery would use the resolver.) A **wallet backup** (`{ mnemonic, names,
+  owner keys 0, 1, 2… and asks which names each owns, stopping after a run of empty indices
+  (BIP44-style). So the **seed alone is a sufficient backup** — claim a name today, come back next month
+  with only your phrase, and add a second name under the same wallet at the right key. The scan
+  **unions two sources**: the **publisher** (`/api/owner/{pubkey}` → its anchored claims, local + fast)
+  and, when `CLAIM_RESOLVER_URL` is set, the **resolver** (`/api/resolver/owner/{pubkey}` → chain-derived,
+  authoritative, cross-publisher — also picks up names you claimed in the app under the same seed). With
+  no resolver configured it degrades to publisher-only. A **wallet backup** (`{ mnemonic, names,
   nextIndex }`) still imports instantly without a scan and is handy for moving to the app.
 - **To unify names already under two different phrases:** there's no merge primitive — you **transfer**
   each name from the old phrase's key to the next index under your main phrase (owner-key → owner-key,
