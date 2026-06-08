@@ -49,15 +49,24 @@ export function renderClaimPage(networkLabel: string, clientBundlePath: string):
     <button type="submit">Check</button>
   </form>
 
+  <details id="import-details">
+    <summary class="muted" style="cursor:pointer;margin-top:.6rem">Already have names? Use your existing recovery phrase or wallet backup</summary>
+    <div style="margin-top:.6rem">
+      <textarea id="import-input" rows="3" placeholder="paste your 12-word phrase, or a wallet backup file" aria-label="import phrase or wallet backup" style="width:100%;padding:.6rem .7rem;font-size:.95rem;border:1px solid var(--muted);border-radius:8px;background:var(--bg);color:var(--fg);font-family:ui-monospace,Menlo,monospace"></textarea>
+      <button id="import-btn" class="secondary" type="button" style="margin-top:.5rem">Import wallet</button>
+      <p class="muted" style="margin-top:.5rem">A <strong>12-word phrase alone</strong> is treated as a fresh wallet starting at name #1 — only use it for a phrase you haven't claimed names with elsewhere. To <em>continue</em> a wallet you already use (here or in the app), import its <strong>wallet backup</strong> so we resume at the right key and your names don't collide.</p>
+    </div>
+  </details>
+
   <div id="status" class="status"></div>
 
   <section id="key-section" hidden>
-    <p class="warn">Save your 12-word recovery phrase. It alone controls the name forever — no one can recover it for you.</p>
-    <div>your 12-word recovery phrase — the only thing to save<span id="mnemonic" class="key"></span></div>
-    <button id="download-key" class="secondary" type="button">Download backup</button>
+    <p class="warn">Save your 12-word recovery phrase. It alone controls <strong>every name in this wallet</strong> forever — no one can recover it for you.</p>
+    <div>your 12-word recovery phrase — the only secret to save<span id="mnemonic" class="key"></span></div>
+    <button id="download-key" class="secondary" type="button">Download recovery phrase</button>
     <label class="check"><input id="backup-confirm" type="checkbox" /> I have saved my recovery phrase somewhere safe.</label>
     <button id="claim-btn" type="button" disabled>Claim it</button>
-    <p class="muted">Public owner ID (derived from your phrase, safe to share — no need to save it): <span id="owner-pubkey" class="key"></span></p>
+    <p class="muted">This name uses owner key <span id="owner-index" class="key" style="display:inline;padding:.1rem .3rem">#1</span> under your phrase. Public owner ID (safe to share): <span id="owner-pubkey" class="key"></span></p>
   </section>
 
   <section id="result-section" hidden>
@@ -66,8 +75,15 @@ export function renderClaimPage(networkLabel: string, clientBundlePath: string):
 
   <section id="wallet-section" hidden>
     <h3 style="margin:.2rem 0 .35rem">Your wallet</h3>
-    <p class="muted" style="margin-top:0">Derived from the same phrase. You only need to fund this to bid in an auction or contest a name — a bare-claim needs no deposit.</p>
-    <div>deposit address (signet)<span id="funding-address" class="key"></span></div>
+    <p class="muted" style="margin-top:0">One recovery phrase holds all your names, each under its own key (so they aren't publicly linkable). Claim another name above and it's added here automatically.</p>
+    <div id="wallet-names-wrap" hidden>
+      <div class="muted" style="margin:.2rem 0">names in this wallet</div>
+      <ul id="wallet-names" style="margin:.2rem 0 .6rem;padding-left:1.1rem"></ul>
+      <button id="download-wallet" class="secondary" type="button">Download wallet backup</button>
+      <p class="muted" style="margin-top:.4rem">The wallet backup holds your phrase <em>and</em> the name→key map — import it to continue this wallet on another device or in the app, so new claims resume at the right key.</p>
+    </div>
+    <div style="margin-top:1rem">deposit address (signet)<span id="funding-address" class="key"></span></div>
+    <p class="muted" style="margin-top:0">Fund this only to bid in an auction or contest a name — a bare-claim needs no deposit.</p>
     <button id="check-balance" class="secondary" type="button">Check balance</button>
     <button id="faucet-btn" class="secondary" type="button">Get test ₿</button>
     <span id="balance" class="muted"></span>

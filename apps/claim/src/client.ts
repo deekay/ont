@@ -4,7 +4,7 @@
 // locally from a 12-word phrase (see ./keys.ts), verifies the publisher's inclusion
 // proof against its own anchored root, and trusts nothing the publisher returns.
 import { sha256 } from "@noble/hashes/sha2.js";
-import { deriveFundingAddress, deriveOwnerKey, generateMnemonic12, type OwnerKey } from "./keys.js";
+import { deriveFundingAddress, deriveOwnerKey, generateMnemonic12, isValidMnemonic, type OwnerKey } from "./keys.js";
 
 // ---------- bytes / hex ----------
 function bytesToHex(bytes: Uint8Array): string {
@@ -210,36 +210,94 @@ function esc(value: string): string {
   return value.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c] ?? c));
 }
 
-let currentMnemonic: string | null = null;
+// One wallet (one recovery phrase) holds many names, each under its own owner-key
+// index — matching the app's HD model (m/696969'/0'/i'). `names` maps a claimed
+// name to its index; `nextIndex` is the next free index to allocate. The same
+// phrase therefore needs only one backup, and distinct keys keep names unlinkable.
+interface ClaimWallet {
+  mnemonic: string;
+  names: Record<string, number>;
+  nextIndex: number;
+}
+const WALLET_BACKUP_VERSION = 1;
+
+let wallet: ClaimWallet | null = null;
 let currentKey: OwnerKey | null = null;
 let currentQuote: ClaimQuote | null = null;
 let currentName = "";
+let currentIndex = 0;
 
-function showKeyBackup(name: string, mnemonic: string, key: OwnerKey): void {
-  currentMnemonic = mnemonic;
+/** Create a fresh wallet on first use if none is active (or imported). */
+function ensureWallet(): ClaimWallet {
+  if (wallet === null) wallet = { mnemonic: generateMnemonic12(), names: {}, nextIndex: 0 };
+  return wallet;
+}
+
+/**
+ * The owner key index for a name: its existing index if already in this wallet,
+ * otherwise the next free index. New (unclaimed) names share `nextIndex` until one
+ * is claimed — claiming is what consumes an index, so re-checking before claiming
+ * always re-derives at the current `nextIndex`.
+ */
+function indexForName(w: ClaimWallet, name: string): number {
+  return name in w.names ? (w.names[name] as number) : w.nextIndex;
+}
+
+function showKeyBackup(name: string, w: ClaimWallet, key: OwnerKey, index: number): void {
   currentKey = key;
   currentName = name;
+  currentIndex = index;
   el<HTMLElement>("key-section").hidden = false;
-  el<HTMLElement>("mnemonic").textContent = mnemonic;
+  el<HTMLElement>("mnemonic").textContent = w.mnemonic;
   el<HTMLElement>("owner-pubkey").textContent = key.ownerPubkey;
+  el<HTMLElement>("owner-index").textContent = `#${index + 1}`;
   (el<HTMLInputElement>("backup-confirm")).checked = false;
   (el<HTMLButtonElement>("claim-btn")).disabled = true;
-  // Wallet: the deposit address from the same phrase (for auctions / direct-L1).
-  el<HTMLElement>("funding-address").textContent = deriveFundingAddress(mnemonic);
+  // One deposit address per phrase (fixed funding path) — fund once for all names.
+  el<HTMLElement>("funding-address").textContent = deriveFundingAddress(w.mnemonic);
   el<HTMLElement>("balance").textContent = "";
   el<HTMLElement>("wallet-section").hidden = false;
+  renderWalletNames();
+}
+
+function renderWalletNames(): void {
+  if (wallet === null) return;
+  const entries = Object.entries(wallet.names).sort((a, b) => a[1] - b[1]);
+  const wrap = el<HTMLElement>("wallet-names-wrap");
+  wrap.hidden = entries.length === 0;
+  const list = el<HTMLElement>("wallet-names");
+  list.innerHTML = entries
+    .map(([name, index]) => `<li><strong>${esc(name)}</strong> <span class="muted">— key #${index + 1}</span></li>`)
+    .join("");
 }
 
 function downloadKey(): void {
-  if (!currentMnemonic || !currentKey) return;
+  if (wallet === null) return;
   const blob = new Blob(
-    [`ONT recovery phrase for "${currentName}"\n\n12-word recovery phrase (keep secret — it controls the name forever):\n${currentMnemonic}\n\npublic owner ID (safe to share): ${currentKey.ownerPubkey}\n`],
+    [`ONT recovery phrase (keep secret — it controls every name in this wallet forever):\n${wallet.mnemonic}\n\nThis one phrase controls all names you claim under this wallet.\n`],
     { type: "text/plain" }
   );
+  triggerDownload(blob, "ont-recovery-phrase.txt");
+}
+
+/** Download the full wallet backup: the phrase + the name→key-index map + nextIndex. */
+function downloadWallet(): void {
+  if (wallet === null) return;
+  const backup = {
+    format: "ont-claim-wallet",
+    version: WALLET_BACKUP_VERSION,
+    mnemonic: wallet.mnemonic,
+    names: wallet.names,
+    nextIndex: wallet.nextIndex
+  };
+  triggerDownload(new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" }), "ont-wallet-backup.json");
+}
+
+function triggerDownload(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `ont-recovery-${currentName}.txt`;
+  a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -248,33 +306,84 @@ async function onCheck(event: Event): Promise<void> {
   event.preventDefault();
   el<HTMLElement>("key-section").hidden = true;
   el<HTMLElement>("result-section").hidden = true;
-  el<HTMLElement>("wallet-section").hidden = true;
+  // Keep the wallet section visible once a wallet is active (so an imported wallet
+  // doesn't vanish on a failed check); it's hidden only before the first wallet.
+  if (wallet === null) el<HTMLElement>("wallet-section").hidden = true;
   const raw = (el<HTMLInputElement>("name")).value;
   if (!isValidName(raw)) {
     setStatus("error", "Enter a valid name — lowercase a–z and 0–9, 1–32 characters.");
     return;
   }
   const name = normalizeName(raw);
-  // Reuse the same key when re-checking the same name, so a re-check is the same
-  // owner — the publisher then returns your existing quote instead of "reserved".
-  let mnemonic: string;
-  let key: OwnerKey;
-  if (currentMnemonic !== null && currentKey !== null && name === currentName) {
-    mnemonic = currentMnemonic;
-    key = currentKey;
-  } else {
-    mnemonic = generateMnemonic12();
-    key = deriveOwnerKey(mnemonic, 0);
-  }
+  // Derive the owner key under the active wallet (creating a fresh wallet on first
+  // use) at this name's index — its existing index if already in the wallet, else
+  // the next free one. So a second name reuses your phrase at the next key, not a
+  // whole new phrase.
+  const w = ensureWallet();
+  const index = indexForName(w, name);
+  const key = deriveOwnerKey(w.mnemonic, index);
   setStatus("info", `Checking <strong>${esc(name)}</strong>…`);
   try {
     const quote = await fetchVerifiedQuote(name, key.ownerPubkey);
     currentQuote = quote;
-    showKeyBackup(name, mnemonic, key);
+    showKeyBackup(name, w, key, index);
     const cost = quote.totalBaseSats ? `₿${quote.totalBaseSats}` : "the ₿1,000 gate + a small publisher fee";
-    setStatus("ok", `<strong>${esc(name)}</strong> is available — about ${esc(cost)}. Save your phrase below, then claim it.`);
+    const nth = Object.keys(w.names).length > 0 ? " It joins your existing wallet under a new key." : "";
+    setStatus("ok", `<strong>${esc(name)}</strong> is available — about ${esc(cost)}.${nth} Save your phrase below, then claim it.`);
   } catch (error) {
     setStatus("error", esc(error instanceof Error ? error.message : "Could not check that name."));
+  }
+}
+
+/** Import a 12-word phrase (fresh wallet) or a wallet backup (full continuity). */
+function onImport(): void {
+  const raw = (el<HTMLTextAreaElement>("import-input")).value.trim();
+  if (!raw) {
+    setStatus("error", "Paste your 12-word phrase or a wallet backup file first.");
+    return;
+  }
+  try {
+    let imported: ClaimWallet;
+    if (raw.startsWith("{")) {
+      const parsed = JSON.parse(raw) as Partial<ClaimWallet> & { mnemonic?: unknown; names?: unknown; nextIndex?: unknown };
+      const mnemonic = typeof parsed.mnemonic === "string" ? parsed.mnemonic.trim().toLowerCase() : "";
+      if (!isValidMnemonic(mnemonic)) throw new Error("wallet backup has no valid 12-word phrase");
+      const names: Record<string, number> = {};
+      let maxIndex = -1;
+      for (const [n, i] of Object.entries((parsed.names as Record<string, unknown>) ?? {})) {
+        if (typeof i === "number" && Number.isInteger(i) && i >= 0 && isValidName(n)) {
+          names[normalizeName(n)] = i;
+          if (i > maxIndex) maxIndex = i;
+        }
+      }
+      const declaredNext = typeof parsed.nextIndex === "number" && Number.isInteger(parsed.nextIndex) ? parsed.nextIndex : 0;
+      imported = { mnemonic, names, nextIndex: Math.max(declaredNext, maxIndex + 1) };
+    } else {
+      const mnemonic = raw.replace(/\s+/g, " ").trim().toLowerCase();
+      if (!isValidMnemonic(mnemonic)) throw new Error("that is not a valid 12-word recovery phrase");
+      imported = { mnemonic, names: {}, nextIndex: 0 };
+    }
+    wallet = imported;
+    currentQuote = null;
+    currentKey = null;
+    currentName = "";
+    (el<HTMLDetailsElement>("import-details")).open = false;
+    (el<HTMLTextAreaElement>("import-input")).value = "";
+    el<HTMLElement>("key-section").hidden = true;
+    el<HTMLElement>("result-section").hidden = true;
+    el<HTMLElement>("funding-address").textContent = deriveFundingAddress(wallet.mnemonic);
+    el<HTMLElement>("balance").textContent = "";
+    el<HTMLElement>("wallet-section").hidden = false;
+    renderWalletNames();
+    const count = Object.keys(wallet.names).length;
+    setStatus(
+      "ok",
+      count > 0
+        ? `Wallet imported — ${count} name${count === 1 ? "" : "s"}, next claim uses key #${wallet.nextIndex + 1}. Check a name above to add another.`
+        : "Phrase imported as a fresh wallet (starting at key #1). Check a name above to claim under it."
+    );
+  } catch (error) {
+    setStatus("error", esc(error instanceof Error ? error.message : "Could not import that."));
   }
 }
 
@@ -286,11 +395,24 @@ async function onClaim(): Promise<void> {
     const result = await submitClaim(currentQuote.quoteId, currentName, currentKey.ownerPubkey);
     el<HTMLElement>("result-section").hidden = false;
     if (result.ok) {
+      // Consume the index for this name: record name→index and advance nextIndex so
+      // the next claim gets a distinct key. Then reset the in-progress claim so the
+      // next name must be re-checked (and re-derived at the new nextIndex).
+      if (wallet !== null) {
+        wallet.names[currentName] = currentIndex;
+        wallet.nextIndex = Math.max(wallet.nextIndex, currentIndex + 1);
+        renderWalletNames();
+      }
       el<HTMLElement>("result").innerHTML =
         `<strong>${esc(currentName)} is yours.</strong> Anchored in <code>${esc(result.anchorTxid ?? "")}</code>. ` +
         `A public notice window runs until block ${result.noticeWindowCloseHeight}; if no one contests it with a bond, it finalizes. ` +
         `Inclusion proof verified locally: ${result.proofVerified ? "yes" : "no"}.`;
-      setStatus("ok", "Claimed. Keep your recovery phrase safe — it is the only thing that controls this name.");
+      setStatus("ok", "Claimed and added to your wallet. Check another name above to claim it under the same phrase — or download your wallet backup to keep the name→key map.");
+      currentQuote = null;
+      currentKey = null;
+      currentName = "";
+      el<HTMLElement>("key-section").hidden = true;
+      (el<HTMLInputElement>("name")).value = "";
     } else {
       el<HTMLElement>("result").innerHTML =
         `Status: <code>${esc(result.status)}</code>.` +
@@ -366,6 +488,8 @@ function init(): void {
     (el<HTMLButtonElement>("claim-btn")).disabled = !(e.target as HTMLInputElement).checked;
   });
   el<HTMLButtonElement>("claim-btn").addEventListener("click", () => { void onClaim(); });
+  el<HTMLButtonElement>("import-btn").addEventListener("click", onImport);
+  el<HTMLButtonElement>("download-wallet").addEventListener("click", downloadWallet);
   el<HTMLButtonElement>("check-balance").addEventListener("click", () => { void onCheckBalance(); });
   el<HTMLButtonElement>("faucet-btn").addEventListener("click", () => { void onFaucet(); });
 }

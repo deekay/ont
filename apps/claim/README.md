@@ -6,10 +6,26 @@ key-handling page on a separate origin from the marketing/docs site means genera
 content shares no origin with the code that generates an owner key.
 
 ## What it does
-1. You type a name; the browser **generates the owner key locally** (`@noble`, never sent to us).
+1. You type a name; the browser **derives the owner key locally** (`@noble`, never sent to us) from
+   **one recovery phrase**, at the name's HD index (`m/696969'/0'/i'`, matching the app).
 2. It fetches a publisher **quote** and verifies the quote commits `H(name)` + your key.
-3. You save your key (download / confirm), then **claim** — submit, and the returned
+3. You save your phrase (download / confirm), then **claim** — submit, and the returned
    **inclusion proof is verified locally** against its anchored root before the claim is shown as real.
+
+### One phrase, many names (HD)
+- Claiming a **second** name reuses your phrase at the **next key index** — one backup for all your
+  names, and each name gets a distinct key so they aren't publicly linkable. The deposit address is one
+  fixed path per phrase (fund once).
+- **Import** an existing phrase or a **wallet backup** (`Already have names?`): a bare 12-word phrase
+  starts a fresh wallet at key #1; a wallet backup (`{ mnemonic, names, nextIndex }`) restores the
+  name→key map so new claims resume at the right index (and names don't collide). Because sequential
+  indices need that map, **download the wallet backup** to continue on another device / in the app.
+  (Auto-discovering the next index from a bare phrase needs an indexer reverse-lookup — future; the
+  wallet backup is the robust path until then.)
+- **To unify names already under two different phrases:** there's no merge primitive — you **transfer**
+  each name from the old phrase's key to the next index under your main phrase (owner-key → owner-key,
+  signed by the old key). That's a full-app action (PSBTs), not a bare-claim, and the transfer is
+  public, so it links those two keys.
 
 Auctions and contesting a name need the full app (on-chain PSBTs); this site is bare-claims only.
 
