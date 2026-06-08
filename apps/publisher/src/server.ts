@@ -68,6 +68,12 @@ async function handle(publisher: Publisher, req: IncomingMessage, res: ServerRes
   if (method === "GET" && batchMatch && batchMatch[1] !== undefined) {
     return writeJson(res, 200, publisher.batch(batchMatch[1]));
   }
+  // Data-availability: the batch leaves + membership proofs for an anchored root,
+  // for an indexer to fetch and re-verify (the cheap-rail DA transport).
+  const daMatch = url.pathname.match(/^\/da\/([0-9a-fA-F]{64})$/);
+  if (method === "GET" && daMatch && daMatch[1] !== undefined) {
+    return writeJson(res, 200, publisher.daBundle(daMatch[1]));
+  }
   writeError(res, new PublisherError(`no route for ${method} ${url.pathname}`, 404));
 }
 

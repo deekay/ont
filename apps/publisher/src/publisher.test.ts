@@ -93,6 +93,28 @@ describe("Publisher quote → submit → confirmed flow", () => {
     expect(batch.anchorTxid).toBe(receipt.anchorTxid);
   });
 
+  it("serves a DA bundle whose leaf proofs verify against the anchored root", async () => {
+    const publisher = fresh();
+    const quote = await publisher.quote({ name: "alice", ownerPubkey: OWNER, paymentRail: "lightning" });
+    const receipt = await publisher.submit({ quoteId: quote.quoteId, paymentProof: { rail: "lightning" } });
+    const root = receipt.inclusionProof!.root;
+
+    const bundle = publisher.daBundle(root);
+    expect(bundle.root).toBe(root);
+    expect(bundle.leaves).toHaveLength(1);
+    const leaf = bundle.leaves[0]!;
+    expect(leaf.name).toBe("alice");
+    expect(leaf.ownerPubkey).toBe(OWNER);
+    // The proof must verify against the anchored root with @ont/core's verifier —
+    // this is exactly what the indexer re-checks before merging.
+    expect(verifyAccumulatorProof(root, leaf.proof)).toBe(true);
+  });
+
+  it("404s a DA bundle for an unknown root", () => {
+    const publisher = fresh();
+    expect(() => publisher.daBundle("ab".repeat(32))).toThrow(PublisherError);
+  });
+
   it("rejects an unknown quoteId", () => {
     const publisher = fresh();
     expect(() => publisher.status("nope")).toThrow(PublisherError);
