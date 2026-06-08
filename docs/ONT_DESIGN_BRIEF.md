@@ -187,8 +187,11 @@ Billions of names cannot each be a Bitcoin transaction, so cheap uncontested cla
   only if its bytes surface by a Bitcoin-height-keyed deadline (`anchorHeight + W + C`).
   Bytes that never surface are **excluded, not fatal** — honest nodes converge by dropping
   them. Contested leaves rely on the hard deadline so a withheld claim cannot reappear
-  later and steal priority. See
-  [`design/ONT_DATA_AVAILABILITY_AGREEMENT.md`](./design/ONT_DATA_AVAILABILITY_AGREEMENT.md).
+  later and steal priority. The *witnessing* (an on-chain availability marker, Bitcoin-timed) is
+  settled; the **transport** — how the bytes are served and mirrored — is the live open call,
+  with content-addressed/marker-committed bytes (publisher-served + anyone-mirrorable, not
+  consensus-critical) as the working direction and a **core area flagged for feedback**. See
+  [`design/ONT_DATA_AVAILABILITY_AGREEMENT.md`](./design/ONT_DATA_AVAILABILITY_AGREEMENT.md) (§8b transport).
 - **Leaderless multi-publisher.** Distinct-name inserts commute; genuine conflicts resolve
   by deterministic priority (block height, then tx index, then txid). No single publisher
   owns the root. See
@@ -224,6 +227,30 @@ The user's all-in cost is the **₿1,000 gate (sunk, to miners) plus a thin publ
 the publisher's marginal per-name cost is single-digit sats (an amortized channel-close + anchor), and
 any markup is capped by the direct-L1 alternative (≈₿1,000 at low fee rates), so the fee stays thin.
 **v1 starts with a few reputable publishers and minimizes this trust over time.**
+
+**Operator roles and packaging.** ONT has exactly two service roles, both unprivileged — neither
+decides ownership; Bitcoin does. A **publisher** is the *write-side*: it accepts paid claims (Lightning),
+batches them, broadcasts the anchor, and serves receipts/inclusion proofs. A **resolver** (indexer) is
+the *read-side*: it replays Bitcoin-derived state and serves ownership + owner-signed value records.
+
+| | Publisher | Resolver |
+| --- | --- | --- |
+| Side | Write | Read |
+| Payment rail (Lightning) | Required | Not required |
+| On-chain funds / liquidity | Required (anchor broadcast) | Not required |
+| Bitcoin node | Required | Required |
+| Storage | Batch data + receipts | Full indexed state |
+| Uptime profile | Burstable (per batch cycle) | Continuous |
+| Decides ownership | **No** (Bitcoin does) | **No** (Bitcoin does) |
+| Client trust model | Trust-on-use, on-chain recourse | Verify-don't-trust |
+
+The roles stay **separate at the protocol/API layer** but ship **bundled as one operator stack**
+(publisher + resolver + indexer + archive in a single deployable). Bundling is operational convenience,
+not protocol coupling: a wallet can claim through publisher A, verify against resolver B, compare
+resolvers C/D, or self-host either piece. Operator sets overlap but differ — wallets / exchanges / LN
+providers / app platforms tend to run **both**; block explorers, researchers, and independent verifiers
+run **resolver-only**; a high-volume onboarding funnel might run **publisher-only** and hand lookups off
+to public resolvers.
 
 **The ~0.015 vB/name figure is issuance only.** It is the amortized cost of *getting* a name.
 Ongoing **transfers** are a separate load: a bonded name's transfer must carry its bond UTXO forward
@@ -286,7 +313,7 @@ they're decided.
 | Minimal frozen trust surface | **Solved** | 3 consensus files CI-locked (no-growth test); the protocol rules they build on are audit surface, pinned by review |
 | Returnable-bond contested auction | **Solved + live** | Bid → resolver-accepted end-to-end on signet |
 | Bitcoin-inclusion proof verification (Merkle + PoW) | **Solved (verifier)** | Tested vs real mainnet block; producers don't emit inclusion proofs yet |
-| Accumulator rail + fail-closed DA + leaderless merge | **Prototype** | Built + unit-tested; **not wired into the live indexer** |
+| Accumulator rail + fail-closed DA + leaderless merge | **Partial** | Indexer now observes the anchored root chain + resolves accumulator names (verify-don't-trust); **open: batch-data transport (§8b), resolver/web surface, leaderless multi-publisher** |
 | Publisher | **Prototype** | Single-writer; multi-publisher convergence simulated, not deployed |
 | Light-client (phone/browser) verification | **Open** | Verifier ready; emit-side + header sourcing unbuilt |
 | Launch parameters (window, maturity, DA, bond floor) | **Open** | Placeholders; must freeze + publish |

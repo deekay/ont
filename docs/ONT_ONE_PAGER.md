@@ -62,8 +62,28 @@ A name is controlled by one key — your **owner key**. With it you can:
   change it whenever you like. These mappings live *off-chain*, signed by your key, so updates are
   instant, free, and never touch Bitcoin.
 - **Transfer** the name to someone else's key.
-- **Set up recovery** ahead of time, so a lost key isn't the end — and only the backup key you
-  chose can use it, so recovery can never become a way for someone to take your name.
+- **Optionally set up recovery** so a lost key isn't the end. It's opt-in — skip it and a name is just
+  one key you keep safe (like cold-storage bitcoin). Only the backup key you chose can use it, and your
+  main key vetoes any misuse within a window you set — a veto you can hand to a non-custodial watcher,
+  so a set-and-forget name never needs you online.
+
+## Two services that help — neither decides
+
+Using ONT at scale leans on two **unprivileged** services. Neither owns or decides anything; Bitcoin does.
+
+- **Publisher** — the service you *pay* (over Lightning) to get your claim into Bitcoin. It accepts
+  payment, batches thousands of claims into one Merkle commitment, and broadcasts the on-chain anchor.
+  *Write-side.*
+- **Resolver** — the service you *query* to look up a name. It replays Bitcoin and serves the answer
+  (and your owner-signed records), but never decides ownership. *Read-side.*
+
+**What each needs to run.** A publisher needs a Lightning rail, on-chain funds to broadcast anchors,
+and batching infrastructure. A resolver needs only a Bitcoin node and storage to replay and serve state.
+Both are unprivileged — anyone can run either, and clients *verify* the answers rather than trust them.
+
+The same operator usually runs both, shipped together as one operator stack — but they are **separate at
+the protocol layer**: your wallet can claim through publisher A, verify against resolver B, compare
+resolvers, or self-host either piece. Bundling is operational convenience, not protocol coupling.
 
 ## How it scales
 
@@ -74,9 +94,10 @@ batch, less as batches grow). A batch counts only if its miner fee covers the cl
 name still buys the blockspace it uses. ONT's on-chain events are single `OP_RETURN` payloads up to ~171 bytes (the recover-owner event; most are smaller).
 
 You pay a publisher off-chain over Lightning; it bundles many claims and pays the single aggregate miner
-fee. **Your cost is the ₿1,000 gate (sunk, to miners) plus a thin publisher service fee** — the
-publisher's own per-name cost is tiny, and any markup is capped by the always-available option of
-claiming directly on L1. The flow is **pay-first** (you pay, then you're included; a non-payer is left
+fee — so the ₿1,000 still reaches **Bitcoin's miners**, even though your immediate payment goes to the
+publisher (it's not a fee to the publisher or a resolver). **Your cost is the ₿1,000 gate (sunk, to
+miners) plus a thin publisher service fee** — the publisher's own per-name cost is tiny, and any markup
+is capped by the always-available option of claiming directly on L1. The flow is **pay-first** (you pay, then you're included; a non-payer is left
 out), so the publisher risks no capital — you take a small, bounded one. And a publisher **can't steal a
 name**: if it pockets your payment or commits the wrong owner key, you contest on-chain, which forces an
 auction the rightful owner wins; worst case you're out about a dollar and re-claim elsewhere. Binding the
@@ -90,10 +111,10 @@ transactions into ownership live in a small, **frozen core — three consensus f
 audit, locked so its trust surface can't silently grow. Run it
 over Bitcoin's history and you get the same answer everyone else does, and you can check that answer
 against Bitcoin's own block headers and proof-of-work — so a server that lies about who owns a name
-gets caught, not believed. The services that help you find and publish names — *resolvers* — only
-mirror this data; they never decide it.
+gets caught, not believed. Resolvers only mirror this Bitcoin-derived data; they never decide it.
 
-And no operator is privileged: **anyone can run a resolver or publisher**. Because ownership is fixed
+And no operator is privileged: **anyone can run a resolver or publisher** (see the two roles above).
+Because ownership is fixed
 by Bitcoin, you don't need a *trusted* node — only a reachable one whose answer you can verify (a
 lying node is caught; a slow one is routed around). Finding nodes is config-seeded today; a
 registry-free, on-chain discovery scan is designed, not yet built.
@@ -133,16 +154,22 @@ swept cheaply before other bidders show up.
 **Live on a Bitcoin test network (signet), end-to-end:** claim, owner-key transfer, owner-signed
 records, recovery, and a bonded auction bid the resolver accepts — with the consensus code and
 signatures cross-checked byte-for-byte against a second independent implementation. **Prototype /
-not yet wired:** the cheap batched-claim path into the live indexer (built and unit-tested, including
-convergence against a data-withholding adversary); a single-writer publisher; and producers don't yet
-emit the proofs a phone/browser would check. Not mainnet-ready.
+partial:** the cheap batched-claim path is now wired into the live indexer — it observes the anchored
+root chain and resolves accumulator-claimed names, re-verifying each against Bitcoin — but the batch-data
+*transport* is still a pluggable seam (not a production source) and the resolver/web surface doesn't
+expose those names yet; a single-writer publisher; and producers don't yet emit the proofs a
+phone/browser would check. Not mainnet-ready.
 
 ## What we most want Bitcoin developers to push on
 
-1. **Data availability** — we batch claims and anchor only a summary on Bitcoin, leaving the claim
-   data off-chain; our defense if someone withholds it (or a reorg reshuffles it) is a deadline —
-   data that isn't public by a set Bitcoin height simply doesn't count. Is that sound, and should
-   availability be proven on-chain or by timing alone?
+1. **Data availability — including how the batch bytes are transported.** We batch claims and anchor
+   only a summary on Bitcoin, leaving the claim data off-chain; our defense if someone withholds it (or
+   a reorg reshuffles it) is a deadline — data that isn't public by a set Bitcoin height simply doesn't
+   count. Is that sound, and should availability be proven on-chain or by timing alone? And the
+   *transport*: we lean toward content-addressed bytes any node can mirror, verified against an on-chain
+   digest — so it's **not consensus-critical** and the backend stays swappable. Is publisher-served +
+   voluntary mirrors enough censorship-resistance for v1, or is a gossip / DA-sampling layer needed
+   sooner? *(Tradeoffs written up in [`design/ONT_DATA_AVAILABILITY_AGREEMENT.md`](./design/ONT_DATA_AVAILABILITY_AGREEMENT.md) §8b.)*
 2. **Publisher trust-minimization** — v1 leans on reputable, pay-first publishers (a non-payer is left
    out). Is there a clean, *deployable-today* way to bind "pay the publisher" to "claim anchored
    on-chain" without depending on long-roadmap primitives — or is reputable-publisher trust the right
@@ -156,6 +183,12 @@ emit the proofs a phone/browser would check. Not mainnet-ready.
 6. **Auction form** — open ascending vs. sealed second-price, given MEV and relay-bid timing?
 7. **Launch fairness** — is a long notice window enough against a day-one rush on premium names, or
    do we need a decaying launch fee?
+8. **Recovery you can leave unattended** — recovery is opt-in (skip it and a name is just one key, like
+   cold-storage bitcoin); if enabled, its challenge-window veto needs *someone* watching, which for a
+   set-and-forget name should be a **non-custodial watcher** (can abort, never move the name), not the
+   owner. But a literal pre-signed veto can't reference the recovery UTXO (its outpoint isn't known
+   until invoke time) — what's the cleanest **name-scoped, abort-only** credential that lets a watcher
+   cancel without custody? *(See [`design/ONT_LONG_TAIL_RECOVERY.md`](./design/ONT_LONG_TAIL_RECOVERY.md) §5.6.)*
 
 ---
 

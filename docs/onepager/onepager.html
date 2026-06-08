@@ -121,15 +121,12 @@
       <path class="ar" d="M494,33 C522,33 518,97 545,97"/>
       <path class="ar" d="M494,161 C522,161 518,97 545,97"/>
     </svg>
-    <div class="figcap"><strong>Either path ends in the same place</strong> — you own the name, controlled
-      by your key. Most names are never contested (they finalize at window close). If someone else wants the
-      same name, it's contested — settled by an auction, decided by the largest returnable bond; you own and
-      can use it the moment the auction <strong>settles</strong>, and the winning bond just stays posted through
-      maturity (~1 yr) then returns (an ONT rule — break it early and you forfeit the name — not a Bitcoin
-      timelock).</div>
+    <div class="figcap"><strong>Either path ends in the same place</strong> — you own the name, controlled by
+      your key. Most names finalize at window close; a contested one is settled by auction (largest returnable
+      bond wins). You can use it the moment the auction <strong>settles</strong> — the bond just stays posted
+      through maturity (~1 yr) then returns, an ONT rule (break it early and you forfeit the name), not a Bitcoin
+      timelock.</div>
   </div>
-
-  <p>Either way, you end up with the same thing: a globally unique name controlled by your key.</p>
 
   <h2>What owning a name lets you do</h2>
   <p>A name is controlled by one key — your <strong>owner key</strong>. With it you can:</p>
@@ -138,9 +135,20 @@
       so on — and change it whenever you like. (These mappings live off-chain, signed by your key, so
       updates are instant, free, and never touch Bitcoin.)</li>
     <li><strong>Transfer</strong> the name to someone else's key.</li>
-    <li><strong>Set up recovery</strong> ahead of time, so a lost key isn't the end — and only the
-      backup key you chose can use it, so recovery can never become a way for someone to take your name.</li>
+    <li><strong>Optionally set up recovery</strong> so a lost key isn't the end — opt-in (skip it and a
+      name is just one key you keep safe, like cold-storage bitcoin). Only your chosen backup key can use
+      it, and your main key vetoes misuse within a window — a veto you can hand to a non-custodial watcher,
+      so a set-and-forget name needn't keep you online.</li>
   </ul>
+
+  <h2>Two services that help — neither decides</h2>
+  <p>Using ONT at scale leans on two <strong>unprivileged</strong> services; neither decides ownership — Bitcoin
+    does. A <strong>publisher</strong> is the service you <em>pay</em> (over Lightning) to get your claim into
+    Bitcoin — it batches thousands of claims and broadcasts the on-chain anchor (needs a Lightning rail + on-chain
+    funds). A <strong>resolver</strong> is the service you <em>query</em> to look up a name — it replays Bitcoin
+    and serves the answer, never deciding it (needs only a Bitcoin node + storage). One operator usually runs both,
+    but they're <strong>separate at the protocol layer</strong>: claim through one, verify against another, or
+    self-host either.</p>
 
   <h2>How it scales</h2>
   <p>Billions of names can't each be a Bitcoin transaction, so <strong>publishers</strong> batch many
@@ -149,9 +157,10 @@
     (~<span class="b">0.015 vB</span>/name at ten thousand per batch, less as batches grow). A batch counts
     only if its miner fee covers the claims inside it, so each name still buys the blockspace it uses.</p>
   <p>You pay a publisher off-chain over Lightning; it bundles many claims and pays the single aggregate
-    miner fee. <strong>Your cost is the ₿1,000 gate (sunk, to miners) plus a thin publisher service
-    fee</strong> — the publisher's own per-name cost is tiny, and any markup is capped by the
-    always-available option of claiming directly on L1. The flow is <strong>pay-first</strong> (you pay,
+    miner fee — so the ₿1,000 still reaches <strong>Bitcoin's miners</strong>, even though your immediate
+    payment goes to the publisher (it isn't a fee to the publisher or a resolver). <strong>Your cost is the
+    ₿1,000 gate (sunk, to miners) plus a thin publisher service fee</strong> — the publisher's own per-name
+    cost is tiny, and any markup is capped by the always-available option of claiming directly on L1. The flow is <strong>pay-first</strong> (you pay,
     then you're included; a non-payer is left out), so the publisher risks no capital — you take a small,
     bounded one. And a publisher <strong>can't steal a name</strong>: if it pockets your payment or commits
     the wrong owner key, you contest on-chain, which forces an auction the rightful owner wins; worst case
@@ -161,16 +170,17 @@
 </div>
 
 <!-- ============================ PAGE 2 ============================ -->
-<div class="page pbreak">
+<div class="page">
   <h2>Why you can trust it</h2>
   <p>No company, server, or founder decides who owns a name — Bitcoin does. The rules that turn Bitcoin
     transactions into ownership live in a small, <strong>frozen core — three consensus files</strong> that
     anyone can audit, locked so its trust surface can't silently grow.
     Run it over Bitcoin's history and you get the same answer everyone else does, and
     you can check that answer against Bitcoin's own block headers and proof-of-work — so a server that
-    lies about who owns a name gets caught, not believed. The services that help you find and publish
-    names — <em>resolvers</em> — only mirror this data; they never decide it.</p>
-  <p>And no operator is privileged: <strong>anyone can run a resolver or publisher</strong>. Because ownership
+    lies about who owns a name gets caught, not believed. Resolvers only mirror this Bitcoin-derived data;
+    they never decide it.</p>
+  <p>And no operator is privileged: <strong>anyone can run a resolver or publisher</strong> (the two roles
+    above). Because ownership
     is fixed by Bitcoin, you don't need a <em>trusted</em> node — only a reachable one whose answer you can
     verify (a lying node is caught; a slow one is routed around). Finding nodes is config-seeded today; a
     registry-free, on-chain discovery scan is designed, not yet built.</p>
@@ -209,20 +219,25 @@
     for the long tail (<code>sallysmith2165</code>); and the notice window has to be long enough for a
     competitive early market to form, so premium names aren't swept cheaply before other bidders show up.</p>
 
-  <h2>Status — honest (maturity, not direction)</h2>
+  <h2 class="pbreak">Status — honest (maturity, not direction)</h2>
   <p><strong>Live on a Bitcoin test network (signet), end-to-end:</strong> claim, owner-key transfer,
     owner-signed records, recovery, and a bonded auction bid the resolver accepts — with the consensus
     code and signatures cross-checked byte-for-byte against a second independent implementation.
-    <strong>Prototype / not yet wired:</strong> the cheap batched-claim path into the live indexer
-    (built and unit-tested, including convergence against a data-withholding adversary); a single-writer
-    publisher; and producers don't yet emit the proofs a phone/browser would check. Not mainnet-ready.</p>
+    <strong>Prototype / partial:</strong> the cheap batched-claim path is now wired into the live indexer
+    — it observes the anchored root chain and resolves accumulator-claimed names, re-verifying each against
+    Bitcoin — but the batch-data <em>transport</em> is still a pluggable seam (not a production source) and
+    the resolver/web surface doesn't expose those names yet; a single-writer publisher; and producers don't
+    yet emit the proofs a phone/browser would check. Not mainnet-ready.</p>
 
   <h2>What we most want you to push on</h2>
   <ul>
-    <li><strong>Data availability</strong> — we batch claims and anchor only a summary on Bitcoin, leaving
-      the claim data off-chain; our defense if someone withholds it (or a reorg reshuffles it) is a
-      deadline — data that isn't public by a set Bitcoin height simply doesn't count. Is that sound, and
-      should availability be proven on-chain or by timing alone?</li>
+    <li><strong>Data availability — incl. how the bytes are transported</strong> — we batch claims and
+      anchor only a summary on Bitcoin, leaving the claim data off-chain; our defense if someone withholds
+      it (or a reorg reshuffles it) is a deadline — data that isn't public by a set Bitcoin height simply
+      doesn't count. Is that sound, and should availability be proven on-chain or by timing alone? And the
+      <em>transport</em>: we lean toward content-addressed bytes any node can mirror, verified against an
+      on-chain digest (so it's <strong>not consensus-critical</strong>, backend swappable) — is
+      publisher-served + voluntary mirrors enough for v1, or is a gossip/DA-sampling layer needed sooner?</li>
     <li><strong>Publisher trust-minimization</strong> — v1 leans on reputable, pay-first publishers (a
       non-payer is left out). Is there a clean, <em>deployable-today</em> way to bind "pay the publisher"
       to "claim anchored on-chain" without depending on long-roadmap primitives — or is
@@ -236,6 +251,11 @@
     <li><strong>Auction form</strong> — open ascending vs. sealed second-price, given MEV and relay-bid timing?</li>
     <li><strong>Launch fairness</strong> — is a long notice window enough against a day-one rush on
       premium names, or do we need a decaying launch fee?</li>
+    <li><strong>Recovery you can leave unattended</strong> — recovery is opt-in (skip it and a name is one
+      key, like cold-storage bitcoin); if enabled, its veto should be postable by a <em>non-custodial
+      watcher</em> (can abort, never move the name), not the owner. A literal pre-signed veto can't
+      reference the recovery UTXO (outpoint unknown until invoke) — what's the cleanest name-scoped,
+      abort-only credential?</li>
   </ul>
 
   <div class="foot">Repo: github.com/deekay/ont · the full design brief, prior-art comparison, risk

@@ -152,6 +152,45 @@ forking the chain). Your plan to run an archive, alongside aligned institutions,
 satisfies it — as a **convenience that makes 1-of-N overwhelmingly true**, never as a dependency,
 because correctness still checks against Bitcoin.
 
+## 8b. The transport layer — how the bytes actually move (recommended; **core open question for feedback**)
+
+§7–8 settle *witnessing* (is the data attested as available by a Bitcoin-timed deadline?) and isolate
+the residual assumption (1-of-N honest parties *serve* the bytes). What they do **not** pin down is the
+**transport**: by what concrete mechanism the bytes get from a publisher to the nodes that recompute the
+root. This is the live decision, and we want Bitcoin-dev feedback on it.
+
+**The clarifying point — transport is not consensus-critical.** The availability marker commits a
+`dataDigest`; every node verifies fetched bytes against that on-chain digest before using them. So a
+byte source can't lie (wrong bytes fail the digest), and "did it surface in time?" is decided by the
+*marker's* Bitcoin height, not by who delivered the bytes. That means the transport choice doesn't
+affect **correctness or convergence at all** — it only affects **availability robustness** (how hard it
+is to censor/withhold) and **who you depend on for liveness**. That also makes it cheaply reversible:
+because integrity is digest-anchored, the storage/delivery backend can change without touching consensus.
+
+| Transport | What it is | Censorship/liveness | Complexity | v1 fit |
+| --- | --- | --- | --- | --- |
+| **T1. Publisher-served HTTP** | The publisher exposes the batch bytes by digest at an endpoint; indexers pull | Depends on that operator being up (but fail-closed: a no-show just drops the batch — never forks) | Lowest (operators already run HTTP) | Simplest delivery |
+| **T2. Content-addressed + mirrorable** *(recommended)* | Same bytes, addressed by their `dataDigest`, so the publisher is just the first mirror; anyone (aligned institutions, other publishers, a hobbyist) can re-serve the exact bytes | 1-of-N: any mirror holding the digest-matching bytes satisfies availability — no single operator is load-bearing | Low (it's T1 + a "fetch by digest from any of N sources" convention) | **Recommended** |
+| **T3. P2P gossip / DA-sampling overlay** | A dedicated overlay floods or samples chunks (ties to §7 option C) | Strongest | Highest (a new network to build + maintain) | Post-v1 upgrade |
+
+**Recommended approach (working direction, open for challenge): T2.** Treat batch bytes as
+content-addressed by the marker's `dataDigest`, served by the publisher over plain HTTP in v1 (so T1 is
+just T2's first mirror), and let anyone mirror the exact bytes. This:
+
+- **Subsumes the simple case** — publisher-HTTP works on day one, no new infrastructure — while keeping
+  the path to decentralization open (mirrors need no permission; they re-serve digest-matching bytes).
+- **Keeps the residual assumption honest** — §8's "1-of-N honest serves the data" becomes *literally*
+  1-of-N independent mirrors, satisfied by your planned archive + aligned institutions, never a single
+  sequencer.
+- **Stays swappable** — because verification is digest-anchored, moving from publisher-HTTP to a mirror
+  convention to (later) a gossip/sampling overlay (T3 / §7-C) is an availability upgrade, not a consensus
+  change.
+
+**What we want feedback on:** (a) is publisher-HTTP + voluntary digest-addressed mirrors enough
+censorship-resistance for v1, or should a mirror/gossip convention land sooner? (b) when, if ever, is
+DA sampling (§7-C) worth the complexity for trust-minimized light-client availability at scale? (c) is
+there a transport that tightens the 1-of-N residual further without a new trusted network?
+
 ## 9. Attacks checked
 
 - **Withhold-to-stall others** → self-harm: a hidden delta only loses its own names; the union
@@ -179,6 +218,10 @@ turns unprovable non-availability into an attributable, fail-closed, on-chain-ti
    validator composes the marker's block height with the anchor's to enforce the `h+W` deadline.
 3. **Decide if/when DA sampling (C) is needed.** Pure 1-of-N archives may suffice at launch;
    sampling is the upgrade path if light clients must not trust archives at billions-scale.
+4. **Pin the transport (§8b).** Working direction is **T2** (content-addressed, marker-committed bytes;
+   publisher-served + anyone-mirrorable; not consensus-critical since verified against the on-chain
+   digest). Raised as a **core area for external feedback** — the witnessing is settled; the transport's
+   decentralization-vs-simplicity tradeoff is the open call.
 ## 11. Prototype (2026-05-23)
 
 `packages/core/src/da-convergence-sim.ts` (+ `da-convergence-sim.test.ts`) makes the rule
