@@ -143,6 +143,31 @@ describe("Publisher quote → submit → confirmed flow", () => {
     expect(() => publisher.daBundle("ab".repeat(32))).toThrow(PublisherError);
   });
 
+  it("still serves DA bundles for every prior batch after snapshot/restore (publisher restart)", async () => {
+    const original = fresh();
+    const roots: string[] = [];
+    for (const name of ["alice", "bob"]) {
+      const quote = await original.quote({ name, ownerPubkey: OWNER, paymentRail: "lightning" });
+      const receipt = await original.submit({ quoteId: quote.quoteId, paymentProof: { rail: "lightning" } });
+      roots.push(receipt.inclusionProof!.root);
+    }
+
+    const restored = fresh();
+    restored.restore(original.snapshot());
+
+    // Both batches' bundles must survive the restart, and their proofs must still
+    // verify against their own anchored roots — bob's batch advanced the tree, so
+    // alice's proofs are specifically against the EARLIER root.
+    for (const [i, root] of roots.entries()) {
+      const bundle = restored.daBundle(root);
+      expect(bundle.leaves.length).toBeGreaterThan(0);
+      for (const leaf of bundle.leaves) {
+        expect(verifyAccumulatorProof(root, leaf.proof)).toBe(true);
+      }
+      expect(bundle.leaves[0]!.name).toBe(["alice", "bob"][i]);
+    }
+  });
+
   it("closes the cheap-rail loop: publisher anchor + DA → indexer resolves the name", async () => {
     // 1. Claim on the publisher (as the claim site does) → it seals + anchors a batch.
     const publisher = fresh();

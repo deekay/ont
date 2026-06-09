@@ -435,6 +435,7 @@ export class Publisher {
     this.accumulator = new Accumulator();
     this.quotes.clear();
     this.batches.clear();
+    this.daByRoot.clear();
     this.leafToQuote.clear();
     this.pendingPaid = [];
     this.pendingPaidSince = null;
@@ -453,6 +454,25 @@ export class Publisher {
         anchorHeight: sb.anchorHeight,
         anchoredAt: new Date(sb.anchoredAt)
       });
+      // Rebuild this batch's DA bundle while the replayed accumulator sits exactly
+      // at its newRoot — same capture point as sealBatch. Without this, a restart
+      // would 404 /da/{root} for every prior batch and an indexer that hadn't
+      // fetched yet could never resolve those names. (Skip defensively if a legacy
+      // snapshot's stored root doesn't reproduce — bundle capture must never make
+      // restore fail.)
+      if (this.accumulator.root() === sb.newRoot.toLowerCase()) {
+        this.daByRoot.set(sb.newRoot.toLowerCase(), {
+          kind: "ont-publisher-da-bundle",
+          root: sb.newRoot,
+          anchorTxid: sb.anchorTxid,
+          anchorHeight: sb.anchorHeight,
+          leaves: sb.leaves.map((leaf) => ({
+            name: leaf.name,
+            ownerPubkey: leaf.ownerPubkey,
+            proof: this.accumulator.proveMembership(leaf.leaf)
+          }))
+        });
+      }
     }
 
     const now = this.clock().getTime();
