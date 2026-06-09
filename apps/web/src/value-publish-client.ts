@@ -1,5 +1,4 @@
 import {
-  deriveOwnerPubkey,
   payloadUtf8ToHex,
   normalizeRawPayloadHex,
   signBrowserValueRecord,
@@ -17,7 +16,7 @@ import {
   type ProfileBundleDraft,
   type ProfileBundleEntry
 } from "./value-bundle.js";
-import { generateBrowserOwnerKey } from "./browser-key-tools.js";
+import { generateBrowserOwnerKey, resolveOwnerSecret } from "./browser-key-tools.js";
 import { claimAvailableName } from "./browser-claim.js";
 
 type NameRecord = {
@@ -366,8 +365,8 @@ function renderClaimable(name: string): void {
         output.innerHTML = `
           <p class="claim-ok">&#10003; <strong>${name}</strong> claimed (provisional) &mdash; the inclusion proof verified in your browser.</p>
           <div class="claim-key-box">
-            <p><strong>Save your owner private key.</strong> It is the only thing that controls this name, and it is stored nowhere:</p>
-            <code class="mono claim-key">${key.privateKeyHex}</code>
+            <p><strong>Save your 12-word recovery phrase.</strong> It is the only secret that controls this name, it is stored nowhere, and the same phrase restores your names in the mobile app and on the claim site:</p>
+            <code class="mono claim-key">${key.mnemonic}</code>
           </div>
           ${result.anchorTxid ? `<p class="claim-meta">Anchor txid <span class="mono">${result.anchorTxid}</span></p>` : ""}
           <p class="claim-meta">It finalizes if uncontested through the notice window. Load <span class="mono">${name}</span> again above to set its destinations.</p>`;
@@ -410,14 +409,17 @@ function signLocally(): void {
 
   try {
     const name = requireInput(elements.nameInput, "Enter an owned name first.").trim().toLowerCase();
-    const ownerPrivateKeyHex = requireInput(
+    const ownerSecretInput = requireInput(
       elements.ownerPrivateKeyInput,
-      "Paste the owner private key saved for this name."
+      "Paste the owner private key or 12-word recovery phrase for this name."
     );
-    const derivedOwnerPubkey = deriveOwnerPubkey(ownerPrivateKeyHex);
+    // Accept either form: a raw private key, or the 12-word phrase (the unified
+    // secret across the app/claim site — the right key index is found by scan).
+    const resolvedSecret = resolveOwnerSecret(ownerSecretInput, state.currentName.currentOwnerPubkey);
+    const ownerPrivateKeyHex = resolvedSecret.privateKeyHex;
 
-    if (derivedOwnerPubkey !== state.currentName.currentOwnerPubkey) {
-      throw new Error("This private key does not match the resolver's current owner pubkey.");
+    if (resolvedSecret.ownerPubkey !== state.currentName.currentOwnerPubkey) {
+      throw new Error("This key does not match the resolver's current owner pubkey.");
     }
 
     const sequence = parseNonNegativeInteger(
@@ -811,31 +813,32 @@ function updateDerivedOwnerState(): void {
     return;
   }
 
-  const privateKey = elements.ownerPrivateKeyInput?.value?.trim() ?? "";
-  if (privateKey === "") {
+  const secretInput = elements.ownerPrivateKeyInput?.value?.trim() ?? "";
+  if (secretInput === "") {
     elements.ownerPubkeyPreview.value = "";
     if (elements.ownerMatchNote) {
-      elements.ownerMatchNote.textContent = "Paste the owner private key to derive the current owner pubkey locally.";
+      elements.ownerMatchNote.textContent = "Paste the owner private key or 12-word recovery phrase to derive the owner pubkey locally.";
     }
     return;
   }
 
   try {
-    const derived = deriveOwnerPubkey(privateKey);
-    elements.ownerPubkeyPreview.value = derived;
+    const resolved = resolveOwnerSecret(secretInput, state.currentName?.currentOwnerPubkey ?? null);
+    elements.ownerPubkeyPreview.value = resolved.ownerPubkey;
     if (elements.ownerMatchNote) {
+      const via = resolved.mnemonicIndex !== undefined ? ` (phrase key #${resolved.mnemonicIndex + 1})` : "";
       elements.ownerMatchNote.textContent =
         state.currentName === null
-          ? "Owner pubkey derived locally. Load the owned name to compare it against the resolver's current owner."
-          : derived === state.currentName.currentOwnerPubkey
-            ? "Derived owner matches the resolver's current owner."
+          ? `Owner pubkey derived locally${via}. Load the owned name to compare it against the resolver's current owner.`
+          : resolved.ownerPubkey === state.currentName.currentOwnerPubkey
+            ? `Derived owner matches the resolver's current owner${via}.`
             : "Derived owner does not match the resolver's current owner.";
     }
   } catch (error) {
     elements.ownerPubkeyPreview.value = "";
     if (elements.ownerMatchNote) {
       elements.ownerMatchNote.textContent =
-        error instanceof Error ? error.message : "Unable to derive the owner pubkey from this private key.";
+        error instanceof Error ? error.message : "Unable to derive the owner pubkey from this input.";
     }
   }
 }

@@ -67,6 +67,32 @@ const funding = deriveFundingKey(SEED_A, "signet");
 ok("derived funding is a signet P2WPKH (tb1)", funding.fundingAddress.startsWith("tb1"));
 ok("funding derivation deterministic", deriveFundingKey(SEED_A, "signet").fundingWif === funding.fundingWif);
 
+// --- 12-word phrase interop (shared conformance vectors) ---
+// The app's mnemonic→seed convention must match the claim site / web tools
+// byte-for-byte: masterSeed = first 32 bytes of the BIP-39 seed, then the same
+// owner + funding paths. One phrase, every surface.
+{
+  const { readFileSync } = await import("node:fs");
+  const mnemonicMod = await import("../../mobile/src/wallet/mnemonic.ts");
+  const vectors = JSON.parse(
+    readFileSync(new URL("../../packages/protocol/testdata/conformance-vectors.json", import.meta.url), "utf8"),
+  );
+  const { seedHexFromMnemonic, isValidMnemonic } = mnemonicMod as any;
+  ok("fixture mnemonic validates", isValidMnemonic(vectors.wallet.mnemonic));
+  const seedHex = seedHexFromMnemonic(vectors.wallet.mnemonic);
+  ok("mnemonic-derived seed is 32-byte hex", /^[0-9a-f]{64}$/.test(seedHex));
+  for (const owner of vectors.wallet.owners) {
+    ok(
+      `phrase owner key #${owner.index + 1} matches the shared fixture (web/claim interop)`,
+      deriveOwnerKey(seedHex, owner.index, "signet").ownerPubkey === owner.ownerPubkey,
+    );
+  }
+  ok(
+    "phrase funding address matches the shared fixture",
+    deriveFundingKey(seedHex, "signet").fundingAddress === vectors.wallet.fundingAddressSignet,
+  );
+}
+
 if (failures > 0) {
   console.error(`\n${failures} HD-derivation check(s) failed.`);
   process.exit(1);

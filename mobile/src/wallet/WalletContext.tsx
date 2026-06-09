@@ -10,7 +10,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 import { resolver } from "../api/resolver";
 import { NETWORK } from "../config";
 import { normalizeName } from "./accumulator";
-import { deriveOwnerKey, generateSeedHex, normalizeSeedHex, type OntNetwork, type OwnerKey } from "./keys";
+import { deriveOwnerKey, generateMnemonic12, looksLikeMnemonic, normalizeSeedHex, seedHexFromMnemonic, type OntNetwork, type OwnerKey } from "./keys";
 import { clearWallet, loadWallet, newHdWallet, saveWallet, type StoredWallet } from "./store";
 
 const NETWORK_NAME = NETWORK as OntNetwork;
@@ -90,22 +90,28 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const createWallet = useCallback(async () => {
     setBusy(true);
     try {
-      const seedHex = generateSeedHex();
-      const w = await saveWallet(newHdWallet(seedHex, NETWORK_NAME));
+      // New wallets are phrase-backed: 12 words are the user's one secret, shared
+      // with the claim site and web tools (same master-seed convention).
+      const mnemonic = generateMnemonic12();
+      const seedHex = seedHexFromMnemonic(mnemonic);
+      const w = await saveWallet(newHdWallet(seedHex, NETWORK_NAME, mnemonic));
       setWallet(w);
     } finally {
       setBusy(false);
     }
   }, []);
 
-  const restoreWallet = useCallback(async (seedHexInput: string) => {
+  const restoreWallet = useCallback(async (secretInput: string) => {
     setBusy(true);
     try {
-      const seedHex = normalizeSeedHex(seedHexInput);
+      // Accept the unified secret: a 12-word phrase (claim site / web / this app)
+      // or a legacy 64-hex master seed.
+      const mnemonic = looksLikeMnemonic(secretInput) ? secretInput.trim().toLowerCase().replace(/\s+/g, " ") : null;
+      const seedHex = mnemonic !== null ? seedHexFromMnemonic(mnemonic) : normalizeSeedHex(secretInput);
       if (!seedHex) {
-        throw new Error("Master seed must be 64 hex characters (32 bytes).");
+        throw new Error("Enter your 12-word recovery phrase (or a 64-hex master seed).");
       }
-      let w = newHdWallet(seedHex, NETWORK_NAME);
+      let w = newHdWallet(seedHex, NETWORK_NAME, mnemonic ?? undefined);
       try {
         w = await discoverNamesForWallet(w);
       } catch {

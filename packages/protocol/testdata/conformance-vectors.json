@@ -1,0 +1,119 @@
+{
+  "description": "Shared conformance vectors. Every ONT crypto implementation (engine, web, claim site, mobile, Rust) must pass these. Regenerate only on a deliberate, versioned format change.",
+  "wallet": {
+    "mnemonic": "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
+    "note": "masterSeed = first 32 bytes of the BIP-39 seed; owner path m/696969'/0'/i'; funding m/84'/1'/0'/0/0 P2WPKH tb1",
+    "owners": [
+      {
+        "index": 0,
+        "ownerPubkey": "7fb0dc13cea75a622e8ba13d1c3abdeba2258649dd3069f2aa98357777eb2dba"
+      },
+      {
+        "index": 1,
+        "ownerPubkey": "5b864fc13ed497d041f24868ae5a7ddf481724b146bda10bdd5c08ee1a18c026"
+      },
+      {
+        "index": 2,
+        "ownerPubkey": "bb6993ecc9feec6f631e24977e460eb3df2654b103fbeb75a969f17d5a911afe"
+      }
+    ],
+    "fundingAddressSignet": "tb1qm8csr6yc05u9p260lrzvv68rwk8ukzsuey3cx2"
+  },
+  "accumulator": {
+    "root": "5a3cda5b46681ab865a86f6083366a7bc8bc216f85c5c9f55c14c04af4013627",
+    "membership": [
+      {
+        "name": "alice",
+        "leafKey": "2bd806c97f0e00af1a1fc3328fa763a9269723c8db8fac4f93af71db186d6e90",
+        "value": "7fb0dc13cea75a622e8ba13d1c3abdeba2258649dd3069f2aa98357777eb2dba",
+        "proof": {
+          "keyHex": "2bd806c97f0e00af1a1fc3328fa763a9269723c8db8fac4f93af71db186d6e90",
+          "value": "7fb0dc13cea75a622e8ba13d1c3abdeba2258649dd3069f2aa98357777eb2dba",
+          "siblings": [
+            {
+              "level": 1,
+              "hash": "cf2c92ff23ae80cc991c28b5748180ca288fc390619f217e0a3298b42de26308"
+            }
+          ]
+        },
+        "expectValid": true
+      },
+      {
+        "name": "bob",
+        "leafKey": "81b637d8fcd2c6da6359e6963113a1170de795e4b725b84d1e0b4cfd9ec58ce9",
+        "value": "5b864fc13ed497d041f24868ae5a7ddf481724b146bda10bdd5c08ee1a18c026",
+        "proof": {
+          "keyHex": "81b637d8fcd2c6da6359e6963113a1170de795e4b725b84d1e0b4cfd9ec58ce9",
+          "value": "5b864fc13ed497d041f24868ae5a7ddf481724b146bda10bdd5c08ee1a18c026",
+          "siblings": [
+            {
+              "level": 1,
+              "hash": "8dc74baa5e4ca40d44668c6c7ec94643d2641e4f4fb66809de17020a28401b60"
+            },
+            {
+              "level": 2,
+              "hash": "60714c743b29ab0e41922f28983ff09741fa1a3aa6ffde98e6521836566f8177"
+            }
+          ]
+        },
+        "expectValid": true
+      },
+      {
+        "name": "sallysmith2165",
+        "leafKey": "e14b426952e53d773b08a10e80c8ed92f4bc487460950286ec54942f5b5adfc3",
+        "value": "bb6993ecc9feec6f631e24977e460eb3df2654b103fbeb75a969f17d5a911afe",
+        "proof": {
+          "keyHex": "e14b426952e53d773b08a10e80c8ed92f4bc487460950286ec54942f5b5adfc3",
+          "value": "bb6993ecc9feec6f631e24977e460eb3df2654b103fbeb75a969f17d5a911afe",
+          "siblings": [
+            {
+              "level": 1,
+              "hash": "8dc74baa5e4ca40d44668c6c7ec94643d2641e4f4fb66809de17020a28401b60"
+            },
+            {
+              "level": 2,
+              "hash": "083f8fc6272ce7ba3cac5d1fbac5a07977ac145c0b555b8a83eac89c889c3355"
+            }
+          ]
+        },
+        "expectValid": true
+      }
+    ],
+    "tampered": [
+      {
+        "name": "alice",
+        "leafKey": "2bd806c97f0e00af1a1fc3328fa763a9269723c8db8fac4f93af71db186d6e90",
+        "value": "5b864fc13ed497d041f24868ae5a7ddf481724b146bda10bdd5c08ee1a18c026",
+        "proof": {
+          "keyHex": "2bd806c97f0e00af1a1fc3328fa763a9269723c8db8fac4f93af71db186d6e90",
+          "value": "5b864fc13ed497d041f24868ae5a7ddf481724b146bda10bdd5c08ee1a18c026",
+          "siblings": [
+            {
+              "level": 1,
+              "hash": "cf2c92ff23ae80cc991c28b5748180ca288fc390619f217e0a3298b42de26308"
+            }
+          ]
+        },
+        "expectValid": false,
+        "note": "value swapped to a different owner"
+      },
+      {
+        "name": "bob",
+        "leafKey": "81b637d8fcd2c6da6359e6963113a1170de795e4b725b84d1e0b4cfd9ec58ce9",
+        "value": "5b864fc13ed497d041f24868ae5a7ddf481724b146bda10bdd5c08ee1a18c026",
+        "proof": {
+          "keyHex": "81b637d8fcd2c6da6359e6963113a1170de795e4b725b84d1e0b4cfd9ec58ce9",
+          "value": "5b864fc13ed497d041f24868ae5a7ddf481724b146bda10bdd5c08ee1a18c026",
+          "siblings": [
+            {
+              "level": 2,
+              "hash": "60714c743b29ab0e41922f28983ff09741fa1a3aa6ffde98e6521836566f8177"
+            }
+          ]
+        },
+        "expectValid": false,
+        "note": "first sibling dropped"
+      }
+    ]
+  }
+}

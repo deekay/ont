@@ -21,6 +21,8 @@ import {
   type OwnerKey,
 } from "./hd";
 
+import { mnemonicFromEntropy } from "./mnemonic";
+
 // Re-export the pure derivation surface (types + helpers) from ./hd.
 export {
   toBitcoinjsNetwork,
@@ -30,6 +32,7 @@ export {
   deriveOwnerKey,
   deriveFundingKey,
 } from "./hd";
+export { isValidMnemonic, looksLikeMnemonic, seedHexFromMnemonic } from "./mnemonic";
 export type { OntNetwork, OwnerKey, FundingKey } from "./hd";
 
 export interface WalletKeys {
@@ -44,6 +47,15 @@ function randomBytes(size: number): Buffer {
 /** Generate a fresh 32-byte master seed (hex). One secret restores everything. */
 export function generateSeedHex(): string {
   return randomBytes(32).toString("hex");
+}
+
+/**
+ * Generate a fresh 12-word recovery phrase (the unified secret across the app,
+ * claim site, and web tools). Entropy from expo-crypto; derivation is pure
+ * (see ./mnemonic). Pair with seedHexFromMnemonic to get the master seed.
+ */
+export function generateMnemonic12(): string {
+  return mnemonicFromEntropy(Uint8Array.from(randomBytes(16)));
 }
 
 /** Generate a fresh standalone ONT owner key (x-only Schnorr). */

@@ -160,9 +160,13 @@ export default function WalletScreen() {
             </View>
             {revealSeed ? (
               <View style={styles.secretBox}>
-                <Text style={styles.secretLabel}>Master seed (back this up — restores every name)</Text>
+                <Text style={styles.secretLabel}>
+                  {wallet.mnemonic
+                    ? "12-word recovery phrase (back this up — restores every name, here and on the web)"
+                    : "Master seed (back this up — restores every name)"}
+                </Text>
                 <Text selectable style={styles.secretValue}>
-                  {wallet.seedHex}
+                  {wallet.mnemonic ?? wallet.seedHex}
                 </Text>
               </View>
             ) : null}
@@ -254,18 +258,19 @@ export default function WalletScreen() {
         </>
       ) : mode === "restore" ? (
         <>
-          <SectionTitle>Restore from a seed</SectionTitle>
+          <SectionTitle>Restore a wallet</SectionTitle>
           <Card>
-            <Text style={styles.cardLabel}>Master seed (64 hex chars)</Text>
+            <Text style={styles.cardLabel}>12-word recovery phrase (or 64-hex master seed)</Text>
             <Text style={styles.cardHint}>
-              Paste the recovery seed from another device. We re-derive your keys and scan the
-              resolver for names this seed controls.
+              Paste the recovery phrase from this app, the claim site, or the web tools — one
+              phrase works everywhere. We re-derive your keys and scan the resolver for names it
+              controls. (Legacy 64-hex master seeds also work.)
             </Text>
             <TextInput
               style={styles.input}
               value={restoreSeed}
               onChangeText={setRestoreSeed}
-              placeholder="64 hex characters"
+              placeholder="twelve words separated by spaces"
               placeholderTextColor={colors.textFaint}
               autoCapitalize="none"
               autoCorrect={false}
@@ -291,12 +296,14 @@ export default function WalletScreen() {
           <Card>
             <Text style={styles.placeholderTitle}>No wallet on this device yet</Text>
             <Text style={styles.placeholderBody}>
-              Generate a master seed: it derives a fresh owner key per name (so your names aren't
-              linkable) plus a funding key. Stored encrypted in the device Keychain, never leaves the phone.
+              Generate a 12-word recovery phrase: it derives a fresh owner key per name (so your
+              names aren't linkable) plus a funding key — and the same phrase restores your names
+              on the claim site and web tools. Stored encrypted in the device Keychain, never
+              leaves the phone.
             </Text>
             <View style={styles.formActions}>
               <Button title="Create wallet" onPress={() => createWallet()} loading={busy} />
-              <Button title="Restore from seed" variant="secondary" onPress={() => setMode("restore")} />
+              <Button title="Restore from phrase" variant="secondary" onPress={() => setMode("restore")} />
               <Button title="Restore from backup" variant="secondary" onPress={() => nav.navigate("Backup")} />
             </View>
           </Card>

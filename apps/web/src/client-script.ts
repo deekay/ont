@@ -176,10 +176,11 @@ async function generateLocalBrowserOwnerKey() {
   return {
     ownerPubkey: generated.ownerPubkey,
     privateKeyHex: generated.privateKeyHex,
+    mnemonic: generated.mnemonic,
     source: "browser-local",
     sourceLabel: "local browser",
     warning:
-      "Generated locally in this browser. Save this private key if you want to update destinations or authorize transfers later."
+      "Generated locally in this browser from a fresh 12-word phrase — save the phrase, it is the only secret: " + generated.mnemonic
   };
 }
 
