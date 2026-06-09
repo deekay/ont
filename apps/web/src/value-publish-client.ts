@@ -324,6 +324,11 @@ async function loadName(rawName: string): Promise<void> {
   }
 }
 
+/** A claim failure that means the name is actually already owned (not a real error). */
+function isAlreadyClaimed(problems: readonly string[]): boolean {
+  return problems.some((problem) => /\b(taken|reserved|unavailable|already)\b/i.test(problem));
+}
+
 /**
  * An available (not-found) name turns into a claim. A fresh owner key is
  * generated in the browser and the cheap-rail claim runs through the publisher
@@ -366,6 +371,19 @@ function renderClaimable(name: string): void {
           </div>
           ${result.anchorTxid ? `<p class="claim-meta">Anchor txid <span class="mono">${result.anchorTxid}</span></p>` : ""}
           <p class="claim-meta">It finalizes if uncontested through the notice window. Load <span class="mono">${name}</span> again above to set its destinations.</p>`;
+      } else if (isAlreadyClaimed(result.problems) && elements.lookupResult) {
+        // Reconcile a transient disagreement: the explorer (resolver) said "not found"
+        // so we offered to claim, but the publisher reports the name already taken — a
+        // just-made claim still propagating (anchor -> mine -> resolve). Replace the
+        // whole "Available" card rather than leaving that header above a "taken" error.
+        elements.lookupResult.innerHTML = `
+          <div class="claim-available">
+            <p class="claim-available-kicker">Already claimed</p>
+            <h3><span class="mono">${name}</span> is taken</h3>
+            <p>The publisher reports this name as claimed; the explorer just hasn't caught up yet
+              (a fresh claim takes a moment to anchor and resolve). It isn't available &mdash; reload
+              <span class="mono">${name}</span> in a few seconds to see its current owner.</p>
+          </div>`;
       } else {
         output.innerHTML = `<p class="claim-err">Claim did not complete: ${result.problems.join("; ") || result.status}</p>`;
         button.disabled = false;
