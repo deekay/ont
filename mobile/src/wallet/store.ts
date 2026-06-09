@@ -26,6 +26,12 @@ export interface StoredWallet {
   readonly names: Record<string, number>;
   /** Next free owner-key index to allocate for a new claim/transfer. */
   readonly nextIndex: number;
+  /**
+   * The 12-word recovery phrase this seed came from, when known (wallets created
+   * or restored from words). Optional + additive: legacy seed-only wallets stay
+   * valid. Same secrecy class as seedHex — both live only in SecureStore.
+   */
+  readonly mnemonic?: string;
 }
 
 const SECURE_OPTIONS: SecureStore.SecureStoreOptions = {
@@ -72,7 +78,7 @@ export async function loadWallet(): Promise<StoredWallet | null> {
 }
 
 /** Build a fresh HD wallet from a master seed (pure; no IO). */
-export function newHdWallet(seedHex: string, network: OntNetwork = NETWORK as OntNetwork): StoredWallet {
+export function newHdWallet(seedHex: string, network: OntNetwork = NETWORK as OntNetwork, mnemonic?: string): StoredWallet {
   return {
     version: STORE_VERSION,
     network,
@@ -81,6 +87,7 @@ export function newHdWallet(seedHex: string, network: OntNetwork = NETWORK as On
     funding: deriveFundingKey(seedHex, network),
     names: {},
     nextIndex: 0,
+    ...(mnemonic !== undefined ? { mnemonic } : {}),
   };
 }
 

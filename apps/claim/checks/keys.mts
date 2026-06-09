@@ -7,8 +7,13 @@ const check = (name: string, ok: boolean) => {
   if (!ok) failures += 1;
 };
 
-// BIP-39 canonical 12-word test vector (entropy all-zeros).
-const FIXED = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+// Shared conformance vectors — the same fixture the engine, web tools, and the
+// mobile checks consume, so all derivations are locked to one source.
+import { readFileSync } from "node:fs";
+const VECTORS = JSON.parse(
+  readFileSync(new URL("../../../packages/protocol/testdata/conformance-vectors.json", import.meta.url), "utf8"),
+);
+const FIXED: string = VECTORS.wallet.mnemonic;
 
 check("fixed mnemonic validates", isValidMnemonic(FIXED));
 
@@ -20,8 +25,8 @@ check("owner privkey is 32-byte hex", /^[0-9a-f]{64}$/.test(a.ownerPrivateKeyHex
 
 // Regression / interop golden — the owner pubkey for FIXED at index 0 via the
 // app's 32-byte-seed BIP-32 derivation. Locks the derivation so it can't drift.
-const GOLDEN_INDEX0 = "7fb0dc13cea75a622e8ba13d1c3abdeba2258649dd3069f2aa98357777eb2dba";
-check("matches interop golden (index 0)", a.ownerPubkey === GOLDEN_INDEX0);
+const GOLDEN_INDEX0: string = VECTORS.wallet.owners[0].ownerPubkey;
+check("matches interop golden (index 0, shared fixture)", a.ownerPubkey === GOLDEN_INDEX0);
 
 // Distinct names get distinct keys (per-name unlinkability).
 check("index 1 differs from index 0", deriveOwnerKey(FIXED, 1).ownerPubkey !== a.ownerPubkey);
@@ -31,8 +36,8 @@ const fundA = deriveFundingAddress(FIXED);
 const fundB = deriveFundingAddress(FIXED);
 check("funding address is deterministic", fundA === fundB);
 check("funding address is a signet P2WPKH (tb1q…)", /^tb1q[ac-hj-np-z02-9]{38}$/.test(fundA));
-const FUNDING_GOLDEN = "tb1qm8csr6yc05u9p260lrzvv68rwk8ukzsuey3cx2";
-check("matches funding-address golden", fundA === FUNDING_GOLDEN);
+const FUNDING_GOLDEN: string = VECTORS.wallet.fundingAddressSignet;
+check("matches funding-address golden (shared fixture)", fundA === FUNDING_GOLDEN);
 console.log(`funding address:    ${fundA}`);
 
 const fresh = generateMnemonic12();

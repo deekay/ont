@@ -1201,9 +1201,9 @@ function renderValuesToolSection(): string {
             <article class="guide-card value-intake-callout">
               <h3>What You Need</h3>
               <ul class="guide-list">
-                <li>The owner private key saved for this name.</li>
+                <li>The owner secret for this name — your 12-word recovery phrase or the raw private key.</li>
                 <li>The destinations you want apps to use now.</li>
-                <li>The resolver receives the signed update, not your private key.</li>
+                <li>The resolver receives the signed update, never your phrase or key.</li>
               </ul>
             </article>
           </div>
@@ -1218,7 +1218,7 @@ function renderValuesToolSection(): string {
                 <span class="claim-step-badge">Step 2</span>
                 <div class="wizard-step-copy">
                   <h3>Edit Destinations And Sign</h3>
-                  <p>Paste the owner private key, update the destination list, and sign the change locally.</p>
+                  <p>Paste your recovery phrase (or raw owner key), update the destination list, and sign the change locally.</p>
                 </div>
               </div>
               <span id="valueStepSignState" class="summary-chip wizard-step-state">After step 1</span>
@@ -1228,13 +1228,13 @@ function renderValuesToolSection(): string {
           <form id="valueSignForm" class="tool-draft-form">
             <div class="draft-grid">
               <label class="draft-field">
-                <span class="field-label">Owner Private Key</span>
+                <span class="field-label">Owner Secret (phrase or private key)</span>
                 <input
                   id="valueOwnerPrivateKeyInput"
                   name="valueOwnerPrivateKey"
                   type="password"
-                  maxlength="64"
-                  placeholder="Paste the 32-byte private key saved for this name"
+                  maxlength="200"
+                  placeholder="12-word recovery phrase, or the 32-byte private key"
                   autocomplete="off"
                   spellcheck="false"
                 />
