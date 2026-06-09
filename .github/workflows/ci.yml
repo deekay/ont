@@ -34,6 +34,9 @@ jobs:
       - name: Private signet auto-miner script smoke
         run: npm run test:private-signet-auto-mine-script
 
+      - name: One-pager parity (MD vs print HTML)
+        run: node scripts/check-onepager-parity.mjs
+
   mobile:
     name: Mobile Typecheck + Crypto
     runs-on: ubuntu-latest

@@ -85,6 +85,23 @@ The same operator usually runs both, shipped together as one operator stack — 
 the protocol layer**: your wallet can claim through publisher A, verify against resolver B, compare
 resolvers, or self-host either piece. Bundling is operational convenience, not protocol coupling.
 
+## What touches Bitcoin, what doesn't
+
+A claim's full life, by rail — most of it never touches the chain:
+
+| Moment | Rail | What happens |
+| --- | --- | --- |
+| You pay for a claim | **Lightning** (off-chain) | ₿1,200 to the publisher — the ₿1,000 gate funneled through to miners + its thin fee |
+| The batch anchors | **Bitcoin** (one 73-byte OP_RETURN per ~10k claims) | The accumulator root lands on-chain; your claim is now Bitcoin-ordered |
+| The notice window passes | nothing | Uncontested → the name finalizes; **the moment the window closes, the name is yours and resolvable** |
+| Someone contests / a premium name | **Bitcoin** | Returnable bond opens an L1 auction; largest bond wins |
+| You point the name somewhere | **off-chain, free, forever** | Owner-signed value records — instant updates, no fee, no chain touch |
+| You transfer or recover | **Bitcoin** | Rare, high-stakes events escalate to L1 |
+
+Try the cheap path live (signet): [claim.opennametags.org](https://claim.opennametags.org) — keys
+generated in your browser, claim batched and anchored, name visible in the
+[explorer](https://opennametags.org/explore) once the anchor confirms.
+
 ## How it scales
 
 Billions of names can't each be a Bitcoin transaction, so **publishers** batch many claims into one
@@ -152,13 +169,14 @@ swept cheaply before other bidders show up.
 *Canonical status + numbers: [`core/STATUS.md`](./core/STATUS.md) — the source of truth if anything here drifts.*
 
 **Live on a Bitcoin test network (signet), end-to-end:** claim, owner-key transfer, owner-signed
-records, recovery, and a bonded auction bid the resolver accepts — with the consensus code and
-signatures cross-checked byte-for-byte against a second independent implementation. **Prototype /
-partial:** the cheap batched-claim path is now wired into the live indexer — it observes the anchored
-root chain and resolves accumulator-claimed names, re-verifying each against Bitcoin — but the batch-data
-*transport* is still a pluggable seam (not a production source) and the resolver/web surface doesn't
-expose those names yet; a single-writer publisher; and producers don't yet emit the proofs a
-phone/browser would check. Not mainnet-ready.
+records, recovery, a bonded auction bid the resolver accepts — and, since June 9, the **cheap
+batched-claim loop**: a claim made at [claim.opennametags.org](https://claim.opennametags.org) is
+batched, anchored on-chain, re-verified by the indexer against the anchored root, and appears in the
+public explorer. Consensus code and signatures are cross-checked byte-for-byte across independent
+implementations (engine, web, claim site, mobile — one shared conformance fixture). **Still open
+(disclosed):** the fail-closed availability *deadline* (the withhold-then-reveal defense) is
+design+simulation only; the publisher is single-writer; the Lightning payment is stubbed on signet;
+and producers don't yet emit the proofs a phone/browser would check. Not mainnet-ready.
 
 ## What we most want Bitcoin developers to push on
 
@@ -169,7 +187,10 @@ phone/browser would check. Not mainnet-ready.
    *transport*: we lean toward content-addressed bytes any node can mirror, verified against an on-chain
    digest — so it's **not consensus-critical** and the backend stays swappable. Is publisher-served +
    voluntary mirrors enough censorship-resistance for v1, or is a gossip / DA-sampling layer needed
-   sooner? *(Tradeoffs written up in [`design/ONT_DATA_AVAILABILITY_AGREEMENT.md`](./design/ONT_DATA_AVAILABILITY_AGREEMENT.md) §8b.)*
+   sooner? And a simplification we're weighing: should the availability *marker* be **folded into the
+   anchor itself** (the anchor already commits the batch digest, so "available" = bytes matching the
+   anchored commitment served by `anchorHeight + W`) — one less on-chain message type to freeze?
+   *(Tradeoffs written up in [`design/ONT_DATA_AVAILABILITY_AGREEMENT.md`](./design/ONT_DATA_AVAILABILITY_AGREEMENT.md) §8b.)*
 2. **Publisher trust-minimization** — v1 leans on reputable, pay-first publishers (a non-payer is left
    out). Is there a clean, *deployable-today* way to bind "pay the publisher" to "claim anchored
    on-chain" without depending on long-roadmap primitives — or is reputable-publisher trust the right

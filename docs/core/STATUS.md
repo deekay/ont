@@ -4,7 +4,7 @@
 If the README, one-pager, design brief, or the website disagree with this file, **this file
 wins** — fix the others. (It exists because those numbers drifted apart once; don't let them again.)
 
-Last updated: 2026-06-06.
+Last updated: 2026-06-09.
 
 ## Status legend
 - **Live (signet)** — runs end-to-end on the private signet today.
@@ -18,12 +18,13 @@ Last updated: 2026-06-06.
 | Owner-key model (transfer / value record / recovery) | **Live (signet)** | Enforced at replay; byte-identical across the engine + mobile crypto. |
 | Contested-auction bonded bid | **Live (signet)** | Bid → resolver-accepted on signet. Proof bundle now enforces **highest-bid-wins** + **distinct-bid** well-formedness (was a gap). Set-*completeness* vs L1 still needs the light-client path — see Known-incomplete. |
 | Bitcoin-inclusion verifier (Merkle + PoW) | **Prototype** | The verifier exists and is tested vs a real mainnet block, but **producers don't emit the `bitcoinInclusion` section**, so the light-client path is **not closed end-to-end**. |
-| Accumulator cheap-rail (batch claims + fail-closed DA) | **Prototype** | Built + tested (incl. convergence vs a withholding adversary); **not wired into the live indexer/resolver** — so the one-path cheap claim is not yet the canonical path. |
-| Publisher (cheap-rail batch anchor) | **Prototype** | Single-writer; pay-first; Lightning stubbed on signet (Lexe is mainnet-only). |
+| Accumulator cheap-rail (batch claims) | **Live (signet)** | **End-to-end since 2026-06-09**: claim → publisher anchors on-chain → indexer decodes the anchor → fetches the batch leaves from the publisher (`/da/{root}`) → re-verifies every membership proof against the Bitcoin-anchored root → name resolves and shows in the public explorer. A lying data source can't mint ownership (verify-don't-trust), and a loop integration test pins the publisher-bytes→indexer-decode boundary. **Still open:** availability-marker / fail-closed deadline (W/C/K) enforcement is design+simulation only (see Known-incomplete); transport is publisher-served v1 (content-addressed mirroring is the design direction). |
+| Publisher (cheap-rail batch anchor) | **Live (signet, single-writer)** | Pay-first; real signet anchor broadcast; DA bundles survive restart (rebuilt on snapshot replay). Lightning stubbed on signet (Lexe is mainnet-only); leaderless multi-publisher is simulated, not deployed. |
 | Discovery (resolver/publisher) | **Designed** | Config-seeded today; registry-free on-chain scan designed, not built. |
 | Mobile iOS app | **Prototype (signet demo)** | Feature-complete walkable demo; demo-mode default-on; mainnet host placeholder. Not release-ready. |
 | Web explainer (opennametags.org) | **Live** | Marketing/docs + read tooling. |
-| Bare-claim site (claim.opennametags.org) | **Live (signet)** | 12-word phrase + verified quote + stub-payment claim. |
+| Bare-claim site (claim.opennametags.org) | **Live (signet)** | 12-word phrase (one wallet, many names; gap-scan restore from the words alone) + verified quote + stub-payment claim; self-contained page runs offline for key generation. |
+| Unified wallet secret (12 words everywhere) | **Live** | The same 12-word phrase (masterSeed = first 32 bytes of the BIP-39 seed, owner keys m/696969'/0'/i') derives identical keys on the claim site, the web tools, and the mobile app — locked by shared conformance vectors all four implementations test against. |
 
 ## Key numbers
 
@@ -49,12 +50,14 @@ determine **owner-key authority and replay validation** (transfers, value record
   move settlement into the frozen boundary, or keep this scoped statement. (Tracked as A3.)
 
 ## Known-incomplete (disclosed, on the roadmap)
-- Cheap-rail wiring is **partial**: the live indexer now observes the anchored root chain and
-  resolves accumulator-claimed names, re-verifying each batch leaf against the Bitcoin-anchored
-  root (a lying data source can't mint ownership). Still open: the batch-data (data-availability)
-  transport is a pluggable, in-memory seam — not yet a production source — and the resolver/web
-  surface doesn't expose accumulator names yet. So the one-path claim resolves in the indexer but
-  is not yet end-to-end canonical in the running services.
+- **DA enforcement gap (the sharpest open item):** the cheap rail's *fail-closed availability
+  deadline* is not live. The `AvailabilityMarker` event (0x0d) is wire-defined and tested but never
+  emitted or checked in production, and the W/C/K windows are enforced only in the research
+  simulations. Today's live loop is: anchors verified on-chain, batch bytes fetched and re-verified
+  against the anchored root, missing bytes simply retried (with backoff) — fine for an honest
+  single publisher on signet, but the *withhold-then-reveal* defense for contested names depends on
+  the deadline rule, which must be implemented (or the marker folded into the anchor — open design
+  question) before the cheap rail's adversarial story is operational.
 - Light-client inclusion proofs not emitted end-to-end → "verify against Bitcoin" is the verifier's
   capability, not yet the live app/resolver path.
 - **Auction-transcript completeness is not self-certified by the proof bundle.** The bundle now

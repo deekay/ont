@@ -125,7 +125,7 @@ Exactly what runs on-chain today versus what's still prototype:
 | Owner-key transfer, owner-signed value records, recovery descriptors | **Live on signet** — byte-for-byte cross-checked across two independent implementations (the TS engine and the mobile wallet) |
 | Bonded contested-auction bid, resolver-accepted end-to-end | **Live on signet** |
 | Proof-bundle verification against Bitcoin (Merkle inclusion + header PoW) | **Verifier done** (tested vs. a real mainnet block); producers don't emit inclusion proofs yet, so the phone/light-client path isn't closed |
-| Cheap accumulator rail (batched claims) + Lightning-paid claim | **Built + unit-tested** (incl. convergence vs. a data-withholding adversary); **not wired into the live indexer**, and the Lightning claim payment is stubbed |
+| Cheap accumulator rail (batched claims) | **Live on signet, end-to-end** — claim → on-chain anchor → indexer verifies the batch against the anchored root → name resolves in the public explorer (try it at [claim.opennametags.org](https://claim.opennametags.org)). The fail-closed availability deadline (W/C/K) is design+simulation only, and the Lightning payment is stubbed on signet (Lexe is mainnet-only) |
 | Leaderless multi-publisher convergence | **Simulated + tested**; a single-writer publisher runs in production |
 | Mainnet | **Not yet** — active prototype |
 
