@@ -3,7 +3,7 @@ import ECPairFactory from "ecpair";
 import * as tinysecp from "tiny-secp256k1";
 import { describe, expect, it } from "vitest";
 
-import { decodeRootAnchorBody } from "@ont/protocol";
+import { decodeRootAnchorPayload } from "@ont/protocol";
 
 import { EsploraAnchorBroadcaster } from "./esplora-anchor.js";
 
@@ -47,10 +47,11 @@ describe("EsploraAnchorBroadcaster.buildAndSign", () => {
     // The payload length is 68 (32 + 32 + 4); the script body should contain those bytes.
     const script = opReturnOut?.script;
     expect(script?.[0]).toBe(0x6a); // OP_RETURN
-    // Find the payload by extracting the trailing 68 bytes
-    const payloadBytes = script?.slice(script.length - 68);
+    // The anchor carries the FULL ONT-framed payload (magic+version+type+body = 73
+    // bytes) — the exact bytes the indexer's decodeRootAnchorPayload reads off-chain.
+    const payloadBytes = script?.slice(script.length - 73);
     expect(payloadBytes).toBeDefined();
-    const decoded = decodeRootAnchorBody(new Uint8Array(payloadBytes as Buffer));
+    const decoded = decodeRootAnchorPayload(new Uint8Array(payloadBytes as Buffer));
     expect(decoded.prevRoot).toBe(payload.prevRoot);
     expect(decoded.newRoot).toBe(payload.newRoot);
     expect(decoded.batchSize).toBe(payload.batchSize);

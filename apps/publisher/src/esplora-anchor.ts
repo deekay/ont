@@ -9,7 +9,7 @@
 // validates against its own root regardless of on-chain confirmation.
 
 import {
-  encodeRootAnchorBody,
+  encodeRootAnchorPayload,
   type RootAnchorEventPayload
 } from "@ont/protocol";
 import { initEccLib, networks, opcodes, payments, Psbt, script as btcScript } from "bitcoinjs-lib";
@@ -84,7 +84,10 @@ export class EsploraAnchorBroadcaster implements AnchorBroadcaster {
     }
     const changeValue = totalIn - this.feeSats;
 
-    const opReturnPayload = encodeRootAnchorBody(payload);
+    // Full ONT-framed payload (magic+version+type+body) — this is what the indexer's
+    // extractRootAnchors / decodeRootAnchorPayload reads back off-chain. Emitting only
+    // the body (no magic) makes the anchor invisible to the indexer.
+    const opReturnPayload = encodeRootAnchorPayload(payload);
     const opReturnScript = btcScript.compile([opcodes.OP_RETURN, Buffer.from(opReturnPayload)]);
 
     const psbt = new Psbt({ network: this.bitcoinjsNetwork });
