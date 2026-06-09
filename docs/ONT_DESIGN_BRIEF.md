@@ -313,7 +313,7 @@ they're decided.
 | Minimal frozen trust surface | **Solved** | 3 consensus files CI-locked (no-growth test); the protocol rules they build on are audit surface, pinned by review |
 | Returnable-bond contested auction | **Solved + live** | Bid → resolver-accepted end-to-end on signet |
 | Bitcoin-inclusion proof verification (Merkle + PoW) | **Solved (verifier)** | Tested vs real mainnet block; producers don't emit inclusion proofs yet |
-| Accumulator rail + fail-closed DA + leaderless merge | **Partial** | Indexer now observes the anchored root chain + resolves accumulator names (verify-don't-trust); **open: batch-data transport (§8b), resolver/web surface, leaderless multi-publisher** |
+| Accumulator rail (claim → anchor → verified resolve → explore) | **Live (signet)** | End-to-end since 2026-06-09, verify-don't-trust at every hop; **open: fail-closed DA deadline (W/C/K) enforcement (sim-only today), content-addressed mirroring (§8b), leaderless multi-publisher** |
 | Publisher | **Prototype** | Single-writer; multi-publisher convergence simulated, not deployed |
 | Light-client (phone/browser) verification | **Open** | Verifier ready; emit-side + header sourcing unbuilt |
 | Launch parameters (window, maturity, DA, bond floor) | **Open** | Placeholders; must freeze + publish |

@@ -146,9 +146,19 @@
     does. A <strong>publisher</strong> is the service you <em>pay</em> (over Lightning) to get your claim into
     Bitcoin — it batches thousands of claims and broadcasts the on-chain anchor (needs a Lightning rail + on-chain
     funds). A <strong>resolver</strong> is the service you <em>query</em> to look up a name — it replays Bitcoin
-    and serves the answer, never deciding it (needs only a Bitcoin node + storage). One operator usually runs both,
+    and serves the answer — it never decides ownership (needs only a Bitcoin node + storage). One operator usually runs both,
     but they're <strong>separate at the protocol layer</strong>: claim through one, verify against another, or
     self-host either.</p>
+
+  <h2>What touches Bitcoin, what doesn't</h2>
+  <p>A claim's full life, by rail — most of it never touches the chain. <strong>Lightning (off-chain):</strong>
+    your ₿1,200 claim payment (the ₿1,000 gate funneled through to miners + the publisher's thin fee).
+    <strong>Bitcoin (on-chain):</strong> one 73-byte anchor per ~10,000 claims; contested-name bond auctions;
+    transfers and recovery — the rare, high-stakes events. <strong>Off-chain, free, forever:</strong> pointing
+    your name anywhere (owner-signed records — instant updates, no fee). The moment the notice window closes
+    uncontested, the name is yours and resolvable. Try the cheap path live on signet at
+    <a href="https://claim.opennametags.org">claim.opennametags.org</a> — keys generated in your browser,
+    claim batched and anchored, name visible in the explorer once the anchor confirms.</p>
 
   <h2>How it scales</h2>
   <p>Billions of names can't each be a Bitcoin transaction, so <strong>publishers</strong> batch many
@@ -221,12 +231,13 @@
 
   <h2 class="pbreak">Status — honest (maturity, not direction)</h2>
   <p><strong>Live on a Bitcoin test network (signet), end-to-end:</strong> claim, owner-key transfer,
-    owner-signed records, recovery, and a bonded auction bid the resolver accepts — with the consensus
-    code and signatures cross-checked byte-for-byte against a second independent implementation.
-    <strong>Prototype / partial:</strong> the cheap batched-claim path is now wired into the live indexer
-    — it observes the anchored root chain and resolves accumulator-claimed names, re-verifying each against
-    Bitcoin — but the batch-data <em>transport</em> is still a pluggable seam (not a production source) and
-    the resolver/web surface doesn't expose those names yet; a single-writer publisher; and producers don't
+    owner-signed records, recovery, a bonded auction bid the resolver accepts — and, since June 9, the
+    <strong>cheap batched-claim loop</strong>: a claim made at claim.opennametags.org is batched, anchored
+    on-chain, re-verified by the indexer against the anchored root, and appears in the public explorer.
+    Consensus code and signatures are cross-checked byte-for-byte across independent implementations
+    (engine, web, claim site, mobile — one shared conformance fixture). <strong>Still open (disclosed):</strong>
+    the fail-closed availability <em>deadline</em> (the withhold-then-reveal defense) is design+simulation
+    only; the publisher is single-writer; the Lightning payment is stubbed on signet; and producers don't
     yet emit the proofs a phone/browser would check. Not mainnet-ready.</p>
 
   <h2>What we most want you to push on</h2>
@@ -237,7 +248,9 @@
       doesn't count. Is that sound, and should availability be proven on-chain or by timing alone? And the
       <em>transport</em>: we lean toward content-addressed bytes any node can mirror, verified against an
       on-chain digest (so it's <strong>not consensus-critical</strong>, backend swappable) — is
-      publisher-served + voluntary mirrors enough for v1, or is a gossip/DA-sampling layer needed sooner?</li>
+      publisher-served + voluntary mirrors enough for v1, or is a gossip/DA-sampling layer needed sooner?
+      And a simplification we're weighing: should the availability <em>marker</em> be folded into the anchor
+      itself (the anchor already commits the batch digest) — one less on-chain message type to freeze?</li>
     <li><strong>Publisher trust-minimization</strong> — v1 leans on reputable, pay-first publishers (a
       non-payer is left out). Is there a clean, <em>deployable-today</em> way to bind "pay the publisher"
       to "claim anchored on-chain" without depending on long-roadmap primitives — or is
@@ -252,10 +265,11 @@
     <li><strong>Launch fairness</strong> — is a long notice window enough against a day-one rush on
       premium names, or do we need a decaying launch fee?</li>
     <li><strong>Recovery you can leave unattended</strong> — recovery is opt-in (skip it and a name is one
-      key, like cold-storage bitcoin); if enabled, its veto should be postable by a <em>non-custodial
-      watcher</em> (can abort, never move the name), not the owner. A literal pre-signed veto can't
-      reference the recovery UTXO (outpoint unknown until invoke) — what's the cleanest name-scoped,
-      abort-only credential?</li>
+      key, like cold-storage bitcoin); if enabled, its challenge-window veto needs <em>someone</em> watching,
+      which for a set-and-forget name should be a <em>non-custodial watcher</em> (can abort, never move the
+      name), not the owner. A literal pre-signed veto can't reference the recovery UTXO (outpoint unknown
+      until invoke time) — what's the cleanest name-scoped, abort-only credential that lets a watcher cancel
+      without custody?</li>
   </ul>
 
   <div class="foot">Repo: github.com/deekay/ont · the full design brief, prior-art comparison, risk

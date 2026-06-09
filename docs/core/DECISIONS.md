@@ -632,6 +632,52 @@ Documentation impact:
   `launch/ONT_IMPLEMENTATION_AND_VALIDATION.md` — PTLC references demoted to
   longer-term / non-v1.
 
+39. DA transport: content-addressed, publisher-served v1 (T2) — raised as a core feedback area — 2026-06-08
+
+The cheap rail's data-availability story splits into *witnessing* (is the data
+attested available by a Bitcoin-timed deadline?) and *transport* (how the bytes
+move from a publisher to verifying nodes). Witnessing was already settled in
+design (the on-chain availability marker). The transport decision: **T2 —
+content-addressed bytes** (keyed by the anchored digest), served by the publisher
+over plain HTTP in v1 and mirrorable by anyone. Because every node re-verifies
+the bytes against the on-chain commitment, transport is **not consensus-critical**
+and the backend stays swappable (publisher HTTP → mirrors → gossip/DA-sampling
+later). Implemented 2026-06-09: the resolver fetches `/da/{root}` from the
+publisher and re-verifies every leaf before merging; bundles survive publisher
+restarts (rebuilt on snapshot replay).
+
+Deliberately raised as a **core area for external feedback** rather than decided
+quietly (one-pager feedback item 1; `design/ONT_DATA_AVAILABILITY_AGREEMENT.md`
+§8b). Open with it: whether the availability *marker* should be **folded into the
+anchor itself** (the anchor already commits the digest), removing one on-chain
+message type — and the fact that the fail-closed deadline (W/C/K) enforcement is
+still design+simulation only, to be implemented before the adversarial DA story
+is operational.
+
+40. Recovery is opt-in; its veto should be delegable to a non-custodial watcher — 2026-06-08
+
+Recovery stays **optional**: a name with no recovery descriptor is one key,
+cold-storage style, with nothing to monitor. If armed, the challenge-window veto
+must not depend on the owner being online (a name is set-and-forget) — the target
+shape is a **watchtower holding a name-scoped, abort-only credential** (can cancel
+a malicious recovery, can never move the name). The credential construction is an
+open design problem (a literal pre-signed veto can't reference a recovery UTXO
+whose outpoint doesn't exist until invoke time) and is raised for external
+feedback (one-pager item 8; `design/ONT_LONG_TAIL_RECOVERY.md` §5.6).
+
+41. One user secret: the 12-word phrase, on every surface — 2026-06-09
+
+Before this, the surfaces had three key universes: the claim site (12-word
+BIP-39 phrase), the mobile app (raw 32-byte hex seed, no phrase input), and the
+web value tool (a random raw private key recoverable from nothing). Decision:
+**the user's one secret is a 12-word phrase everywhere.** Convention: master seed
+= first 32 bytes of the BIP-39 seed; owner key per name at `m/696969'/0'/i'`;
+funding at `m/84'/1'/0'/0/0`. The phrase restores the same wallet on the claim
+site, the web tools, and the app; raw keys/seeds remain accepted as legacy input.
+Locked by shared conformance vectors
+(`packages/protocol/testdata/conformance-vectors.json`) that the engine, web,
+claim-site, and mobile implementations all test against.
+
 ## Fairness Principles To Carry Into The Launch Rewrite
 
 The rewritten launch draft should explicitly state:
