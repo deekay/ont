@@ -119,6 +119,28 @@ export interface PersistedSpentOutpointObservation {
   readonly spendingInputIndex: number;
 }
 
+export interface PersistedRootAnchorObservation {
+  readonly txid: string;
+  readonly txIndex: number;
+  readonly blockHeight: number;
+  readonly prevRoot: string;
+  readonly newRoot: string;
+  readonly batchSize: number;
+  readonly status: "applied" | "rejected";
+  readonly reason: string;
+}
+
+export interface PersistedAccumulatorNameRecord {
+  readonly name: string;
+  readonly normalizedName: string;
+  readonly currentOwnerPubkey: string;
+  readonly acquisitionKind: "accumulator";
+  readonly claimHeight: number;
+  readonly anchorTxid: string;
+  readonly accumulatorRoot: string;
+  readonly leafKey: string;
+}
+
 export interface PersistedIndexerSnapshot {
   readonly launchHeight: number;
   readonly currentHeight: number | null;
@@ -128,6 +150,12 @@ export interface PersistedIndexerSnapshot {
   readonly spentOutpoints?: readonly PersistedSpentOutpointObservation[];
   readonly transactionProvenance: readonly PersistedTransactionProvenance[];
   readonly recentCheckpoints?: readonly PersistedIndexerSnapshotState[];
+  /** Cheap-rail state. CAUTION: this parser is a whitelist — a field the indexer
+   *  persists but this decoder drops is silently erased on every restart (that
+   *  exact bug lost the root chain + accumulator names once). When the indexer's
+   *  persisted state grows a field, add it HERE and to parseIndexerSnapshot. */
+  readonly rootAnchorObservations?: readonly PersistedRootAnchorObservation[];
+  readonly accumulatorNames?: readonly PersistedAccumulatorNameRecord[];
 }
 
 export interface PersistedIndexerSnapshotState {
@@ -138,6 +166,8 @@ export interface PersistedIndexerSnapshotState {
   readonly names: readonly PersistedNameRecord[];
   readonly spentOutpoints?: readonly PersistedSpentOutpointObservation[];
   readonly transactionProvenance: readonly PersistedTransactionProvenance[];
+  readonly rootAnchorObservations?: readonly PersistedRootAnchorObservation[];
+  readonly accumulatorNames?: readonly PersistedAccumulatorNameRecord[];
 }
 
 export function createDatabaseConfig(
@@ -181,6 +211,8 @@ export function parseIndexerSnapshot(input: unknown): PersistedIndexerSnapshot {
   const spentOutpoints = getOptionalArray(input, "spentOutpoints") ?? [];
   const transactionProvenance = getOptionalArray(input, "transactionProvenance") ?? [];
   const recentCheckpoints = getOptionalArray(input, "recentCheckpoints");
+  const rootAnchorObservations = getOptionalArray(input, "rootAnchorObservations");
+  const accumulatorNames = getOptionalArray(input, "accumulatorNames");
 
   return {
     launchHeight,
@@ -192,7 +224,49 @@ export function parseIndexerSnapshot(input: unknown): PersistedIndexerSnapshot {
     transactionProvenance: transactionProvenance.map(parseTransactionProvenanceRecord),
     ...(recentCheckpoints === undefined
       ? {}
-      : { recentCheckpoints: recentCheckpoints.map(parseIndexerSnapshotState) })
+      : { recentCheckpoints: recentCheckpoints.map(parseIndexerSnapshotState) }),
+    ...(rootAnchorObservations === undefined
+      ? {}
+      : { rootAnchorObservations: rootAnchorObservations.map(parseRootAnchorObservation) }),
+    ...(accumulatorNames === undefined
+      ? {}
+      : { accumulatorNames: accumulatorNames.map(parseAccumulatorNameRecord) })
+  };
+}
+
+function parseRootAnchorObservation(input: unknown): PersistedRootAnchorObservation {
+  if (!isRecord(input)) {
+    throw new Error("root anchor observation must be an object");
+  }
+  const status = getRequiredString(input, "status");
+  if (status !== "applied" && status !== "rejected") {
+    throw new Error("root anchor observation status must be applied|rejected");
+  }
+  return {
+    txid: getRequiredString(input, "txid"),
+    txIndex: getRequiredInteger(input, "txIndex"),
+    blockHeight: getRequiredInteger(input, "blockHeight"),
+    prevRoot: getRequiredString(input, "prevRoot"),
+    newRoot: getRequiredString(input, "newRoot"),
+    batchSize: getRequiredInteger(input, "batchSize"),
+    status,
+    reason: getRequiredString(input, "reason")
+  };
+}
+
+function parseAccumulatorNameRecord(input: unknown): PersistedAccumulatorNameRecord {
+  if (!isRecord(input)) {
+    throw new Error("accumulator name record must be an object");
+  }
+  return {
+    name: getRequiredString(input, "name"),
+    normalizedName: getRequiredString(input, "normalizedName"),
+    currentOwnerPubkey: getRequiredString(input, "currentOwnerPubkey"),
+    acquisitionKind: "accumulator",
+    claimHeight: getRequiredInteger(input, "claimHeight"),
+    anchorTxid: getRequiredString(input, "anchorTxid"),
+    accumulatorRoot: getRequiredString(input, "accumulatorRoot"),
+    leafKey: getRequiredString(input, "leafKey")
   };
 }
 
@@ -205,7 +279,9 @@ function parseIndexerSnapshotState(input: unknown): PersistedIndexerSnapshotStat
     processedBlocks: parsed.processedBlocks,
     names: parsed.names,
     ...(parsed.spentOutpoints === undefined ? {} : { spentOutpoints: parsed.spentOutpoints }),
-    transactionProvenance: parsed.transactionProvenance
+    transactionProvenance: parsed.transactionProvenance,
+    ...(parsed.rootAnchorObservations === undefined ? {} : { rootAnchorObservations: parsed.rootAnchorObservations }),
+    ...(parsed.accumulatorNames === undefined ? {} : { accumulatorNames: parsed.accumulatorNames })
   };
 }
 
