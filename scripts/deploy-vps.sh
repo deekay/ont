@@ -245,16 +245,29 @@ SERVICE
 fi
 
 if [[ "${REFRESH_LAUNCH_HEIGHT:-0}" != "0" ]]; then
-  SOURCE_MODE=$(env_value ONT_SOURCE_MODE GNS_SOURCE_MODE "$MAIN_ENV")
-  RPC_URL=$(env_value ONT_BITCOIN_RPC_URL GNS_BITCOIN_RPC_URL "$MAIN_ENV")
-  RPC_USERNAME=$(env_value ONT_BITCOIN_RPC_USERNAME GNS_BITCOIN_RPC_USERNAME "$MAIN_ENV")
-  RPC_PASSWORD=$(env_value ONT_BITCOIN_RPC_PASSWORD GNS_BITCOIN_RPC_PASSWORD "$MAIN_ENV")
-  SNAPSHOT_PATH=$(env_value ONT_SNAPSHOT_PATH GNS_SNAPSHOT_PATH "$MAIN_ENV")
+  # The resolver that needs its launch height refreshed isn't always configured in
+  # MAIN_ENV — on the private-signet droplet the rpc-mode resolver lives in
+  # ont-private.env. Pick the first env file actually configured for rpc mode.
+  REFRESH_ENV=""
+  for candidate in "$MAIN_ENV" "$DOMAIN_ENV" "/etc/${APP_PREFIX}/${APP_PREFIX}-private.env"; do
+    [[ -f "$candidate" ]] || continue
+    if [[ "$(env_value ONT_SOURCE_MODE GNS_SOURCE_MODE "$candidate")" == "rpc" \
+       && -n "$(env_value ONT_BITCOIN_RPC_URL GNS_BITCOIN_RPC_URL "$candidate")" ]]; then
+      REFRESH_ENV="$candidate"
+      break
+    fi
+  done
 
-  if [[ "$SOURCE_MODE" != "rpc" || -z "$RPC_URL" ]]; then
-    echo "Refusing to refresh launch height without rpc mode and ONT_BITCOIN_RPC_URL" >&2
+  if [[ -z "$REFRESH_ENV" ]]; then
+    echo "Refusing to refresh launch height: no env file with rpc mode + ONT_BITCOIN_RPC_URL (checked $MAIN_ENV, $DOMAIN_ENV, /etc/${APP_PREFIX}/${APP_PREFIX}-private.env)" >&2
     exit 1
   fi
+  echo "Refreshing launch height in $REFRESH_ENV"
+
+  RPC_URL=$(env_value ONT_BITCOIN_RPC_URL GNS_BITCOIN_RPC_URL "$REFRESH_ENV")
+  RPC_USERNAME=$(env_value ONT_BITCOIN_RPC_USERNAME GNS_BITCOIN_RPC_USERNAME "$REFRESH_ENV")
+  RPC_PASSWORD=$(env_value ONT_BITCOIN_RPC_PASSWORD GNS_BITCOIN_RPC_PASSWORD "$REFRESH_ENV")
+  SNAPSHOT_PATH=$(env_value ONT_SNAPSHOT_PATH GNS_SNAPSHOT_PATH "$REFRESH_ENV")
 
   CURRENT_BLOCKS=$(python3 - "$RPC_URL" "$RPC_USERNAME" "$RPC_PASSWORD" <<'PY'
 import base64
@@ -298,14 +311,20 @@ PY
       print "ONT_LAUNCH_HEIGHT=" h
     }
   }
-  ' "$MAIN_ENV" >"${MAIN_ENV}.new"
-  mv "${MAIN_ENV}.new" "$MAIN_ENV"
-  chown "root:${APP_USER}" "$MAIN_ENV"
-  chmod 640 "$MAIN_ENV"
+  ' "$REFRESH_ENV" >"${REFRESH_ENV}.new"
+  mv "${REFRESH_ENV}.new" "$REFRESH_ENV"
+  chown "root:${APP_USER}" "$REFRESH_ENV"
+  chmod 640 "$REFRESH_ENV"
   if [[ -z "$SNAPSHOT_PATH" ]]; then
     SNAPSHOT_PATH="${DATA_DIR}/resolver-snapshot.json"
   fi
   rm -f "$SNAPSHOT_PATH"
+  # If the refreshed env belongs to the private-signet resolver, restart it too —
+  # the blanket restarts below only cover the main resolver/web services.
+  PRIVATE_RESOLVER_SERVICE="${APP_PREFIX}-private-resolver.service"
+  if [[ "$REFRESH_ENV" == *"-private.env" ]] && systemctl list-unit-files "$PRIVATE_RESOLVER_SERVICE" >/dev/null 2>&1; then
+    systemctl restart "$PRIVATE_RESOLVER_SERVICE"
+  fi
 fi
 systemctl restart "$RESOLVER_SERVICE" "$WEB_SERVICE"
 if systemctl list-unit-files "$DOMAIN_WEB_SERVICE" >/dev/null 2>&1; then

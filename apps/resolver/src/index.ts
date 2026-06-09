@@ -1130,18 +1130,43 @@ async function main(): Promise<void> {
   // become resolvable. applyBatchData re-verifies every proof against the on-chain
   // root, so trusting the publisher's bytes is unnecessary (verify-don't-trust).
   if (publisherDaUrl !== "") {
+    // Per-root exponential backoff so a missing batch (publisher restarted before
+    // serving it, bytes never published) doesn't make the resolver hammer the
+    // publisher forever: 1×, 2×, 4×… the poll interval, capped at 30 minutes.
+    // A root's backoff resets the moment its fetch succeeds; brand-new anchors
+    // are always tried immediately.
+    const MAX_BACKOFF_MS = 30 * 60 * 1000;
+    const daFailures = new Map<string, { failures: number; nextAttemptAt: number }>();
     const resolveBatchData = async (): Promise<void> => {
+      const now = Date.now();
       const roots = indexer.unresolvedAnchorRoots();
       let mergedAny = false;
       for (const root of roots) {
+        const failure = daFailures.get(root);
+        if (failure !== undefined && now < failure.nextAttemptAt) continue;
+        let fetched = false;
         try {
           const res = await fetch(`${publisherDaUrl}/da/${root}`);
-          if (!res.ok) continue; // bytes not available yet — retry next tick
-          const bundle = (await res.json()) as { leaves?: readonly AccumulatorBatchLeaf[] };
-          if (indexer.applyBatchData(root, bundle.leaves ?? []) > 0) mergedAny = true;
+          if (res.ok) {
+            fetched = true;
+            const bundle = (await res.json()) as { leaves?: readonly AccumulatorBatchLeaf[] };
+            if (indexer.applyBatchData(root, bundle.leaves ?? []) > 0) mergedAny = true;
+          }
         } catch {
-          // publisher unreachable — retry next tick
+          // publisher unreachable — backed off below
         }
+        if (fetched) {
+          daFailures.delete(root);
+        } else {
+          const failures = (failure?.failures ?? 0) + 1;
+          const delay = Math.min(defaultPollIntervalMs * 2 ** (failures - 1), MAX_BACKOFF_MS);
+          daFailures.set(root, { failures, nextAttemptAt: now + delay });
+        }
+      }
+      // Drop bookkeeping for roots that resolved (or vanished via reorg restore).
+      const live = new Set(indexer.unresolvedAnchorRoots());
+      for (const root of daFailures.keys()) {
+        if (!live.has(root)) daFailures.delete(root);
       }
       if (mergedAny) await saveSnapshot(database, snapshotPath, snapshotDocumentKey, indexer);
     };

@@ -168,6 +168,39 @@ describe("InMemoryOntIndexer accumulator-name merge (cheap-rail phase 2)", () =>
     expect(indexer.unresolvedAnchorRoots()).toEqual([]); // resolved
   });
 
+  it("applyBatchData drops leaves whose proofs are for a DIFFERENT root than the anchored one", () => {
+    // The anchored root is real, but the provider serves proofs built against some
+    // other tree — e.g. a malicious or buggy DA source mixing up batches. Every
+    // leaf must fail verification against the anchored root and be dropped.
+    const anchored = buildBatch([["alice", OWNER_A]]);
+    const other = buildBatch([["alice", OWNER_A], ["decoy", OWNER_B]]);
+    const indexer = new InMemoryOntIndexer({ launchHeight: 100 });
+    indexer.ingestBlock(block(100, "aa".repeat(32), [anchorTx("a1".repeat(32), { prevRoot: GENESIS, newRoot: anchored.newRoot, batchSize: 1 })]));
+
+    expect(indexer.applyBatchData(anchored.newRoot, other.leaves)).toBe(0);
+    expect(indexer.getAccumulatorName("alice")).toBeNull();
+    // The root stays on the DA work-list so an honest source can still resolve it.
+    expect(indexer.unresolvedAnchorRoots()).toEqual([anchored.newRoot.toLowerCase()]);
+  });
+
+  it("a reorg (checkpoint restore) drops accumulator names whose anchor was orphaned", () => {
+    const batch = buildBatch([["alice", OWNER_A]]);
+    const indexer = new InMemoryOntIndexer({ launchHeight: 100, batchDataProvider: provider([batch]) });
+
+    // Block 100: no anchor — this is the checkpoint we'll rewind to.
+    indexer.ingestBlock(block(100, "10".repeat(32), []));
+    // Block 101: the anchor lands and the name merges.
+    indexer.ingestBlock(block(101, "11".repeat(32), [anchorTx("a1".repeat(32), { prevRoot: GENESIS, newRoot: batch.newRoot, batchSize: 1 })]));
+    expect(indexer.resolveName("alice")?.source).toBe("accumulator");
+    expect(indexer.getConfirmedAccumulatorRoot()).toBe(batch.newRoot);
+
+    // Reorg: block 101 is orphaned; the node rewinds to the checkpoint at 100.
+    expect(indexer.restoreRecentCheckpoint(100, "10".repeat(32))).toBe(true);
+    expect(indexer.resolveName("alice")).toBeNull(); // name gone with its anchor
+    expect(indexer.getConfirmedAccumulatorRoot()).toBe(GENESIS); // chain tip rewound
+    expect(indexer.unresolvedAnchorRoots()).toEqual([]); // no phantom DA work
+  });
+
   it("applyBatchData refuses leaves for a root that was never an applied anchor", () => {
     const batch = buildBatch([["alice", OWNER_A]]);
     const indexer = new InMemoryOntIndexer({ launchHeight: 100 });
