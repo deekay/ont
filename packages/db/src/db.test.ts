@@ -181,3 +181,54 @@ describe("indexer snapshot persistence", () => {
     });
   });
 });
+
+describe("parseIndexerSnapshot cheap-rail fields (regression)", () => {
+  // The parser is a WHITELIST: a field the indexer persists but the decoder drops
+  // is silently erased on every resolver restart. That exact bug reset the root
+  // chain to genesis (new anchors rejected as stale) and wiped accumulator names
+  // on 2026-06-09. This pins the round-trip.
+  it("carries rootAnchorObservations and accumulatorNames through a parse round-trip", async () => {
+    const { parseIndexerSnapshot } = await import("./index.js");
+    const snapshot = {
+      launchHeight: 100,
+      currentHeight: 105,
+      currentBlockHash: "ab".repeat(32),
+      processedBlocks: 5,
+      names: [],
+      transactionProvenance: [],
+      rootAnchorObservations: [
+        {
+          txid: "cd".repeat(32),
+          txIndex: 0,
+          blockHeight: 101,
+          prevRoot: "00".repeat(32),
+          newRoot: "11".repeat(32),
+          batchSize: 2,
+          status: "applied",
+          reason: "anchored"
+        }
+      ],
+      accumulatorNames: [
+        {
+          name: "alice",
+          normalizedName: "alice",
+          currentOwnerPubkey: "ef".repeat(32),
+          acquisitionKind: "accumulator",
+          claimHeight: 101,
+          anchorTxid: "cd".repeat(32),
+          accumulatorRoot: "11".repeat(32),
+          leafKey: "22".repeat(32)
+        }
+      ]
+    };
+    const parsed = parseIndexerSnapshot(snapshot);
+    expect(parsed.rootAnchorObservations).toHaveLength(1);
+    expect(parsed.rootAnchorObservations?.[0]?.newRoot).toBe("11".repeat(32));
+    expect(parsed.accumulatorNames).toHaveLength(1);
+    expect(parsed.accumulatorNames?.[0]?.name).toBe("alice");
+    // And a re-serialize keeps them (what saveIndexerSnapshotFile writes).
+    const reparsed = parseIndexerSnapshot(JSON.parse(JSON.stringify(parsed)));
+    expect(reparsed.accumulatorNames).toHaveLength(1);
+    expect(reparsed.rootAnchorObservations).toHaveLength(1);
+  });
+});
