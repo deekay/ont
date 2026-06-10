@@ -34,6 +34,7 @@ function block(height: number, hash: string, transactions: BitcoinTransaction[])
 const GENESIS = emptyAccumulatorRoot();
 const OWNER_A = "a1".repeat(32);
 const OWNER_B = "b2".repeat(32);
+const OWNER_C = "c3".repeat(32);
 
 /**
  * Build a real one-batch accumulator from name->owner pairs, returning the new root
@@ -253,6 +254,55 @@ describe("InMemoryOntIndexer accumulator-name merge (cheap-rail phase 2)", () =>
     // Window still anchored on the first claim (height 100 → close 106), not reset to 101.
     expect(indexer.classifyAccumulatorName("alice")?.noticeWindowCloseHeight).toBe(106);
     expect(indexer.listRefusedTakeoverNames()).toEqual([]);
+  });
+
+  it("a distinct-owner claim landing AT the close height meets a final name and is refused, not a collision (NW-02 boundary)", () => {
+    // The close height is the first block at which the name is FINAL. A claim in
+    // that exact block is too late to collide — it must be refused (denial
+    // protection), never retroactively nullify an already-final name.
+    const first = buildBatch([["alice", OWNER_A]]);
+    const atClose = buildBatch([["alice", OWNER_B]]);
+    const indexer = new InMemoryOntIndexer({ launchHeight: 100 });
+
+    indexer.ingestBlock(block(100, "aa".repeat(32), [anchorTx("a1".repeat(32), { prevRoot: GENESIS, newRoot: first.newRoot, batchSize: 1 })]));
+    expect(indexer.applyBatchData(first.newRoot, first.leaves)).toBe(1); // close = 106
+
+    // A distinct-owner claim in the close block (106) — already final.
+    indexer.ingestBlock(block(106, "bb".repeat(32), [anchorTx("a2".repeat(32), { prevRoot: first.newRoot, newRoot: atClose.newRoot, batchSize: 1 })]));
+    expect(indexer.applyBatchData(atClose.newRoot, atClose.leaves)).toBe(0); // refused
+    expect(indexer.classifyAccumulatorName("alice")?.status).toBe("final"); // NOT nullified
+    expect(indexer.getAccumulatorName("alice")?.currentOwnerPubkey).toBe(OWNER_A.toLowerCase());
+    expect(indexer.listRefusedTakeoverNames()).toContain("alice");
+  });
+
+  it("a nullified name reopens for claiming — a fresh claim after the window wins (NW-01 reopen)", () => {
+    // Decision #37: a collided name nullifies AND reopens. After the window closes
+    // a new claim must be able to take it (fresh provisional window), not be stuck.
+    const first = buildBatch([["alice", OWNER_A]]);
+    const collide = buildBatch([["alice", OWNER_B]]);
+    const reclaim = buildBatch([["alice", OWNER_C]]); // a fresh party re-claims the reopened name
+    const indexer = new InMemoryOntIndexer({ launchHeight: 100 });
+
+    // Claim + in-window collision → nullified at close.
+    indexer.ingestBlock(block(100, "aa".repeat(32), [anchorTx("a1".repeat(32), { prevRoot: GENESIS, newRoot: first.newRoot, batchSize: 1 })]));
+    expect(indexer.applyBatchData(first.newRoot, first.leaves)).toBe(1);
+    indexer.ingestBlock(block(101, "bb".repeat(32), [anchorTx("a2".repeat(32), { prevRoot: first.newRoot, newRoot: collide.newRoot, batchSize: 1 })]));
+    expect(indexer.applyBatchData(collide.newRoot, collide.leaves)).toBe(0);
+    indexer.ingestBlock(block(106, "c6".repeat(32), []));
+    expect(indexer.classifyAccumulatorName("alice")?.status).toBe("nullified");
+    expect(indexer.resolveName("alice")).toBeNull();
+
+    // A fresh claim after the window REOPENS the name — it wins a new provisional window.
+    indexer.ingestBlock(block(110, "dd".repeat(32), [anchorTx("a3".repeat(32), { prevRoot: collide.newRoot, newRoot: reclaim.newRoot, batchSize: 1 })]));
+    expect(indexer.applyBatchData(reclaim.newRoot, reclaim.leaves)).toBe(1); // merged — reopened
+    expect(indexer.classifyAccumulatorName("alice")?.status).toBe("provisional");
+    expect(indexer.classifyAccumulatorName("alice")?.noticeWindowCloseHeight).toBe(116); // fresh window from 110
+    expect(indexer.getAccumulatorName("alice")?.currentOwnerPubkey).toBe(OWNER_C.toLowerCase());
+    expect(indexer.listRefusedTakeoverNames()).toEqual([]); // cleared on reopen
+
+    // And it finalizes uncontested.
+    indexer.ingestBlock(block(116, "e6".repeat(32), []));
+    expect(indexer.classifyAccumulatorName("alice")?.status).toBe("final");
   });
 
   it("applyBatchData drops leaves whose proofs are for a DIFFERENT root than the anchored one", () => {
