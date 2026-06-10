@@ -85,10 +85,12 @@ rather than paper over it — no sponsorship or proxy-bonding tooling, in v1 or 
 direction. Bonds are bearer BTC, so third-party defense is already permissionless; someone who
 needs defense capital arranges a loan *outside* the protocol.
 
-**"The publisher steals my name — or my dollar."** It can't take a name: committing the wrong
-owner key (or pocketing your payment) is contestable on-chain, forcing an auction the rightful
-owner wins; you re-claim through another publisher or directly on L1. Worst case ≈ ₿1,000 + the
-thin service fee, ~$1. The flow is deliberately **pay-first with reputable publishers**
+**"The publisher steals my name — or my dollar."** It can't decide ownership by fiat — Bitcoin
+does — and it can't take a name you already own (first-anchor-wins at replay). It *can* commit a
+wrong owner key or pocket a payment on a new claim; that misbehavior is public, and your recourse
+is on-chain: re-claim through another publisher or directly on L1, or contest with a bond, where
+allocation follows the normal largest-qualifying-bond rule. Worst case ≈ ₿1,000 + the thin
+service fee, ~$1. The flow is deliberately **pay-first with reputable publishers**
 (Decision #38): with ~$1 at risk, atomically binding payment to inclusion is later research, not a
 v1 dependency.
 
