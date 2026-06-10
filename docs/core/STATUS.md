@@ -46,8 +46,10 @@ determine **owner-key authority and replay validation** (transfers, value record
 - **Auction settlement → ownership currently lives OUTSIDE the frozen core** (experimental
   indexer code). `applyAuctionBid` only validates/records a bid; deciding the winner-becomes-owner
   is not yet inside the audited boundary.
-- So we do **not** claim "the three frozen files alone determine all ownership." Open decision:
-  move settlement into the frozen boundary, or keep this scoped statement. (Tracked as A3.)
+- So we do **not** claim "the three frozen files alone determine all ownership" — yet. **Decided
+  (Decision #42, resolves A3): settlement moves inside the frozen boundary**, gated on its
+  correctness being demonstrated to the core's standard. Until that lands, this scoped statement
+  stays and user-facing copy must not claim the frozen files decide auctions.
 
 ## Known-incomplete (disclosed, on the roadmap)
 - **DA enforcement gap (the sharpest open item):** the cheap rail's *fail-closed availability
