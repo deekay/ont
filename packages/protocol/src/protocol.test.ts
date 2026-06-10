@@ -63,13 +63,18 @@ describe("normalizeName", () => {
 });
 
 describe("bond and maturity helpers", () => {
-  it("halves per additional character before reaching the floor", () => {
+  it("halves per added character only across the scarce short set (≤4 chars)", () => {
     expect(getBondSats(1)).toBe(100_000_000n);
     expect(getBondSats(2)).toBe(50_000_000n);
     expect(getBondSats(3)).toBe(25_000_000n);
+    expect(getBondSats(4)).toBe(12_500_000n);
   });
 
-  it("holds the configured floor for long names", () => {
+  it("clamps to the flat floor at 5+ chars (not length-scaled past the short set)", () => {
+    // The boundary the docs promise: a 5-char name is NOT scarce — flat floor,
+    // not ₿6,250,000. Guards against the halving curve leaking into the long tail.
+    expect(getBondSats(5)).toBe(AUCTION_BOND_FLOOR_SATS);
+    expect(getBondSats(11)).toBe(AUCTION_BOND_FLOOR_SATS);
     expect(getBondSats(12)).toBe(AUCTION_BOND_FLOOR_SATS);
     expect(getBondSats(32)).toBe(AUCTION_BOND_FLOOR_SATS);
   });
