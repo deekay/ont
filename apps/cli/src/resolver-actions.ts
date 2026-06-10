@@ -1,4 +1,11 @@
-import { normalizeName } from "@ont/protocol";
+import {
+  computeValueRecordHash,
+  normalizeName,
+  type SignedValueRecord,
+  VALUE_RECORD_FORMAT,
+  VALUE_RECORD_VERSION,
+  verifyValueRecord
+} from "@ont/protocol";
 
 export interface ResolverNameRecord {
   readonly name: string;
@@ -94,8 +101,68 @@ export interface MultiResolverValueHistorySummary {
   readonly laggingResolverUrls: readonly string[];
   readonly missingResolverUrls: readonly string[];
   readonly conflictingResolverUrls: readonly string[];
+  /** Resolvers whose history failed cryptographic verification — never canonical. */
+  readonly rejectedResolverUrls: readonly string[];
   readonly failedResolverUrls: readonly string[];
   readonly resolverResults: readonly MultiResolverValueHistoryResult[];
+}
+
+/**
+ * Verify a resolver-served value history end-to-end (recomputed recordHash, owner
+ * signature, one owner + ownershipRef, gap-free linked sequence) so a forged
+ * chain cannot be trusted just for being the longest. (MR1.) Disclosed limit:
+ * proves self-consistency + owner-signing, not that the key is the on-chain owner.
+ */
+export function verifyResolverValueHistory(history: ResolverValueHistory): boolean {
+  const records = history.records;
+  if (records.length === 0) {
+    return false;
+  }
+  const owner = records[0]!.ownerPubkey;
+  const ownershipRef = records[0]!.ownershipRef;
+  let previousHash: string | null = null;
+  let previousSequence: number | null = null;
+
+  for (const record of records) {
+    if (record.ownerPubkey !== owner || record.ownershipRef !== ownershipRef) {
+      return false;
+    }
+    if (previousSequence !== null && record.sequence !== previousSequence + 1) {
+      return false;
+    }
+    if (record.previousRecordHash !== previousHash) {
+      return false;
+    }
+    const fields = {
+      name: record.name,
+      ownerPubkey: record.ownerPubkey,
+      ownershipRef: record.ownershipRef,
+      sequence: record.sequence,
+      previousRecordHash: record.previousRecordHash,
+      valueType: record.valueType,
+      payloadHex: record.payloadHex,
+      issuedAt: record.issuedAt
+    };
+    if (computeValueRecordHash(fields) !== record.recordHash) {
+      return false;
+    }
+    const signed: SignedValueRecord = {
+      ...fields,
+      format: VALUE_RECORD_FORMAT,
+      recordVersion: VALUE_RECORD_VERSION,
+      signature: record.signature
+    };
+    try {
+      if (!verifyValueRecord(signed)) {
+        return false;
+      }
+    } catch {
+      return false;
+    }
+    previousHash = record.recordHash;
+    previousSequence = record.sequence;
+  }
+  return true;
 }
 
 export interface ResolverNameActivityResponse {
@@ -311,12 +378,19 @@ export async function fetchNameValueHistoryFromResolvers(options: {
       result.outcome === "ok" && result.history !== null
   );
 
-  if (okResults.length === 0) {
+  // MR1: only a cryptographically verified history may become canonical, so a
+  // single malicious resolver can't win by serving a forged-but-longer chain.
+  const verifiedResults = okResults.filter((result) => verifyResolverValueHistory(result.history));
+  const rejectedResolverUrls = okResults
+    .filter((result) => !verifyResolverValueHistory(result.history))
+    .map((result) => result.resolverUrl);
+
+  if (verifiedResults.length === 0) {
     return {
       kind: "ont-multi-resolver-value-history",
       name: normalized,
       resolverCount: resolverUrls.length,
-      status: "all_missing",
+      status: rejectedResolverUrls.length > 0 ? "conflict" : "all_missing",
       canonicalResolverUrl: null,
       canonicalHistory: null,
       canonicalValueRecord: null,
@@ -326,12 +400,13 @@ export async function fetchNameValueHistoryFromResolvers(options: {
       laggingResolverUrls: [],
       missingResolverUrls,
       conflictingResolverUrls: [],
+      rejectedResolverUrls,
       failedResolverUrls,
       resolverResults
     };
   }
 
-  const canonicalResult = [...okResults].sort(compareValueHistoryResults)[0] as MultiResolverValueHistoryResult & {
+  const canonicalResult = [...verifiedResults].sort(compareValueHistoryResults)[0] as MultiResolverValueHistoryResult & {
     readonly outcome: "ok";
     readonly history: ResolverValueHistory;
   };
@@ -344,7 +419,7 @@ export async function fetchNameValueHistoryFromResolvers(options: {
     conflictingResolverUrls.push(canonicalResult.resolverUrl);
   }
 
-  for (const result of okResults) {
+  for (const result of verifiedResults) {
     if (result.resolverUrl === canonicalResult.resolverUrl) {
       continue;
     }
@@ -365,7 +440,7 @@ export async function fetchNameValueHistoryFromResolvers(options: {
     name: normalized,
     resolverCount: resolverUrls.length,
     status:
-      conflictingResolverUrls.length > 0
+      conflictingResolverUrls.length > 0 || rejectedResolverUrls.length > 0
         ? "conflict"
         : laggingResolverUrls.length > 0 || missingResolverUrls.length > 0
           ? "lagging"
@@ -379,6 +454,7 @@ export async function fetchNameValueHistoryFromResolvers(options: {
     laggingResolverUrls,
     missingResolverUrls,
     conflictingResolverUrls,
+    rejectedResolverUrls,
     failedResolverUrls,
     resolverResults
   };

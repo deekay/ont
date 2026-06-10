@@ -1,4 +1,11 @@
-import { normalizeName, type SignedValueRecord } from "@ont/protocol";
+import {
+  computeValueRecordHash,
+  normalizeName,
+  type SignedValueRecord,
+  VALUE_RECORD_FORMAT,
+  VALUE_RECORD_VERSION,
+  verifyValueRecord
+} from "@ont/protocol";
 
 export interface ResolverValueRecord {
   readonly format: string;
@@ -49,8 +56,78 @@ export interface MultiResolverValueHistorySummary {
   readonly laggingResolverUrls: readonly string[];
   readonly missingResolverUrls: readonly string[];
   readonly conflictingResolverUrls: readonly string[];
+  /** Resolvers whose served history failed cryptographic verification (recomputed
+   *  recordHash, owner signature, or internal chain consistency). Such histories
+   *  are NEVER eligible to be canonical — a forged-but-longer chain cannot win. */
+  readonly rejectedResolverUrls: readonly string[];
   readonly failedResolverUrls: readonly string[];
   readonly resolverResults: readonly MultiResolverValueHistoryResult[];
+}
+
+/**
+ * Verify a resolver-served value history end-to-end so a forged chain cannot be
+ * trusted just because it is the longest. For every record: the declared
+ * recordHash must recompute, the owner signature must verify, and the chain must
+ * be internally consistent (one owner + ownershipRef, sequences increment by 1,
+ * each previousRecordHash links to its predecessor). Returns false on any failure.
+ *
+ * NOTE (disclosed limitation): this proves the chain is self-consistent and
+ * owner-signed, NOT that the signing key is the name's real on-chain owner — a
+ * resolver that self-signs a chain under an attacker key with a fabricated
+ * ownershipRef still passes here. Binding to the Bitcoin-derived current owner is
+ * the `bitcoinInclusion` / light-client work; callers that know the on-chain
+ * owner should additionally check `canonicalValueRecord.ownerPubkey` against it.
+ */
+export function verifyResolverValueHistory(history: ResolverValueHistory): boolean {
+  const records = history.records;
+  if (records.length === 0) {
+    return false;
+  }
+  const owner = records[0]!.ownerPubkey;
+  const ownershipRef = records[0]!.ownershipRef;
+  let previousHash: string | null = null;
+  let previousSequence: number | null = null;
+
+  for (const record of records) {
+    if (record.ownerPubkey !== owner || record.ownershipRef !== ownershipRef) {
+      return false; // a chain must not switch owner or ownership interval mid-stream
+    }
+    if (previousSequence !== null && record.sequence !== previousSequence + 1) {
+      return false; // sequences must be gap-free and strictly increasing
+    }
+    if (record.previousRecordHash !== previousHash) {
+      return false; // each record must link to its predecessor's hash
+    }
+    const fields = {
+      name: record.name,
+      ownerPubkey: record.ownerPubkey,
+      ownershipRef: record.ownershipRef,
+      sequence: record.sequence,
+      previousRecordHash: record.previousRecordHash,
+      valueType: record.valueType,
+      payloadHex: record.payloadHex,
+      issuedAt: record.issuedAt
+    };
+    if (computeValueRecordHash(fields) !== record.recordHash) {
+      return false; // declared recordHash is not trusted — it must recompute
+    }
+    const signed: SignedValueRecord = {
+      ...fields,
+      format: VALUE_RECORD_FORMAT,
+      recordVersion: VALUE_RECORD_VERSION,
+      signature: record.signature
+    };
+    try {
+      if (!verifyValueRecord(signed)) {
+        return false; // owner signature must verify over the record digest
+      }
+    } catch {
+      return false; // malformed signature/pubkey
+    }
+    previousHash = record.recordHash;
+    previousSequence = record.sequence;
+  }
+  return true;
 }
 
 export interface MultiResolverValuePublishResult {
@@ -137,12 +214,22 @@ export async function fetchNameValueHistoryFromResolvers(options: {
     } => result.outcome === "ok" && result.history !== null
   );
 
-  if (okResults.length === 0) {
+  // Cryptographically gate canonical eligibility: a history is only allowed to
+  // become canonical if it verifies end-to-end. This is the MR1 fix — a single
+  // malicious resolver can no longer win by serving a forged-but-longer chain.
+  const verifiedResults = okResults.filter((result) => verifyResolverValueHistory(result.history));
+  const rejectedResolverUrls = okResults
+    .filter((result) => !verifyResolverValueHistory(result.history))
+    .map((result) => result.resolverUrl);
+
+  if (verifiedResults.length === 0) {
     return {
       kind: "ont-multi-resolver-value-history",
       name: normalized,
       resolverCount: options.resolverUrls.length,
-      status: "all_missing",
+      // No verifiable history. If some resolvers served unverifiable data, that's
+      // a conflict (someone is lying), not merely "all missing".
+      status: rejectedResolverUrls.length > 0 ? "conflict" : "all_missing",
       canonicalResolverUrl: null,
       canonicalHistory: null,
       canonicalValueRecord: null,
@@ -152,12 +239,13 @@ export async function fetchNameValueHistoryFromResolvers(options: {
       laggingResolverUrls: [],
       missingResolverUrls,
       conflictingResolverUrls: [],
+      rejectedResolverUrls,
       failedResolverUrls,
       resolverResults
     };
   }
 
-  const canonicalResult = [...okResults].sort(compareValueHistoryResults)[0] as MultiResolverValueHistoryResult & {
+  const canonicalResult = [...verifiedResults].sort(compareValueHistoryResults)[0] as MultiResolverValueHistoryResult & {
     readonly outcome: "ok";
     readonly history: ResolverValueHistory;
   };
@@ -170,7 +258,7 @@ export async function fetchNameValueHistoryFromResolvers(options: {
     conflictingResolverUrls.push(canonicalResult.resolverUrl);
   }
 
-  for (const result of okResults) {
+  for (const result of verifiedResults) {
     if (result.resolverUrl === canonicalResult.resolverUrl) {
       continue;
     }
@@ -191,7 +279,7 @@ export async function fetchNameValueHistoryFromResolvers(options: {
     name: normalized,
     resolverCount: options.resolverUrls.length,
     status:
-      conflictingResolverUrls.length > 0
+      conflictingResolverUrls.length > 0 || rejectedResolverUrls.length > 0
         ? "conflict"
         : laggingResolverUrls.length > 0 || missingResolverUrls.length > 0
           ? "lagging"
@@ -205,6 +293,7 @@ export async function fetchNameValueHistoryFromResolvers(options: {
     laggingResolverUrls,
     missingResolverUrls,
     conflictingResolverUrls,
+    rejectedResolverUrls,
     failedResolverUrls,
     resolverResults
   };
