@@ -822,39 +822,56 @@ export class InMemoryOntIndexer {
       const ownerLower = leaf.ownerPubkey.toLowerCase();
       const existing = this.accumulatorNames.get(normalizedName);
 
-      if (existing !== undefined && existing.currentOwnerPubkey !== ownerLower) {
-        // A competing distinct-owner claim. Decision #37: a collision can deny,
-        // never award — block/anchor ordering buys no one a name.
-        if (blockHeight <= existing.noticeWindowCloseHeight) {
-          // Both claims fall inside the first claim's notice window — a genuine
-          // collision. Neither awards; the name NULLIFIES at window close. Mark
-          // the (persisted) record so finality survives restart.
+      if (existing !== undefined) {
+        // The notice window is OPEN while blockHeight is strictly below the close
+        // height and CLOSED at/after it — the exact boundary accumulatorFinalityOf
+        // uses (height >= closeHeight ⇒ closed). Using `<` here (not `<=`) keeps
+        // the two in lockstep: a claim landing in the close block is too late to
+        // collide and meets an already-final name, not a still-open window.
+        const windowOpen = blockHeight < existing.noticeWindowCloseHeight;
+        const sameOwner = existing.currentOwnerPubkey === ownerLower;
+
+        if (windowOpen) {
+          if (sameOwner) {
+            // Same owner re-anchoring while provisional (idempotent). Keep the
+            // window anchored on the EARLIEST claim so a re-anchor can't reset it.
+            if (blockHeight < existing.claimHeight) {
+              this.accumulatorNames.set(normalizedName, {
+                ...existing,
+                claimHeight: blockHeight,
+                anchorTxid,
+                accumulatorRoot: newRoot.toLowerCase(),
+                noticeWindowCloseHeight: blockHeight + NOTICE_WINDOW_BLOCKS
+              });
+            }
+            merged += 1;
+            continue;
+          }
+          // Distinct-owner claim inside the window — a genuine collision. Neither
+          // awards; the name NULLIFIES at window close (Decision #37). Persist the
+          // flag so finality survives restart.
           if (existing.collided !== true) {
             this.accumulatorNames.set(normalizedName, { ...existing, collided: true });
           }
-        } else {
-          // The first claim's notice window already closed — it is FINAL. A later
-          // claim cannot take a finalized name (first-anchor-wins denial
-          // protection). Refuse it; record for visibility only.
-          this.refusedTakeoverNames.add(normalizedName);
+          continue;
         }
-        continue;
-      }
 
-      if (existing !== undefined) {
-        // Same owner re-anchoring the name (idempotent). Keep the window anchored
-        // on the EARLIEST claim so a re-anchor can't extend or reset provisionality.
-        if (blockHeight < existing.claimHeight) {
-          this.accumulatorNames.set(normalizedName, {
-            ...existing,
-            claimHeight: blockHeight,
-            anchorTxid,
-            accumulatorRoot: newRoot.toLowerCase(),
-            noticeWindowCloseHeight: blockHeight + NOTICE_WINDOW_BLOCKS
-          });
+        // Window closed.
+        if (existing.collided !== true) {
+          // The name is FINAL. A later distinct-owner claim cannot take it
+          // (first-anchor-wins denial protection); a same-owner re-anchor is a
+          // harmless no-op.
+          if (sameOwner) {
+            merged += 1;
+          } else {
+            this.refusedTakeoverNames.add(normalizedName);
+          }
+          continue;
         }
-        merged += 1;
-        continue;
+        // The name NULLIFIED (in-window collision, window now closed) and has
+        // REOPENED for claiming (Decision #37). This claim is a fresh start — fall
+        // through to replace the dead record with a new provisional claim.
+        this.refusedTakeoverNames.delete(normalizedName);
       }
 
       this.accumulatorNames.set(normalizedName, {
