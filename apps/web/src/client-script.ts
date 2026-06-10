@@ -2282,6 +2282,11 @@ function mapLiveSmokeStatusPill(value) {
 }
 
 function formatSats(value) {
+  // Absent fields render as an honest dash instead of throwing mid-render
+  // (cheap-rail records served by older resolvers can lack bond fields).
+  if (value === null || value === undefined || value === "") {
+    return "—";
+  }
   const sats = BigInt(value);
   return "₿" + formatBtcDecimal(sats);
 }
@@ -2302,6 +2307,9 @@ function formatStateLabel(status) {
 }
 
 function formatCompactSats(value) {
+  if (value === null || value === undefined || value === "") {
+    return "—";
+  }
   const sats = BigInt(value);
   return "₿" + formatBtcDecimal(sats);
 }

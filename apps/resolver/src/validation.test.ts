@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { NameRecord } from "@ont/core";
+import type { AccumulatorNameRecord, NameRecord } from "@ont/core";
 import {
   computeRecoveryDescriptorHash,
   computeValueRecordHash,
@@ -10,7 +10,13 @@ import {
   type SignedValueRecord
 } from "@ont/protocol";
 
-import { validateRecoveryDescriptorSubmission, validateValueRecordSubmission } from "./validation.js";
+import {
+  accumulatorOwnershipInterval,
+  ownershipIntervalOf,
+  type OwnershipInterval,
+  validateRecoveryDescriptorSubmission,
+  validateValueRecordSubmission
+} from "./validation.js";
 
 const OWNER = "11".repeat(32);
 const REF = "aa".repeat(32);
@@ -31,13 +37,27 @@ function signValue(over: Record<string, unknown> = {}): SignedValueRecord {
 
 const OWNER_PUB = signValue().ownerPubkey;
 
-function nameRecord(over: Partial<NameRecord> = {}): NameRecord {
-  return {
+function nameRecord(over: Partial<NameRecord> = {}): OwnershipInterval | null {
+  return ownershipIntervalOf({
     status: "mature",
     currentOwnerPubkey: OWNER_PUB,
     lastStateTxid: REF,
     ...over
-  } as unknown as NameRecord;
+  } as unknown as NameRecord);
+}
+
+function accumulatorRecord(over: Partial<AccumulatorNameRecord> = {}): OwnershipInterval {
+  return accumulatorOwnershipInterval({
+    name: "alice",
+    normalizedName: "alice",
+    currentOwnerPubkey: OWNER_PUB,
+    acquisitionKind: "accumulator",
+    claimHeight: 100,
+    anchorTxid: REF,
+    accumulatorRoot: "cc".repeat(32),
+    leafKey: "dd".repeat(32),
+    ...over
+  } as AccumulatorNameRecord);
 }
 
 describe("validateValueRecordSubmission", () => {
@@ -116,6 +136,49 @@ describe("validateValueRecordSubmission", () => {
     const head = signValue({ sequence: 1 });
     const next = signValue({ sequence: 2, previousRecordHash: computeValueRecordHash(head) });
     expect(validateValueRecordSubmission(next, nameRecord(), head).ok).toBe(true);
+  });
+});
+
+describe("validateValueRecordSubmission — accumulator (cheap-rail) names", () => {
+  it("accepts a first record whose ownershipRef is the finalizing anchor txid", () => {
+    const r = validateValueRecordSubmission(signValue(), accumulatorRecord(), null);
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.ownershipRef).toBe(REF);
+      expect(r.expectedSequence).toBe(1);
+    }
+  });
+
+  it("rejects a record keyed to anything other than the anchor txid (409 ownership_ref_mismatch)", () => {
+    const r = validateValueRecordSubmission(
+      signValue(),
+      accumulatorRecord({ anchorTxid: "bb".repeat(32) }),
+      null
+    );
+    expect(r).toMatchObject({
+      ok: false,
+      status: 409,
+      body: { error: "ownership_ref_mismatch", currentOwnershipRef: "bb".repeat(32) }
+    });
+  });
+
+  it("rejects a non-owner signer on an accumulator name (409 owner_mismatch)", () => {
+    const r = validateValueRecordSubmission(
+      signValue(),
+      accumulatorRecord({ currentOwnerPubkey: "cd".repeat(32) }),
+      null
+    );
+    expect(r).toMatchObject({ ok: false, status: 409, body: { error: "owner_mismatch" } });
+  });
+
+  it("enforces the same chain rules on the accumulator interval", () => {
+    const head = signValue({ sequence: 1 });
+    const next = signValue({ sequence: 2, previousRecordHash: computeValueRecordHash(head) });
+    expect(validateValueRecordSubmission(next, accumulatorRecord(), head).ok).toBe(true);
+    expect(validateValueRecordSubmission(signValue({ sequence: 3 }), accumulatorRecord(), null)).toMatchObject({
+      ok: false,
+      body: { error: "sequence_gap" }
+    });
   });
 });
 
