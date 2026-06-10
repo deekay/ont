@@ -143,14 +143,17 @@ take your name. See [`research/OWNER_KEY_RECOVERY.md`](./research/OWNER_KEY_RECO
 
 ## 4. Trust surface and verification
 
-**The surface is deliberately tiny.** Who-owns-what is a deterministic function of Bitcoin,
-implemented in a frozen core: `engine.ts` (event replay), `state.ts` (name state), and
-`proof-bundle.ts` (portable proofs), over the `@ont/protocol` primitives (names, wire
-formats, events, transfer/value/recovery payloads). A CI test
-(`packages/consensus/src/trust-surface.test.ts`) **fails the build** if that core grows a
-dependency on anything but `@ont/protocol` / `@ont/bitcoin`, or if the package gains a file
-outside the documented set — so the surface a newcomer must audit cannot silently grow.
-Allocation (auctions), convenience (resolver/indexer), and research/simulation code live
+**The surface is deliberately tiny.** Who-owns-what is a deterministic function of Bitcoin.
+The audited core — **to be frozen at launch** (Decision #44) — is `engine.ts` (event
+replay), `state.ts` (name state), and `proof-bundle.ts` (portable proofs), over the
+`@ont/protocol` primitives (names, wire formats, events, transfer/value/recovery payloads).
+Today that boundary implements **owner-key authority and replay validation**; auction
+settlement and cheap-rail finalization are migrating inside per Decisions #42/#44, and
+until they land those rules live outside it (see [`core/STATUS.md`](./core/STATUS.md) for
+the honest scoped claim). A CI test (`packages/consensus/src/trust-surface.test.ts`)
+**fails the build** if the boundary changes without a recorded decision — the allowlist is
+the boundary manifest, so the surface a newcomer must audit cannot silently drift.
+Allocation policy, convenience (resolver/indexer), and research/simulation code live
 *outside* this boundary.
 
 **A fresh verifier** replays Bitcoin transactions carrying ONT events through the engine
@@ -322,7 +325,7 @@ they're decided.
 | Area | State | Notes |
 | --- | --- | --- |
 | Owner-key model (transfer / value / recovery auth) | **Solved + live** | Enforced at replay; proven on signet; byte-identical across two implementations |
-| Minimal frozen trust surface | **Solved** | 3 consensus files CI-locked (no-growth test); the protocol rules they build on are audit surface, pinned by review |
+| Minimal audited trust surface (frozen at launch) | **Boundary enforced; scope expanding** | 3 consensus files CI-manifested (Decision #44), covering owner-key authority + replay validation today; settlement and cheap-rail rules are moving inside (#42). The protocol rules they build on are audit surface, pinned by review |
 | Returnable-bond contested auction | **Solved + live** | Bid → resolver-accepted end-to-end on signet |
 | Bitcoin-inclusion proof verification (Merkle + PoW) | **Solved (verifier)** | Tested vs real mainnet block; producers don't emit inclusion proofs yet |
 | Accumulator rail (claim → anchor → verified resolve → explore) | **Live (signet)** | End-to-end since 2026-06-09, verify-don't-trust at every hop; **open: fail-closed DA deadline (W/C/K) enforcement (sim-only today), content-addressed mirroring (§8b), leaderless multi-publisher** |

@@ -1,8 +1,11 @@
 // The ONT publisher: a batching service that accepts wallet claim requests,
 // confirms payment, bundles them into accumulator batches, and anchors each
-// batch to Bitcoin. No custody of user keys; can't forge ownership (consensus
-// enforces insertion-uniqueness against the accumulator). The design requires
-// an anchor's fee to be ≥ Σ per-name gates so the gate can't be batched away,
+// batch to Bitcoin. No custody of user keys; can't decide ownership (Bitcoin
+// does) and can't take an existing name (replay enforces first-anchor-wins /
+// insertion-uniqueness) — but it constructs batches, so a wrong-owner-key
+// leaf for a NEW claim is possible; the defense is public visibility +
+// on-chain recourse, bounded at the gate. The design also requires an
+// anchor's fee to be ≥ Σ per-name gates so the gate can't be batched away,
 // but consensus-side validation of that rule is NOT yet implemented — see
 // docs/core/STATUS.md (Known-incomplete).
 //

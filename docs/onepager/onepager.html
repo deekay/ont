@@ -79,9 +79,10 @@
     several parameters are placeholders, flagged below.</p>
   <table>
     <tr><th>You don't trust…</th><th>…because</th></tr>
-    <tr><td><strong>Publishers</strong> (write-side)</td><td>They can't mint ownership: a claim binds
-      <em>your</em> owner key, and every batch leaf is re-verified against the Bitcoin-anchored root.
-      Misbehavior is contestable on-chain; loss is bounded at ~$1.</td></tr>
+    <tr><td><strong>Publishers</strong> (write-side)</td><td>They can't decide ownership (Bitcoin does)
+      and can't take an <em>existing</em> name (first-anchor-wins at replay). A publisher <em>can</em>
+      misbatch a new claim — wrong key, omission — but misbehavior is public, the recourse is on-chain
+      under the normal claim/bond rules, and the loss is bounded at ~$1.</td></tr>
     <tr><td><strong>Resolvers</strong> (read-side)</td><td>Every answer traces to an anchored root and
       owner signatures. A lying resolver fails re-verification — caught, not obeyed (light-client caveat
       below).</td></tr>

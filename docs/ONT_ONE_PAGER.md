@@ -39,7 +39,7 @@ expiry · no reserved names, founder allocation, or admin key.
 
 | You don't trust… | …because |
 | --- | --- |
-| **Publishers** (write-side) | They can't mint ownership: a claim binds *your* owner key, and every batch leaf is re-verified against the Bitcoin-anchored root. Misbehavior is contestable on-chain; loss is bounded at ~$1. |
+| **Publishers** (write-side) | They can't decide ownership (Bitcoin does) and can't take an *existing* name (first-anchor-wins at replay). A publisher *can* misbatch a new claim — wrong key, omission — but misbehavior is public, the recourse is on-chain under the normal claim/bond rules, and the loss is bounded at ~$1. |
 | **Resolvers** (read-side) | Every answer traces to an anchored root and owner signatures. A lying resolver fails re-verification — caught, not obeyed. (Light-client caveat below.) |
 | **The founder** | No admin key, no reserved names, no token, no rent stream; the gate pays miners, not the project. Ownership re-derives from public data; anyone can run the infrastructure. |
 
