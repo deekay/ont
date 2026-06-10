@@ -34,28 +34,36 @@ This is a strong social mitigation but a weak protocol assumption. It only works
 
 Best use: recruit whales as public watchtowers / contest backstops / infrastructure funders, not privileged allocators. Their existence should justify confidence in launch monitoring, not shorter protocol windows.
 
-### 2. Cheap Contest Griefing Against Small Users
+### 2. Cheap Collision Griefing Against Small Users (reshaped by Decision #37)
 
-The simple-name path escalates a name if more than one DA-valid claimant appears in the notice window. This is neutral, but it lets an attacker force a little user out of the cheap path.
+> Updated 2026-06-09. The primary mitigation listed in the original version of
+> this section — "require a contest to become an auction-opening bonded bid,
+> not merely a second cheap claim" — was **adopted as Decision #37**
+> (2026-06-04). A bare collision can no longer force a user into an auction;
+> with no qualifying bond the name **nullifies** and reopens. The attack
+> reshapes from forced escalation to denial.
 
 Attack shape:
 
 - Monitor claims.
-- Contest many names at the gate cost.
-- The attacker may not want to win; they just force honest users into bonded auctions, where the user needs capital, wallet sophistication, and time.
+- Collide many names at the gate cost (`₿1,000` each) and never bond.
+- The honest claim cannot finalize; at window close the name nullifies and reopens. Re-claiming restarts the clock, and the attacker can collide again.
 
 Why it matters:
 
-- The harm is not theft; it is friction and capital intimidation.
-- This disproportionately hurts ordinary users during early adoption.
-- If contesting costs only the cheap gate, the attacker can create many auctions cheaply, even if winning them remains expensive.
+- The harm is not theft and no longer forced auctions; it is **denial**: a targeted user can be kept from cheap finalization indefinitely at `₿1,000`/round (money-symmetric per round, but only the victim needs a full uncollided window).
+- The victim's escape is posting a `₿50,000` returnable bond the attacker won't outbid — which makes *defense affordability*, not name loss, the real exposure for small users.
+- At scale this is an adoption/UX attack on the cheap rail; Bitcoin blockspace is untouched.
 
 Mitigations:
 
-- Require a contest to become an auction-opening bonded bid, not merely a second cheap claim. This increases contest cost but also raises the barrier for legitimate challengers.
-- Make auction UX show "you are being contested; you can walk away or bid" clearly.
+- Adopted: bond opens the auction (Decision #37) — closes forced escalation and the old dust-cost blockspace grief.
+- Open: model the nullification-attrition game; consider an objective escalating second-claim gate under high collision load, and/or a re-claim cooldown to slow the loop.
+- Decided (Decision #43): sponsorship/proxy-bonding tooling is rejected outright — no protocol incentive, no escalation promise, and a winning sponsor bond is a loan in protocol clothes. The asymmetry is accepted and documented honestly; defense capital is arranged outside the protocol if at all. Third-party bonding stays permissionless; the bond floor remains a re-pickable placeholder (parameters are the one remaining lever).
+- Make collision UX calm and informative: "your claim was collided; nobody can take the name without bonding; here are your options and their costs."
 - Provide alternate-name suggestions and cheap re-claim flow so griefing one name does not end the user's session.
-- Model grief cost: attacker cost per forced auction versus honest claimant cost.
+
+See `ONT_CONTEST_GRIEF_COST_MODEL.md` (rewritten post-#37) for the cost model.
 
 ### 3. Auction Closure Gaming
 
@@ -172,7 +180,7 @@ Mitigations:
 - Simple watch-only alerting for people who are not ready to bid yet.
 - Clear "claim is provisional" language.
 - Reputable launch publishers and a self-claim fallback.
-- Claim/contest sponsorship or concierge tooling for early legitimate users, while keeping protocol rules neutral.
+- Claim/contest sponsorship or concierge tooling for early legitimate users, while keeping protocol rules neutral. (Decision #43 rejects building any such tooling; anything of this shape is a social-layer arrangement outside the protocol.)
 
 ### 8. Operational Capture During Launch
 

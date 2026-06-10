@@ -678,6 +678,67 @@ Locked by shared conformance vectors
 (`packages/protocol/testdata/conformance-vectors.json`) that the engine, web,
 claim-site, and mobile implementations all test against.
 
+42. Auction settlement moves inside the frozen core (resolves A3) — 2026-06-09
+
+Winner-becomes-owner currently lives in experimental indexer code;
+`applyAuctionBid` in the frozen `@ont/consensus` files only validates and
+records bids. Decision: **move auction settlement into the frozen boundary**,
+so the audited trust surface determines all ownership transitions — making the
+"three frozen files determine ownership" claim true without scoping language.
+
+Conditions and implications:
+- The move is gated on confidence: settlement logic lands inside the boundary
+  only once its correctness is demonstrated (tests + proof-bundle enforcement
+  at the level the rest of the core meets), not on a calendar.
+- Until the move lands, STATUS keeps the honest scoped statement; user-facing
+  copy must not claim the frozen files decide auctions yet.
+- The known set-completeness caveat (a bundle cannot yet prove the listed bid
+  set is the complete L1 set without the light-client path) is unchanged by
+  this decision and stays disclosed.
+
+43. Defense/deterrence asymmetry is accepted; no sponsorship or proxy-bonding
+tooling, in v1 or as a protocol direction — 2026-06-09
+
+The contested-auction bond floor cannot simultaneously be cheap enough for a
+poor claimant to defend with and expensive enough to deter a wealthy attacker.
+Decision: **accept the asymmetry and document it honestly.** No
+sponsorship/proxy-bonding tooling is built — not as v1 scope, and not as a
+roadmap item. The idea fails on its own terms:
+
+- **No incentive.** The protocol pays sponsors nothing — no yield, no fee.
+  The bond being returnable makes a sponsor's cost low (carry plus fees); it
+  does not make anyone *paid*. A defense layer that depends on unpaid
+  goodwill is not a defense layer.
+- **No escalation promise.** Against a *griefer* (collide-without-bond,
+  Decision #37's residual denial attack), **one qualifying bond ends the
+  attack**: the auction opens and the griefer must bid real, year-locked BTC
+  or lose — which a griefer by definition won't. Against a *genuine wealthy
+  bidder* who keeps escalating, nobody can promise to out-bid them, and the
+  design does not presume sponsors keep bidding: an escalated auction going
+  to the highest committed bidder is the mechanism working as intended, at an
+  auction-discovered price with capital locked to maturity.
+- **It's a loan wearing protocol clothes.** If a sponsor's bond wins, bond
+  continuity locks *their* capital for ~a year backing a name owned by
+  *someone else's* key. That is a credit relationship — trust, default, and
+  repricing questions included. Anyone who needs defense capital can arrange
+  a loan **outside the protocol**; the coordination complexity does not
+  belong inside it.
+
+Implications:
+- Bonds are bearer BTC, so third-party defense remains *permissionless* —
+  the protocol neither enables nor needs to know about it.
+- This is distinct from the archived **sponsor-credits issuance** concept
+  (optimistic public-batch issuance with sponsor signatures); that remains
+  post-v1 research and is not revived by this decision.
+- The bond floor (`₿50,000`) and related parameters remain placeholders and
+  may be re-picked before launch-parameter freeze; this decision fixes the
+  *posture* (asymmetry disclosed, no tooling), not the numbers. Parameters
+  are the one remaining lever on the asymmetry.
+- Reviewer-facing docs should state the asymmetry plainly: deterrence comes
+  from auction dynamics (real, escalating, year-locked capital per name);
+  the protocol's grief defense is that one bond ends denial; defense
+  affordability beyond that is a disclosed limitation, not a promise.
+
 ## Fairness Principles To Carry Into The Launch Rewrite
 
 The rewritten launch draft should explicitly state:

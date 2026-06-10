@@ -2,184 +2,191 @@
 
 Context: Mat asked what it would cost an adversary to keep ONT from scaling by pushing the namespace above the critical contested-claim rate.
 
-## Short Answer
+> **Status (updated 2026-06-09).** The original version of this model analyzed the
+> pre-`#37` rule, where a second cheap claim escalated a name into a direct-L1
+> auction, and concluded ONT was brittle to dust-cost mass contesting. That
+> analysis directly motivated **Decision #37 (bond opens the auction)** and is
+> preserved below as the historical case. This revision models the post-#37
+> world: the blockspace attack is closed, and the residual cheap attack is
+> **mass nullification** — a denial attack, not a scaling attack.
 
-If a valid contest can be created by submitting a second cheap claim, the system is brittle to mass griefing. The attacker does not need to win names. They only need to force many honest claims out of the cheap path and into the contested path.
+## Short Answer (post-#37)
 
-Under the current cheap-gate assumption:
+Under Decision #37, a bare cheap collision can never open an L1 auction. Two or
+more in-window claims with **no qualifying bond** nullify the name (it reopens
+for claiming); an auction exists only if someone posts a bond at the
+`AUCTION_BOND_FLOOR_SATS = 50,000` floor.
+
+That changes the two damage modes:
+
+1. **Blockspace grief is no longer dust-cost.** L1 auction traffic now scales
+   with *bonded* contests, not contests. Forcing one auction costs the attacker
+   at least a `₿50,000` returnable bond plus fees — a ~50× capital increase
+   over the old `₿1,000` trigger, with the deterrent shifting from sunk spend
+   to BTC-time (carry on locked capital).
+2. **The dust-cost attack that remains is denial, not escalation.** For
+   `₿1,000` per claim, an attacker can still *collide* an honest claim so it
+   nullifies instead of finalizing. The victim never loses the name to the
+   attacker, but they don't get it cheaply either.
+
+The pre-#37 conclusion — "a few BTC of gate spend can blow the blockspace
+budget" — **no longer holds**. The open modeling question is now the
+nullification-attrition game (below), which damages adoption and UX rather
+than Bitcoin.
+
+## Attack Classes (post-#37)
+
+### 1. Mass-Nullification Denial (the residual dust-cost attack)
+
+The attacker submits a colliding cheap claim during the notice window of many
+honest claims, and never bonds.
+
+Outcome per name: nullified at window close, reopens for claiming. No auction,
+no L1 bid traffic, no transfer of ownership.
+
+Cost: `₿1,000` per collision (sunk to miners, same as any claim).
+
+The attrition loop:
 
 ```text
-force_contest_cost = 1,000 sats * number_of_griefed_claims
+victim claims (₿1,000) → attacker collides (₿1,000) → nullified, reopens
+→ victim re-claims (₿1,000) → attacker re-collides (₿1,000) → ...
 ```
 
-That is small relative to the harm:
+Properties worth modeling explicitly:
 
-- `1M` griefed claims costs `10 BTC` in gate spend.
-- `10M` griefed claims costs `100 BTC`.
-- `80M` griefed claims costs `800 BTC`.
+- **Money-symmetric, outcome-asymmetric.** Each round costs both sides
+  `₿1,000`, but the attacker only needs the name to *stay nullified*, while
+  the victim needs one full uncollided notice window. Every collision restarts
+  the victim's clock; during the launch era that clock is 90 days.
+- **The exit is the bond.** A victim can end the game by posting a `₿50,000`
+  returnable bond (the attacker, who wants nothing, will not outbid). So the
+  practical cost of being targeted is bond capital locked for the bond period
+  plus auction UX — see "defense affordability" below.
+- **At scale it is an adoption attack.** A hostile incumbent colliding claims
+  broadly (`10 BTC` per million collisions per round) makes the cheap rail
+  feel unreliable for everyone unwilling to bond. Bitcoin is untouched; the
+  damage is entirely product/perception.
 
-For a large DNS incumbent, hostile protocol sponsor, or state-level actor, those are not prohibitive numbers. The current cheap gate is an anti-spam fee, not enough economic weight to prove good-faith contesting.
+Candidate mitigations to evaluate (none adopted):
 
-This is distinct from the cost to actually win names. Winning auctions can be expensive. But Mat's scalability concern is broader: an attacker can degrade usability and force L1 auction load without intending to own the names.
+- escalating second-claim gate under high collision load (objective,
+  mechanical — not name curation);
+- a cooldown on re-claiming a nullified name, to slow the loop without
+  changing who can win;
+- wallet UX that makes "you were collided; here is the bond path and what it
+  actually costs" a calm, first-class flow rather than an emergency;
+- sponsorship/proxy-bonding so a targeted small claimant can borrow defense
+  capital — **rejected (Decision #43)**: no protocol incentive exists for
+  sponsors, no one can promise to out-escalate a genuine bidder, and a
+  winning sponsor bond is a year-locked loan backing someone else's name.
+  Defense capital is a credit relationship arranged *outside* the protocol;
+  third-party bonding stays permissionless but unassisted. The protocol's
+  own grief defense: one qualifying bond ends the denial loop.
 
-## Assumptions
+### 2. Bonded Blockspace Grief (the old attack, repriced)
 
-Bitcoin capacity:
+To create L1 auction traffic the attacker must now post a qualifying bond per
+name. The capital model that the original version of this doc proposed as a
+*fix* is now the *current rule*, so its cost table applies directly:
+
+| Challenge bond | BTC locked per `1M` forced auctions | 5% annual carry |
+| ---: | ---: | ---: |
+| `50k sats` (current floor) | `500 BTC` | `25 BTC/year` |
+| `100k sats` | `1,000 BTC` | `50 BTC/year` |
+| `500k sats` | `5,000 BTC` | `250 BTC/year` |
+
+Because bonds are returnable, a very large adversary's true cost is carry plus
+fees, not principal. Two standing caveats from the original analysis remain
+true and important:
+
+- ONT bonds are plain owner-controlled payment UTXOs enforced by ONT validity
+  rules, **not** Bitcoin-script-locked or slashable coins. True slashing would
+  require a different script/custody design.
+- A whale's cost to contest any single name is carry on ~`$50` — the floor
+  deters *mass* griefing via aggregate capital lock, not *targeted* contests.
+  Targeted deterrence comes from auction dynamics (being outbid), not the floor.
+
+### 3. Win-To-Deny (unchanged)
+
+The attacker wins auctions, holds names through the bond period, then walks or
+reopens/re-wins. Expensive for broad namespace griefing (bids + fees + locked
+capital), relevant for targeted high-value names. Unchanged by #37.
+
+## Blockspace Budget Tables (reinterpreted)
+
+The critical-rate tables below were computed for the pre-#37 model but remain
+valid with one substitution: read **contest rate** as **bonded-contest rate**
+(the fraction of claims that proceed to an actual bonded L1 auction). The
+difference is who pays to reach the threshold: previously `₿1,000` sunk per
+contest; now ≥ `₿50,000` bonded per contest plus the auction's own bid fees.
+
+Bitcoin capacity assumption:
 
 ```text
 20_year_bitcoin_vbytes = 1,000,000 vB/block * 144 blocks/day * 365.25 days/year * 20
                        = 1.05192T vB
-```
-
-Direct L1 auction approximation from the current forecast notes:
-
-```text
 direct_auction_vbytes ~= 500 + 300 * bid_count
 ```
 
-Contest-rate model:
+Maximum bonded-contest rate compatible with a `1%` twenty-year blockspace
+budget:
 
-```text
-L1_vbytes = total_claims * contest_rate * direct_auction_vbytes
-```
+| Claims over 20y | `20` bids | `50` bids | `100` bids |
+| ---: | ---: | ---: | ---: |
+| `100M` | `1.62%` | `0.68%` | `0.34%` |
+| `1B` | `0.162%` | `0.068%` | `0.034%` |
+| `8B` | `0.020%` | `0.0085%` | `0.0043%` |
 
-Cheap force-contest model:
+Absolute bonded-auction counts inside the `1%` budget: about `1.62M` (20-bid),
+`679k` (50-bid), `345k` (100-bid). Attacker capital to *manufacture* that many
+auctions at the current floor: roughly `810 BTC`, `340 BTC`, `172 BTC` locked
+respectively — versus `16 BTC`, `7 BTC`, `3.5 BTC` *sunk* under the pre-#37
+rule. That repricing, not the tables themselves, is what closed Mat's
+brittleness concern.
 
-```text
-attacker_gate_cost = total_claims * contest_rate * 1,000 sats
-```
+Two consequences for the 20-year blockspace forecast:
 
-Caveat: this vbyte model assumes a forced contest actually proceeds into direct-L1 auction traffic with meaningful bid count. If honest users abandon the name instead of bidding, blockspace use is lower but the product harm remains: cheap claims become uncertain, slow, and intimidating.
+- the point estimate falls (only bonded contests generate auction traffic), and
+- the variance falls more (the heavy tail of "adversarially manufactured
+  contests" now requires heavy capital).
 
-## Critical Contest Rates
+The forecast exchange in the dev channel (2026-06-01) predates this and should
+be read with the bonded-contest substitution.
 
-Maximum contest rate compatible with a `1%` twenty-year Bitcoin blockspace budget:
+## Design Implications — status after #37
 
-| Claims over 20y | `20` bids | Gate cost at threshold | `50` bids | Gate cost at threshold | `100` bids | Gate cost at threshold |
-| ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| `100M` | `1.62%` | `16.18 BTC` | `0.68%` | `6.79 BTC` | `0.34%` | `3.45 BTC` |
-| `1B` | `0.162%` | `16.18 BTC` | `0.068%` | `6.79 BTC` | `0.034%` | `3.45 BTC` |
-| `8B` | `0.020%` | `16.18 BTC` | `0.0085%` | `6.79 BTC` | `0.0043%` | `3.45 BTC` |
-
-The absolute number of contested auctions that fit in the `1%` blockspace budget is fixed by bid count:
-
-- `20` bids: about `1.62M` contested auctions.
-- `50` bids: about `679k` contested auctions.
-- `100` bids: about `345k` contested auctions.
-
-At a `1,000 sats` trigger cost, the spend required to push ONT past the `1%` direct-L1-auction budget is only single-digit to low-double-digit BTC. That is the brittle part.
-
-## Stress Examples
-
-| Claims over 20y | Contest rate | Contested names | Gate cost | Blockspace at `20` bids | Blockspace at `50` bids | Blockspace at `100` bids |
-| ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| `100M` | `0.1%` | `100k` | `1 BTC` | `0.06%` | `0.15%` | `0.29%` |
-| `100M` | `1%` | `1M` | `10 BTC` | `0.62%` | `1.47%` | `2.90%` |
-| `1B` | `0.1%` | `1M` | `10 BTC` | `0.62%` | `1.47%` | `2.90%` |
-| `1B` | `1%` | `10M` | `100 BTC` | `6.18%` | `14.73%` | `28.99%` |
-| `8B` | `0.01%` | `800k` | `8 BTC` | `0.49%` | `1.18%` | `2.32%` |
-| `8B` | `0.1%` | `8M` | `80 BTC` | `4.94%` | `11.79%` | `23.20%` |
-
-For billion-scale ONT, an adversarial contest rate near `0.1%` is already too high if every contest runs direct L1 bids. For `8B` names, even `0.01%` adversarial contests can consume around the whole `1%` blockspace budget at 50-bid auctions.
-
-## Cost If Contesting Requires Real Capital
-
-The model changes if a contest must auto-seat as an auction-opening bid or challenge bond.
-
-If the bond is returnable, the attacker's true economic cost is not the full principal unless there is slashing. It is:
-
-```text
-capital_required = contested_names * challenge_bond
-carry_cost ~= capital_required * annual_cost_of_capital * lock_years
-fees_paid ~= contest_tx_fees + bid_tx_fees
-```
-
-Illustrative capital lock for `1M` simultaneous contests:
-
-| Challenge bond | BTC locked | 5% annual carry |
-| ---: | ---: | ---: |
-| `50k sats` | `500 BTC` | `25 BTC/year` |
-| `100k sats` | `1,000 BTC` | `50 BTC/year` |
-| `500k sats` | `5,000 BTC` | `250 BTC/year` |
-| `1M sats` | `10,000 BTC` | `500 BTC/year` |
-| `1 BTC` | `1,000,000 BTC` | `50,000 BTC/year` |
-
-Returnable bonds make the attack much more capital-intensive but not necessarily permanently expensive for very large adversaries. Non-refundable or slashable challenge deposits would make the cost linear in spend, but current ONT bonds are plain owner-controlled payment UTXOs enforced by ONT validity rules, not Bitcoin-script-locked slashable coins. True slashing would require a different script/custody design.
-
-## Attack Classes
-
-### 1. Cheap Escalation Grief
-
-The attacker submits a second cheap claim during the notice window for many honest claims.
-
-Goal:
-
-- Make the cheap path unreliable.
-- Force honest users into auction UX, capital readiness, and delay.
-- Create a perception that ONT is hostile to normal users.
-
-Cost:
-
-- `1,000 sats` per griefed claim if no challenge bond is required.
-
-This is the highest-risk brittleness.
-
-### 2. Blockspace Grief
-
-The attacker forces many claims into contested state and then either submits bids directly or induces honest users to defend.
-
-Goal:
-
-- Make ONT appear unable to scale because direct-L1 auctions consume too much Bitcoin blockspace.
-- Create fee pressure and bad UX during launch.
-
-Cost:
-
-- Cheap contest gate plus L1 bid transaction fees if the attacker creates the bid traffic.
-- Potentially externalized to honest users if they defend their names.
-
-The critical-rate table above measures this damage mode.
-
-### 3. Win-To-Deny
-
-The attacker wins auctions, holds names through the bond period, then walks or reopens/re-wins.
-
-Goal:
-
-- Deny high-value names to legitimate users.
-- Keep specific names in limbo.
-
-Cost:
-
-- Auction bids, fee spend, and locked-capital opportunity cost.
-- Not principal loss unless the protocol introduces a real slashing path.
-
-This is expensive for broad namespace griefing but relevant for targeted names.
-
-## Design Implications
-
-1. A mere second `1,000 sats` cheap claim should not be enough to force durable L1 escalation at scale.
-2. A valid contest should probably require real economic weight: a challenge bond or auction-opening bid credited into the auction.
-3. The challenge bond should be objective and mechanical, not manually curated by name importance.
-4. The bond must be high enough that mass griefing requires meaningful BTC-time, but low enough that legitimate challengers can still contest.
-5. If the bond is returnable, model BTC-time and UTXO management as the deterrent. If that is not enough, the team needs to explicitly consider non-refundable fees or script-level slashing.
-6. During high-load periods, an objective escalating challenge floor may be safer than letting dust challenges route the long tail to L1.
-7. The protocol should distinguish "cheap objection observed" from "economically valid contest." The former can be a warning; the latter should be what escalates consensus state.
+| Original implication | Status |
+| --- | --- |
+| A second `₿1,000` claim must not force durable L1 escalation | **Adopted** — Decision #37 |
+| Valid contest requires real economic weight (bond/opening bid) | **Adopted** — Decision #37, incl. bond-first |
+| Bond objective and mechanical, no name curation | **Adopted** — single floor, length-keyed floors only |
+| Model BTC-time as the deterrent for returnable bonds | Holds; carry table above |
+| Consider non-refundable fees or script-level slashing if carry is insufficient | **Open** — revisit with external review |
+| Escalating challenge floor under high load | **Open** — now applies to the *second-claim gate* (nullification load), not the challenge bond |
+| Distinguish "cheap objection observed" from "economically valid contest" | **Adopted** — collision nullifies; bond contests |
 
 ## Bottom Line
 
-Mat's brittleness concern is correct under the cheap-contest trigger model. The cost to push ONT above its direct-L1 contested-auction budget can be only a few to tens of BTC in gate spend, depending on bid-count assumptions, if every cheap contest counts.
+Mat's brittleness concern was correct for the rule that existed when he asked,
+and it is the analysis that produced Decision #37. Post-#37:
 
-The fix is not only longer notice windows. Longer notice improves legitimacy and detection, but it also gives attackers more time to grief claims. The economic fix is to make forced escalation require capital: a bonded challenge, auction-opening bid, non-refundable challenge fee, or a batched/off-chain contested transcript where losing bids do not all hit L1.
+- dust-cost spend can no longer buy blockspace damage — the scaling attack is
+  closed;
+- dust-cost spend can still buy **denial**: `₿1,000`/round to keep any
+  specific cheap claim from finalizing, escaped only by bonding `₿50,000`;
+- the open work is the nullification-attrition game (parameters: gate
+  escalation, re-claim cooldown, defense-affordability tooling), and the
+  unresolved slashing question for very large bonded adversaries.
 
 ## Sources
 
-- `(blockspace forecast note — internal, available on request)`
-- `(contest-rate benchmark note — internal, available on request)`
+- `../core/DECISIONS.md` #37 (bond opens the auction; bare collision nullifies)
+- `../design/ONT_RISK_REGISTER.md` R9, R16
+- `../design/ONT_ACQUISITION_STATE_MACHINE.md` (contested auction + nullification)
+- `../design/ONT_MEV_ORDERING_ANALYSIS.md` §D1, §D3
 - `./ONT_ADVERSARIAL_RISK_RANKING.md`
-- `/Users/davidking/dev/ont/docs/research/ONT_ADVERSARIAL_ANALYSIS.md`
-- `/Users/davidking/dev/ont/docs/research/ONT_CONTEST_WINDOW_PHILOSOPHY.md`
-- `/Users/davidking/dev/ont/docs/research/archive/OPEN_COLLIDER_FLAT_NAMESPACE_EXPLORATION.md`
-- `/Users/davidking/dev/ont/docs/research/archive/ONT_SCALING_EXPLORATIONS.md`
-- `/Users/davidking/dev/ont/packages/core/src/research/batch-rail.ts`
-- `/Users/davidking/dev/ont/packages/protocol/src/constants.ts`
+- `./ONT_ADVERSARIAL_ANALYSIS.md`
+- `./ONT_CONTEST_WINDOW_PHILOSOPHY.md`
+- `../../packages/protocol/src/constants.ts` (`CLAIM_GATE_SATS`, `AUCTION_BOND_FLOOR_SATS`)
+- Historical: `./archive/OPEN_COLLIDER_FLAT_NAMESPACE_EXPLORATION.md`, `./archive/ONT_SCALING_EXPLORATIONS.md`

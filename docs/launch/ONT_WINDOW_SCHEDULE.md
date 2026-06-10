@@ -69,7 +69,8 @@ Recommended state language:
 | `provisional` | claim anchored, DA-valid, notice window open | user has public priority unless contested; can configure records, share with clear pending label |
 | `quiet` | no contest after an early sub-window, e.g. `7-14 days` | higher confidence, still not final; suitable for social/profile use with warning |
 | `final` | notice window closed uncontested | owned outright |
-| `contested` | competing claim landed in window | leaves cheap path, enters auction |
+| `contested` | qualifying bond posted against the claim (Decision #37) | leaves cheap path, enters bonded auction |
+| `collided` | competing cheap claim landed, no bond | cannot finalize; nullifies at window close and reopens unless someone bonds |
 
 This lets ONT balance legitimacy and momentum:
 
