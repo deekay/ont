@@ -1080,7 +1080,23 @@ async function main(): Promise<void> {
           // claim site) resolves here once its batch DA has been fetched + verified.
           const accumulator = indexer.getAccumulatorName(normalized);
           if (accumulator !== null) {
-            return writeJson(response, 200, { ...accumulator, source: "accumulator" });
+            const finality = indexer.classifyAccumulatorName(normalized);
+            // A nullified name (in-window collision, window closed) resolves to NO
+            // owner and reopens — do not serve it as owned (Decision #37).
+            if (finality?.status === "nullified") {
+              return writeJson(response, 404, {
+                error: "name_nullified",
+                name: normalized,
+                message: "Competing in-window claims nullified this name; it has reopened for claiming."
+              });
+            }
+            return writeJson(response, 200, {
+              ...accumulator,
+              source: "accumulator",
+              // provisional → public priority, not yet final; final → owned.
+              finalityStatus: finality?.status ?? "provisional",
+              noticeWindowCloseHeight: finality?.noticeWindowCloseHeight ?? accumulator.noticeWindowCloseHeight
+            });
           }
           return writeJson(response, 404, {
             error: "name_not_found",

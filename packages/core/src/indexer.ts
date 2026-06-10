@@ -6,6 +6,7 @@ import {
 } from "@ont/bitcoin";
 import {
   type AuctionBidEventPayload,
+  NOTICE_WINDOW_BLOCKS,
   OntEventType,
   type RecoverOwnerEventPayload,
   normalizeName,
@@ -114,19 +115,52 @@ export interface AccumulatorNameRecord {
   readonly normalizedName: string;
   readonly currentOwnerPubkey: string;
   readonly acquisitionKind: "accumulator";
-  /** Height of the anchor transaction that finalized this name. */
+  /** Height of the anchor transaction that recorded this (earliest) claim. */
   readonly claimHeight: number;
   readonly anchorTxid: string;
   /** The accumulator root the membership proof verified against. */
   readonly accumulatorRoot: string;
   /** Leaf key = H(name). */
   readonly leafKey: string;
+  /**
+   * Block height at which the notice window closes (`claimHeight + NOTICE_WINDOW_BLOCKS`).
+   * Before this height the claim is provisional; at/after it the claim finalizes
+   * (or nullifies, if `collided`). Persisted so finality survives restart.
+   */
+  readonly noticeWindowCloseHeight: number;
+  /**
+   * A competing distinct-owner claim landed within the notice window. Such a name
+   * NULLIFIES at window close (Decision #37: a collision denies, never awards) —
+   * it resolves to no owner and reopens. Persisted so a nullified name cannot
+   * silently un-nullify on snapshot restore.
+   */
+  readonly collided?: boolean;
+}
+
+/** Lifecycle of a cheap-rail name, computed against the current chain height. */
+export type AccumulatorFinalityStatus =
+  | "provisional" // notice window open, no collision — claimant has priority, not final
+  | "collided" // notice window open, a distinct-owner claim landed — will nullify at close
+  | "final" // notice window closed uncontested — owned
+  | "nullified"; // notice window closed after a collision — no owner, reopens
+
+export interface AccumulatorFinality {
+  readonly status: AccumulatorFinalityStatus;
+  readonly currentOwnerPubkey: string;
+  readonly claimHeight: number;
+  readonly noticeWindowCloseHeight: number;
 }
 
 /** A name resolved from either rail; L1 ownership takes precedence over the rail. */
 export type ResolvedName =
   | { readonly source: "l1"; readonly record: NameRecord }
-  | { readonly source: "accumulator"; readonly record: AccumulatorNameRecord };
+  | {
+      readonly source: "accumulator";
+      readonly record: AccumulatorNameRecord;
+      /** Notice-window lifecycle of this claim (provisional | final). Nullified
+       *  names do not resolve — `resolveName` returns null for them. */
+      readonly finality: AccumulatorFinality;
+    };
 
 export interface InMemoryOntIndexerPersistedState {
   readonly launchHeight: number;
@@ -137,7 +171,14 @@ export interface InMemoryOntIndexerPersistedState {
   readonly spentOutpoints?: readonly ExperimentalSpentOutpointObservation[];
   readonly transactionProvenance: readonly TransactionProvenanceSnapshot[];
   readonly rootAnchorObservations?: readonly RootAnchorObservation[];
-  readonly accumulatorNames?: readonly AccumulatorNameRecord[];
+  readonly accumulatorNames?: readonly AccumulatorNameRecordSnapshot[];
+}
+
+// Snapshot/input form: `noticeWindowCloseHeight` is optional because snapshots
+// written before the notice window existed lack it — `hydrate` defaults it from
+// the claim height. Runtime records always carry it (required on the record).
+export interface AccumulatorNameRecordSnapshot extends Omit<AccumulatorNameRecord, "noticeWindowCloseHeight"> {
+  readonly noticeWindowCloseHeight?: number;
 }
 
 export interface NameRecordSnapshot extends Omit<NameRecord, "requiredBondSats" | "currentBondValueSats" | "lastStateHeight"> {
@@ -198,11 +239,11 @@ export class InMemoryOntIndexer {
   private rootChain: RootChain;
   private rootAnchorObservations: RootAnchorObservation[];
   private readonly accumulatorNames: Map<string, AccumulatorNameRecord>;
-  // Names a later anchor tried to re-map to a DIFFERENT owner — observed and
-  // refused (first-anchor-wins; see mergeVerifiedLeaves). Tracked for visibility
-  // and as the hook where notice-window nullification will live once the window
-  // is enforced. In-memory only today.
-  private readonly contestedAccumulatorNames: Set<string>;
+  // Names a claim tried to take AFTER the incumbent's notice window had already
+  // closed (it was final) — refused (first-anchor-wins denial protection; see
+  // mergeVerifiedLeaves). Observability only; the consensus-relevant collision
+  // state lives on the record's `collided` flag, which is persisted. In-memory.
+  private readonly refusedTakeoverNames: Set<string>;
   private readonly batchDataProvider: AccumulatorBatchDataProvider | undefined;
 
   public constructor(input: {
@@ -229,7 +270,7 @@ export class InMemoryOntIndexer {
     this.rootChain = new RootChain();
     this.rootAnchorObservations = [];
     this.accumulatorNames = new Map();
-    this.contestedAccumulatorNames = new Set();
+    this.refusedTakeoverNames = new Set();
     this.batchDataProvider = input.batchDataProvider;
   }
 
@@ -445,18 +486,52 @@ export class InMemoryOntIndexer {
     return this.rootAnchorObservations.map((observation) => ({ ...observation }));
   }
 
-  /** A name owned via the cheap (accumulator) rail, verified against the anchored root. */
+  /**
+   * The cheap-rail claim record for a name, if one exists, verified against the
+   * anchored root. NOTE: a returned record may be provisional or even nullified —
+   * use {@link classifyAccumulatorName} for finality. {@link resolveName} applies
+   * that finality (a nullified name resolves to no owner).
+   */
   public getAccumulatorName(name: string): AccumulatorNameRecord | null {
     return this.accumulatorNames.get(normalizeName(name)) ?? null;
   }
 
   /**
-   * Names a later anchor tried to re-map to a different owner and was refused
-   * (first-anchor-wins). The current owner is unchanged; this is the set the
-   * notice-window nullification rule will act on once the window is enforced.
+   * Where a cheap-rail name sits in its notice-window lifecycle at the current
+   * chain height: provisional → final (uncontested) or collided → nullified
+   * (a distinct-owner claim landed in the window). Null if the name has no
+   * cheap-rail claim. See Decision #37.
    */
-  public listContestedAccumulatorNames(): string[] {
-    return [...this.contestedAccumulatorNames].sort();
+  public classifyAccumulatorName(name: string): AccumulatorFinality | null {
+    const record = this.accumulatorNames.get(normalizeName(name));
+    if (record === undefined) {
+      return null;
+    }
+    return this.accumulatorFinalityOf(record);
+  }
+
+  private accumulatorFinalityOf(record: AccumulatorNameRecord): AccumulatorFinality {
+    // Window anchored on the claim height; "now" is the highest processed block
+    // (or the claim height itself before any later block is processed).
+    const height = this.currentHeight ?? record.claimHeight;
+    const windowClosed = height >= record.noticeWindowCloseHeight;
+    const status: AccumulatorFinalityStatus = record.collided === true
+      ? (windowClosed ? "nullified" : "collided")
+      : (windowClosed ? "final" : "provisional");
+    return {
+      status,
+      currentOwnerPubkey: record.currentOwnerPubkey,
+      claimHeight: record.claimHeight,
+      noticeWindowCloseHeight: record.noticeWindowCloseHeight
+    };
+  }
+
+  /**
+   * Names a claim tried to take after the incumbent's notice window had already
+   * closed (final) — refused. The incumbent owner is unchanged. Observability.
+   */
+  public listRefusedTakeoverNames(): string[] {
+    return [...this.refusedTakeoverNames].sort();
   }
 
   public listAccumulatorNames(): AccumulatorNameRecord[] {
@@ -475,7 +550,14 @@ export class InMemoryOntIndexer {
     }
     const accumulator = this.accumulatorNames.get(normalizeName(name));
     if (accumulator !== undefined) {
-      return { source: "accumulator", record: accumulator };
+      const finality = this.accumulatorFinalityOf(accumulator);
+      // A nullified name (collision + window closed) resolves to NO owner and
+      // reopens — it must not appear owned. Provisional/final both resolve to
+      // the claimant; the caller reads `finality.status` to distinguish them.
+      if (finality.status === "nullified") {
+        return null;
+      }
+      return { source: "accumulator", record: accumulator, finality };
     }
     return null;
   }
@@ -573,13 +655,19 @@ export class InMemoryOntIndexer {
 
     // Accumulator names were verified against their anchored root before they were
     // persisted, so restore them directly (same trust model as the L1 `names` map).
+    // The notice-window finality fields (noticeWindowCloseHeight, collided) ride
+    // ON the record, so finality survives the restore. Older snapshots predating
+    // the window default the close height from the claim height.
     this.accumulatorNames.clear();
-    // The contested set is derived from merge-order observation, not persisted;
-    // it is re-derived as anchors replay. Clear it on restore so it can't carry
-    // stale conflicts across a checkpoint rewind.
-    this.contestedAccumulatorNames.clear();
+    // The refused-takeover set is observability only, re-derived as anchors
+    // replay; clear it so it can't carry stale entries across a rewind.
+    this.refusedTakeoverNames.clear();
     for (const record of snapshot.accumulatorNames ?? []) {
-      this.accumulatorNames.set(record.normalizedName, { ...record });
+      this.accumulatorNames.set(record.normalizedName, {
+        ...record,
+        noticeWindowCloseHeight:
+          record.noticeWindowCloseHeight ?? record.claimHeight + NOTICE_WINDOW_BLOCKS
+      });
     }
 
     this.currentHeight = snapshot.currentHeight;
@@ -731,31 +819,54 @@ export class InMemoryOntIndexer {
       ) {
         continue; // unverifiable against the anchored root — ignore
       }
-      // First-anchor-wins. A later anchor mapping an already-owned name to a
-      // DIFFERENT owner can never AWARD it (Decision #37: a collision denies,
-      // never awards — block/anchor ordering buys no one a name). We refuse the
-      // overwrite and record the conflict. (Full notice-window nullification —
-      // where an *in-window* collision resolves the name to NO owner — is a
-      // follow-on that needs the window; refusing the overwrite is its strict,
-      // safe subset, and it does not enable denial of an already-finalized name.)
+      const ownerLower = leaf.ownerPubkey.toLowerCase();
       const existing = this.accumulatorNames.get(normalizedName);
-      if (
-        existing !== undefined
-        && existing.anchorTxid !== anchorTxid
-        && existing.currentOwnerPubkey !== leaf.ownerPubkey.toLowerCase()
-      ) {
-        this.contestedAccumulatorNames.add(normalizedName);
+
+      if (existing !== undefined && existing.currentOwnerPubkey !== ownerLower) {
+        // A competing distinct-owner claim. Decision #37: a collision can deny,
+        // never award — block/anchor ordering buys no one a name.
+        if (blockHeight <= existing.noticeWindowCloseHeight) {
+          // Both claims fall inside the first claim's notice window — a genuine
+          // collision. Neither awards; the name NULLIFIES at window close. Mark
+          // the (persisted) record so finality survives restart.
+          if (existing.collided !== true) {
+            this.accumulatorNames.set(normalizedName, { ...existing, collided: true });
+          }
+        } else {
+          // The first claim's notice window already closed — it is FINAL. A later
+          // claim cannot take a finalized name (first-anchor-wins denial
+          // protection). Refuse it; record for visibility only.
+          this.refusedTakeoverNames.add(normalizedName);
+        }
         continue;
       }
+
+      if (existing !== undefined) {
+        // Same owner re-anchoring the name (idempotent). Keep the window anchored
+        // on the EARLIEST claim so a re-anchor can't extend or reset provisionality.
+        if (blockHeight < existing.claimHeight) {
+          this.accumulatorNames.set(normalizedName, {
+            ...existing,
+            claimHeight: blockHeight,
+            anchorTxid,
+            accumulatorRoot: newRoot.toLowerCase(),
+            noticeWindowCloseHeight: blockHeight + NOTICE_WINDOW_BLOCKS
+          });
+        }
+        merged += 1;
+        continue;
+      }
+
       this.accumulatorNames.set(normalizedName, {
         name: leaf.name,
         normalizedName,
-        currentOwnerPubkey: leaf.ownerPubkey.toLowerCase(),
+        currentOwnerPubkey: ownerLower,
         acquisitionKind: "accumulator",
         claimHeight: blockHeight,
         anchorTxid,
         accumulatorRoot: newRoot.toLowerCase(),
-        leafKey
+        leafKey,
+        noticeWindowCloseHeight: blockHeight + NOTICE_WINDOW_BLOCKS
       });
       merged += 1;
     }
