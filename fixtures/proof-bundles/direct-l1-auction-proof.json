@@ -44,7 +44,7 @@
         "blockHeight": 119900,
         "bidderCommitment": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
         "amountSats": "70000",
-        "ownerPubkey": "2222222222222222222222222222222222222222222222222222222222222222",
+        "ownerPubkey": "989c0b76cb563971fdc9bef31ec06c3560f3249d6ee9e5d83c57625596e05f6f",
         "bondOutpoint": {
           "txid": "2222222222222222222222222222222222222222222222222222222222222222",
           "vout": 0,
@@ -54,7 +54,7 @@
     ],
     "winner": {
       "winningTxid": "2222222222222222222222222222222222222222222222222222222222222222",
-      "winnerOwnerPubkey": "2222222222222222222222222222222222222222222222222222222222222222",
+      "winnerOwnerPubkey": "989c0b76cb563971fdc9bef31ec06c3560f3249d6ee9e5d83c57625596e05f6f",
       "winningAmountSats": "70000"
     }
   },
@@ -75,7 +75,7 @@
   },
   "ownershipProof": {
     "ownershipRef": "2222222222222222222222222222222222222222222222222222222222222222",
-    "currentOwnerPubkey": "2222222222222222222222222222222222222222222222222222222222222222",
+    "currentOwnerPubkey": "989c0b76cb563971fdc9bef31ec06c3560f3249d6ee9e5d83c57625596e05f6f",
     "state": "immature_bonded_owner",
     "transfers": []
   },
@@ -83,14 +83,16 @@
     "complete": true,
     "records": [
       {
-        "recordHash": "3333333333333333333333333333333333333333333333333333333333333333",
+        "recordHash": "0e4846c5b31905a7be8af2adb92fda386f89c361a81fd69dfdb9152f11539b04",
+        "name": "alice",
         "sequence": 1,
         "previousRecordHash": null,
-        "ownerPubkey": "2222222222222222222222222222222222222222222222222222222222222222",
+        "ownerPubkey": "989c0b76cb563971fdc9bef31ec06c3560f3249d6ee9e5d83c57625596e05f6f",
         "ownershipRef": "2222222222222222222222222222222222222222222222222222222222222222",
         "valueType": 2,
         "payloadHex": "626974636f696e3a62633171616c6963656578616d706c65",
-        "signature": "mock-owner-signature"
+        "issuedAt": "2026-06-01T00:00:00.000Z",
+        "signature": "0881b12f7a12b90e3abb04aa32ba53ef1be1f187525bbbeb9dedfb0d83dc1f98a2a7f279a23c8d181d209eccc2fc24fffbeb8a1af08a5f7062b5299911f51784"
       }
     ]
   },

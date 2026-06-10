@@ -65,18 +65,41 @@ describe("proof-bundle accumulator soundness (PB1/PB2/PB3 — closed)", () => {
   });
 });
 
-describe("proof-bundle value-record chain soundness (PB5 — still open)", () => {
-  // The value-record chain trusts the DECLARED recordHash for predecessor
-  // linkage and never recomputes computeValueRecordHash or verifies signatures.
-  // `it.fails`: passes today (documenting the gap), fails loudly when PB5 is
-  // closed — flip to a normal `it` then. See the findings doc, §A.
-  it.fails("PB5: rejects a value-record chain whose recordHash is fabricated", async () => {
+describe("proof-bundle value-record chain soundness (PB5 — closed)", () => {
+  it("accepts the real, signed value-record chain", async () => {
+    const bundle = await loadFixture("direct-l1-auction-proof.json");
+    const report = verifyProofBundleStructure(bundle);
+    expect(report.valid).toBe(true);
+    expect(report.checks).toContainEqual({
+      id: "valueRecords.0.signature",
+      status: "passed",
+      message: "value record 1 signature verifies against its owner key"
+    });
+  });
+
+  it("rejects a value-record chain whose recordHash is fabricated", async () => {
     const bundle = await loadFixture("direct-l1-auction-proof.json");
     const chain = bundle.valueRecordChain as Record<string, unknown> | undefined;
     const records = (chain?.records as Record<string, unknown>[]) ?? [];
     if (records.length === 0) throw new Error("fixture expected a value-record chain");
     records[0] = { ...records[0], recordHash: "ee".repeat(32) }; // not the real H(record)
     expect(verifyProofBundleStructure(bundle).valid).toBe(false);
+  });
+
+  it("rejects a value-record whose payload was tampered after signing", async () => {
+    const bundle = await loadFixture("direct-l1-auction-proof.json");
+    const chain = bundle.valueRecordChain as Record<string, unknown> | undefined;
+    const records = (chain?.records as Record<string, unknown>[]) ?? [];
+    // Swap the destination payload but keep the original signature: the
+    // signature no longer verifies over the new digest.
+    records[0] = { ...records[0], payloadHex: "6465616462656566" };
+    const report = verifyProofBundleStructure(bundle);
+    expect(report.valid).toBe(false);
+    expect(report.checks).toContainEqual({
+      id: "valueRecords.0.signature",
+      status: "failed",
+      message: "value record 1 signature verifies against its owner key"
+    });
   });
 });
 

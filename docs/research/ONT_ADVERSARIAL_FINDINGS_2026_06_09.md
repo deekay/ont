@@ -30,7 +30,13 @@ pattern — they pass today documenting the gap and fail loudly when fixed).
 > value commitment to the claimed owner; the shipped fixtures were regenerated
 > with real proofs; the trust-surface lock is intact (only `@ont/protocol` was
 > added, already an allowed dep). Reproductions flipped to assert rejection.
-> **PB5 (value-record chain) remains open** — kept as the one `it.fails`.
+>
+> **PB5 is also FIXED (2026-06-10).** `validateValueRecordChain` now recomputes
+> `computeValueRecordHash` from the signed fields and verifies the owner
+> signature (`verifyValueRecord`) — a forged value-record chain
+> (attacker-chosen payment destination) no longer verifies. The direct-L1
+> fixture was regenerated with a real owner keypair + real signed value record.
+> **All four proof-bundle soundness gaps (PB1/PB2/PB3/PB5) are closed.**
 
 The portable proof-bundle verifier is the project's headline trust claim: a
 wallet or recipient can verify *why* a name is owned **offline**, trusting no

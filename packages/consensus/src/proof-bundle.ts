@@ -1,10 +1,13 @@
 import {
+  computeValueRecordHash,
   concatBytes,
   normalizeName,
   sha256Bytes,
   sha256Hex,
+  type SignedValueRecord,
   utf8ToBytes,
-  verifyAccumulatorMembership
+  verifyAccumulatorMembership,
+  verifyValueRecord
 } from "@ont/protocol";
 
 // The two current acquisition paths. Ark/RGB explorations were removed from the
@@ -618,6 +621,45 @@ function validateValueRecordChain(input: {
       `valueRecords.${index}.ownershipRef`,
       typeof ownershipRef === "string" && getString(record, "ownershipRef") === ownershipRef,
       `value record ${expectedSequence} references the current ownershipRef`
+    );
+
+    // Soundness (PB5): recompute the record hash from the signed fields and
+    // verify the owner signature. Without this the chain trusts the DECLARED
+    // recordHash for predecessor linkage and never checks signatures — so a
+    // bundle could carry a forged value-record chain (attacker-chosen payment
+    // destination) and still verify. The recordHash IS the signed digest, so
+    // recompute + signature-verify pin the record to its owner key.
+    let hashRecomputes = false;
+    let signatureVerifies = false;
+    try {
+      const fields = {
+        name: getString(record, "name") as string,
+        ownerPubkey: getString(record, "ownerPubkey") as string,
+        ownershipRef: getString(record, "ownershipRef") as string,
+        sequence: getNumber(record, "sequence") as number,
+        previousRecordHash: (getField(record, "previousRecordHash") ?? null) as string | null,
+        valueType: getNumber(record, "valueType") as number,
+        payloadHex: getString(record, "payloadHex") as string,
+        issuedAt: getString(record, "issuedAt") as string
+      };
+      hashRecomputes = typeof recordHash === "string" && computeValueRecordHash(fields) === recordHash;
+      signatureVerifies = verifyValueRecord({
+        ...fields,
+        signature: getString(record, "signature") as string
+      } as SignedValueRecord);
+    } catch {
+      hashRecomputes = false;
+      signatureVerifies = false;
+    }
+    addCheck(
+      `valueRecords.${index}.recordHash.recomputes`,
+      hashRecomputes,
+      `value record ${expectedSequence} recordHash recomputes from its signed fields`
+    );
+    addCheck(
+      `valueRecords.${index}.signature`,
+      signatureVerifies,
+      `value record ${expectedSequence} signature verifies against its owner key`
     );
 
     previousRecordHash = recordHash;
