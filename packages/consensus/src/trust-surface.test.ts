@@ -8,11 +8,14 @@ const srcDir = dirname(fileURLToPath(import.meta.url));
 
 // The sovereignty trust-surface MANIFEST of @ont/consensus.
 // See docs/design/ONT_SOVEREIGNTY_MAP.md ("the whole trust surface: ~7 files").
-// These modules decide whether a name can be taken: a name moves only if its
-// current owner key signed it, uniqueness/finality come from deterministic
-// Bitcoin replay, and ownership is provable to anyone. They must depend ONLY on
-// the protocol/bitcoin primitives and on each other — never on allocation
-// (auctions), convenience (indexer/resolver), or research/simulation code.
+// Today these modules hold owner-key authority and replay validation: a name
+// moves only if its current owner key signed it, and that is provable to
+// anyone. They do NOT yet decide all ownership — auction settlement and
+// cheap-rail finalization live outside and are migrating inside per Decisions
+// #42/#44 (see docs/core/STATUS.md for the honest scoped claim). They must
+// depend ONLY on the protocol/bitcoin primitives and on each other — never on
+// allocation policy, convenience (indexer/resolver), or research/simulation
+// code.
 //
 // Per Decision #44 (docs/core/DECISIONS.md), this list is a boundary manifest,
 // not a dev-time freeze: during development it MAY change, but only together
