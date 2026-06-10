@@ -23,11 +23,26 @@ type NameRecord = {
   readonly name: string;
   readonly status: string;
   readonly currentOwnerPubkey: string;
-  readonly lastStateTxid: string;
+  /** Present on both rails since the resolver boundary fix; older resolvers only set lastStateTxid. */
+  readonly ownershipRef?: string;
+  /** L1 names only — cheap-rail (accumulator) names have no L1 state txid. */
+  readonly lastStateTxid?: string;
   readonly claimHeight: number;
   readonly maturityHeight: number;
+  /** "0" for cheap-rail names: no bond exists on that rail. */
   readonly requiredBondSats: string | number | bigint;
+  readonly acquisitionKind?: string;
+  readonly anchorTxid?: string;
 };
+
+/** The ref value-record chains key off: resolver-provided, with legacy fallbacks per rail. */
+function ownershipRefFor(record: NameRecord): string {
+  const ref = record.ownershipRef ?? record.lastStateTxid ?? record.anchorTxid;
+  if (ref === undefined || ref === "") {
+    throw new Error("Name record carries no ownership reference; refresh and try again.");
+  }
+  return ref;
+}
 
 type ValueRecord = {
   readonly name: string;
@@ -432,7 +447,7 @@ function signLocally(): void {
     const signedRecord = signBrowserValueRecord({
       name,
       ownerPrivateKeyHex,
-      ownershipRef: state.currentName.lastStateTxid,
+      ownershipRef: ownershipRefFor(state.currentName),
       sequence,
       previousRecordHash: state.currentValueRecord?.recordHash ?? null,
       valueType,
@@ -551,8 +566,10 @@ function renderLookupRecord(
     : `Update ${valueRecord.sequence} · ${new Date(valueRecord.issuedAt).toLocaleString()}`;
   const technicalDetails = [
     `<div class="result-item"><label>Next Sequence</label><p class="field-value">${escapeHtml(String(state.lastSuggestedSequence ?? 1))}</p></div>`,
-    `<div class="result-item"><label>Ownership Ref</label><p class="field-value">${escapeHtml(truncateMiddle(nameRecord.lastStateTxid, 12, 10))}</p></div>`,
-    `<div class="result-item"><label>Bond Requirement</label><p class="field-value">${escapeHtml(formatSats(nameRecord.requiredBondSats))}</p></div>`,
+    `<div class="result-item"><label>Ownership Ref</label><p class="field-value">${escapeHtml(truncateMiddle(ownershipRefFor(nameRecord), 12, 10))}</p></div>`,
+    `<div class="result-item"><label>Bond Requirement</label><p class="field-value">${escapeHtml(
+      nameRecord.acquisitionKind === "accumulator" ? "none (cheap-rail claim)" : formatSats(nameRecord.requiredBondSats)
+    )}</p></div>`,
     renderValueHistory(valueHistory),
     renderResolverCompare(valueCompare, valueCompareError)
   ].filter((entry) => entry.trim() !== "").join("");
@@ -1302,7 +1319,12 @@ function renderBundleValue(value: string): string {
   return escapeHtml(trimmed);
 }
 
-function formatSats(value: string | number | bigint): string {
+function formatSats(value: string | number | bigint | null | undefined): string {
+  // Absent fields render as an honest dash instead of throwing mid-render
+  // (records served by older resolvers can lack bond fields on the cheap rail).
+  if (value === null || value === undefined || value === "") {
+    return "—";
+  }
   const sats = BigInt(value);
   return `₿${formatBtcDecimal(sats)}`;
 }

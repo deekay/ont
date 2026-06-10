@@ -59,6 +59,9 @@ import {
   verifyRecoveryWalletProof
 } from "@ont/protocol";
 import {
+  accumulatorOwnershipInterval,
+  type OwnershipInterval,
+  ownershipIntervalOf,
   validateRecoveryDescriptorSubmission,
   validateValueRecordSubmission
 } from "./validation.js";
@@ -533,11 +536,11 @@ async function main(): Promise<void> {
       try {
         const parsedRecord = parseSignedValueRecord(await readJsonBody(request));
 
-        const currentNameRecord = indexer.getName(parsedRecord.name);
+        const currentOwnership = getCurrentOwnership(indexer, parsedRecord.name);
         const existingChain = getValueRecordChain(valueRecords, parsedRecord.name, parsedRecord.ownershipRef);
         const verdict = validateValueRecordSubmission(
           parsedRecord,
-          currentNameRecord,
+          currentOwnership,
           getChainHead(existingChain)
         );
         if (!verdict.ok) {
@@ -573,6 +576,9 @@ async function main(): Promise<void> {
       try {
         const parsedDescriptor = parseSignedRecoveryDescriptor(await readJsonBody(request));
 
+        // Recovery stays L1-only for now: the recovery replay path consumes L1
+        // state txids, which cheap-rail names don't have. Accumulator names keep
+        // 404ing here until recovery-for-accumulator semantics are decided.
         const currentNameRecord = indexer.getName(parsedDescriptor.name);
         const existingChain = getRecoveryDescriptorChain(
           recoveryDescriptors,
@@ -581,7 +587,7 @@ async function main(): Promise<void> {
         );
         const verdict = validateRecoveryDescriptorSubmission(
           parsedDescriptor,
-          currentNameRecord,
+          currentNameRecord === null ? null : ownershipIntervalOf(currentNameRecord),
           getRecoveryChainHead(existingChain)
         );
         if (!verdict.ok) {
@@ -1010,9 +1016,8 @@ async function main(): Promise<void> {
 
         try {
           const normalized = normalizeName(requested);
-          const currentNameRecord = indexer.getName(normalized);
 
-          if (currentNameRecord === null) {
+          if (getCurrentOwnership(indexer, normalized) === null) {
             return writeJson(response, 404, {
               error: "name_not_found",
               name: normalized
@@ -1043,9 +1048,8 @@ async function main(): Promise<void> {
 
         try {
           const normalized = normalizeName(requested);
-          const currentNameRecord = indexer.getName(normalized);
 
-          if (currentNameRecord === null) {
+          if (getCurrentOwnership(indexer, normalized) === null) {
             return writeJson(response, 404, {
               error: "name_not_found",
               name: normalized
@@ -1078,9 +1082,23 @@ async function main(): Promise<void> {
         if (record === null) {
           // Fall back to the cheap rail: a name claimed via the accumulator (e.g. the
           // claim site) resolves here once its batch DA has been fetched + verified.
+          // Served in a render-safe superset of the L1 shape so clients built for L1
+          // records don't choke on absent bond fields: the bond values are honest
+          // empties (no bond exists on the cheap rail), and ownershipRef is the
+          // anchor txid — the ref value-record chains for this name key off.
           const accumulator = indexer.getAccumulatorName(normalized);
           if (accumulator !== null) {
-            return writeJson(response, 200, { ...accumulator, source: "accumulator" });
+            return writeJson(response, 200, {
+              ...accumulator,
+              source: "accumulator",
+              ownershipRef: accumulator.anchorTxid,
+              status: "mature",
+              maturityHeight: accumulator.claimHeight,
+              currentBondTxid: "",
+              currentBondVout: 0,
+              currentBondValueSats: "0",
+              requiredBondSats: "0"
+            });
           }
           return writeJson(response, 404, {
             error: "name_not_found",
@@ -1088,7 +1106,7 @@ async function main(): Promise<void> {
           });
         }
 
-        return writeJson(response, 200, record);
+        return writeJson(response, 200, { ...record, ownershipRef: getOwnershipRef(record) });
       } catch (error) {
         return writeJson(response, 400, {
           error: "invalid_name",
@@ -1458,22 +1476,38 @@ async function readJsonBody(
   return JSON.parse(raw);
 }
 
+/**
+ * The current ownership interval for a name on either rail: L1 names key
+ * record chains by lastStateTxid; cheap-rail (accumulator) names by the
+ * anchor txid that finalized the claim. Returns null when the name is
+ * unknown on both rails or the L1 record is invalid (released).
+ */
+function getCurrentOwnership(indexer: InMemoryOntIndexer, name: string): OwnershipInterval | null {
+  const normalized = normalizeName(name);
+  const record = indexer.getName(normalized);
+  if (record !== null) {
+    return ownershipIntervalOf(record);
+  }
+  const accumulator = indexer.getAccumulatorName(normalized);
+  return accumulator === null ? null : accumulatorOwnershipInterval(accumulator);
+}
+
 function getCurrentValueRecord(
   valueRecords: ValueRecordStore,
   indexer: InMemoryOntIndexer,
   name: string
 ): SignedValueRecord | null {
   const normalized = normalizeName(name);
-  const currentNameRecord = indexer.getName(normalized);
+  const currentOwnership = getCurrentOwnership(indexer, normalized);
 
-  if (currentNameRecord === null || currentNameRecord.status === "invalid") {
+  if (currentOwnership === null) {
     return null;
   }
 
-  const chain = getValueRecordChain(valueRecords, normalized, getOwnershipRef(currentNameRecord));
+  const chain = getValueRecordChain(valueRecords, normalized, currentOwnership.ownershipRef);
   const valueRecord = getChainHead(chain);
 
-  if (valueRecord === null || currentNameRecord.currentOwnerPubkey !== valueRecord.ownerPubkey) {
+  if (valueRecord === null || currentOwnership.currentOwnerPubkey !== valueRecord.ownerPubkey) {
     return null;
   }
 
@@ -1495,17 +1529,17 @@ function getCurrentValueRecordHistory(
   readonly records: readonly ReturnType<typeof serializeValueRecord>[];
 } | null {
   const normalized = normalizeName(name);
-  const currentNameRecord = indexer.getName(normalized);
+  const currentOwnership = getCurrentOwnership(indexer, normalized);
 
-  if (currentNameRecord === null || currentNameRecord.status === "invalid") {
+  if (currentOwnership === null) {
     return null;
   }
 
-  const ownershipRef = getOwnershipRef(currentNameRecord);
+  const ownershipRef = currentOwnership.ownershipRef;
   const chain = getValueRecordChain(valueRecords, normalized, ownershipRef);
   const head = getChainHead(chain);
 
-  if (chain === null || head === null || head.ownerPubkey !== currentNameRecord.currentOwnerPubkey) {
+  if (chain === null || head === null || head.ownerPubkey !== currentOwnership.currentOwnerPubkey) {
     return null;
   }
 
