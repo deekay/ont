@@ -97,7 +97,9 @@ describe("simulateLaunchAuction", () => {
     const result = simulateLaunchAuction({
       policy,
       scenario: {
-        name: "silverpine",
+        // 4-char name → the length floor (₿12,500,000) genuinely exceeds the
+        // launch floor. (Names 5+ chars clamp to the flat floor — see bond.ts.)
+        name: "moon",
         unlockBlock: 840_000,
         bidAttempts: [
           {
@@ -110,7 +112,7 @@ describe("simulateLaunchAuction", () => {
     });
 
     expect(result.status).toBe("settled");
-    expect(result.openingMinimumBidSats).toBe(195_312n);
+    expect(result.openingMinimumBidSats).toBe(12_500_000n);
     expect(result.winner?.amountSats).toBe(25_000_000n);
     expect(result.settlementLockBlocks).toBe(policy.defaultSettlementLockBlocks);
   });
@@ -179,13 +181,15 @@ describe("simulateLaunchAuction", () => {
     const result = simulateLaunchAuction({
       policy,
       scenario: {
+        // Long-tail (6-char) name → flat ₿50,000 floor; a sub-floor bid is
+        // rejected and the auction never opens.
         name: "meadow",
         unlockBlock: 900_000,
         bidAttempts: [
           {
             bidderId: "speculator_a",
             blockHeight: 900_010,
-            amountSats: 3_124_999n
+            amountSats: 49_999n
           }
         ]
       }

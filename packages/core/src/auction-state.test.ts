@@ -12,7 +12,9 @@ describe("simulateLaunchAuctionStateAtBlock", () => {
       policy,
       currentBlockHeight: 839_990,
       scenario: parseLaunchAuctionScenario({
-        name: "marble",
+        // 4-char scarce name → length-scaled floor ₿12,500,000 (5+ chars clamp
+        // to the flat floor — see bond.ts).
+        name: "moon",
         unlockBlock: 840_000,
         bidAttempts: [
           { bidderId: "alpha", blockHeight: 840_010, amountSats: "1000000000" }
@@ -22,7 +24,7 @@ describe("simulateLaunchAuctionStateAtBlock", () => {
 
     expect(state.phase).toBe("pending_unlock");
     expect(state.blocksUntilUnlock).toBe(10);
-    expect(state.currentRequiredMinimumBidSats?.toString()).toBe("3125000");
+    expect(state.currentRequiredMinimumBidSats?.toString()).toBe("12500000");
   });
 
   it("reports eligible to open when only underfloor bids are visible", () => {
