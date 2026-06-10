@@ -1,11 +1,25 @@
 import {
+  ACCUMULATOR_DEPTH,
+  ACCUMULATOR_DEFAULTS as DEFAULTS,
+  ACCUMULATOR_EMPTY_NODE as EMPTY_NODE,
+  accumulatorKeyBit as keyBit,
+  type AccumulatorMembershipProof,
   bytesToHex,
   concatBytes,
+  hashAccumulatorInternal as hashInternal,
+  hashAccumulatorLeaf as hashLeaf,
   hexToBytes,
   normalizeName,
   sha256Bytes,
-  utf8ToBytes
+  utf8ToBytes,
+  verifyAccumulatorMembership
 } from "@ont/protocol";
+
+// The sparse-Merkle fold (hashing, defaults, depth, key-bit, membership verify)
+// now lives in @ont/protocol so the accumulator BUILDER below and the frozen-core
+// proof-bundle VERIFIER share one implementation. ACCUMULATOR_DEPTH is re-exported
+// for back-compat with existing importers.
+export { ACCUMULATOR_DEPTH };
 
 /**
  * Production name accumulator (signet-prototype C1).
@@ -23,37 +37,6 @@ import {
  * the same leaf set — the test cross-checks this against the reference tree.
  */
 
-export const ACCUMULATOR_DEPTH = 256;
-
-const EMPTY_NODE = new Uint8Array(32);
-const LEAF_DOMAIN = Uint8Array.from([0x00]);
-const INTERNAL_DOMAIN = Uint8Array.from([0x01]);
-
-function hashLeaf(key: Uint8Array, value: Uint8Array): Uint8Array {
-  return sha256Bytes(concatBytes(LEAF_DOMAIN, key, value));
-}
-
-function hashInternal(left: Uint8Array, right: Uint8Array): Uint8Array {
-  return sha256Bytes(concatBytes(INTERNAL_DOMAIN, left, right));
-}
-
-const DEFAULTS = buildDefaults();
-
-function buildDefaults(): readonly Uint8Array[] {
-  const defaults: Uint8Array[] = new Array(ACCUMULATOR_DEPTH + 1);
-  defaults[ACCUMULATOR_DEPTH] = EMPTY_NODE;
-  for (let level = ACCUMULATOR_DEPTH - 1; level >= 0; level -= 1) {
-    const child = defaults[level + 1] ?? EMPTY_NODE;
-    defaults[level] = hashInternal(child, child);
-  }
-  return defaults;
-}
-
-function keyBit(key: Uint8Array, index: number): 0 | 1 {
-  const byte = key[index >> 3] ?? 0;
-  return ((byte >> (7 - (index & 7))) & 1) as 0 | 1;
-}
-
 /** `H(name)` — the fixed 256-bit leaf key a name occupies. */
 export function accumulatorKeyForName(name: string): string {
   return bytesToHex(sha256Bytes(utf8ToBytes(normalizeName(name))));
@@ -64,13 +47,8 @@ export function emptyAccumulatorRoot(): string {
   return bytesToHex(DEFAULTS[0] ?? EMPTY_NODE);
 }
 
-export interface AccumulatorProof {
-  readonly keyHex: string;
-  /** Hex value for a membership proof, or `null` for a non-membership proof. */
-  readonly value: string | null;
-  /** Non-default siblings only, each tagged with the child level it sits at. */
-  readonly siblings: readonly { readonly level: number; readonly hash: string }[];
-}
+/** The accumulator proof shape — now the shared @ont/protocol type. */
+export type AccumulatorProof = AccumulatorMembershipProof;
 
 interface LeafEntry {
   readonly keyHex: string;
@@ -246,22 +224,7 @@ export class Accumulator {
 
 /** Verify a membership or non-membership proof against a root hex. */
 export function verifyAccumulatorProof(rootHex: string, proof: AccumulatorProof): boolean {
-  const key = hexToBytes(proof.keyHex);
-  const siblingByLevel = new Map<number, Uint8Array>();
-  for (const sibling of proof.siblings) {
-    siblingByLevel.set(sibling.level, hexToBytes(sibling.hash));
-  }
-
-  let digest = proof.value === null ? EMPTY_NODE : hashLeaf(key, hexToBytes(proof.value));
-  for (let childLevel = ACCUMULATOR_DEPTH; childLevel >= 1; childLevel -= 1) {
-    const parentLevel = childLevel - 1;
-    const sibling = siblingByLevel.get(childLevel) ?? DEFAULTS[childLevel] ?? EMPTY_NODE;
-    digest = keyBit(key, parentLevel) === 0
-      ? hashInternal(digest, sibling)
-      : hashInternal(sibling, digest);
-  }
-
-  return bytesToHex(digest) === rootHex.toLowerCase();
+  return verifyAccumulatorMembership(rootHex, proof);
 }
 
 function uint16(value: number): Uint8Array {

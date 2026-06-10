@@ -21,6 +21,17 @@ pattern — they pass today documenting the gap and fail loudly when fixed).
 
 ## A. The frozen-core soundness gaps (highest value — they touch the audited surface)
 
+> **Update 2026-06-10: PB1/PB2/PB3 are FIXED.** Per DK's call (don't contort to
+> avoid touching the core during dev; the freeze is at launch), the sparse-Merkle
+> fold was lifted into `@ont/protocol` (`accumulator-membership.ts`) so the
+> builder (`@ont/core`) and the verifier (`@ont/consensus`) share **one**
+> implementation — verified byte-identical by the 84 accumulator tests. The
+> verifier now recomputes the root from `(leaf, value, siblings)` and binds the
+> value commitment to the claimed owner; the shipped fixtures were regenerated
+> with real proofs; the trust-surface lock is intact (only `@ont/protocol` was
+> added, already an allowed dep). Reproductions flipped to assert rejection.
+> **PB5 (value-record chain) remains open** — kept as the one `it.fails`.
+
 The portable proof-bundle verifier is the project's headline trust claim: a
 wallet or recipient can verify *why* a name is owned **offline**, trusting no
 resolver. `verifyProofBundleStructure` is in the CI-locked frozen core

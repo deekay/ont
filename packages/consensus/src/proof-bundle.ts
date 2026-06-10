@@ -1,4 +1,11 @@
-import { concatBytes, normalizeName, sha256Bytes, sha256Hex, utf8ToBytes } from "@ont/protocol";
+import {
+  concatBytes,
+  normalizeName,
+  sha256Bytes,
+  sha256Hex,
+  utf8ToBytes,
+  verifyAccumulatorMembership
+} from "@ont/protocol";
 
 // The two current acquisition paths. Ark/RGB explorations were removed from the
 // frozen verifier: they were never the launch path, and the sovereignty core
@@ -105,7 +112,8 @@ export function verifyProofBundleStructure(input: unknown): ProofBundleVerificat
         validateAccumulatorBatchClaimBundle({
           bundle,
           addCheck,
-          normalizedName: normalizedFromName
+          normalizedName: normalizedFromName,
+          currentOwnerPubkey
         });
         break;
     }
@@ -504,8 +512,9 @@ function validateAccumulatorBatchClaimBundle(input: {
   readonly bundle: JsonRecord;
   readonly addCheck: (id: string, condition: boolean, message: string) => void;
   readonly normalizedName: string | null;
+  readonly currentOwnerPubkey: string | null;
 }): void {
-  const { bundle, addCheck, normalizedName } = input;
+  const { bundle, addCheck, normalizedName, currentOwnerPubkey } = input;
   const proof = getRecord(bundle, "accumulatorProof");
   const root = getString(proof, "root");
   const leaf = getString(proof, "leaf");
@@ -523,11 +532,39 @@ function validateAccumulatorBatchClaimBundle(input: {
     "leaf key equals H(name) — the proof is bound to this name"
   );
   addCheck("accumulator.value", isHexOfLength(value, 32), "owner value commitment is 32-byte hex");
+  // The value the membership proof commits to MUST be the claimed current owner
+  // — otherwise the bundle blesses an owner the proof does not actually prove.
+  addCheck(
+    "accumulator.value.bindsOwner",
+    value === currentOwnerPubkey,
+    "owner value commitment equals the claimed current owner pubkey"
+  );
   addCheck("accumulator.siblings.array", Array.isArray(getField(proof, "siblings")), "membership proof siblings are an array");
   for (const [index, sibling] of siblings.entries()) {
     addCheck(`accumulator.siblings.${index}.level`, getNumber(sibling, "level") !== null, `sibling ${index + 1} has a level`);
     addCheck(`accumulator.siblings.${index}.hash`, isHexOfLength(getString(sibling, "hash"), 32), `sibling ${index + 1} hash is 32-byte hex`);
   }
+  // Soundness: recompute the sparse-Merkle root from (leaf, value, siblings) and
+  // require it to equal the claimed root. Without this the verifier accepts any
+  // structurally well-formed proof for a name the bundle is not a member of.
+  // Shares the exact fold (@ont/protocol) used to BUILD roots, so the offline
+  // verifier and the live indexer cannot disagree about membership.
+  const membershipRecomputes =
+    proof !== null &&
+    isHexOfLength(root, 32) &&
+    isHexOfLength(leaf, 32) &&
+    isHexOfLength(value, 32) &&
+    siblings.every((s) => getNumber(s, "level") !== null && isHexOfLength(getString(s, "hash"), 32)) &&
+    verifyAccumulatorMembership(root as string, {
+      keyHex: leaf as string,
+      value: value as string,
+      siblings: siblings.map((s) => ({ level: getNumber(s, "level") as number, hash: getString(s, "hash") as string }))
+    });
+  addCheck(
+    "accumulator.membership.verifies",
+    membershipRecomputes,
+    "membership proof recomputes to the claimed accumulator root"
+  );
   addCheck("accumulator.anchor.object", batchAnchor !== null, "batch anchor metadata is present");
   addCheck("accumulator.anchor.txid", isHexOfLength(getString(batchAnchor, "anchorTxid"), 32), "batch anchor txid is 32-byte hex");
   addCheck("accumulator.anchor.height", getNumber(batchAnchor, "anchorHeight") !== null, "batch anchor height is present");
