@@ -13,29 +13,26 @@
   *{ box-sizing:border-box; }
   html,body{ margin:0; padding:0; }
   body{
-    font:10.5px/1.37 Helvetica, "Helvetica Neue", Arial, "Arial Unicode MS", sans-serif;
+    font:9.9px/1.33 Helvetica, "Helvetica Neue", Arial, "Arial Unicode MS", sans-serif;
     color:var(--ink); -webkit-print-color-adjust:exact; print-color-adjust:exact;
   }
   .page{ position:relative; }
   .pbreak{ break-before:page; }
   h1{ font-size:21px; margin:0 0 1px; letter-spacing:-.3px; }
-  .tag{ color:var(--mute); font-size:11px; margin:0 0 9px; }
+  .tag{ color:var(--mute); font-size:11px; margin:0 0 8px; }
   h2{ font-size:11px; text-transform:uppercase; letter-spacing:.6px; color:var(--mute);
-      margin:10px 0 4px; padding-bottom:2px; border-bottom:1px solid var(--line); }
+      margin:9px 0 4px; padding-bottom:2px; border-bottom:1px solid var(--line); }
   .hdr{ font-weight:700; text-transform:uppercase; letter-spacing:.5px; font-size:9.3px;
-        color:var(--mute); margin:8px 0 3px; }
+        color:var(--mute); margin:7px 0 3px; }
   p{ margin:0 0 5px; }
   strong{ font-weight:650; }
   .b{ color:var(--accent); font-weight:650; }       /* ₿ amounts / key numbers */
-  .lead{ font-size:12px; line-height:1.45; }
+  .lead{ font-size:11.6px; line-height:1.42; }
   ul,ol{ margin:0 0 6px; padding-left:16px; }
-  li{ margin:0 0 2px; }
-  ol li{ margin:0 0 4px; padding-left:2px; }
-  .cols{ display:flex; gap:16px; }
-  .cols > div{ flex:1; }
-  code,.mono{ font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace; font-size:9.6px; }
+  li{ margin:0 0 3px; }
+  code,.mono{ font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace; font-size:9.5px; }
   a{ color:var(--accent2); text-decoration:none; }
-  table{ border-collapse:collapse; width:100%; font-size:9.7px; margin:2px 0 4px; }
+  table{ border-collapse:collapse; width:100%; font-size:9.6px; margin:2px 0 4px; }
   th,td{ text-align:left; padding:3px 6px; border-bottom:1px solid var(--line); vertical-align:top; }
   th{ color:var(--mute); font-weight:600; text-transform:uppercase; font-size:8.6px; letter-spacing:.4px; }
   .note{ color:var(--mute); font-size:9.6px; }
@@ -57,38 +54,148 @@
 <!-- ============================ PAGE 1 ============================ -->
 <div class="page">
   <h1>Open Name Tags (ONT)</h1>
-  <p class="tag">A short, human-readable name — like <code>alice</code> — that you truly own.
-    <span class="pill">design brief · v0 prototype</span></p>
+  <p class="tag">A short, human-readable name — like <code>alice</code> — settled on Bitcoin, that you
+    actually own. <span class="pill">design brief · signet prototype</span>
+    <span class="pill">₿1 = 1 satoshi · ~$ at ~$100k/BTC</span></p>
 
-  <p class="lead">Most names online are really <em>accounts</em>: a company hands them out, and can
-    rename you, reclaim them, or shut you down. An ONT name is different — it is controlled by a
-    cryptographic key that only you hold. No company is involved, there is nothing to renew or pay
-    rent on, there is no token, and no one (not even ONT's creators) can move or revoke it. Anyone
-    can look up who owns a name and confirm the answer for themselves.</p>
+  <p class="lead">ONT is a global namespace of names settled on Bitcoin — names are acquired once: a sunk
+    <span class="b">₿1,000</span> (~$1) miner-fee gate for the long tail, batched thousands-per-anchor so
+    it scales; a bonded on-chain auction when a name is actually contested. After that, one owner key
+    controls the name, and anyone can re-derive who owns what from Bitcoin plus public batch data —
+    servers get checked, not believed. Committing so little works because the chain fixes the only things
+    that need global ordering — who claimed or bonded which name, and by when; everything mutable (what a
+    name <em>points to</em>) is owner-signed off-chain data that needs a signature, not a block.</p>
 
-  <p class="hdr">What you'd use one for</p>
+  <p><strong>The no-list:</strong> no token · no new chain · no governance body or vote · no rent,
+    renewal, or expiry · no reserved names, founder allocation, or admin key.</p>
+
+  <h2>The trust model — who can screw you, and how that's stopped</h2>
+  <p><strong>What you must trust:</strong> <strong>Bitcoin</strong>, for ordering and final settlement
+    (ONT adds no consensus of its own). <strong>A small consensus core</strong> — three files, CI-locked
+    so the audited surface can't silently grow; honest scope: today they determine owner-key authority
+    and replay validation, while auction winner-becomes-owner still sits outside the boundary (decided to
+    move inside, gated on demonstrated correctness). And <strong>pre-launch, the project itself</strong> —
+    the rules are designed to be frozen at launch, but they are <strong>not frozen today</strong>:
+    several parameters are placeholders, flagged below.</p>
+  <table>
+    <tr><th>You don't trust…</th><th>…because</th></tr>
+    <tr><td><strong>Publishers</strong> (write-side)</td><td>They can't mint ownership: a claim binds
+      <em>your</em> owner key, and every batch leaf is re-verified against the Bitcoin-anchored root.
+      Misbehavior is contestable on-chain; loss is bounded at ~$1.</td></tr>
+    <tr><td><strong>Resolvers</strong> (read-side)</td><td>Every answer traces to an anchored root and
+      owner signatures. A lying resolver fails re-verification — caught, not obeyed (light-client caveat
+      below).</td></tr>
+    <tr><td><strong>The founder</strong></td><td>No admin key, no reserved names, no token, no rent
+      stream; the gate pays miners, not the project. Anyone can run the infrastructure.</td></tr>
+  </table>
+
+  <h2>Where the money goes</h2>
+  <table>
+    <tr><th>You pay</th><th>Amount</th><th>Who ends up with it</th><th>Comes back?</th></tr>
+    <tr><td>Claim gate</td><td><span class="b">₿1,000</span> (~$1)</td><td><strong>Bitcoin's miners</strong> —
+      the anchor's fee must cover the sum of its per-name gates, so batching can't discount it</td>
+      <td>No — sunk by design (anti-spam without rent)</td></tr>
+    <tr><td>Publisher service fee</td><td>thin markup, TBD</td><td>the publisher</td><td>No — but capped by
+      the standing alternative of claiming directly on L1</td></tr>
+    <tr><td>Auction bond</td><td><span class="b">₿50,000</span> floor (~$50), more if outbid</td>
+      <td><strong>nobody</strong> — your UTXO throughout, posted to maturity</td>
+      <td><strong>Yes</strong> — released after ~1 year; the real cost is carry, not the headline</td></tr>
+    <tr><td>Transfer / recovery</td><td>normal L1 fees</td><td>Bitcoin's miners</td><td>No</td></tr>
+  </table>
+  <p class="note">No protocol revenue, no token, no rent stream — nothing to extract with. The gate is
+    fixed in bitcoin, not pegged to a dollar (a peg would need a trusted price feed); its ~$ value drifts,
+    and we accept that drift deliberately.</p>
+
+  <h2>The attack tour</h2>
   <ul>
-    <li><strong>A payment handle</strong> — pay <code>alice</code> instead of a long address; the
-      name points to wherever she wants to be paid.</li>
-    <li><strong>An identity handle</strong> — one username for open-source / decentralized apps that
-      no platform can reassign or revoke.</li>
+    <li><strong>"I'll squat everything."</strong> The gate is <strong>sunk, not rent</strong> — ~10 BTC
+      (~$1M) per million names, no rent income, no expiry to flip into renewal revenue. The valuable head
+      doesn't go cheap: any wanted name can be bonded into an auction during its notice window
+      (<strong>largest bond wins</strong>), and ≤4-char names carry a mandatory opening bond —
+      <span class="b">₿100,000,000</span> (1 BTC, ~$100k) at 1 char, halving per character; even there the
+      real cost is carry (~$5,000/yr at 5%), since the principal returns. Honest residual: long-tail names
+      nobody contests can be squatted at ₿1,000 each. Squatting isn't impossible; it's priced.</li>
+    <li><strong>"I'll front-run your claim."</strong> Ordering can't award a name — not even a miner's.
+      Two bare claims with no bond <strong>nullify</strong>: no owner, the name reopens. A bare claim can
+      deny, never award; outcomes are deadline-derived, not order-derived. There is no MEV to extract from
+      the claim path.</li>
+    <li><strong>"Then I'll grief you with collisions forever."</strong> Each denial round burns the
+      attacker a fresh sunk ₿1,000. The defender exits once: post a qualifying bond and the griefer must
+      out-bid with real capital locked ~1 year — modeled, the attacker's sunk spend exceeds the defender's
+      carry at every phase of the window; <strong>one bond ends the game</strong>. The disclosed asymmetry:
+      defense takes bond-floor capital. We document that rather than paper over it — no sponsorship or
+      proxy-bonding tooling, in v1 or as a protocol direction; third-party bonding is already
+      permissionless, and a loan is arranged outside the protocol.</li>
+    <li><strong>"The publisher steals my name — or my dollar."</strong> It can't take a name: a wrong owner
+      key or a pocketed payment is contestable on-chain, forcing an auction the rightful owner wins. Worst
+      case ≈ ₿1,000 + the thin fee, ~$1. The flow is deliberately <strong>pay-first with reputable
+      publishers</strong>; with ~$1 at risk, atomic payment↔inclusion binding is later research, not a v1
+      dependency.</li>
+    <li><strong>"The resolver lies to me."</strong> Verify-don't-trust: the indexer re-verifies every batch
+      membership proof against the on-chain anchored root; value records are owner-signed and
+      sequence-linked — servable, not inventable. <strong>Honest gaps:</strong> producers don't emit
+      <code>bitcoinInclusion</code> proofs yet, so a phone today trusts the resolver it queries; and auction
+      proof bundles can't yet prove bid-set <em>completeness</em> against L1 — the same light-client work
+      closes both.</li>
+    <li><strong>"The publisher withholds the batch bytes."</strong> The designed rule is
+      <strong>fail-closed</strong>: bytes not public by a Bitcoin-height-keyed deadline don't count —
+      withheld claims are excluded, never awarded. <strong>Honest: the sharpest open item</strong> — the
+      deadline is design + simulation only; today's loop re-verifies and retries. Bytes are
+      content-addressed against the anchored digest, so anyone can mirror them and transport is not
+      consensus-critical.</li>
+    <li><strong>"A whale sweeps the launch."</strong> No pre-grab, no reserved list; claiming opens at a
+      pre-announced height, every swept name is bondable into a public auction for the whole notice window,
+      and short names carry the opening bonds above. Stated plainly: is a long window enough, or does
+      launch need a decaying gate? Capital-rich actors are most useful as watchtowers and contest
+      backstops, not allocators.</li>
+    <li><strong>"This is OP_RETURN spam."</strong> Issuance amortizes to <span class="b">~0.015–0.019
+      vB</span>/name at ~10k claims per anchor. The gate can't be batched away: an anchor counts only if
+      its miner fee ≥ the sum of per-name gates. Events are single OP_RETURNs up to ~171 bytes — above the
+      80-byte default datacarrier policy, relying on modern node policy (confirmed relaying on signet); an
+      explicit ask below.</li>
+    <li><strong>"Why not BIP-353 / ENS / Namecoin?"</strong> BIP-353 / Lightning Address / NIP-05 are
+      domain-bound: lose the DNS name, lose the handle. ONT carries the same BIP-21/BIP-353-shaped payment
+      payload and swaps only the resolution root. ENS charges rent under a token DAO; Namecoin's
+      first-come-free invited squatting on a separate chain. ONT: no rent, no token, no governance body,
+      priced contention, settled on Bitcoin itself.</li>
+    <li><strong>"Who runs this, and what's the exit-scam?"</strong> Today: one founder-run publisher +
+      resolver stack on a private signet; discovery is config-seeded (registry-free on-chain scan designed,
+      not built). Anyone can self-host both. No token to dump, no rent stream; in-flight exposure is ~$1
+      per pending claim. If all project infrastructure vanished, ownership re-derives from Bitcoin plus the
+      mirrorable batch bytes — subject to the DA caveat above.</li>
   </ul>
+</div>
 
-  <h2>How you get a name</h2>
-  <p>There is one path for every name. It forks only if two people want the same one.</p>
-  <ol>
-    <li><strong>Claim it.</strong> Pay a small, one-time Bitcoin fee — about $1
-      (<span class="b">₿1,000</span>) — paid to Bitcoin's miners, not to ONT.</li>
-    <li><strong>A public notice window opens</strong> (a few weeks). This is everyone else's chance to
-      contest the name — if someone else wants it too, that sends it to the auction in step 4 instead
-      of finalizing cheaply.</li>
-    <li><strong>If no one else does, the name is yours.</strong> Thousands of these uncontested claims
-      are bundled into one small Bitcoin record — which is what keeps it cheap across billions of names.</li>
-    <li><strong>If someone else wants it too, the name is <em>contested</em></strong>
-      and goes to auction: each bidder locks up bitcoin as a <strong>returnable ~one-year bond</strong>
-      (they keep custody; it's released at maturity), and the largest bond wins. Contests can be common early (everyone wants <code>bitcoin</code>, popular brands, or dictionary words) but
-      are rare across the long tail at scale, so for most names the auction never happens.</li>
-  </ol>
+<!-- ============================ PAGE 2 (flows naturally) ============================ -->
+<div class="page">
+  <h2>What touches Bitcoin, what doesn't</h2>
+  <p><strong>Lightning (off-chain):</strong> paying for a claim — the ₿1,000 gate funneled to miners + the
+    thin publisher fee. <strong>Bitcoin (on-chain):</strong> one ~73-byte OP_RETURN anchor
+    (<code>prevRoot → newRoot</code>) per ~10k claims; bonded auctions for contested names; transfers and
+    recovery — the rare, high-stakes events. <strong>Off-chain, free, forever:</strong> pointing your name
+    anywhere (owner-signed value records — instant, no fee, no chain touch). The notice window itself costs
+    nothing: uncontested → finalized and resolvable. Try it live on signet:
+    <a href="https://claim.opennametags.org">claim.opennametags.org</a> — keys generated in your browser,
+    claim batched and anchored, name visible in the explorer once the anchor confirms.</p>
+
+  <h2>The roles, defined by what they cannot do</h2>
+  <table>
+    <tr><th></th><th>Publisher (write)</th><th>Resolver (read)</th><th>Watchtower (recovery veto)</th></tr>
+    <tr><td>Does</td><td>Accepts paid claims (Lightning), batches ~10k into one Merkle root, anchors it,
+      serves the batch bytes (<code>/da/{root}</code>)</td><td>Replays Bitcoin + batch data through the
+      consensus core; serves ownership, owner-signed records, proof bundles</td><td>Watches names it
+      guards; cancels a malicious recovery within the challenge window</td></tr>
+    <tr><td><strong>Cannot</strong></td><td>Mint or move ownership; lock you out (direct L1 self-claim
+      always works)</td><td>Decide or invent ownership; forge records</td><td>Move, transfer, or point a
+      name — <strong>abort-only</strong> by construction</td></tr>
+    <tr><td>Worst case</td><td>You're out ~₿1,000 (~$1) and re-claim elsewhere</td><td>A wasted query —
+      verify, compare resolvers, or self-host</td><td>It goes offline and merely adds nothing</td></tr>
+    <tr><td>Status</td><td>Live (signet), single-writer; multi-publisher simulated</td><td>Live
+      (signet)</td><td>Designed, not built — the credential construction is an open problem</td></tr>
+  </table>
+  <p class="note">Recovery is opt-in: a name with no recovery descriptor is one key, cold-storage style.
+    Publisher and resolver are separate at the protocol layer (claim via A, verify via B, self-host
+    either) even when shipped as one operator stack.</p>
 
   <div class="fig">
     <svg viewBox="0 0 700 196" role="img" aria-label="how a claim becomes ownership">
@@ -96,20 +203,20 @@
         <path d="M0,0 L8,4 L0,8 z" fill="#8a9099"/></marker></defs>
 
       <rect class="boxk" x="6" y="74" width="120" height="46" rx="6"/>
-      <text class="tx" x="66" y="93" text-anchor="middle">Claim</text>
-      <text class="txs" x="66" y="107" text-anchor="middle">₿1,000 fee · your key</text>
+      <text class="tx" x="66" y="93" text-anchor="middle">Cheap claim</text>
+      <text class="txs" x="66" y="107" text-anchor="middle">₿1,000 gate · your key</text>
 
       <rect class="box" x="168" y="74" width="120" height="46" rx="6"/>
       <text class="tx" x="228" y="93" text-anchor="middle">Public notice</text>
       <text class="txs" x="228" y="107" text-anchor="middle">window (weeks)</text>
 
       <rect class="box" x="344" y="10" width="150" height="46" rx="6"/>
-      <text class="tx" x="419" y="29" text-anchor="middle">Uncontested</text>
-      <text class="txs" x="419" y="43" text-anchor="middle">→ finalized</text>
+      <text class="tx" x="419" y="29" text-anchor="middle">One claim, no bond</text>
+      <text class="txs" x="419" y="43" text-anchor="middle">→ finalized (accumulator)</text>
 
       <rect class="box" x="344" y="138" width="150" height="46" rx="6"/>
-      <text class="tx" x="419" y="157" text-anchor="middle">Contested</text>
-      <text class="txs" x="419" y="171" text-anchor="middle">→ bonded auction</text>
+      <text class="tx" x="419" y="157" text-anchor="middle">Qualifying bond</text>
+      <text class="txs" x="419" y="171" text-anchor="middle">→ auction · largest bond wins</text>
 
       <rect class="boxk" x="548" y="74" width="146" height="46" rx="6"/>
       <text class="tx" x="621" y="93" text-anchor="middle">Owned ✓</text>
@@ -121,159 +228,82 @@
       <path class="ar" d="M494,33 C522,33 518,97 545,97"/>
       <path class="ar" d="M494,161 C522,161 518,97 545,97"/>
     </svg>
-    <div class="figcap"><strong>Either path ends in the same place</strong> — you own the name, controlled by
-      your key. Most names finalize at window close; a contested one is settled by auction (largest returnable
-      bond wins). You can use it the moment the auction <strong>settles</strong> — the bond just stays posted
-      through maturity (~1 yr) then returns, an ONT rule (break it early and you forfeit the name), not a Bitcoin
-      timelock.</div>
+    <div class="figcap"><strong>Either path ends in the same place</strong> — a name controlled by your
+      key. Two or more bare claims with no bond <strong>nullify</strong> — no owner, the name reopens; a
+      bare claim can deny, never award. <strong>Bond-first</strong> is allowed for known-premium names. An
+      auction winner owns at <strong>settlement</strong> — the bond stays posted ~1 yr then returns, an ONT
+      replay rule (break it early and you forfeit the name), not a Bitcoin timelock.</div>
   </div>
 
-  <h2>What owning a name lets you do</h2>
-  <p>A name is controlled by one key — your <strong>owner key</strong>. With it you can:</p>
-  <ul>
-    <li><strong>Point the name somewhere</strong> — at a Bitcoin or Lightning address, a website, and
-      so on — and change it whenever you like. (These mappings live off-chain, signed by your key, so
-      updates are instant, free, and never touch Bitcoin.)</li>
-    <li><strong>Transfer</strong> the name to someone else's key.</li>
-    <li><strong>Optionally set up recovery</strong> so a lost key isn't the end — opt-in (skip it and a
-      name is just one key you keep safe, like cold-storage bitcoin). Only your chosen backup key can use
-      it, and your main key vetoes misuse within a window — a veto you can hand to a non-custodial watcher,
-      so a set-and-forget name needn't keep you online.</li>
-  </ul>
-
-  <h2>Two services that help — neither decides</h2>
-  <p>Using ONT at scale leans on two <strong>unprivileged</strong> services; neither decides ownership — Bitcoin
-    does. A <strong>publisher</strong> is the service you <em>pay</em> (over Lightning) to get your claim into
-    Bitcoin — it batches thousands of claims and broadcasts the on-chain anchor (needs a Lightning rail + on-chain
-    funds). A <strong>resolver</strong> is the service you <em>query</em> to look up a name — it replays Bitcoin
-    and serves the answer — it never decides ownership (needs only a Bitcoin node + storage). One operator usually runs both,
-    but they're <strong>separate at the protocol layer</strong>: claim through one, verify against another, or
-    self-host either.</p>
-
-  <h2>What touches Bitcoin, what doesn't</h2>
-  <p>A claim's full life, by rail — most of it never touches the chain. <strong>Lightning (off-chain):</strong>
-    your ₿1,200 claim payment (the ₿1,000 gate funneled through to miners + the publisher's thin fee).
-    <strong>Bitcoin (on-chain):</strong> one 73-byte anchor per ~10,000 claims; contested-name bond auctions;
-    transfers and recovery — the rare, high-stakes events. <strong>Off-chain, free, forever:</strong> pointing
-    your name anywhere (owner-signed records — instant updates, no fee). The moment the notice window closes
-    uncontested, the name is yours and resolvable. Try the cheap path live on signet at
-    <a href="https://claim.opennametags.org">claim.opennametags.org</a> — keys generated in your browser,
-    claim batched and anchored, name visible in the explorer once the anchor confirms.</p>
-
-  <h2>How it scales</h2>
-  <p>Billions of names can't each be a Bitcoin transaction, so <strong>publishers</strong> batch many
-    claims into one Merkle commitment and anchor only its root — a ~150-byte root that commits to the
-    whole batch <em>whatever its size</em>, so the more you batch the lower the per-name cost
-    (~<span class="b">0.015 vB</span>/name at ten thousand per batch, less as batches grow). A batch counts
-    only if its miner fee covers the claims inside it, so each name still buys the blockspace it uses.</p>
-  <p>You pay a publisher off-chain over Lightning; it bundles many claims and pays the single aggregate
-    miner fee — so the ₿1,000 still reaches <strong>Bitcoin's miners</strong>, even though your immediate
-    payment goes to the publisher (it isn't a fee to the publisher or a resolver). <strong>Your cost is the
-    ₿1,000 gate (sunk, to miners) plus a thin publisher service fee</strong> — the publisher's own per-name
-    cost is tiny, and any markup is capped by the always-available option of claiming directly on L1. The flow is <strong>pay-first</strong> (you pay,
-    then you're included; a non-payer is left out), so the publisher risks no capital — you take a small,
-    bounded one. And a publisher <strong>can't steal a name</strong>: if it pockets your payment or commits
-    the wrong owner key, you contest on-chain, which forces an auction the rightful owner wins; worst case
-    you're out about a dollar and re-claim elsewhere. Binding the payment to inclusion atomically is a
-    possible future refinement, not a v1 dependency.
-    <strong>v1 starts with a few reputable publishers and minimizes even that small trust over time.</strong></p>
-</div>
-
-<!-- ============================ PAGE 2 ============================ -->
-<div class="page">
-  <h2>Why you can trust it</h2>
-  <p>No company, server, or founder decides who owns a name — Bitcoin does. The rules that turn Bitcoin
-    transactions into ownership live in a small, <strong>frozen core — three consensus files</strong> that
-    anyone can audit, locked so its trust surface can't silently grow.
-    Run it over Bitcoin's history and you get the same answer everyone else does, and
-    you can check that answer against Bitcoin's own block headers and proof-of-work — so a server that
-    lies about who owns a name gets caught, not believed. Resolvers only mirror this Bitcoin-derived data;
-    they never decide it.</p>
-  <p>And no operator is privileged: <strong>anyone can run a resolver or publisher</strong> (the two roles
-    above). Because ownership
-    is fixed by Bitcoin, you don't need a <em>trusted</em> node — only a reachable one whose answer you can
-    verify (a lying node is caught; a slow one is routed around). Finding nodes is config-seeded today; a
-    registry-free, on-chain discovery scan is designed, not yet built.</p>
-
-  <h2>The numbers we're proposing — several are placeholders, all open to challenge</h2>
-
-  <div class="cols">
-    <div>
+  <h2>The numbers (placeholders flagged — they set replay behavior, so they freeze at launch)</h2>
+  <div style="display:flex; gap:16px">
+    <div style="flex:1">
       <table>
-        <tr><th>Parameter</th><th>Proposed</th><th>Status</th></tr>
-        <tr><td>Claim fee (every name)</td><td><span class="b">₿1,000</span> ~$1, sunk, to miners</td><td>baseline</td></tr>
-        <tr><td>Contested-auction min bond</td><td><span class="b">₿50,000</span> ~$50, returnable</td><td>placeholder</td></tr>
-        <tr><td>Bond maturity</td><td>~52,560 blocks (~1 yr)</td><td>test override</td></tr>
-        <tr><td>Notice window</td><td>weeks, height-keyed</td><td>placeholder · fairness lever</td></tr>
-        <tr><td>Data-availability windows</td><td>unset</td><td>deadline for batch bytes to surface + reorg depth; unpinned</td></tr>
-        <tr><td>On-chain footprint</td><td>~0.015 vB/name; fee = Σ fees</td><td>measured</td></tr>
+        <tr><th>Parameter</th><th>Value</th><th>Status</th></tr>
+        <tr><td>Claim gate, every name</td><td><span class="b">₿1,000</span> ~$1, sunk, to miners</td><td>baseline</td></tr>
+        <tr><td>Publisher service fee</td><td>thin markup, TBD (₿200 signet demo value is a placeholder, likely too high)</td><td>placeholder</td></tr>
+        <tr><td>Auction bond floor</td><td><span class="b">₿50,000</span> ~$50, returnable</td><td>placeholder · load-bearing</td></tr>
+        <tr><td>Bond maturity</td><td>~52,560 blocks (~1 yr)</td><td>placeholder / test override</td></tr>
+        <tr><td>Notice window</td><td>target weeks (test: 6 blocks)</td><td>placeholder · fairness lever</td></tr>
+        <tr><td>DA windows (W/C/K)</td><td>unset</td><td>open</td></tr>
+        <tr><td>On-chain footprint</td><td>~0.015–0.019 vB/name @ ~10k/batch</td><td>measured</td></tr>
+        <tr><td>OP_RETURN event size</td><td>up to ~171 bytes</td><td>measured</td></tr>
       </table>
     </div>
-    <div>
-      <p class="note" style="margin-top:1px"><strong>Opening bond for scarce short names.</strong></p>
+    <div style="flex:1">
+      <p class="note" style="margin-top:1px"><strong>Opening bond for scarce short names (≤4 char).</strong></p>
       <table>
         <tr><th>Name length</th><th>Opening bond</th><th>~USD</th></tr>
         <tr><td>1 char</td><td><span class="b">₿100,000,000</span> (1 BTC)</td><td>~$100k</td></tr>
         <tr><td>2 char</td><td>₿50,000,000</td><td>~$50k</td></tr>
         <tr><td>3 char</td><td>₿25,000,000</td><td>~$25k</td></tr>
         <tr><td>4 char</td><td>₿12,500,000</td><td>~$12.5k</td></tr>
-        <tr><td>5+ char</td><td>fee only; ₿50,000 floor if contested</td><td>~$1 / ~$50</td></tr>
+        <tr><td>5+ char</td><td>gate only; ₿50,000 floor if contested</td><td>~$1 / ~$50</td></tr>
       </table>
-      <p class="note">Only the very short (≤4-char) names carry a high length-scaled opening bond
-        (halving per added character); everything else just uses the flat fee plus a bond if contested.</p>
+      <p class="note"><strong>Least sure of:</strong> the real-world contest rate (high on the obvious
+        head, low across the long tail), and whether the launch notice window is long enough for a
+        competitive early market to form — so premium names aren't swept cheaply before other bidders show
+        up.</p>
     </div>
   </div>
 
-  <p class="note"><strong>Least sure of:</strong> the <strong>contest rate</strong> is unknown until
-    launch — we assume it's high early (everyone wants <code>bitcoin</code>, popular brands, or dictionary words) and low
-    for the long tail (<code>sallysmith2165</code>); and the notice window has to be long enough for a
-    competitive early market to form, so premium names aren't swept cheaply before other bidders show up.</p>
+  <h2>Status — honest (signet prototype; not mainnet-ready)</h2>
+  <p><strong>Live end-to-end on a private signet:</strong> owner-key transfer, owner-signed value records,
+    recovery, a bonded auction bid the resolver accepts — and, since 2026-06-09, the full cheap rail: a
+    claim at claim.opennametags.org is batched, anchored on-chain, re-verified by the indexer against the
+    anchored root, and appears in the public explorer. One 12-word phrase derives identical keys across the
+    claim site, web tools, and the mobile app, locked by shared conformance vectors.
+    <strong>Not live (disclosed):</strong> the fail-closed DA deadline (design + simulation only); the
+    light-client emit path; multi-publisher (simulated; production is single-writer); real Lightning
+    payment (stubbed on signet); auction settlement inside the frozen core (decided, gated on demonstrated
+    correctness). Parameters are placeholders — the rules are designed to freeze at launch and are
+    <strong>not frozen today</strong>.</p>
 
-  <h2 class="pbreak">Status — honest (maturity, not direction)</h2>
-  <p><strong>Live on a Bitcoin test network (signet), end-to-end:</strong> claim, owner-key transfer,
-    owner-signed records, recovery, a bonded auction bid the resolver accepts — and, since June 9, the
-    <strong>cheap batched-claim loop</strong>: a claim made at claim.opennametags.org is batched, anchored
-    on-chain, re-verified by the indexer against the anchored root, and appears in the public explorer.
-    Consensus code and signatures are cross-checked byte-for-byte across independent implementations
-    (engine, web, claim site, mobile — one shared conformance fixture). <strong>Still open (disclosed):</strong>
-    the fail-closed availability <em>deadline</em> (the withhold-then-reveal defense) is design+simulation
-    only; the publisher is single-writer; the Lightning payment is stubbed on signet; and producers don't
-    yet emit the proofs a phone/browser would check. Not mainnet-ready.</p>
-
-  <h2>What we most want you to push on</h2>
+  <h2>What we most want pushed on</h2>
   <ul>
-    <li><strong>Data availability — incl. how the bytes are transported</strong> — we batch claims and
-      anchor only a summary on Bitcoin, leaving the claim data off-chain; our defense if someone withholds
-      it (or a reorg reshuffles it) is a deadline — data that isn't public by a set Bitcoin height simply
-      doesn't count. Is that sound, and should availability be proven on-chain or by timing alone? And the
-      <em>transport</em>: we lean toward content-addressed bytes any node can mirror, verified against an
-      on-chain digest (so it's <strong>not consensus-critical</strong>, backend swappable) — is
-      publisher-served + voluntary mirrors enough for v1, or is a gossip/DA-sampling layer needed sooner?
-      And a simplification we're weighing: should the availability <em>marker</em> be folded into the anchor
-      itself (the anchor already commits the batch digest) — one less on-chain message type to freeze?</li>
-    <li><strong>Publisher trust-minimization</strong> — v1 leans on reputable, pay-first publishers (a
-      non-payer is left out). Is there a clean, <em>deployable-today</em> way to bind "pay the publisher"
-      to "claim anchored on-chain" without depending on long-roadmap primitives — or is
-      reputable-publisher trust the right v1 stance, with atomic binding left as later research?</li>
-    <li><strong>Discovery &amp; censorship-resistance</strong> — config-seeded today; is a registry-free,
-      on-chain service-announcement scan the right trustless discovery primitive, with Bitcoin + verification
-      as the only trust root?</li>
-    <li><strong>On-chain footprint</strong> — are the ~171-byte OP_RETURN events acceptable on mainnet,
-      or is a script/covenant carrier worth a soft-fork dependency?</li>
-    <li><strong>Light-client verification</strong> — a launch blocker, or fine post-launch?</li>
-    <li><strong>Auction form</strong> — open ascending vs. sealed second-price, given MEV and relay-bid timing?</li>
-    <li><strong>Launch fairness</strong> — is a long notice window enough against a day-one rush on
-      premium names, or do we need a decaying launch fee?</li>
-    <li><strong>Recovery you can leave unattended</strong> — recovery is opt-in (skip it and a name is one
-      key, like cold-storage bitcoin); if enabled, its challenge-window veto needs <em>someone</em> watching,
-      which for a set-and-forget name should be a <em>non-custodial watcher</em> (can abort, never move the
-      name), not the owner. A literal pre-signed veto can't reference the recovery UTXO (outpoint unknown
-      until invoke time) — what's the cleanest name-scoped, abort-only credential that lets a watcher cancel
-      without custody?</li>
+    <li><strong>The DA rule and transport</strong> — is fail-closed-by-height sound against withholding and
+      reorgs? Should the availability marker be <strong>folded into the anchor</strong> itself? Is
+      publisher-served + voluntary mirrors enough for v1?</li>
+    <li><strong>Publisher trust-minimization</strong> — is pay-first + reputable operators the right v1
+      stance, or is there a <em>deployable-today</em> way to bind payment to inclusion atomically?</li>
+    <li><strong>The bond floor</strong> — ₿50,000 is the price of escalation <em>and</em> of defense; a
+      better point on the grief-vs-access curve, given the accepted asymmetry?</li>
+    <li><strong>The anti-spam sink</strong> — the gate goes to miners as fees; the right sink, or does
+      anything argue for a provable burn instead?</li>
+    <li><strong>OP_RETURN footprint</strong> — are ~171-byte events acceptable on mainnet, or is a
+      script/covenant carrier worth a soft-fork dependency?</li>
+    <li><strong>Light-client verification</strong> — launch blocker, or post-launch?</li>
+    <li><strong>Auction form</strong> — open ascending (current) vs sealed second-price, given MEV and
+      relay-bid timing?</li>
+    <li><strong>Launch fairness</strong> — is a long notice window enough against a day-one sweep, or do we
+      need a decaying launch gate?</li>
+    <li><strong>The watchtower credential</strong> — the cleanest name-scoped, abort-only construction for
+      an unattended recovery veto?</li>
   </ul>
 
-  <div class="foot">Repo: github.com/deekay/ont · the full design brief, prior-art comparison, risk
-    register, and the verification you can run yourself: <code>docs/ONT_DESIGN_BRIEF.md</code>.</div>
+  <div class="foot">Repo: github.com/deekay/ont · deeper: <code>docs/ONT_DESIGN_BRIEF.md</code> · exact
+    lifecycle: <code>docs/design/ONT_ACQUISITION_STATE_MACHINE.md</code> · plain language:
+    <code>docs/ONT.md</code> · canonical status + numbers: <code>docs/core/STATUS.md</code>.</div>
 </div>
 
 </body>

@@ -1,210 +1,314 @@
-# Open Name Tags (ONT)
+# Open Name Tags (ONT) — the system as built
 
-**A short, human-readable name like `alice`, settled on Bitcoin, that you actually own.** No
-company, registrar, token, or rent. Ownership is a key you hold — no one (not even ONT's authors)
-can move or revoke it — and a name's owner can be re-derived from public data and Bitcoin without
-trusting any server.
+This page is one layer below the **[one-pager](./docs/ONT_ONE_PAGER.md)** — read that first; this
+README assumes it. Here we cover how the two rails actually run end to end, where each rule is
+enforced, what the three service roles do operationally, how to audit the trust surface yourself,
+and what evidence would falsify our claims.
 
-This README is the **high-level design** — read it on arrival. For the short, shareable version see
-the **[one-pager](./docs/ONT_ONE_PAGER.md)**; for the full detail see the **[design
-brief](./docs/ONT_DESIGN_BRIEF.md)**; the plain-language source of truth is
-**[ONT.md](./docs/ONT.md)**. Amounts are written in **₿ where ₿1 = 1 satoshi** — the ₿ figures are
-fixed; USD equivalents assume **~$100,000/BTC** and drift with the price (so the ₿1,000 claim gate ≈ $1).
+> **Status: prototype on a private Bitcoin signet — not mainnet-ready.** The canonical record of
+> what is live vs. prototype vs. designed, and of every number, is
+> **[docs/core/STATUS.md](./docs/core/STATUS.md)**. If anything on this page disagrees with that
+> file, that file wins. Amounts are written as **₿ where ₿1 = 1 satoshi**; `~$` helpers assume
+> ~$100,000/BTC and drift with the price.
 
-> **Status: active prototype on a Bitcoin test network (signet) — not mainnet-ready.** We are
-> deliberately honest about what runs today vs. what's designed; see
-> [What's live vs. prototype](#whats-live-vs-prototype). The **canonical status + numbers** live in
-> **[docs/core/STATUS.md](./docs/core/STATUS.md)** — if any doc disagrees, that file wins.
+## Where this page sits
 
----
+The docs are layered, shallow to deep. Each layer defers upward for "what is ONT" and downward for
+detail:
 
-## What it's for
+1. **[ONT.md](./docs/ONT.md)** — the plain-language source of truth
+2. **[One-pager](./docs/ONT_ONE_PAGER.md)** — the reviewer's summary (assumed read)
+3. **This README** — the system as built
+4. **[Design brief](./docs/ONT_DESIGN_BRIEF.md)** — the full design: model, trust surface,
+   scaling and data availability, economics, prior art, risks
+5. **[docs/design/](./docs/design/)** — per-mechanism references: the
+   [acquisition state machine](./docs/design/ONT_ACQUISITION_STATE_MACHINE.md),
+   [data-availability agreement](./docs/design/ONT_DATA_AVAILABILITY_AGREEMENT.md),
+   [MEV/ordering analysis](./docs/design/ONT_MEV_ORDERING_ANALYSIS.md),
+   [sovereignty map](./docs/design/ONT_SOVEREIGNTY_MAP.md),
+   [risk register](./docs/design/ONT_RISK_REGISTER.md)
+6. **The code** — `packages/{protocol,consensus,core}/src` — for claims about code, code wins
 
-Most names online are really *accounts*: a company hands them out and can rename you, reclaim them,
-or shut you down. An ONT name is the opposite — a name only your key controls. What you'd point one at:
+Two cross-cutting files: **[DECISIONS.md](./docs/core/DECISIONS.md)** is the numbered decision
+log (a numbered decision supersedes any analysis note that predates it), and
+**[STATUS.md](./docs/core/STATUS.md)** is the canonical status and numbers. `docs/research/` is
+analysis — kept current with decisions, but check dates.
 
-- **A payment handle** — pay `alice` instead of a long address; the name resolves to a Bitcoin/
-  Lightning destination (the same BIP-21 / BIP-353-shaped payload a wallet already understands).
-- **An identity handle** — one verifiable, impersonation-proof username for open-source / decentralized
-  apps that no platform can reassign.
+## The 30-minute review path
 
-The people who feel this most are the ones who've already lost a handle once: a Lightning Address whose
-host shut down, a Nostr NIP-05 that broke when a domain lapsed, an OSS maintainer tired of re-publishing
-donation addresses. Adoption is unproven *today* — this is what a sovereign name is *good for*, not a claim that
-everyone needs one.
+If you want to evaluate rather than browse:
 
-## How it works
+1. **Read the lifecycle (~10 min):**
+   [the acquisition state machine](./docs/design/ONT_ACQUISITION_STATE_MACHINE.md). The points
+   that matter beyond the one-pager's flow: a **bond — not a bare claim — opens the auction**
+   (Decision #37); two bare claims with no bond **nullify** (deny, never award — so block
+   ordering, even a miner's own, can't be converted into a name); **bond-first** is allowed for
+   known-premium names, and the ≤4-character opening bonds are the mandatory case of the same
+   mechanism; both outcomes are **deadline-derived** — a verifier observes chain state at the
+   window's closing height and applies fixed rules.
+2. **Audit the trust surface (~10 min):** the three files in `packages/consensus/src/` — see
+   [The trust surface](#the-trust-surface-and-auditing-it-yourself) below.
+3. **Run the tests (~5 min):** the commands in the same section — including the CI lock that
+   fails the build if the audited surface grows.
+4. **Watch the live loop (~5 min):** claim a throwaway name at
+   [claim.opennametags.org](https://claim.opennametags.org) and watch it appear in the
+   [explorer](https://opennametags.org/explore) once the anchor confirms on the signet.
 
-There is one path for every name; it forks only if two people want the same one.
+## Architecture: the two rails, end to end
 
-1. **Claim** a name for a flat **₿1,000** (~$1) fee paid to **Bitcoin's miners**, not to ONT.
-2. **A public notice window opens** — everyone's chance to contest it.
-3. **Uncontested → it finalizes cheaply.** Many uncontested claims batch into one Bitcoin commitment
-   (a Merkle accumulator root anchored on-chain), which is how it scales to billions of names.
-4. **Contested → a returnable-bond auction.** To contest, someone posts a **returnable bond**, which
-   opens an L1 auction; the **largest bond wins**. You can *bond-first* to open the auction directly on
-   a name you already know is premium (`bitcoin`). A bare second claim with no bond can't take a name —
-   it just nullifies (the name reopens), never awards, so block ordering buys no one a name.
+Both rails end the same way — a name bound to one **owner key** — and a verifier derives both from
+Bitcoin, not from any server's say-so.
 
-Either way you end up with the same thing: a globally-unique name controlled by **one owner key**,
-which signs transfers, off-chain destination records (instant, free, never touch Bitcoin), and
-recovery. → [acquisition state machine](./docs/design/ONT_ACQUISITION_STATE_MACHINE.md)
+```mermaid
+flowchart TB
+  subgraph CHEAP["Cheap rail — every name starts here (live on signet)"]
+    W["Wallet / claim site<br/>pay-first claim"] --> PB["Publisher<br/>batches claims into a<br/>sparse-Merkle accumulator"]
+    PB -->|"OP_RETURN anchor<br/>prevRoot → newRoot"| BTC[("Bitcoin")]
+    BTC --> IX["Indexer decodes the anchor<br/>(RPC polling + replay)"]
+    IX -->|"GET /da/:root"| DA["Publisher DA endpoint<br/>serves the batch leaves"]
+    DA --> RV["Re-verify every membership proof<br/>against the anchored root"]
+    RV --> RES["Name resolves<br/>(resolver API / public explorer)"]
+  end
+  subgraph CONT["Contested rail — opened only by a bond"]
+    BD["Qualifying bond<br/>(vs an existing claim, or bond-first)"] --> AUC["L1 open-ascending auction<br/>bonded bids, soft close"]
+    AUC --> SET["Settle — largest bond wins,<br/>owner immediately"]
+    SET --> MAT["Bond maturity ≈ 1 yr,<br/>then released"]
+  end
+  W -. "someone bonds during the notice window" .-> BD
+  W -. "2+ bare claims, no bond → nullified, reopens" .-> NX["No owner"]
+```
 
-## What ONT guarantees
+**The cheap rail** (live on signet end-to-end since 2026-06-09):
 
-Five properties are treated as inviolable invariants — everything else (parameters, auction form, UX)
-is negotiable:
+1. **Claim, pay-first.** The claim site or wallet requests a quote, pays the publisher (Lightning
+   on mainnet; stubbed on signet), and submits the name + intended owner key. A non-payer is
+   simply left out — the publisher fronts no capital (Decision #38).
+2. **Batch.** The publisher applies paid claims as deltas to a sparse-Merkle accumulator and seals
+   a batch when a size or age threshold is hit.
+3. **Anchor.** One OP_RETURN carrying `prevRoot → newRoot` is broadcast. The batch is now
+   Bitcoin-ordered.
+4. **Decode.** The resolver's indexer, polling Bitcoin over RPC, decodes the anchor. The root is
+   known but unresolved — a root alone proves nothing about which names are inside.
+5. **Fetch the data.** The resolver fetches the batch leaves from the publisher's `/da/{root}`
+   endpoint (content-addressed by the anchored digest; mirrorable by anyone — Decision #39).
+6. **Re-verify.** Every leaf's membership proof is re-checked against the on-chain root before
+   merging. Bytes that don't verify are discarded — a lying or compromised data source can't mint
+   ownership. Transport is verify-don't-trust, so it is not consensus-critical and stays swappable.
+7. **Resolve.** The name resolves and appears in the public explorer.
 
-- **Sovereign** — acquisition is a one-time cost; after that, no rent, renewal, expiry, forced sale, or
-  revocation. Your key controls the name.
-- **Neutral** — no registrar, editor, or allocator, *explicitly including the founder*. Names go by a
-  fixed mechanical rule — no reserved lists, no token, no founder pre-grab. Rule changes are opt-in new
-  versions only.
-- **Verifiable without trust** — a fresh verifier reconstructs *why* a name is owned from public data +
-  Bitcoin, trusting no resolver, operator, or founder.
-- **Censorship-resistant** — final ordering and dispute resolution derive from Bitcoin.
-- **Unambiguous** — a name resolves to exactly one owner; two honest observers never disagree.
+What the live loop does **not** yet enforce (disclosed in STATUS): the **fail-closed availability
+deadline** — "batch bytes not public by a Bitcoin-height-keyed deadline don't count." The
+`AvailabilityMarker` event is wire-defined and tested but never emitted in production, and the
+W/C/K windows run only in research simulations. Today, missing bytes are simply retried with
+backoff — fine for an honest single publisher on signet, but the withhold-then-reveal defense for
+contested names depends on the deadline rule.
 
-**Fair launch (by design).** The neutrality rule covers the *start*, not just the ongoing rule: no
-founder, insider, or tester allocation — the intent is that names become claimable only from a single,
-pre-announced launch height, with no pre-grab. The exact launch mechanism, and how to keep the day-one
-rush *competitive* rather than a quiet whale sweep of premium names, is an **open question we're still
-working** — see [risk register](./docs/design/ONT_RISK_REGISTER.md) R7.
+**The contested rail** (a bonded bid runs end-to-end on signet):
 
-→ [sovereignty map](./docs/design/ONT_SOVEREIGNTY_MAP.md) ·
-[design requirements](./docs/design/ONT_DESIGN_REQUIREMENTS.md)
+1. **A qualifying bond opens the auction** (Decision #37) — posted against an existing claim
+   during its notice window, or *bond-first* with no prior claim (the natural path for a
+   known-premium name; the ≤4-character length-scaled opening bonds are the mandatory bond-first
+   case of the same mechanism).
+2. **Open ascending auction** on L1: visible bonded bid transactions, soft close, objective
+   minimum increments (Decision #35).
+3. **Settle.** Largest bond wins; the winner owns and can use the name immediately.
+4. **Maturity.** The winning bond stays posted (≈1 year target — an ONT rule, not a Bitcoin
+   timelock: break it early and you forfeit the name), then releases.
 
-## How this differs from what you already know
+A bare second claim never enters this rail: two or more cheap claims with no bond **nullify** the
+name — no owner, reopens for claiming. Collisions can deny; only bonds can award.
 
-- **Namecoin** — first-come-free invited squatting, on a separate merge-mined chain. ONT keeps the goal
-  but replaces first-come-free with a sunk gate + contested-only auction, and settles on Bitcoin itself.
-- **ENS** — annual rent, an increasingly L2 footprint, and a token-weighted **governing DAO** that can
-  re-price and adjudicate names. ONT has **no governance body**, **no rent**, and settles on Bitcoin.
-- **BNS / Stacks** — depends on the Stacks token. ONT adds **no token and no new chain**.
-- **Handshake** — its own proof-of-work coin, for TLDs. ONT issues handles, adds **no coin**, settles on
-  Bitcoin.
-- **BIP-353 / Lightning Address / NIP-05** — the closest "name → who gets paid / who is this," but
-  **domain-bound** (you can lose the `@domain`) or custodial. ONT is *a different name root for the same
-  payment payload*: it carries the same BIP-21/BIP-353 bytes, so a wallet adds ONT support by swapping
-  the **resolution step** — the payment code is unchanged — and the name root no longer depends on a DNS
-  zone you can lose.
-- **Pkarr / Pubky** — self-sovereign keys publishing records over a DHT. ONT borrows "a key owns its
-  records" but adds a scarce, globally-unique, **Bitcoin-ordered** namespace with contest resolution.
+**Two keys, one secret.** The *wallet key* signs the Bitcoin transactions (claims, bonds,
+anchors); the *owner key* signs off-chain value records, transfers, and recovery. Since Decision
+#41 both derive from a single 12-word phrase, identically across the claim site, web tools, and
+mobile app — locked by shared conformance vectors.
 
-→ [prior art (design brief §2)](./docs/ONT_DESIGN_BRIEF.md) ·
-[ONT vs Pkarr/Pubky](./docs/research/ONT_VS_PUBKY_PKARR.md)
+### Where each rule is enforced
 
-## The trust surface
+| Rule | Lives in | Boundary |
+| --- | --- | --- |
+| Owner-key authority: transfers, value records, recovery — replay validation | `packages/consensus/src/engine.ts`, `state.ts` | **Frozen consensus core** (CI-locked) |
+| Portable proofs: structure + Merkle-inclusion/header-PoW vs Bitcoin | `packages/consensus/src/proof-bundle.ts` | **Frozen consensus core** |
+| Names, wire formats, events, payload signatures | `packages/protocol/src/` | Protocol primitives |
+| Anchor decode, accumulator membership verification, batch merge | `packages/core/src/indexer.ts`, `root-anchor.ts`, `accumulator.ts` | Canonical indexer (outside the frozen core) |
+| Auction settlement — winner becomes owner | `packages/core/src/experimental-auction.ts` | **Outside the frozen core today** — see below |
+| Notice-window outcomes (finalize / nullify / bond-escalate) + DA windows | `packages/core/src/research/batch-rail.ts` + simulations | Design + simulation only |
+| Value/recovery record acceptance, chain ordering per ownership interval | `apps/resolver/src/validation.ts` | Resolver policy |
+| DA fetch, retry/backoff, snapshot persistence | `apps/resolver`, `apps/indexer` | Operational |
+| Quotes, payment, batching thresholds, anchor broadcast | `apps/publisher` | Operational — no ownership authority |
 
-Who-owns-what is a deterministic function of Bitcoin, computed in a frozen core plus protocol
-primitives:
+**The honest boundary, stated plainly.** The frozen core determines owner-key authority and
+replay validation. **Auction settlement → ownership currently lives outside it**, in experimental
+indexer code: `applyAuctionBid` validates and records bids, but deciding winner-becomes-owner is
+not yet inside the audited boundary. Decision #42: settlement **will move inside the frozen
+core, gated on demonstrated correctness** — until that lands, we do not claim "the three frozen
+files alone determine all ownership." And nothing is "frozen" in the Bitcoin sense yet: launch
+parameters are placeholders until they're frozen and published before launch (see STATUS).
 
-- `packages/consensus/src/engine.ts` (event replay), `state.ts` (name state), `proof-bundle.ts`
-  (portable proofs — internal consistency **plus** Merkle-inclusion + header-proof-of-work verification
-  against Bitcoin)
-- `packages/protocol/src/` (names, wire formats, events, transfer/value/recovery payloads)
-- `packages/consensus/src/trust-surface.test.ts` **fails the build** if that core grows a dependency
-  outside `@ont/protocol` / `@ont/bitcoin`, or gains a file outside the documented set — so the audit
-  surface (exactly the three consensus files above) cannot silently grow.
+## The three roles, operationally
 
-**Verify it yourself:**
+### Publisher — write side (`apps/publisher`; live on signet, single-writer)
+
+- **Pay-first.** Quote → payment → inclusion. A claim enters the pending set only after payment
+  clears; the publisher's exposure is bounded structurally, the user's is ~₿1,000 (~$1).
+- **Batching.** A batch seals when pending paid claims reach `maxBatchSize` **or** the oldest
+  pending claim exceeds `maxBatchAgeSeconds` (the signet demo anchors instantly with size 1; real
+  batching is the same code with bigger thresholds).
+- **Anchor broadcast.** Real OP_RETURN broadcast on signet.
+- **DA serving.** `GET /da/{root}` returns the sealed batch's leaves for any anchored root.
+- **What a restart must survive.** The publisher snapshots quotes, pending paid claims, and batch
+  history (`ONT_PUBLISHER_STORE_PATH`). On restore it replays batches in order and rebuilds each
+  DA bundle at exactly the accumulator state where that batch's `newRoot` was captured — without
+  this, a restart would 404 `/da/{root}` for every prior batch and strand any indexer that hadn't
+  synced yet.
+- **Known limits.** Lightning is stubbed on signet (the LN provider is mainnet-only); leaderless
+  multi-publisher convergence is
+  [simulated and tested](./docs/research/ONT_MULTI_PUBLISHER_CONVERGENCE.md), not deployed.
+
+### Resolver — read side (`apps/resolver` + `apps/indexer`; live on signet)
+
+- **Source.** Fixture, Bitcoin RPC, or esplora (`ONT_SOURCE_MODE`), pinned to an expected chain.
+  Polls for new blocks (default every 10s) and replays each block's ONT events through the indexer
+  and consensus engine — ownership is recomputed, never asserted.
+- **Snapshot persistence.** Indexer state persists to a file or Postgres (via `@ont/db`); a
+  restart resumes from the snapshot instead of re-scanning the chain.
+- **Cheap-rail DA loop.** For every observed-but-unresolved anchor root, fetch `/da/{root}` and
+  merge only the leaves whose proofs verify against the on-chain root, with per-root exponential
+  backoff (1×, 2×, 4×… the poll interval, capped at 30 minutes) so a missing batch can't make the
+  resolver hammer the publisher.
+- **Record serving.** Value records and recovery artifacts are owner-signed, sequence-numbered,
+  predecessor-linked chains **keyed by ownership interval** — an L1 name's interval by its current
+  state txid, a cheap-rail name's by its finalizing anchor txid. A new owner starts a fresh chain,
+  and stale records from a prior owner are rejected (`apps/resolver/src/validation.ts`). The
+  resolver stores and serves records; it cannot invent them — a forged record fails owner-signature
+  verification at every client.
+
+### Watchtower — designed, not built
+
+Recovery is opt-in (a name with no recovery descriptor is one key, cold-storage style). If armed,
+the challenge-window veto should not require the owner to be online: the target shape is a
+non-custodial watcher holding a **name-scoped, abort-only credential** — it can cancel a malicious
+recovery, never move the name (Decision #40). The credential construction is an open design
+problem, raised for external feedback
+([ONT_LONG_TAIL_RECOVERY.md §5.6](./docs/design/ONT_LONG_TAIL_RECOVERY.md)).
+
+## The trust surface, and auditing it yourself
+
+- **The frozen core is three files** — `engine.ts`, `state.ts`, `proof-bundle.ts` in
+  `packages/consensus/src/` — over the `@ont/protocol` + `@ont/bitcoin` primitives.
+  `packages/consensus/src/trust-surface.test.ts` **fails the build** if the core grows a
+  dependency or file outside its documented allowed set, so the surface a newcomer must audit
+  cannot silently grow.
+- **Proof bundles have two explicit levels**: `verifyProofBundleStructure` (internal consistency
+  only — "well-formed," not "settled on Bitcoin") and `verifyProofBundleAgainstBitcoin` (Merkle
+  inclusion + header proof-of-work, unit-tested against a real mainnet block with tamper tests).
+  Producers don't emit the `bitcoinInclusion` section yet, so the light-client path is not closed
+  end-to-end.
+- **Conformance vectors** (`packages/protocol/testdata/conformance-vectors.json`) lock the
+  12-word-phrase key derivation and signatures across all four implementations — engine, web,
+  claim site, mobile.
+- **Neutrality is mechanically checkable**: the name grammar is `[a-z0-9]{1,32}`
+  (`packages/protocol/src/constants.ts`) with **no reserved set** — every award path is mechanical.
 
 ```bash
 npm install
-npm run test -w @ont/consensus      # trust surface + proof bundles (incl. Bitcoin Merkle/PoW)
-npm run test -w @ont/protocol
-npm run test -w @ont/core
+npm run test -w @ont/consensus   # trust-surface lock + proof bundles (incl. Bitcoin Merkle/PoW)
+npm run test -w @ont/protocol    # wire formats, payloads, conformance vectors
+npm run test -w @ont/core        # indexer, accumulator, auction state, research quarantine
+npm run test -w @ont/publisher   # pay-first flow + the cheap-rail loop test (publisher bytes → indexer decode)
 ```
 
-## What's live vs. prototype
+## What would falsify our claims
 
-Exactly what runs on-chain today versus what's still prototype:
+Five invariants are treated as inviolable; everything else (parameters, auction form, UX) is
+negotiable. For each: what evidence would break it, and where we are still exposed today.
 
-| Capability | State |
+- **Sovereign** — one-time cost; afterwards no rent, renewal, expiry, or revocation; only the
+  owner key moves a name.
+  *Broken by:* any code path that transfers or revokes a name without the current owner key's
+  signature, or any recurring-payment rule. Check `engine.ts` replay rules and the
+  [sovereignty map](./docs/design/ONT_SOVEREIGNTY_MAP.md).
+  *Exposure:* an armed recovery depends on a challenge-window veto; delegating that veto to a
+  non-custodial watcher needs the abort-only credential that doesn't exist yet. Pre-maturity,
+  spending a winning bond forfeits the name — a disclosed rule the owner opts into, not a
+  revocation by anyone.
+- **Neutral** — no registrar, allocator, or discretionary path, explicitly including the founder.
+  *Broken by:* a reserved list, founder allocation, admin key, or any judgment call in the award
+  path. Check the name grammar and the state machine — every award is mechanical.
+  *Exposure:* launch fairness is open (risk register R7 — keeping a day-one rush competitive).
+  And the bond floor (placeholder ₿50,000, ~$50) is honestly **asymmetric**: it deters frivolous
+  escalation, but capital wins contested names by design. We accept and document that asymmetry
+  rather than patch it — no sponsorship or proxy-bonding tooling, in v1 or as a protocol
+  direction (Decision #43); third-party bonding stays permissionless, and defense capital is a
+  loan arranged outside the protocol.
+- **Verifiable without trust** — a fresh verifier reconstructs why a name is owned from public
+  data plus Bitcoin, trusting no server.
+  *Broken by:* any answer a client must accept but cannot check.
+  *Exposure:* producers don't yet emit the `bitcoinInclusion` section, so the phone/light-client
+  path isn't closed — a phone today trusts the resolver it queries. And an auction proof bundle
+  enforces highest-listed-bid-wins and a well-formed bid set, but does not prove the listed set is
+  the **complete** set of L1 bids; closing set-completeness is the same light-client work.
+- **Censorship-resistant** — no operator can permanently prevent acquiring or resolving a name.
+  *Broken by:* a chokepoint with no route around it. The backstops: direct L1 claiming is always
+  available, any resolver is replaceable, and verification catches a lying one.
+  *Exposure:* the live publisher is single-writer; discovery is config-seeded; and the
+  **fail-closed DA deadline is the sharpest open item** — until it's implemented, the
+  withhold-then-reveal defense for contested names is not operational. On denial-by-collision: a
+  spite griefer can nullify a targeted name for ₿1,000 per round, with no payoff; the
+  [attrition model](./docs/research/ONT_NULLIFICATION_ATTRITION_MODEL.md) shows one qualifying
+  bond ends the denial loop, with the attacker's sunk cost exceeding the defender's carry at
+  every window phase.
+- **Unambiguous** — two honest observers never disagree about a name's owner.
+  *Broken by:* two honest verifiers computing different owners from the same chain. The mechanism
+  is deterministic replay, with conflicts resolved by block height, then tx index, then txid.
+  *Exposure:* until the DA deadline is live, "exclude unavailable bytes" is not an enforced
+  deterministic rule; and multi-publisher convergence is proven in simulation only.
+
+## What's live vs. prototype vs. designed
+
+**Canonical table: [docs/core/STATUS.md](./docs/core/STATUS.md)** — that file is the source of
+truth and wins over this summary.
+
+| Status | Summary |
 | --- | --- |
-| Owner-key transfer, owner-signed value records, recovery descriptors | **Live on signet** — byte-for-byte cross-checked across two independent implementations (the TS engine and the mobile wallet) |
-| Bonded contested-auction bid, resolver-accepted end-to-end | **Live on signet** |
-| Proof-bundle verification against Bitcoin (Merkle inclusion + header PoW) | **Verifier done** (tested vs. a real mainnet block); producers don't emit inclusion proofs yet, so the phone/light-client path isn't closed |
-| Cheap accumulator rail (batched claims) | **Live on signet, end-to-end** — claim → on-chain anchor → indexer verifies the batch against the anchored root → name resolves in the public explorer (try it at [claim.opennametags.org](https://claim.opennametags.org)). The fail-closed availability deadline (W/C/K) is design+simulation only, and the Lightning payment is stubbed on signet (Lexe is mainnet-only) |
-| Leaderless multi-publisher convergence | **Simulated + tested**; a single-writer publisher runs in production |
-| Mainnet | **Not yet** — active prototype |
+| **Live (signet)** | Owner-key transfer / value records / recovery; bonded auction bid resolver-accepted; the **accumulator cheap rail end-to-end since 2026-06-09** (claim → anchor → DA fetch → re-verify → public explorer); single-writer publisher with restart-surviving DA bundles; bare-claim site; unified 12-word secret across all surfaces |
+| **Prototype** | Bitcoin-inclusion verifier (tested vs a real mainnet block; producers don't emit proofs); mobile iOS app (walkable signet demo) |
+| **Designed** | Registry-free discovery; the watchtower; the fail-closed DA deadline (W/C/K); leaderless multi-publisher deployment |
 
-## Key numbers
+## The numbers
 
-**Decided baselines** (revisited only on strong feedback):
+**Canonical numbers: [docs/core/STATUS.md](./docs/core/STATUS.md).** Summary: the claim gate is
+**₿1,000** (~$1), sunk, paid to Bitcoin's miners — the decided baseline. Everything else is a
+**placeholder pending launch freeze**: contested-auction minimum bond ₿50,000 (~$50, returnable),
+bond maturity ≈52,560 blocks (≈1 yr), notice window 6 blocks in tests with a target of weeks, and
+a publisher service fee TBD (the ₿200 signet value is a placeholder, likely too high). Two
+measured facts, not parameters: ONT events are single OP_RETURNs up to ~171 bytes (above the
+80-byte default relay policy — an open mainnet question), and issuance costs
+~0.015–0.019 vB/name amortized at ~10k claims per batch. Every consensus-affecting parameter must
+be frozen and published before launch; until then, nothing here should be called "frozen."
 
-| Parameter | Value |
-| --- | --- |
-| Claim gate, every name | **₿1,000** (~$1 at ~$100k/BTC) — sunk, paid to Bitcoin's miners |
-| Opening bond, scarce short names (≤4 char) | length-scaled: **₿100,000,000** (1 BTC, ~$100k) for 1 char, **halving per added character** (2-char ₿50,000,000 … 4-char ₿12,500,000). Names 5+ chars pay only the flat gate — plus a bond only if contested. |
+## Adversarial posture (post-Decision #37)
 
-**Deliberately not pinned yet** — each sets consensus-replay behavior, so it must be frozen and
-published before launch, and each is something we want feedback on:
-
-| Parameter | Working value | Why it's still open |
-| --- | --- | --- |
-| Contested-auction min bond | ~₿50,000 (~$50), returnable | the floor that makes contesting cost real capital — too low invites griefing, too high blocks legitimate contests |
-| Bond maturity | ~52,560 blocks (~1 yr) in tests | how long a winning bond stays locked before it can be released |
-| Notice window | weeks (the test default is ~1 hr) | the launch-fairness lever — long enough that a day-one rush stays competitive |
-| Data-availability windows | unset | the height-keyed deadlines that keep off-chain batch data safe against withholding + reorgs |
-
-The on-chain **footprint** isn't a parameter we set — it's a *measured consequence*:
-~**0.016–0.019 vB/name** at ~10k claims/batch, and lower as batches grow (the limit is data
-availability, not the Merkle structure).
-
-Full parameter table and the economic rationale are in the [design brief](./docs/ONT_DESIGN_BRIEF.md).
-
-## Known tradeoffs (honest)
-
-- **OP_RETURN size.** ONT's on-chain events are OP_RETURN payloads up to ~171 bytes (the recover-owner
-  event; most events are 41–135 B) — above Bitcoin's default 80-byte datacarrier policy, so relay still
-  depends on node policy (modern Bitcoin Core defaults are more permissive; we confirmed ONT OP_RETURNs
-  relay and confirm on signet). Whether this is acceptable on mainnet vs. a script/covenant carrier is
-  an open question.
-- **Light-client verification isn't closed end-to-end** — the verifier checks Merkle + PoW, but
-  producers don't emit the inclusion proofs a phone would consume yet.
-- **The cheap batched-claim rail isn't wired into the canonical indexer**, and the publisher is
-  single-writer; leaderless multi-publisher convergence is simulated, not deployed.
-
-The full risk register and the open questions we most want feedback on are linked below.
-
-## Design in depth
-
-The detailed design — each part of the system, one click away:
-
-- **[Acquisition state machine](./docs/design/ONT_ACQUISITION_STATE_MACHINE.md)** — the exact lifecycle:
-  claim → notice → bond-opens-auction, and why a bare collision can't steal a name.
-- **[Data-availability agreement](./docs/design/ONT_DATA_AVAILABILITY_AGREEMENT.md)** — the fail-closed,
-  height-keyed rule that makes off-chain batch data safe against withholding and reorgs.
-- **[MEV / ordering analysis](./docs/design/ONT_MEV_ORDERING_ANALYSIS.md)** — why block ordering, even a
-  miner's, can't be converted into a stolen name.
-- **[Issuance & fee mechanics](./docs/design/ONT_ISSUANCE_FEE_MECHANICS.md)** — the sunk miner-fee gate
-  and how a batched anchor is forced to pay the full per-name gate.
-- **[Multi-publisher convergence](./docs/research/ONT_MULTI_PUBLISHER_CONVERGENCE.md)** — how independent
-  publishers converge on one canonical root with no leader.
-- **[Decentralization & discovery](./docs/research/ONT_DECENTRALIZATION_AND_DISCOVERY.md)** — how
-  publishers and resolvers are found, and why discovery is a *liveness*, not a *trust*, problem.
-- **[Owner-key recovery](./docs/research/OWNER_KEY_RECOVERY.md)** — owner-armed, vetoable recovery that
-  can never become a takeover path.
-- **[Adversarial analysis](./docs/research/ONT_ADVERSARIAL_ANALYSIS.md)** — the full threat model
-  (publisher fee-theft/censorship, eclipse, MEV, DoS).
-- **[Sovereignty map](./docs/design/ONT_SOVEREIGNTY_MAP.md)** — each invariant mapped to the mechanism
-  that enforces it.
-- **[Risk register](./docs/design/ONT_RISK_REGISTER.md)** — every known risk, with severity and status.
-- **[Open questions for experts](./docs/research/OPEN_QUESTIONS_FOR_EXPERTS.md)** — the sharp questions
-  we most want pushed on.
-- **[Post-quantum & signature agility](./docs/research/POST_QUANTUM_AND_SIGNATURE_AGILITY.md)** — how the
-  key/signature scheme can evolve.
-
-The single deepest read is the **[design brief](./docs/ONT_DESIGN_BRIEF.md)**, which ties all of these
-together.
-
-## Two keys
-
-- the **wallet key** signs the Bitcoin transactions that establish or move ownership;
-- the **owner key** signs the off-chain destination records and authorizes transfers + recovery. In v1,
-  losing the owner key (without a pre-armed recovery descriptor) means losing update and transfer
-  authority for that name.
+- **Ordering buys nothing.** Front-running a cheap claim — even a miner ordering its own claim
+  first in a block it mines — at worst *nullifies* the name: denial, no payoff. Acquiring a
+  contested name requires a returnable bond, identical cost for a miner and anyone else.
+- **Collision denies, never awards.** A spite-griefer can nullify a targeted name for ₿1,000
+  per round, all sunk.
+- **One qualifying bond ends the denial loop.** The
+  [nullification-attrition model](./docs/research/ONT_NULLIFICATION_ATTRITION_MODEL.md): once the
+  defender posts a bond, the name goes to auction and settles — re-colliding stops working — and
+  at a 5%/yr opportunity-cost assumption the attacker's cumulative sunk cost exceeds the
+  defender's carry at every phase of the window schedule.
+- **The bond-floor asymmetry is accepted, not hidden** (Decision #43): defending takes ₿50,000 of
+  returnable capital while attacking burns ₿1,000 sunk per round. We document it honestly and
+  ship no sponsorship or proxy-bonding tooling, in v1 or as a protocol direction — third-party
+  bonding is already permissionless (anyone can post a bond on any name), and a loan is arranged
+  outside the protocol.
+- **Known-incomplete, disclosed** (details in STATUS): the fail-closed DA deadline isn't live, so
+  the withhold-then-reveal defense isn't operational; light-client inclusion proofs aren't emitted
+  end-to-end; and auction proof bundles enforce highest-listed-bid-wins and bid-set
+  well-formedness but not *set-completeness* against L1 — closing that is the same light-client
+  work.
 
 ## Run it yourself
 
@@ -220,33 +324,49 @@ npm run selfhost:up      # http://127.0.0.1:3000
 ```
 
 To point the stack at your own Bitcoin backend, see
-[SELF_HOSTING.md](./docs/core/SELF_HOSTING.md).
-
-Using the product is optional and not needed for review: hosted demo at
-[opennametags.org](https://opennametags.org) (it currently exercises the contested/auction path
-end-to-end; the cheap batched-claim path is prototyped — see the status table above). Walkthroughs:
-[Sparrow private-signet](./docs/demo/SPARROW_PRIVATE_SIGNET.md) · [Flint demo](./docs/demo/FLINT_DEMO.md).
+[SELF_HOSTING.md](./docs/core/SELF_HOSTING.md). The hosted signet demo exercises the cheap rail
+live: claim a name at [claim.opennametags.org](https://claim.opennametags.org) (keys generated in
+your browser; the page runs offline for key generation) and watch it appear in the
+[explorer](https://opennametags.org/explore) once the anchor confirms. Walkthroughs:
+[Sparrow private-signet](./docs/demo/SPARROW_PRIVATE_SIGNET.md) ·
+[Flint demo](./docs/demo/FLINT_DEMO.md).
 
 ## Repository map
 
-TypeScript monorepo (`npm` workspaces).
+TypeScript monorepo (`npm` workspaces). **Audit-first:** `packages/consensus` (engine · state ·
+proof-bundle — the frozen core) + `packages/protocol` (names · wire · events · payloads).
 
-**Trust surface — audit this first:** `packages/consensus` (engine · state · proof-bundle) +
-`packages/protocol` (names · wire · events · transfer/value/recovery payloads).
-
-Everything else:
-
-- `packages/bitcoin` — Bitcoin RPC parsing + chain-source helpers
-- `packages/core` — indexer, auction state, snapshots, and the research/scaling prototypes
+- `packages/bitcoin` — Bitcoin RPC/esplora pollers, parsing, chain-source helpers
+- `packages/core` — canonical indexer, accumulator, auction state, and the quarantined research/simulation code
 - `packages/architect` — transaction-prep / PSBT building (shared by web + CLI)
-- `packages/db` — snapshot + record persistence adapters
+- `packages/db` — snapshot + record persistence adapters (file / Postgres)
+- `apps/publisher` — the cheap-rail publisher: quotes, pay-first batching, anchor broadcast, `/da/{root}`
+- `apps/resolver` — read API: ownership, value/recovery records, provenance, the DA loop
+- `apps/indexer` — standalone chain-indexing entrypoint
+- `apps/claim` — the self-contained bare-claim site (claim.opennametags.org)
 - `apps/web` — hosted site: explorer, auctions, transfer prep
-- `apps/resolver` — read API, record API, provenance
 - `apps/cli` — auction / transfer / record / operator tooling
-- `apps/indexer` — chain indexing entrypoint
-- `apps/publisher` — batching publisher for the cheap-claim rail (prototype)
 - `apps/wallet` — local desktop wallet/client prototype
 - `mobile/` — the iOS wallet (Expo / React Native), the second independent implementation
+
+## Where feedback is most valuable
+
+A useful review order: this page → [design brief](./docs/ONT_DESIGN_BRIEF.md) →
+[acquisition state machine](./docs/design/ONT_ACQUISITION_STATE_MACHINE.md) →
+[DA agreement](./docs/design/ONT_DATA_AVAILABILITY_AGREEMENT.md) →
+[risk register](./docs/design/ONT_RISK_REGISTER.md). The full ask list is the one-pager's feedback
+section plus [OPEN_QUESTIONS_FOR_EXPERTS.md](./docs/research/OPEN_QUESTIONS_FOR_EXPERTS.md); the
+sharpest items, in rough order:
+
+1. **The DA deadline and transport** — is fail-closed-by-height sound, and is publisher-served +
+   voluntary mirrors enough for v1? Should the availability marker be folded into the anchor?
+2. **Light-client verification** — launch blocker, or acceptable post-launch?
+3. **The OP_RETURN carrier** — are ~171-byte events acceptable on mainnet?
+4. **The bond floor** — it prices escalation *and* defense; the asymmetry above hangs on it.
+5. **Notice window length** — the launch-fairness lever; long enough for a competitive early
+   market?
+
+Disagreements that stick become numbered entries in [DECISIONS.md](./docs/core/DECISIONS.md).
 
 ## License
 
