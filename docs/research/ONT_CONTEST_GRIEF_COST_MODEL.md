@@ -30,9 +30,10 @@ That changes the two damage modes:
    attacker, but they don't get it cheaply either.
 
 The pre-#37 conclusion — "a few BTC of gate spend can blow the blockspace
-budget" — **no longer holds**. The open modeling question is now the
-nullification-attrition game (below), which damages adoption and UX rather
-than Bitcoin.
+budget" — **no longer holds**. The residual nullification-attrition game
+(below) damages adoption and UX rather than Bitcoin; it is now modeled in
+`ONT_NULLIFICATION_ATTRITION_MODEL.md` (equilibrium: one collision → bond →
+over; the exit is cheaper than the attack at every window phase).
 
 ## Attack Classes (post-#37)
 
@@ -175,9 +176,10 @@ and it is the analysis that produced Decision #37. Post-#37:
   closed;
 - dust-cost spend can still buy **denial**: `₿1,000`/round to keep any
   specific cheap claim from finalizing, escaped only by bonding `₿50,000`;
-- the open work is the nullification-attrition game (parameters: gate
-  escalation, re-claim cooldown, defense-affordability tooling), and the
-  unresolved slashing question for very large bonded adversaries.
+- the attrition game is modeled (`ONT_NULLIFICATION_ATTRITION_MODEL.md`):
+  cooldown rejected, escalating gate deferred to external review, tooling
+  rejected by Decision #43, v1 posture = bond exit + `collided` UX. Still
+  open: the slashing question for very large bonded adversaries.
 
 ## Sources
 

@@ -6,17 +6,23 @@ Decisions #37–41. The decisions answered the hardest objections; these are the
 areas the questions exposed that still lack a written analysis or design.
 Ranked by value.
 
-## 1. Nullification-attrition game (post-#37 grief model)
+## 1. Nullification-attrition game (post-#37 grief model) — MODELED (2026-06-09)
 
 Decision #37 closed the dust-cost blockspace attack but left a dust-cost
 **denial** attack: `₿1,000`/round to collide a cheap claim so it nullifies and
 the victim's notice window restarts. Money-symmetric per round,
 outcome-asymmetric (the attacker needs only continued nullification; the
-victim needs one full uncollided window). `ONT_CONTEST_GRIEF_COST_MODEL.md`
-now describes it; what's missing is the parameterized game: round costs vs
-window length, whether an objective escalating second-claim gate or a re-claim
-cooldown changes the equilibrium, and what launch-era (90-day window) exposure
-looks like for a targeted user.
+victim needs one full uncollided window).
+
+**Now modeled in `ONT_NULLIFICATION_ATTRITION_MODEL.md`.** Headline results:
+the bond exit is cheaper than the attack at every window phase (denier sunk
+`₿4k`/name-yr at launch, `₿52k` at steady state, vs `₿2,500`/yr carry on the
+returnable bond), so the rational game is one collision → bond → over;
+the residual exposure is capital *access*, exactly the asymmetry #43 accepts.
+Re-claim cooldown rejected (subsidizes the attacker); per-name escalating
+gate with decay deferred to external review; recommended v1 posture is no
+new mechanism + the `collided` UX + pricing the bond floor as a defense
+price when parameters freeze.
 
 ## 2. Defense affordability (the ₿50,000 floor's two jobs) — RESOLVED (Decision #43, 2026-06-09)
 
