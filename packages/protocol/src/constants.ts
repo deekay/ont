@@ -32,6 +32,17 @@ export const BOND_MATURITY_BLOCKS = readTestOverrideInteger(
   52_560
 );
 
+// Notice window: blocks a cheap-rail claim stays PROVISIONAL after its anchor
+// before it finalizes. During the window a competing distinct-owner claim
+// collides (the name nullifies at window close, Decision #37); after the window
+// closes uncontested the claim is final, and a later claim can no longer take
+// it. Placeholder — the launch target is "weeks"; 6 is the test/demo value and
+// must be frozen before launch.
+export const NOTICE_WINDOW_BLOCKS = readTestOverrideInteger(
+  "ONT_TEST_OVERRIDE_NOTICE_WINDOW_BLOCKS",
+  6
+);
+
 export enum OntEventType {
   Transfer = 0x03,
   AuctionBid = 0x07,

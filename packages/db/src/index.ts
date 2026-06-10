@@ -139,6 +139,10 @@ export interface PersistedAccumulatorNameRecord {
   readonly anchorTxid: string;
   readonly accumulatorRoot: string;
   readonly leafKey: string;
+  /** Notice-window close height; absent in pre-window snapshots (core defaults it). */
+  readonly noticeWindowCloseHeight?: number;
+  /** Set when an in-window collision nullifies the name at close (Decision #37). */
+  readonly collided?: boolean;
 }
 
 export interface PersistedIndexerSnapshot {
@@ -258,6 +262,8 @@ function parseAccumulatorNameRecord(input: unknown): PersistedAccumulatorNameRec
   if (!isRecord(input)) {
     throw new Error("accumulator name record must be an object");
   }
+  const noticeWindowCloseHeight = getOptionalInteger(input, "noticeWindowCloseHeight");
+  const collided = getOptionalBoolean(input, "collided");
   return {
     name: getRequiredString(input, "name"),
     normalizedName: getRequiredString(input, "normalizedName"),
@@ -266,7 +272,9 @@ function parseAccumulatorNameRecord(input: unknown): PersistedAccumulatorNameRec
     claimHeight: getRequiredInteger(input, "claimHeight"),
     anchorTxid: getRequiredString(input, "anchorTxid"),
     accumulatorRoot: getRequiredString(input, "accumulatorRoot"),
-    leafKey: getRequiredString(input, "leafKey")
+    leafKey: getRequiredString(input, "leafKey"),
+    ...(noticeWindowCloseHeight === undefined ? {} : { noticeWindowCloseHeight }),
+    ...(collided === undefined ? {} : { collided })
   };
 }
 
@@ -752,6 +760,20 @@ function getOptionalInteger(input: Record<string, unknown>, key: string): number
 
   if (typeof value !== "number" || !Number.isInteger(value)) {
     throw new Error(`${key} must be an integer when present`);
+  }
+
+  return value;
+}
+
+function getOptionalBoolean(input: Record<string, unknown>, key: string): boolean | undefined {
+  const value = input[key];
+
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (typeof value !== "boolean") {
+    throw new Error(`${key} must be a boolean when present`);
   }
 
   return value;

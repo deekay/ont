@@ -83,7 +83,10 @@ describe("InMemoryOntIndexer accumulator-name merge (cheap-rail phase 2)", () =>
     expect(indexer.listAccumulatorNames().map((r) => r.normalizedName)).toEqual(["alice", "bob"]);
 
     const resolved = indexer.resolveName("alice");
-    expect(resolved).toEqual({ source: "accumulator", record: alice });
+    expect(resolved?.source).toBe("accumulator");
+    expect(resolved?.record).toEqual(alice);
+    // Resolved immediately after its anchor (height 100, window closes 106): provisional.
+    expect(resolved?.source === "accumulator" && resolved.finality.status).toBe("provisional");
   });
 
   it("does NOT resolve names whose anchor was rejected (stale chain)", () => {
@@ -166,6 +169,90 @@ describe("InMemoryOntIndexer accumulator-name merge (cheap-rail phase 2)", () =>
     expect(indexer.getAccumulatorName("alice")?.currentOwnerPubkey).toBe(OWNER_A.toLowerCase());
     expect(indexer.resolveName("bob")?.source).toBe("accumulator");
     expect(indexer.unresolvedAnchorRoots()).toEqual([]); // resolved
+  });
+
+  // --- Notice window (Decision #37): provisional → final | nullified --------
+  // NOTICE_WINDOW_BLOCKS defaults to 6, so a claim at height H closes at H+6.
+
+  it("a claim is provisional during its notice window and finalizes when it closes uncontested", () => {
+    const batch = buildBatch([["alice", OWNER_A]]);
+    const indexer = new InMemoryOntIndexer({ launchHeight: 100 });
+
+    indexer.ingestBlock(block(100, "aa".repeat(32), [anchorTx("a1".repeat(32), { prevRoot: GENESIS, newRoot: batch.newRoot, batchSize: 1 })]));
+    expect(indexer.applyBatchData(batch.newRoot, batch.leaves)).toBe(1);
+
+    // Inside the window (height 100, close 106): provisional but resolvable.
+    expect(indexer.classifyAccumulatorName("alice")?.status).toBe("provisional");
+    expect(indexer.classifyAccumulatorName("alice")?.noticeWindowCloseHeight).toBe(106);
+    const provisional = indexer.resolveName("alice");
+    expect(provisional?.source).toBe("accumulator");
+    expect(provisional?.source === "accumulator" && provisional.finality.status).toBe("provisional");
+
+    // Advance past the close height: the claim finalizes.
+    indexer.ingestBlock(block(106, "a6".repeat(32), []));
+    expect(indexer.classifyAccumulatorName("alice")?.status).toBe("final");
+    const final = indexer.resolveName("alice");
+    expect(final?.source === "accumulator" && final.finality.status).toBe("final");
+    expect(final?.record.currentOwnerPubkey).toBe(OWNER_A.toLowerCase());
+  });
+
+  it("an in-window collision nullifies the name at window close — neither claim wins (#37)", () => {
+    // CR-02/CR-11 + #37: a competing distinct-owner claim INSIDE the window can
+    // deny but never award. Both claims fall in the window → the name nullifies.
+    const first = buildBatch([["alice", OWNER_A]]);
+    const second = buildBatch([["alice", OWNER_B]]);
+    const indexer = new InMemoryOntIndexer({ launchHeight: 100 });
+
+    indexer.ingestBlock(block(100, "aa".repeat(32), [anchorTx("a1".repeat(32), { prevRoot: GENESIS, newRoot: first.newRoot, batchSize: 1 })]));
+    expect(indexer.applyBatchData(first.newRoot, first.leaves)).toBe(1);
+
+    // Second claim lands at height 101 — inside alice's window (closes 106).
+    indexer.ingestBlock(block(101, "bb".repeat(32), [anchorTx("a2".repeat(32), { prevRoot: first.newRoot, newRoot: second.newRoot, batchSize: 1 })]));
+    expect(indexer.applyBatchData(second.newRoot, second.leaves)).toBe(0); // collision, not merged
+    expect(indexer.getAccumulatorName("alice")?.currentOwnerPubkey).toBe(OWNER_A.toLowerCase()); // first not overwritten
+    expect(indexer.classifyAccumulatorName("alice")?.status).toBe("collided");
+    expect(indexer.resolveName("alice")?.source).toBe("accumulator"); // still resolvable while provisional
+
+    // At window close the collided name nullifies — resolves to NO owner.
+    indexer.ingestBlock(block(106, "a6".repeat(32), []));
+    expect(indexer.classifyAccumulatorName("alice")?.status).toBe("nullified");
+    expect(indexer.resolveName("alice")).toBeNull();
+  });
+
+  it("a claim arriving after the window closed cannot take the finalized name (denial protection)", () => {
+    const first = buildBatch([["alice", OWNER_A]]);
+    const late = buildBatch([["alice", OWNER_B]]);
+    const indexer = new InMemoryOntIndexer({ launchHeight: 100 });
+
+    indexer.ingestBlock(block(100, "aa".repeat(32), [anchorTx("a1".repeat(32), { prevRoot: GENESIS, newRoot: first.newRoot, batchSize: 1 })]));
+    expect(indexer.applyBatchData(first.newRoot, first.leaves)).toBe(1);
+
+    // Advance past close: alice is FINAL.
+    indexer.ingestBlock(block(107, "a7".repeat(32), []));
+    expect(indexer.classifyAccumulatorName("alice")?.status).toBe("final");
+
+    // A later distinct-owner claim at height 108 cannot take a finalized name.
+    indexer.ingestBlock(block(108, "bb".repeat(32), [anchorTx("a2".repeat(32), { prevRoot: first.newRoot, newRoot: late.newRoot, batchSize: 1 })]));
+    expect(indexer.applyBatchData(late.newRoot, late.leaves)).toBe(0); // refused
+    expect(indexer.getAccumulatorName("alice")?.currentOwnerPubkey).toBe(OWNER_A.toLowerCase()); // unchanged
+    expect(indexer.classifyAccumulatorName("alice")?.status).toBe("final"); // still final, still alice
+    expect(indexer.listRefusedTakeoverNames()).toContain("alice");
+  });
+
+  it("same owner re-anchor is idempotent and keeps the window anchored on the earliest claim", () => {
+    const first = buildBatch([["alice", OWNER_A]]);
+    const again = buildBatch([["alice", OWNER_A], ["bob", OWNER_B]]);
+    const indexer = new InMemoryOntIndexer({ launchHeight: 100 });
+
+    indexer.ingestBlock(block(100, "aa".repeat(32), [anchorTx("a1".repeat(32), { prevRoot: GENESIS, newRoot: first.newRoot, batchSize: 1 })]));
+    expect(indexer.applyBatchData(first.newRoot, first.leaves)).toBe(1);
+
+    indexer.ingestBlock(block(101, "bb".repeat(32), [anchorTx("a2".repeat(32), { prevRoot: first.newRoot, newRoot: again.newRoot, batchSize: 2 })]));
+    expect(indexer.applyBatchData(again.newRoot, again.leaves)).toBe(2); // alice (same owner) + bob
+    expect(indexer.getAccumulatorName("alice")?.currentOwnerPubkey).toBe(OWNER_A.toLowerCase());
+    // Window still anchored on the first claim (height 100 → close 106), not reset to 101.
+    expect(indexer.classifyAccumulatorName("alice")?.noticeWindowCloseHeight).toBe(106);
+    expect(indexer.listRefusedTakeoverNames()).toEqual([]);
   });
 
   it("applyBatchData drops leaves whose proofs are for a DIFFERENT root than the anchored one", () => {
