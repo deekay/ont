@@ -205,10 +205,13 @@ The goal is that a name owner can carry a portable proof bundle showing:
 - any transfer chain after acquisition
 - the latest value-record chain
 
-Current proof-bundle code performs structural verification. Full trustless
-verification also requires checking Bitcoin transaction inclusion and block
-headers. Until that exists, docs and UI should avoid implying that every bundle is
-fully Bitcoin-verified offline by the current helper alone.
+Proof-bundle code has two explicit verification levels: structural
+self-consistency, and `verifyProofBundleAgainstBitcoin` (Merkle inclusion +
+proof-of-work against block headers, unit-tested against a real mainnet block).
+The verifier exists, but producers (wallet, resolver) do not yet emit the
+`bitcoinInclusion` section, so the end-to-end light-client path is not closed.
+Until it is, docs and UI should avoid implying that every bundle is fully
+Bitcoin-verified offline by the current emit path alone.
 
 ## Implementation Status
 
@@ -218,15 +221,22 @@ Working today:
 - owner-key transfers
 - owner-signed value records
 - recovery prototype for immature bonded names
-- sparse Merkle accumulator and batch-rail simulations/prototypes
-- wallet/publisher cheap-claim prototype path
+- the accumulator cheap rail, live end-to-end on the private signet since
+  2026-06-09 (claim → anchor → indexer re-verifies membership against the
+  Bitcoin-anchored root → public resolution), including the notice-window
+  lifecycle (provisional → final | nullified) and first-anchor-wins merge —
+  see [`../core/STATUS.md`](../core/STATUS.md)
 
 Not yet canonical end to end:
 
-- resolver/indexer derivation of accumulator-rail ownership
+- fail-closed DA deadline (availability marker, `W`/`C`/`K` windows) — designed
+  and simulated, not enforced in the live path
 - multi-publisher delta consumption in live resolver state
-- enforcement that batched anchors paid the aggregate miner-fee gate
-- Bitcoin-header/inclusion verification inside proof bundles
+- enforcement that batched anchors paid the aggregate miner-fee gate (designed;
+  **no validation exists in the replay path yet** — queued for the audited
+  boundary)
+- emission of Bitcoin-header/inclusion sections inside proof bundles (the
+  verifier exists; producers don't emit them)
 - UTXO-less recovery for accumulator names
 
 ## Design Rule

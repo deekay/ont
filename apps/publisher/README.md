@@ -5,9 +5,12 @@ A v0 reference implementation of the publisher protocol described in
 
 A publisher is a batching service: it accepts wallet claim requests, takes
 payment, batches the claims into a sparse-Merkle accumulator, and anchors
-each batch to Bitcoin via an OP_RETURN. It holds no user keys, can't forge
-ownership (consensus enforces insertion-uniqueness), and can't inflate fees
-(consensus enforces fee ≥ Σ gates). Anyone can run one.
+each batch to Bitcoin via an OP_RETURN. It holds no user keys and can't forge
+ownership (consensus enforces insertion-uniqueness). The design also requires
+an anchor's miner fee to be ≥ Σ per-name gates so the claim gate can't be
+batched away — note that consensus-side validation of that fee rule is **not
+yet implemented** (see `docs/core/STATUS.md`, Known-incomplete). Anyone can
+run one.
 
 ## What's here
 
@@ -17,8 +20,10 @@ ownership (consensus enforces insertion-uniqueness), and can't inflate fees
 - **`payment.ts`** — `PaymentVerifier` interface + `StubPaymentVerifier`
   (accepts any proof; replace with a real LN-node verifier in production).
 - **`anchor.ts`** — `AnchorBroadcaster` interface + `StubAnchorBroadcaster`
-  (returns a deterministic synthetic txid; replace with real broadcast in
-  production).
+  (returns a deterministic synthetic txid; for tests and offline dev).
+- **`esplora-anchor.ts`** — `EsploraAnchorBroadcaster`: real anchor
+  construction, signing, and broadcast via an Esplora endpoint. This is the
+  live private-signet path (pays a flat configured `feeSats`).
 - **`server.ts`** — HTTP wiring over `node:http`, mirrors apps/resolver.
 - **`types.ts`** — wire types matching the spec.
 
@@ -57,7 +62,7 @@ root without trusting the publisher's word.
 | Accumulator inserts + proofs | real (`@ont/core`) | real |
 | OP_RETURN payload encoding | real (`@ont/protocol`) | real |
 | Payment verification | accepts any proof | check BOLT11 paymentHash via LN node sidecar |
-| Anchor tx broadcast | synthetic txid, no chain effect | sign + broadcast via Bitcoin node or Esplora |
+| Anchor tx broadcast | real on private signet (`EsploraAnchorBroadcaster`); synthetic stub in tests | sign + broadcast via Bitcoin node or Esplora, with fee ≥ Σ gates once that rule is enforced |
 | Persistence | in-memory | JSON file or SQLite |
 | Multi-publisher coordination | n/a (publisher unaware of others) | consensus handles it (`@ont/core/research/delta-merge-sim.ts`) |
 

@@ -149,12 +149,18 @@ What is real today:
 - transfer tooling
 - off-chain signed destination-record flow
 - private-signet demo paths for auction, transfer, and destination-record smoke tests
+- the accumulator cheap-claim loop, end-to-end on the private signet since
+  2026-06-09: claim → publisher anchors on-chain → indexer re-verifies every
+  membership proof against the Bitcoin-anchored root → name resolves in the
+  public explorer
 
 Two honesty notes on maturity:
 
-- The cheap uncontested ₿1,000 (~$1) claim path is prototyped and measured, but it is not
-  wired into the hosted demo yet — claiming there currently runs the
-  bonded/contested (auction) path end-to-end.
+- The cheap uncontested ₿1,000 (~$1) claim path is live end-to-end on the
+  private signet (see above), per [`STATUS.md`](./STATUS.md). What is still
+  being hardened is its adversarial half: the fail-closed data-availability
+  deadline is designed and simulated but not yet enforced in the live path, and
+  batch transport is publisher-served v1.
 - An earlier two-lane idea (a separate direct-allocation lane sitting beside the
   auction) is retired. The current model is the single path above, where claiming
   is the front door and only contested names escalate to auction.
@@ -173,8 +179,9 @@ Some important questions are still intentionally open:
 So the right way to read the repo today is:
 
 > there is a real working prototype, and the consensus model is the single
-> claim-then-escalate path; the cheap uncontested claim path is built and
-> measured but is being hardened before it goes live.
+> claim-then-escalate path; the cheap uncontested claim path runs end-to-end on
+> the private signet, and its adversarial data-availability enforcement is
+> still being hardened.
 
 ## Suggested Reading Order
 

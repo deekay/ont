@@ -4,7 +4,7 @@
 If the README, one-pager, design brief, or the website disagree with this file, **this file
 wins** — fix the others. (It exists because those numbers drifted apart once; don't let them again.)
 
-Last updated: 2026-06-09.
+Last updated: 2026-06-10.
 
 ## Status legend
 - **Live (signet)** — runs end-to-end on the private signet today.
@@ -33,6 +33,7 @@ Last updated: 2026-06-09.
 | Claim gate (every name) | **₿1,000** (~$1), sunk, to miners | baseline |
 | Publisher service fee | thin markup over the gate (**TBD**; ₿200 in the signet demo is a placeholder, likely too high) | placeholder |
 | Contested-auction min bond | **₿50,000** (~$50), returnable | placeholder |
+| Short-name opening bond (≤4 chars, **mandatory bond-first** — no cheap-claim path) | **₿100,000,000** (≈1 BTC) at 1 char, halving per char; 5+ chars use gate + contention | working baseline (`@ont/protocol` bond curve, clamped to ≤4 chars) |
 | Bond maturity | ~52,560 blocks (~1 yr) | placeholder / test override |
 | Notice window | **6 blocks (test); target = weeks** | placeholder · fairness lever, **not frozen** |
 | OP_RETURN event size | **up to ~171 bytes** (recover-owner; most events smaller) | measured (above the 80-byte default policy; relies on modern node policy) |
@@ -52,6 +53,14 @@ determine **owner-key authority and replay validation** (transfers, value record
   stays and user-facing copy must not claim the frozen files decide auctions.
 
 ## Known-incomplete (disclosed, on the roadmap)
+- **Aggregate gate-fee enforcement: designed, not implemented (found 2026-06-10).** The rule
+  that a batch anchor counts only if its Bitcoin tx fee is **≥ Σ per-name gates** (what stops
+  the ₿1,000 being batched away) exists in the design docs and in code comments only — there
+  is **no validation** in the consensus/indexer replay path, and the live signet publisher
+  broadcasts anchors with a flat configured fee independent of batch size. Until implemented,
+  "miners receive ₿1,000 × N" is design intent, not enforced behavior. Queued for the audited
+  boundary alongside the Decision #42 settlement move; the overclaiming comments in
+  `apps/publisher` are corrected as of this date.
 - **DA enforcement gap (the sharpest open item):** the cheap rail's *fail-closed availability
   deadline* is not live. The `AvailabilityMarker` event (0x0d) is wire-defined and tested but never
   emitted or checked in production, and the W/C/K windows are enforced only in the research
