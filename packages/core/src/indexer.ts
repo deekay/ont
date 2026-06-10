@@ -198,6 +198,11 @@ export class InMemoryOntIndexer {
   private rootChain: RootChain;
   private rootAnchorObservations: RootAnchorObservation[];
   private readonly accumulatorNames: Map<string, AccumulatorNameRecord>;
+  // Names a later anchor tried to re-map to a DIFFERENT owner — observed and
+  // refused (first-anchor-wins; see mergeVerifiedLeaves). Tracked for visibility
+  // and as the hook where notice-window nullification will live once the window
+  // is enforced. In-memory only today.
+  private readonly contestedAccumulatorNames: Set<string>;
   private readonly batchDataProvider: AccumulatorBatchDataProvider | undefined;
 
   public constructor(input: {
@@ -224,6 +229,7 @@ export class InMemoryOntIndexer {
     this.rootChain = new RootChain();
     this.rootAnchorObservations = [];
     this.accumulatorNames = new Map();
+    this.contestedAccumulatorNames = new Set();
     this.batchDataProvider = input.batchDataProvider;
   }
 
@@ -444,6 +450,15 @@ export class InMemoryOntIndexer {
     return this.accumulatorNames.get(normalizeName(name)) ?? null;
   }
 
+  /**
+   * Names a later anchor tried to re-map to a different owner and was refused
+   * (first-anchor-wins). The current owner is unchanged; this is the set the
+   * notice-window nullification rule will act on once the window is enforced.
+   */
+  public listContestedAccumulatorNames(): string[] {
+    return [...this.contestedAccumulatorNames].sort();
+  }
+
   public listAccumulatorNames(): AccumulatorNameRecord[] {
     return [...this.accumulatorNames.values()].sort((left, right) => left.name.localeCompare(right.name));
   }
@@ -559,6 +574,10 @@ export class InMemoryOntIndexer {
     // Accumulator names were verified against their anchored root before they were
     // persisted, so restore them directly (same trust model as the L1 `names` map).
     this.accumulatorNames.clear();
+    // The contested set is derived from merge-order observation, not persisted;
+    // it is re-derived as anchors replay. Clear it on restore so it can't carry
+    // stale conflicts across a checkpoint rewind.
+    this.contestedAccumulatorNames.clear();
     for (const record of snapshot.accumulatorNames ?? []) {
       this.accumulatorNames.set(record.normalizedName, { ...record });
     }
@@ -711,6 +730,22 @@ export class InMemoryOntIndexer {
         || !verifyAccumulatorProof(newRoot, leaf.proof)
       ) {
         continue; // unverifiable against the anchored root — ignore
+      }
+      // First-anchor-wins. A later anchor mapping an already-owned name to a
+      // DIFFERENT owner can never AWARD it (Decision #37: a collision denies,
+      // never awards — block/anchor ordering buys no one a name). We refuse the
+      // overwrite and record the conflict. (Full notice-window nullification —
+      // where an *in-window* collision resolves the name to NO owner — is a
+      // follow-on that needs the window; refusing the overwrite is its strict,
+      // safe subset, and it does not enable denial of an already-finalized name.)
+      const existing = this.accumulatorNames.get(normalizedName);
+      if (
+        existing !== undefined
+        && existing.anchorTxid !== anchorTxid
+        && existing.currentOwnerPubkey !== leaf.ownerPubkey.toLowerCase()
+      ) {
+        this.contestedAccumulatorNames.add(normalizedName);
+        continue;
       }
       this.accumulatorNames.set(normalizedName, {
         name: leaf.name,

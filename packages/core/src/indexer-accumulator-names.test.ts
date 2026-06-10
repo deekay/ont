@@ -168,6 +168,40 @@ describe("InMemoryOntIndexer accumulator-name merge (cheap-rail phase 2)", () =>
     expect(indexer.unresolvedAnchorRoots()).toEqual([]); // resolved
   });
 
+  it("refuses a later anchor that re-maps an existing name to a different owner (first-anchor-wins)", () => {
+    // CR-02/CR-11: a later chained anchor must NOT be able to TAKE an
+    // already-owned cheap-rail name. A collision can deny, never award.
+    const first = buildBatch([["alice", OWNER_A]]);
+    const second = buildBatch([["alice", OWNER_B]]); // same name, different owner, different root
+    const indexer = new InMemoryOntIndexer({ launchHeight: 100 });
+
+    // Anchor 1 → alice resolves to OWNER_A.
+    indexer.ingestBlock(block(100, "aa".repeat(32), [anchorTx("a1".repeat(32), { prevRoot: GENESIS, newRoot: first.newRoot, batchSize: 1 })]));
+    expect(indexer.applyBatchData(first.newRoot, first.leaves)).toBe(1);
+    expect(indexer.getAccumulatorName("alice")?.currentOwnerPubkey).toBe(OWNER_A.toLowerCase());
+
+    // Anchor 2 (built on anchor 1's root) tries to take alice for OWNER_B.
+    indexer.ingestBlock(block(101, "bb".repeat(32), [anchorTx("a2".repeat(32), { prevRoot: first.newRoot, newRoot: second.newRoot, batchSize: 1 })]));
+    // Its leaf verifies against second.newRoot but the overwrite is refused.
+    expect(indexer.applyBatchData(second.newRoot, second.leaves)).toBe(0);
+    expect(indexer.getAccumulatorName("alice")?.currentOwnerPubkey).toBe(OWNER_A.toLowerCase()); // unchanged
+    expect(indexer.listContestedAccumulatorNames()).toContain("alice");
+  });
+
+  it("allows the same owner to be re-anchored idempotently (not a conflict)", () => {
+    const first = buildBatch([["alice", OWNER_A]]);
+    const again = buildBatch([["alice", OWNER_A], ["bob", OWNER_B]]); // alice same owner, different root
+    const indexer = new InMemoryOntIndexer({ launchHeight: 100 });
+
+    indexer.ingestBlock(block(100, "aa".repeat(32), [anchorTx("a1".repeat(32), { prevRoot: GENESIS, newRoot: first.newRoot, batchSize: 1 })]));
+    expect(indexer.applyBatchData(first.newRoot, first.leaves)).toBe(1);
+
+    indexer.ingestBlock(block(101, "bb".repeat(32), [anchorTx("a2".repeat(32), { prevRoot: first.newRoot, newRoot: again.newRoot, batchSize: 2 })]));
+    expect(indexer.applyBatchData(again.newRoot, again.leaves)).toBe(2); // alice (same owner) + bob, both merge
+    expect(indexer.getAccumulatorName("alice")?.currentOwnerPubkey).toBe(OWNER_A.toLowerCase());
+    expect(indexer.listContestedAccumulatorNames()).toEqual([]); // no conflict
+  });
+
   it("applyBatchData drops leaves whose proofs are for a DIFFERENT root than the anchored one", () => {
     // The anchored root is real, but the provider serves proofs built against some
     // other tree — e.g. a malicious or buggy DA source mixing up batches. Every
