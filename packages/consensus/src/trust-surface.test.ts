@@ -6,15 +6,20 @@ import { describe, expect, it } from "vitest";
 
 const srcDir = dirname(fileURLToPath(import.meta.url));
 
-// The minimal, frozen sovereignty trust surface inside @ont/core.
+// The sovereignty trust-surface MANIFEST of @ont/consensus.
 // See docs/design/ONT_SOVEREIGNTY_MAP.md ("the whole trust surface: ~7 files").
 // These modules decide whether a name can be taken: a name moves only if its
 // current owner key signed it, uniqueness/finality come from deterministic
 // Bitcoin replay, and ownership is provable to anyone. They must depend ONLY on
 // the protocol/bitcoin primitives and on each other — never on allocation
 // (auctions), convenience (indexer/resolver), or research/simulation code.
-// This test freezes that boundary so the surface a newcomer must audit cannot
-// silently grow.
+//
+// Per Decision #44 (docs/core/DECISIONS.md), this list is a boundary manifest,
+// not a dev-time freeze: during development it MAY change, but only together
+// with a numbered DECISIONS.md entry and conformance coverage — this test
+// exists so *silent* drift fails the build. The boundary freezes permanently
+// at public/mainnet launch (a launch-gate checklist item). If you are editing
+// this list, write the decision entry first.
 const SOVEREIGNTY_CORE = ["engine.ts", "state.ts", "proof-bundle.ts"] as const;
 
 const CORE_ALLOWED_PACKAGES = new Set(["@ont/protocol", "@ont/bitcoin"]);
@@ -52,7 +57,7 @@ describe("sovereignty trust surface (docs/design/ONT_SOVEREIGNTY_MAP.md)", () =>
 
         expect(
           allowed,
-          `${file} must not import "${specifier}". The frozen sovereignty core may depend only on ` +
+          `${file} must not import "${specifier}". The audited sovereignty core may depend only on ` +
             `@ont/protocol, @ont/bitcoin, node builtins, and the other core files ` +
             `(${SOVEREIGNTY_CORE.join(", ")}). Importing allocation (auctions), indexer/resolver ` +
             `convenience, or research/simulation code here would silently expand the trust surface a ` +
@@ -62,7 +67,7 @@ describe("sovereignty trust surface (docs/design/ONT_SOVEREIGNTY_MAP.md)", () =>
     });
   }
 
-  it("every source file in the package is part of the documented frozen core", () => {
+  it("every source file in the package is part of the documented core manifest", () => {
     // @ont/consensus exists to BE the trust surface, so its production modules
     // should be exactly the documented core files — nothing else slips in here.
     const production = readdirSync(srcDir)
