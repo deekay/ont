@@ -1,4 +1,14 @@
-import { concatBytes, normalizeName, sha256Bytes, sha256Hex, utf8ToBytes } from "@ont/protocol";
+import {
+  computeValueRecordHash,
+  concatBytes,
+  normalizeName,
+  sha256Bytes,
+  sha256Hex,
+  type SignedValueRecord,
+  utf8ToBytes,
+  verifyAccumulatorMembership,
+  verifyValueRecord
+} from "@ont/protocol";
 
 // The two current acquisition paths. Ark/RGB explorations were removed from the
 // frozen verifier: they were never the launch path, and the sovereignty core
@@ -105,7 +115,8 @@ export function verifyProofBundleStructure(input: unknown): ProofBundleVerificat
         validateAccumulatorBatchClaimBundle({
           bundle,
           addCheck,
-          normalizedName: normalizedFromName
+          normalizedName: normalizedFromName,
+          currentOwnerPubkey
         });
         break;
     }
@@ -504,8 +515,9 @@ function validateAccumulatorBatchClaimBundle(input: {
   readonly bundle: JsonRecord;
   readonly addCheck: (id: string, condition: boolean, message: string) => void;
   readonly normalizedName: string | null;
+  readonly currentOwnerPubkey: string | null;
 }): void {
-  const { bundle, addCheck, normalizedName } = input;
+  const { bundle, addCheck, normalizedName, currentOwnerPubkey } = input;
   const proof = getRecord(bundle, "accumulatorProof");
   const root = getString(proof, "root");
   const leaf = getString(proof, "leaf");
@@ -523,11 +535,39 @@ function validateAccumulatorBatchClaimBundle(input: {
     "leaf key equals H(name) — the proof is bound to this name"
   );
   addCheck("accumulator.value", isHexOfLength(value, 32), "owner value commitment is 32-byte hex");
+  // The value the membership proof commits to MUST be the claimed current owner
+  // — otherwise the bundle blesses an owner the proof does not actually prove.
+  addCheck(
+    "accumulator.value.bindsOwner",
+    value === currentOwnerPubkey,
+    "owner value commitment equals the claimed current owner pubkey"
+  );
   addCheck("accumulator.siblings.array", Array.isArray(getField(proof, "siblings")), "membership proof siblings are an array");
   for (const [index, sibling] of siblings.entries()) {
     addCheck(`accumulator.siblings.${index}.level`, getNumber(sibling, "level") !== null, `sibling ${index + 1} has a level`);
     addCheck(`accumulator.siblings.${index}.hash`, isHexOfLength(getString(sibling, "hash"), 32), `sibling ${index + 1} hash is 32-byte hex`);
   }
+  // Soundness: recompute the sparse-Merkle root from (leaf, value, siblings) and
+  // require it to equal the claimed root. Without this the verifier accepts any
+  // structurally well-formed proof for a name the bundle is not a member of.
+  // Shares the exact fold (@ont/protocol) used to BUILD roots, so the offline
+  // verifier and the live indexer cannot disagree about membership.
+  const membershipRecomputes =
+    proof !== null &&
+    isHexOfLength(root, 32) &&
+    isHexOfLength(leaf, 32) &&
+    isHexOfLength(value, 32) &&
+    siblings.every((s) => getNumber(s, "level") !== null && isHexOfLength(getString(s, "hash"), 32)) &&
+    verifyAccumulatorMembership(root as string, {
+      keyHex: leaf as string,
+      value: value as string,
+      siblings: siblings.map((s) => ({ level: getNumber(s, "level") as number, hash: getString(s, "hash") as string }))
+    });
+  addCheck(
+    "accumulator.membership.verifies",
+    membershipRecomputes,
+    "membership proof recomputes to the claimed accumulator root"
+  );
   addCheck("accumulator.anchor.object", batchAnchor !== null, "batch anchor metadata is present");
   addCheck("accumulator.anchor.txid", isHexOfLength(getString(batchAnchor, "anchorTxid"), 32), "batch anchor txid is 32-byte hex");
   addCheck("accumulator.anchor.height", getNumber(batchAnchor, "anchorHeight") !== null, "batch anchor height is present");
@@ -581,6 +621,45 @@ function validateValueRecordChain(input: {
       `valueRecords.${index}.ownershipRef`,
       typeof ownershipRef === "string" && getString(record, "ownershipRef") === ownershipRef,
       `value record ${expectedSequence} references the current ownershipRef`
+    );
+
+    // Soundness (PB5): recompute the record hash from the signed fields and
+    // verify the owner signature. Without this the chain trusts the DECLARED
+    // recordHash for predecessor linkage and never checks signatures — so a
+    // bundle could carry a forged value-record chain (attacker-chosen payment
+    // destination) and still verify. The recordHash IS the signed digest, so
+    // recompute + signature-verify pin the record to its owner key.
+    let hashRecomputes = false;
+    let signatureVerifies = false;
+    try {
+      const fields = {
+        name: getString(record, "name") as string,
+        ownerPubkey: getString(record, "ownerPubkey") as string,
+        ownershipRef: getString(record, "ownershipRef") as string,
+        sequence: getNumber(record, "sequence") as number,
+        previousRecordHash: (getField(record, "previousRecordHash") ?? null) as string | null,
+        valueType: getNumber(record, "valueType") as number,
+        payloadHex: getString(record, "payloadHex") as string,
+        issuedAt: getString(record, "issuedAt") as string
+      };
+      hashRecomputes = typeof recordHash === "string" && computeValueRecordHash(fields) === recordHash;
+      signatureVerifies = verifyValueRecord({
+        ...fields,
+        signature: getString(record, "signature") as string
+      } as SignedValueRecord);
+    } catch {
+      hashRecomputes = false;
+      signatureVerifies = false;
+    }
+    addCheck(
+      `valueRecords.${index}.recordHash.recomputes`,
+      hashRecomputes,
+      `value record ${expectedSequence} recordHash recomputes from its signed fields`
+    );
+    addCheck(
+      `valueRecords.${index}.signature`,
+      signatureVerifies,
+      `value record ${expectedSequence} signature verifies against its owner key`
     );
 
     previousRecordHash = recordHash;

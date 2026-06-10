@@ -1,3 +1,4 @@
+export * from "./accumulator-membership.js";
 export * from "./bond.js";
 export * from "./auction-bid-package.js";
 export * from "./bytes.js";
