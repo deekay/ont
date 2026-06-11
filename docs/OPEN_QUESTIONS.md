@@ -14,15 +14,19 @@ Decisions are cited as "Decision #N" against [`core/DECISIONS.md`](./core/DECISI
 
 ## 1. Data availability
 
-### 1.1 Fold the availability marker into the anchor? — [OPEN — first-class external-review ask]
+### 1.1 Fold the availability marker into the anchor? — [ANSWERED — marker-fold (#47); still a first-class external-review ask]
 
-The `AvailabilityMarker` / fail-closed data-availability enforcement is the largest spec↔code gap:
-the marker event (0x0d) is wire-defined and tested but never emitted or checked in
-production, and the fail-closed availability deadline is enforced only in research
-simulations (see the Known-incomplete section of [`core/STATUS.md`](./core/STATUS.md)).
-Folding the marker into the anchor would remove an entire on-chain message type before
-freeze. Confirmed (DK, 2026-06-09) as a first-class question for Bitcoin-dev reviewers,
-alongside the broader data-availability ask. Normative context:
+**Ruled 2026-06-11: fold** — marker-fold (#47), decision paper
+[`research/DA_MARKER_FOLD.md`](./research/DA_MARKER_FOLD.md). The marker
+event (0x0d) is retired; all availability deadlines key off the anchor's
+mined height; the fail-closed §6c challenge is unchanged. The question
+stays a first-class ask for Bitcoin-dev reviewers (DK, 2026-06-09) with an
+explicit reopen trigger: a consensus role for a second timestamp that the
+paper's §2 misses reopens the decision by named spec PR before the B2
+kernel freezes its DA predicate. Historical context (the original gap):
+the marker was wire-defined and tested but never emitted or checked in
+production, and the fail-closed availability deadline was enforced only in
+research simulations. Normative context:
 [`spec/ONT_DATA_AVAILABILITY_AGREEMENT.md`](./spec/ONT_DATA_AVAILABILITY_AGREEMENT.md).
 
 ### 1.2 Archival data-availability economics — [OPEN]

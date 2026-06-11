@@ -944,7 +944,46 @@ Implications:
   vocabulary; `packages/core`'s name dies with the rewrite.
 - The marker-vs-folded-anchor data-availability mechanism
   (OPEN_QUESTIONS §1.1) is a required pre-B2 named spec decision — B0
-  deliberately does not choose it.
+  deliberately does not choose it. *(Decided 2026-06-11: marker-fold (#47).)*
+
+47. marker-fold: the availability marker is folded into the anchor —
+2026-06-11
+
+*Short name: **marker-fold**.*
+
+Ruled by DK in ONT - dev on 2026-06-11 ("no second transaction (fold)").
+The decision paper is
+[research/DA_MARKER_FOLD.md](../research/DA_MARKER_FOLD.md); this entry
+records the ruling. This was the pre-B2 named spec decision clean-build
+(#46) required (OPEN_QUESTIONS §1.1).
+
+**The rule.** The separate on-chain availability marker (wire event
+`0x0d`) is retired. The anchor itself is the availability commitment: a
+batch anchored at height `h` must have its bytes demonstrably servable by
+`h+W`, with the fail-closed challenge window (`h+W+C`) and the §6c
+uniform-exclusion rule of the DA agreement unchanged. All deadline windows
+key off the anchor's mined height — a fact Bitcoin witnesses.
+
+**Grounds, in brief:** the marker was a self-attested claim, not a proof —
+every adversarial case settles in the §6c challenge in both designs; the
+only flow the marker enabled (anchor-now, publish-later) is precisely the
+withhold-then-reveal attack the rule exists to kill; the folded B2 kernel
+predicate is simpler (one event, one reorg story, no cross-event
+matching); one transaction per batch instead of two; the live system never
+emitted markers, so folding ratifies the only behavior that ever ran.
+
+Implications:
+- Wire event `0x0d` (AvailabilityMarker) is **retired — never reuse** in
+  the WIRE_FORMAT.md type registry; its layout moves to legacy evidence.
+- DA agreement §6b is rewritten to key the deadline off anchor height;
+  §6a/§6c/§6d survive.
+- The B2 DA verdict is the pure predicate
+  `eligible(anchor, servedEvidence, W, C)`; B3 defines the served-bytes
+  witness format it consumes.
+- The question remains a first-class external-review ask with an explicit
+  reopen trigger: if external review surfaces a consensus role for a
+  second timestamp, marker-fold reopens by named spec PR before the B2
+  kernel freezes its DA predicate.
 
 ## Fairness Principles To Carry Into The Launch Rewrite
 

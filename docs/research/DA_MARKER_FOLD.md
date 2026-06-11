@@ -1,13 +1,15 @@
 # Marker-fold: should the availability marker be a separate on-chain event?
 
-> **Status: DECISION PAPER — analysis, pre-ratification.** This is the
-> pre-B2 named spec decision clean-build (#46) requires before the kernel's
-> data-availability deadline verdict can be implemented
-> ([OPEN_QUESTIONS.md §1.1](../OPEN_QUESTIONS.md)). Proposed stable name:
-> **marker-fold**. Writer: ClaudeleLunatique; for ChatLunatique's
-> adversarial pass and DK's ruling. The question stays flagged as a
-> first-class external-review ask (DK, 2026-06-09) regardless of the
-> in-house ruling — see §7 for how those interact.
+> **Status: RATIFIED — fold.** DK approved "no second transaction (fold)"
+> in ONT - dev on 2026-06-11 (event `42eb0ddb`), ahead of the queued
+> ChatLunatique adversarial pass; the ripple edits (§6) still go through
+> the normal writer → review → merge path. This was the pre-B2 named spec
+> decision clean-build (#46) required before the kernel's data-availability
+> deadline verdict could be implemented
+> ([OPEN_QUESTIONS.md §1.1](../OPEN_QUESTIONS.md)). Stable name:
+> **marker-fold (#47)** — see [DECISIONS.md](../core/DECISIONS.md). The
+> question stays flagged as a first-class external-review ask (DK,
+> 2026-06-09) with an explicit reopen trigger — see §7.
 
 ## 1. The question
 
