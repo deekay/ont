@@ -83,7 +83,7 @@ recovery and UTXO-less accumulator-name recovery should not be conflated.
 | Claim gate | The fixed sunk bitcoin fee paid to miners for a claim attempt. |
 | Notice window | The public period during which the name can be contested — by posting a bond (→ auction) or nullified by a bare collision. |
 | Accumulator | The Bitcoin-anchored Merkle structure that finalizes uncontested claims compactly. |
-| Contested | A name a qualifying bond is posted against in the notice window (against a claim, or bond-first); the bond — not a bare second claim — escalates it to auction. Two bare claims with no bond nullify the name instead. |
+| Contested | A name a qualifying bond is posted against in the notice window (against a claim, or bond-first); the bond — not a second claim alone — escalates it to auction. two claims with no bond nullify the name instead. |
 | Bond | Returnable bitcoin capital used in the L1 auction path. |
 | Bond UTXO | The dedicated output backing an immature auction-settled name. |
 | Maturity | The point after which owner-key authority can survive bond release. |
@@ -138,7 +138,7 @@ flowchart LR
    competing claim lands), the claim finalizes through the accumulator.
 5. If a qualifying bond is posted in that window — against the claim, or
    bond-first — the name becomes contested and escalates to the bonded L1
-   auction path. If a bare competing DA-valid claim lands with no bond, the
+   auction path. If a bare competing data-availability-valid claim lands with no bond, the
    name is nullified at window close and reopens for claiming.
 6. Whether final by accumulator or auction, the resulting name is controlled by
    the owner key.
@@ -363,7 +363,7 @@ disagree.**
 | Recovery descriptors | **Built + on-chain (signet)** | Owner-armed, owner-vetoable (recovery, not revocation). The on-chain invoke path is partially specified. |
 | Contested auction — on-chain bonded bid | **Built + on-chain (signet)** | Returnable bond output + OP_RETURN bid payload, engine-validated (bond value = bid at `bondVout`); resolver derives auction state from observed `AUCTION_BID` txs; settled winner materializes into an owned name. |
 | Cheap ₿1,000 claim — Lightning rail | **Structure wired, payment stubbed** | `apps/publisher` quote → invoice → pay → verify exists, but invoice creation + payment verification are stub / Lexe-sidecar interfaces. v1 is a **pay-first flow with reputable publishers** (pay, then included; a non-payer is left out); atomic payment-on-inclusion binding is a longer-term research item, not a v1 dependency. The wallet does not pay a real Lightning invoice for a claim today. |
-| Accumulator cheap-rail → canonical state | **Live (signet) per STATUS.md** | End-to-end since 2026-06-09: claim → publisher anchors on-chain → indexer decodes the anchor, fetches batch leaves, and re-verifies every membership proof against the Bitcoin-anchored root. **Still open:** availability-marker / fail-closed DA-deadline (W/C/K) enforcement is design + simulation only, and aggregate gate-fee enforcement is not implemented — see STATUS.md "Known-incomplete." |
+| Batched claim path → canonical state | **Live (signet) per STATUS.md** | End-to-end since 2026-06-09: claim → publisher anchors on-chain → indexer decodes the anchor, fetches batch leaves, and re-verifies every membership proof against the Bitcoin-anchored root. **Still open:** availability-marker / fail-closed data-availability deadline enforcement is design + simulation only, and aggregate gate-fee enforcement is not implemented — see STATUS.md "Known-incomplete." |
 | Publisher | **Single-writer prototype** | The leaderless multi-publisher convergence design is simulated and tested, not deployed. |
 | Mobile wallet | **HD (BIP32), seed-backed** | One seed → a per-name owner key (`m/696969'/0'/i'`) + a funding key (`m/84'/1'/0'/0/0`); seed backup/restore proven on signet; keys in the device keystore. |
 | Desktop / CLI wallet | **Single-key** | One owner key + one funding WIF; not HD, no seed recovery (WIF import only). |
@@ -382,7 +382,7 @@ disagree.**
 
 ### Still Open Before Launch (do not imply otherwise)
 
-- Availability-marker / fail-closed DA-deadline enforcement on the live cheap
+- Availability-marker / fail-closed data-availability-deadline enforcement on the live cheap
   rail, and aggregate miner-fee enforcement for claim batches (designed, not
   implemented — see STATUS.md).
 - A real Lightning payment for the cheap claim (v1 = pay-first with reputable
@@ -391,7 +391,7 @@ disagree.**
 - Leaderless multi-publisher deployment + a discovery mechanism.
 - Light-client proof bundles emitted end-to-end (Bitcoin-header/inclusion
   verification in produced bundles).
-- Final launch notice-window and DA-window parameters, bond floors, and
+- Final launch notice-window and data-availability-window parameters, bond floors, and
   maturity (placeholders today — see [`core/STATUS.md`](./core/STATUS.md) and
   [`spec/AUCTION.md`](./spec/AUCTION.md)).
 - Final recovery scope.
@@ -606,7 +606,7 @@ The useful v1 review questions are now narrow:
 1. Is the one-path claim -> notice -> final-or-auction model simple enough to
    freeze?
 2. Are the claim gate, bond, and maturity parameters separated cleanly enough?
-3. Does the DA rule let honest indexers converge without trusting a publisher?
+3. Does the data-availability rule let honest indexers converge without trusting a publisher?
 4. Does the contested-auction path price scarce names without introducing
    editorial allocation?
 5. What exact proof bundle should a user carry to verify ownership without

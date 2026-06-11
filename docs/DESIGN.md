@@ -50,7 +50,7 @@ We are not the first to want this. The honest comparison:
   goal but replaces first-come-free with a **sunk gate + long-tail substitutability +
   contested-only auction**, and settles on Bitcoin itself rather than a separate chain.
 - **ENS** — excellent UX, but on Ethereum, with **annual rent** (renewal), an increasingly
-  L2 footprint (new trust/DA assumptions), and — the deeper issue — **a governing DAO**. The
+  L2 footprint (new trust/data-availability assumptions), and — the deeper issue — **a governing DAO**. The
   ENS DAO is a token-weighted body that sets pricing/renewal policy and controls the
   registrar and root; it *can change the rules and adjudicate names by vote*. That is a
   centralized decider by another name. ONT has **no governance body**: the rule is
@@ -152,7 +152,7 @@ The audited core — **to be frozen at launch** (Decision #44) — is `engine.ts
 replay), `state.ts` (name state), and `proof-bundle.ts` (portable proofs), over the
 `@ont/protocol` primitives (names, wire formats, events, transfer/value/recovery payloads).
 Today that boundary implements **owner-key authority and replay validation**; auction
-settlement and cheap-rail finalization are migrating inside per Decisions #42/#44, and
+settlement and batched-path finalization are migrating inside per Decisions #42/#44, and
 until they land those rules live outside it (see [`core/STATUS.md`](./core/STATUS.md) for
 the honest scoped claim). A CI test (`packages/consensus/src/trust-surface.test.ts`)
 **fails the build** if the boundary changes without a recorded decision — the allowlist is
@@ -234,7 +234,7 @@ That's the whole trust surface: **~7 files.** A bad actor's only routes to "take
 - **Resolvers / indexers** — they *serve* answers and replay the rules for convenience, but they can't forge ownership; you verify against Bitcoin. A lying resolver is caught, not obeyed.
 - **Wallets, CLI, website** — they help you *build* transactions; they hold no authority over names.
 - **Auctions** — they decide *who gets* a contested or premium name (allocation), not whether ownership is sovereign once held. Important, but a separate concern from "can my name be taken."
-- **The long-tail accumulator rail** (the batched, cheap-issuance path) — additive, more complex, and **separately auditable**; it is being designed so it can never weaken the sovereignty of a name on the bonded core. It is not part of this minimal launch trust surface.
+- **The long-tail batched claim path** (the cheap-issuance path) — additive, more complex, and **separately auditable**; it is being designed so it can never weaken the sovereignty of a name on the bonded core. It is not part of this minimal launch trust surface.
 - **Everything labeled a simulation / prototype / experiment** — research that proves properties, not shipped consensus code.
 
 #### Frozen vs. mutable
@@ -252,18 +252,18 @@ for convenience, so allocation (auctions), the indexer, and research/simulation 
 core but the package boundary makes it physically impossible for the core to import them.
 
 The boundary is also **enforced in code**: `packages/consensus/src/trust-surface.test.ts` fails CI if
-the frozen core imports anything beyond `@ont/protocol`/`@ont/bitcoin` and its own files, and
+the audited core imports anything beyond `@ont/protocol`/`@ont/bitcoin` and its own files, and
 `packages/core/src/research-quarantine.test.ts` keeps research a leaf nothing else depends on. So the
 trust surface a newcomer must audit cannot silently grow. This realizes
 `feedback-freeze-minimal-auditable-core`. See also
 [`spec/CONFORMANCE.md`](./spec/CONFORMANCE.md) (the I1–I5 invariants this
 surface implements).
 
-## 5. Scaling — the accumulator rail and data availability
+## 5. Scaling — the batched claim path and data availability
 
 Billions of names cannot each be a Bitcoin transaction, so cheap uncontested claims batch:
 
-- **The rail.** Publishers collect claims and apply them as deltas to a sparse-Merkle
+- **The path.** Publishers collect claims and apply them as deltas to a sparse-Merkle
   **accumulator**; only the root is anchored on Bitcoin (`prevRoot -> newRoot` in an
   OP_RETURN) — a ~150-byte root regardless of batch size, so the per-name cost falls as batches grow;
   at ~10k claims/batch it is ~0.015 vB/name amortized (the practical cap is data availability, not the
@@ -291,13 +291,13 @@ Billions of names cannot each be a Bitcoin transaction, so cheap uncontested cla
   [`spec/ONT_ISSUANCE_FEE_MECHANICS.md`](./spec/ONT_ISSUANCE_FEE_MECHANICS.md) and the
   Known-incomplete list in [`core/STATUS.md`](./core/STATUS.md).
 
-**Honest status.** The rail is **live end-to-end on the private signet** (since
+**Honest status.** The path is **live end-to-end on the private signet** (since
 2026-06-09): a claim is batched, anchored on-chain, and the indexer re-verifies every
 membership proof against the Bitcoin-anchored root before a name resolves —
 verify-don't-trust at every hop, with `runBatchRail` simulations additionally asserting
 delta commutativity and convergence against a data-withholding adversary. What is **not**
-live is the adversarial half: the fail-closed DA deadline (the availability marker and the
-`W`/`C`/`K` windows) is enforced only in design and simulation, transport is
+live is the adversarial half: the fail-closed data-availability deadline (the availability marker and the
+data-availability windows) is enforced only in design and simulation, transport is
 publisher-served v1 (content-addressed mirroring is the working direction), multi-publisher
 convergence is simulated but not deployed, and the windows themselves are unpinned.
 Enforcing the deadline rule in the live path is the sharpest remaining architecture step.
@@ -353,9 +353,9 @@ to public resolvers.
 **The ~0.015 vB/name figure is issuance only.** It is the amortized cost of *getting* a name.
 Ongoing **transfers** are a separate load: a bonded name's transfer must carry its bond UTXO forward
 (necessarily L1), and a mature/accumulator transfer is an owner-signed event that is L1 today and
-batchable through the same rail in the target design. *Pointing or updating* a name (value records)
+batchable through the same path in the target design. *Pointing or updating* a name (value records)
 is fully off-chain and free. So "cheap at scale" describes issuance and updates; trading names is the
-part whose throughput depends on the batched rail.
+part whose throughput depends on the batched claim path.
 
 ## 6. Economics
 
@@ -397,7 +397,7 @@ the MEV & ordering analysis (§D3) and R16 in
 | short-name opening bond (≤4-char) | ₿100,000,000 (≈1 BTC) for 1 char, halving per char | Working baseline; 5+ chars use gate + contention |
 | `BOND_MATURITY_BLOCKS` | ~52,560 (~1 yr) | **Test override** — must be frozen pre-launch |
 | `DEFAULT_NOTICE_WINDOW_BLOCKS` | 6 (~1 hr) | **Placeholder** — real value is the launch-fairness lever; must be long (weeks) and published |
-| DA windows `W`, `C`, `K` | unset | **Unpinned** — reorg-safety + DA deadlines |
+| Data-availability windows | unset | **Unpinned** — reorg-safety + data-availability deadlines |
 
 These must be frozen and published (ideally checkpointed at genesis) before launch, because
 they determine replay behavior. We are deliberately showing them open rather than pretending
@@ -408,13 +408,13 @@ they're decided.
 | Area | State | Notes |
 | --- | --- | --- |
 | Owner-key model (transfer / value / recovery auth) | **Solved + live** | Enforced at replay; proven on signet; byte-identical across two implementations |
-| Minimal audited trust surface (frozen at launch) | **Boundary enforced; scope expanding** | 3 consensus files CI-manifested (Decision #44), covering owner-key authority + replay validation today; settlement and cheap-rail rules are moving inside (#42). The protocol rules they build on are audit surface, pinned by review |
+| Minimal audited trust surface (frozen at launch) | **Boundary enforced; scope expanding** | 3 consensus files CI-manifested (Decision #44), covering owner-key authority + replay validation today; settlement and batched-path rules are moving inside (#42). The protocol rules they build on are audit surface, pinned by review |
 | Returnable-bond contested auction | **Solved + live** | Bid → resolver-accepted end-to-end on signet |
 | Bitcoin-inclusion proof verification (Merkle + PoW) | **Solved (verifier)** | Tested vs real mainnet block; producers don't emit inclusion proofs yet |
-| Accumulator rail (claim → anchor → verified resolve → explore) | **Live (signet)** | End-to-end since 2026-06-09, verify-don't-trust at every hop; **open: fail-closed DA deadline (W/C/K) enforcement (sim-only today), content-addressed mirroring (§8b), leaderless multi-publisher** |
+| Batched claim path (claim → anchor → verified resolve → explore) | **Live (signet)** | End-to-end since 2026-06-09, verify-don't-trust at every hop; **open: fail-closed data-availability deadline enforcement (sim-only today), content-addressed mirroring (§8b), leaderless multi-publisher** |
 | Publisher | **Prototype** | Single-writer; multi-publisher convergence simulated, not deployed |
 | Light-client (phone/browser) verification | **Open** | Verifier ready; emit-side + header sourcing unbuilt |
-| Launch parameters (window, maturity, DA, bond floor) | **Open** | Placeholders; must freeze + publish |
+| Launch parameters (window, maturity, data availability, bond floor) | **Open** | Placeholders; must freeze + publish |
 | Publisher discovery / censorship resistance | **Open** | Config-only discovery today; direct-L1 self-claim is the fallback |
 
 ## 8. Risks and contested choices (with the obvious alternative)
@@ -422,7 +422,7 @@ they're decided.
 | Choice | Our stance | Alternative a Bitcoin dev might propose |
 | --- | --- | --- |
 | **OP_RETURN payloads up to ~171 bytes** (recover-owner; most events smaller) | Simpler; we confirmed ONT OP_RETURNs relay + confirm on signet | Hide the root in script via a covenant (e.g. CTV-family) — needs a soft fork, limits to upgraded nodes |
-| **Batched rail + DA** vs pure L1 | Required to hit the billions-of-names target (~0.015 vB/name); contested escalate to L1 | Pure L1: every claim a tx (~1 vB/name, 1000× footprint) — simpler, no DA risk, but won't scale |
+| **Batched claim path + data availability** vs pure L1 | Required to hit the billions-of-names target (~0.015 vB/name); contested escalate to L1 | Pure L1: every claim a tx (~1 vB/name, 1000× footprint) — simpler, no data-availability risk, but won't scale |
 | **Open ascending auction** | Visible bids, soft close, returnable bond; matches L1 transparency | Sealed second-price — sidesteps MEV/relay-bid timing (see the MEV & ordering analysis in [`RISKS.md`](./RISKS.md)) |
 | **Bond enforced at ONT-replay, not script** | Simpler; deterrent is "lose the name," sufficient for denial-seekers | Script-level slashing (covenant / presigned penalty) — stronger deterrent, "lose the bitcoin," but a real script construction |
 | **Gate fixed in ₿ (drifts in USD)** | No oracle; neutral | USD-peg (oracle, breaks I3) or PoW/burn (no drift, no security-budget contribution) |
@@ -436,8 +436,8 @@ the whole-system threat model in [`RISKS.md`](./RISKS.md) and
 
 ## 9. What we'd most value your feedback on
 
-1. **DA + convergence soundness.** Is the fail-closed height-keyed DA rule correct against
-   reorgs and withholding? Are `W`/`C`/`K` the right shape (on-chain availability marker vs.
+1. **Data availability + convergence soundness.** Is the fail-closed height-keyed data-availability rule correct against
+   reorgs and withholding? Are the data-availability windows the right shape (on-chain availability marker vs.
    pure timing)?
 2. **On-chain footprint + relay.** Are ~171-byte OP_RETURN ONT events acceptable as a
    prototype baseline, or is the standardness/relay/datacarrier story a real obstacle on
@@ -640,7 +640,7 @@ rejected.
 
 **Founder commitments (made 2026-05-24):** (a) **no pre-grab** — the founder will not
 register valuable names for himself before or at launch; he plays by the same mechanical
-rule as everyone (satisfies #5). (b) **DA server is temporary** — the founder's
+rule as everyone (satisfies #5). (b) **the data-availability server is temporary** — the founder's
 data-availability server is sunset-bound scaffolding with a stated end condition (e.g.
 "until enough independent operators run them"), never a permanent dependency (satisfies #1, #3).
 

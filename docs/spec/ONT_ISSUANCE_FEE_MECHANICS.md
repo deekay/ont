@@ -167,7 +167,7 @@ blockspace** — arguably the ideal shape of post-subsidy fee pressure.
 - **`g(name)` encoding.** The per-name schedule (long tail ₿1,000 / ~$1; scarce short names higher) must be
   encoded so the `F ≥ Σ gᵢ` check is mechanical from the batch contents.
 - **Reorg / fee finality.** The fee is spent when the anchor is mined; standard `K`-confirm finality
-  and deterministic replay handle reorgs, same as the rest of the rail.
+  and deterministic replay handle reorgs, same as the rest of the path.
 
 ## 9. Doc corrections this implies
 

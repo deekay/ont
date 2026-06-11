@@ -16,7 +16,7 @@ Decisions are cited as "Decision #N" against [`core/DECISIONS.md`](./core/DECISI
 
 ### 1.1 Fold the availability marker into the anchor? — [OPEN — first-class external-review ask]
 
-The `AvailabilityMarker` / W-C-K fail-closed enforcement is the largest spec↔code gap:
+The `AvailabilityMarker` / fail-closed data-availability enforcement is the largest spec↔code gap:
 the marker event (0x0d) is wire-defined and tested but never emitted or checked in
 production, and the fail-closed availability deadline is enforced only in research
 simulations (see the Known-incomplete section of [`core/STATUS.md`](./core/STATUS.md)).

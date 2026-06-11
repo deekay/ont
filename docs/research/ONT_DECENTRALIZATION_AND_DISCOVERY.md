@@ -18,7 +18,7 @@ Companions:
 ## The reframing that makes the whole question tractable
 
 **ONT name state is a deterministic function of Bitcoin.** Given the Bitcoin
-block history, the frozen `@ont/consensus` rules, and the DA windows, every
+block history, the frozen `@ont/consensus` rules, and the data-availability windows, every
 honest indexer computes *the same* name ownership, value records, and contest
 state — in any processing order. This is not aspirational; it is the
 convergence guarantee proven in `da-convergence-sim.test.ts` and composed in
@@ -48,7 +48,7 @@ discovery as one problem.
 ## How publishers work, and how they decentralize
 
 A publisher (`apps/publisher`) is a thin batching service. It quotes a gate
-price, takes a Lightning payment, batches cheap-rail claims, anchors one
+price, takes a Lightning payment, batches batched-path claims, anchors one
 OP_RETURN committing `prevRoot -> newRoot` (`encodeRootAnchorBody`, event type
 `OntEventType.RootAnchor = 0x0b` under `PROTOCOL_MAGIC = "ONT"`), and serves
 inclusion proofs. It touches no owner key and holds no authority; the client
@@ -61,7 +61,7 @@ Decentralization story:
   mechanical assembly of existing primitives.
 - **Convergence under many publishers is leaderless.** `ONT_MULTI_PUBLISHER_CONVERGENCE.md`
   picks Model B: each anchor is a delta proven against the last confirmed root;
-  the canonical next root is *derived* by merging all DA-valid deltas in a
+  the canonical next root is *derived* by merging all data-availability-valid deltas in a
   block, conflicts resolved by commit priority. Distinct-leaf inserts commute,
   so two honest publishers building on the same tip both land — no leader
   election, no namespace partition, no cartel.

@@ -304,7 +304,7 @@ function runNames(): void {
   const pending = names.filter((n) => n.pendingClaim !== undefined).length;
   const cheapRail = names.filter((n) => n.batchInclusion !== undefined).length;
   const provisional = names.filter((n) => n.cheapClaim?.status === "provisional").length;
-  const cheapRailNote = cheapRail > 0 ? `${cheapRail} via cheap rail (${provisional} provisional)` : "0 via cheap rail";
+  const cheapRailNote = cheapRail > 0 ? `${cheapRail} via batched path (${provisional} provisional)` : "0 via batched path";
   console.log(
     `tracked: ${names.length} name(s) — ${owned} owned, ${pending} pending, ${cheapRailNote}; ${bids.length} bid(s) in flight`
   );
@@ -319,7 +319,7 @@ function runNames(): void {
     }
     if (entry.batchInclusion !== undefined) {
       console.log(
-        `  cheap rail:    anchored at ${entry.batchInclusion.anchorTxid}` +
+        `  batched path:  anchored at ${entry.batchInclusion.anchorTxid}` +
           (entry.batchInclusion.anchorHeight > 0 ? ` (height ${entry.batchInclusion.anchorHeight})` : "")
       );
     }
@@ -1433,7 +1433,7 @@ function printUsage(): void {
   console.log("        [--input <utxo>] [--bond-address <a>] [--change-address <a>] [--bond-vout 0|1]");
   console.log("        build+sign an opening-bid claim (auto-funds when --input is omitted)");
   console.log("  claim <name> --rail cheap [--publisher <url>] [--ln-url <u>]");
-  console.log("        cheap rail: pay a publisher over Lightning for a batched claim");
+  console.log("        batched claim path: pay a publisher over Lightning for a batched claim");
   console.log("  transfer <name> --to <pubkey> --fee-sats <n> [--resolver <url>]");
   console.log("        (auto-sources prev-state + bond from the resolver; or pass --prev-state-txid,");
   console.log("         --bond-input <utxo>, --successor-bond-sats <n> to go fully offline)");

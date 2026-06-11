@@ -127,10 +127,10 @@ the **largest bond wins**. (The ≤4-char length-scaled opening bonds are the
 
 ### Bond opens the auction; a bare collision can only nullify
 
-The escalation trigger is a **bond**, not a bare claim. Two consequences:
+The escalation trigger is a **bond**, not a claim alone. Two consequences:
 
 - A cheap collision (≥2 claims, no bond) **nullifies** the name — it resolves to
-  no owner and reopens for claiming. A bare claim can deny, never award.
+  no owner and reopens for claiming. A claim with no bond can deny, never award.
 - Acquiring a contested name requires a **qualifying bond** (largest wins);
   **bond-first** (a bond with no prior cheap claim) is allowed and is the natural
   path for a known-premium name.
@@ -221,7 +221,7 @@ Working today:
 - owner-key transfers
 - owner-signed value records
 - recovery prototype for immature bonded names
-- the accumulator cheap rail, live end-to-end on the private signet since
+- the batched claim path, live end-to-end on the private signet since
   2026-06-09 (claim → anchor → indexer re-verifies membership against the
   Bitcoin-anchored root → public resolution), including the notice-window
   lifecycle (provisional → final | nullified) and first-anchor-wins merge —

@@ -6,6 +6,10 @@
 status + numbers: [`core/STATUS.md`](./core/STATUS.md) (it wins if anything here drifts). Amounts
 are ₿ where **₿1 = 1 satoshi**; ~$ helpers assume ~$100,000/BTC and drift with the price.*
 
+*Parity rule (doc-canon (#45)): this page is bound to [`ONT.md`](./ONT.md) — it makes no claim
+ONT.md doesn't make, in the same terms ([`GLOSSARY.md`](./GLOSSARY.md)); if they disagree, ONT.md
+wins. Edits to either page must keep the pair consistent.*
+
 ## The proposal, in three sentences
 
 ONT is a global namespace of names settled on Bitcoin — names are acquired once: a sunk **₿1,000**
@@ -67,7 +71,7 @@ very short names (≤4 chars) require a mandatory opening bond — **₿100,000,
 1-char bond), since the principal returns. Honest residual: long-tail names nobody contests *can*
 be squatted at ₿1,000 each. Squatting isn't impossible; it's priced.
 
-**"I'll front-run your claim."** Ordering can't award a name — not even a miner's. Two bare claims
+**"I'll front-run your claim."** Ordering can't award a name — not even a miner's. two claims with no bond
 with no bond **nullify**: the name resolves to no owner and reopens. So front-running buys denial
 (₿1,000 sunk, zero payoff), never the name. *Taking* a contested name requires posting the largest
 bond — identical cost for a miner and for you — and outcomes are deadline-derived (did a qualifying
@@ -106,7 +110,7 @@ but can't yet prove the set is *complete* against L1 — the same light-client w
 **"The publisher withholds the batch bytes."** The designed rule is **fail-closed**: batch data
 not public by a Bitcoin-height-keyed deadline simply doesn't count — withheld claims are excluded
 (never awarded), and a hidden claim can't surface later to steal priority. **Honest: this is the
-sharpest open item.** The deadline (the W/C/K windows) is design + simulation only; today's live
+sharpest open item.** The deadline (the data-availability windows) is design + simulation only; today's live
 loop verifies anchors on-chain, fetches and re-verifies the bytes, and retries on gaps — fine for
 an honest single publisher on signet, not yet the adversarial story. Bytes are content-addressed
 against the anchored digest, so anyone can mirror them and transport is not consensus-critical.
@@ -139,11 +143,11 @@ on a private signet; discovery is config-seeded (a registry-free on-chain scan i
 built). Anyone can self-host both from the repo. The exit surface is small by construction: no
 token to dump, no rent stream, the gate goes to miners; in-flight exposure is ~$1 per pending
 claim at the publisher. If all project infrastructure vanished, final ownership re-derives from
-Bitcoin plus the mirrorable batch bytes — subject to the DA caveat above.
+Bitcoin plus the mirrorable batch bytes — subject to the data-availability caveat above.
 
 ## What touches Bitcoin, what doesn't
 
-| Moment | Rail | What happens |
+| Moment | Path | What happens |
 | --- | --- | --- |
 | You pay for a claim | Lightning (off-chain) | the ₿1,000 gate, funneled to miners, + the thin publisher fee |
 | The batch anchors | **Bitcoin** | one ~73-byte OP_RETURN (`prevRoot → newRoot`) per batch (~10k claims) |
@@ -183,7 +187,7 @@ flowchart LR
 ```
 
 The invariant: a name is acquired only by an uncontested claim that finalizes, or by the winning
-bond in an auction. A bare claim can deny, never award — it finalizes or nullifies, and can never
+bond in an auction. A claim with no bond can deny, never award — it finalizes or nullifies, and can never
 take a contested name. An auction
 winner **owns the name at settlement** — points and transfers it immediately; the ~1-year bond
 lock is a capital commitment, not a usability gate (break the bond early and you forfeit the
@@ -200,7 +204,7 @@ signs transfers (L1), value records (off-chain, free, instant), and optional rec
 | Bond maturity | ~52,560 blocks (~1 yr) | placeholder / test override |
 | Notice window | target **weeks** (test: 6 blocks) | placeholder — the launch-fairness lever |
 | Short-name opening bond (≤4 char) | ₿100,000,000 (1 BTC, ~$100k) at 1 char, halving per char; 5+ chars: gate only | baseline |
-| DA windows (W/C/K) | unset | open |
+| data-availability windows | unset | open |
 | On-chain footprint (issuance) | ~0.015–0.019 vB/name @ ~10k/batch | measured |
 | OP_RETURN event size | up to ~171 bytes | measured |
 
@@ -211,21 +215,21 @@ form — so premium names aren't swept cheaply before other bidders show up.
 ## Status — honest (signet prototype; not mainnet-ready)
 
 **Live end-to-end on a private signet:** owner-key transfer, owner-signed value records, recovery,
-a bonded auction bid the resolver accepts — and, since 2026-06-09, the full cheap rail: a claim at
+a bonded auction bid the resolver accepts — and, since 2026-06-09, the full batched claim path: a claim at
 [claim.opennametags.org](https://claim.opennametags.org) is batched, anchored on-chain,
 re-verified by the indexer against the anchored root, and appears in the
 [public explorer](https://opennametags.org/explore). One 12-word phrase derives identical keys
 across the claim site, web tools, and the mobile app, locked by shared conformance vectors.
 
-**Not live (disclosed):** the fail-closed DA deadline (design + simulation only); the light-client
+**Not live (disclosed):** the fail-closed data-availability deadline (design + simulation only); the light-client
 emit path; multi-publisher (simulated; production is single-writer); real Lightning payment
-(stubbed on signet); auction settlement inside the frozen core (decided, gated on demonstrated
+(stubbed on signet); auction settlement inside the audited core (decided, gated on demonstrated
 correctness). Parameters above are placeholders — the rules are designed to freeze at launch and
 are **not frozen today**.
 
 ## What we most want pushed on
 
-1. **The DA rule and transport** — is fail-closed-by-height sound against withholding and reorgs?
+1. **The data-availability rule and transport** — is fail-closed-by-height sound against withholding and reorgs?
    Should the availability marker be folded into the anchor itself? Is publisher-served +
    voluntary mirrors enough for v1?
    ([`design/ONT_DATA_AVAILABILITY_AGREEMENT.md`](./spec/ONT_DATA_AVAILABILITY_AGREEMENT.md) §8b)

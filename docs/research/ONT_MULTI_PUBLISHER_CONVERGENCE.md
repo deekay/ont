@@ -7,7 +7,7 @@ need a human decision before any of this is wired.
 > **Update note (2026-06-11):** parts of this note predate Decision #37 (bond
 > opens the auction, 2026-06-04). Where the text says a competing in-window
 > claim "escalates" or "forces" an auction, read it per #37: only a
-> **qualifying bond** opens an auction; two or more bare claims with no bond
+> **qualifying bond** opens an auction; two or more claims with no bond with no bond
 > **nullify** the name (no owner; reopens). Inline notes mark the two affected
 > passages. The normative rule is
 > [`../spec/ONT_ACQUISITION_STATE_MACHINE.md`](../spec/ONT_ACQUISITION_STATE_MACHINE.md).
@@ -20,7 +20,7 @@ two parts of the code currently assume contradictory things.
 
 ## The problem in one paragraph
 
-Two honest publishers, P and Q, both serve cheap-rail claims against the
+Two honest publishers, P and Q, both serve batched-path claims against the
 same name accumulator. Each builds a batch on what it believes is the
 current root, anchors an OP_RETURN committing `prevRoot -> newRoot`, and
 pays the miner fee that covers its batch's gates. If both build on the same
@@ -67,8 +67,8 @@ defeats withhold-then-reveal name theft.
 
 Model B is the right answer for a permissionless, neutral system, and more of
 it is built than I first credited. `packages/core/src/research/batch-rail.ts`
-(`runBatchRail`) already composes the pieces into a runnable rail: it
-DA-filters deltas (`isCanonical`), groups claims by name, applies a
+(`runBatchRail`) already composes the pieces into a runnable path: it
+data-availability-filters deltas (`isCanonical`), groups claims by name, applies a
 notice-window contested branch instead of first-writer-wins, finalizes
 uncontested names on a real `Accumulator`, and its convergence + escalation +
 already-owned cases are covered by `batch-rail.test.ts`. **Caveat (Decision
@@ -79,9 +79,9 @@ notice-window machinery this note worried was missing is implemented and
 tested, but its trigger condition must be updated to bond-opens / collision-
 nullifies before anything consumes it.
 
-What is *not* wired is the consumption. The resolver has no rail code (grep
+What is *not* wired is the consumption. The resolver has no batched-path code (grep
 `apps/resolver/src` for `runBatchRail`/`mergeBlock` — nothing), so no live
-component derives canonical name state from the cheap rail. And the publisher
+component derives canonical name state from the batched claim path. And the publisher
 emits Model-A anchors off its *own* private accumulator (`sealBatch()`), which
 is the wrong base in a multi-publisher world. So the real gap is narrower than
 "Model B is unbuilt": it is **(1) consume `runBatchRail` in the resolver,
@@ -102,7 +102,7 @@ The cleanest formulation drops per-anchor chaining entirely. The canonical
 name root at finalized height H is a pure function:
 
 ```
-canonicalRoot(H) = fold( DA-valid deltas with anchorHeight <= H-K,
+canonicalRoot(H) = fold( data-availability-valid deltas with anchorHeight <= H-K,
                          ordered by (height, txIndex, txid),
                          resolving same-leaf conflicts by first-writer-wins )
 ```
@@ -110,7 +110,7 @@ canonicalRoot(H) = fold( DA-valid deltas with anchorHeight <= H-K,
 This is precisely `confirmedStateForNode()` in `da-convergence-sim.ts`.
 Notice what it does *not* use: the per-anchor `prevRoot`/`newRoot`. Under a
 pure fold, those fields are not load-bearing for canonical derivation at all.
-Every honest indexer that sees the same DA-valid delta set computes the same
+Every honest indexer that sees the same data-availability-valid delta set computes the same
 root, in any processing order. That is the convergence guarantee, and it is
 already proven in `da-convergence-sim.test.ts`.
 
@@ -119,7 +119,7 @@ So what are `prevRoot`/`newRoot` in the 68-byte OP_RETURN *for*, then?
 - `prevRoot` = the canonical root the publisher built against. Useful as a
   freshness hint and as the base for the next field. Not a chain link.
 - `newRoot` = `root(prevRoot ⊕ this delta)` — the root *if this delta were
-  the only one applied to that base*. Its real job is **DA binding**: given
+  the only one applied to that base*. Its real job is **data-availability binding**: given
   the published batch leaves (from `GET /batch/{batchId}`) and `prevRoot`, an
   indexer recomputes this value and rejects the anchor if it does not match.
   That stops a publisher from anchoring one delta on-chain and serving
@@ -129,7 +129,7 @@ So what are `prevRoot`/`newRoot` in the 68-byte OP_RETURN *for*, then?
 The consequence worth stating plainly: **under Model B you cannot follow the
 name root from OP_RETURN bytes alone.** Per-anchor `newRoot`s do not compose
 (each is computed against the same base, not chained), so deriving the
-canonical root requires the deltas — i.e. the DA layer is mandatory for root
+canonical root requires the deltas — i.e. the data-availability layer is mandatory for root
 derivation, not just for inclusion proofs. That is a genuine loss versus
 Model A's headers-only follow, and it motivates checkpoints (below).
 
@@ -149,7 +149,7 @@ This gives the reconciliation:
 
 - **Deltas** are leaderless, commutative, conflict-resolved by commit
   priority. Anyone publishes them. (Model B.)
-- **Checkpoints** are a chained, DA-verifiable root that light clients follow
+- **Checkpoints** are a chained, data-availability-verifiable root that light clients follow
   cheaply — and are *also* permissionless, because anyone can post the correct
   one and any wrong one is rejected by anyone who recomputes. (Recovers Model
   A's ergonomics without its single writer.)
@@ -172,8 +172,8 @@ Concrete changes to `apps/publisher` once B is the target:
    needs a canonical-root source (a resolver client) to set `prevRoot`.
 
 2. **Treat `newRoot` as a delta commitment, not a promise.** The publisher
-   still computes it (it is the DA binding), but it must not assume its
-   `newRoot` becomes the tip. Its job ends at "I anchored a DA-available,
+   still computes it (it is the data-availability binding), but it must not assume its
+   `newRoot` becomes the tip. Its job ends at "I anchored a data-availability-available,
    fee-sufficient delta on a fresh base."
 
 3. **Detect loss and refund per-leaf, not per-batch.** After finalization,
@@ -231,7 +231,7 @@ competing claim for the same name lands during it, the claim finalizes (the
 common, cheap, batched case). If a competing claim *does* land in the window,
 the name is **contested** and escalates to a bonded L1 auction —
 which is the *only* way an auction ever starts. The cheap claim is the sole
-entry path; the auction is an escalation of it, not a parallel rail.
+entry path; the auction is an escalation of it, not a parallel path.
 *(Update note, 2026-06-11 — per Decision #37 the trigger is a **bond**, not a
 bare competing claim: a bare collision nullifies the name instead of opening
 an auction, and bond-first is allowed, so "competing claim → auction" above is
@@ -242,7 +242,7 @@ escalated path (≈7-day window, soft close, returnable bonds).
 The mechanical consequence for the convergence layer is mostly already built —
 with one known rule gap. `runBatchRail` in `batch-rail.ts` implements the
 **pre-#37** notice-window escalation and is covered by `batch-rail.test.ts`: it
-DA-filters the deltas, groups same-name claims, and for each name checks
+data-availability-filters the deltas, groups same-name claims, and for each name checks
 whether two or more distinct claimants land within `noticeWindowBlocks` of the
 earliest claim. If so the name is pushed to `escalatedNames` (→ auction); if
 not the earliest claim finalizes. So the escalation machinery is real, not
@@ -280,7 +280,7 @@ Remaining sub-questions (implementation shape, not protocol shape):
 - **Window relationship.** The notice window (detect contention) and the
   auction window (≈7 days, once contested) are distinct. Notice-window length
   is a parameter; it must be long enough that an honest competitor can observe
-  a claim and respond, and is bounded above by the DA finalization depth `K`.
+  a claim and respond, and is bounded above by the data-availability finalization depth.
 - **How the escalation seats bidders.** Does the original claimant's claim
   auto-seat as the opening bid, or must they re-enter by posting a bond like
   any challenger? Is the auction open to anyone, or only to the claimants who
@@ -329,8 +329,8 @@ neighbor for the ordering/fairness half of the notice window.
    canonical path; keep it as a single-publisher/regtest fast path with a
    comment pointing here. (Doc + small code comment. No behavior change yet.)
 2. **Consume `runBatchRail` in the resolver** as the canonical-root deriver,
-   behind the DA windows from `da-convergence-sim.ts`. `runBatchRail` already
-   composes the merge (`mergeBlock`), the DA filter (`confirmedStateForNode`),
+   behind the data-availability windows from `da-convergence-sim.ts`. `runBatchRail` already
+   composes the merge (`mergeBlock`), the data-availability filter (`confirmedStateForNode`),
    and the notice-window contested branch (re-keyed to the #37 trigger first —
    see step 6); the resolver should call it rather than
    re-implementing those pieces. This is the load-bearing wiring and the most

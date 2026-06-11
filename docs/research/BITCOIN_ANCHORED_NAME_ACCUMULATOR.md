@@ -7,7 +7,7 @@ Status: candidate design + feasibility analysis. Judged against
 > now **publicly visible** at claim, and contention triggers the contested L1
 > auction path rather than pure earliest-commit first-come. The current design is
 > in [ONT_ACQUISITION_STATE_MACHINE.md](../spec/ONT_ACQUISITION_STATE_MACHINE.md);
-> the accumulator mechanics, DA rules, sequencer, and red-team below remain useful
+> the accumulator mechanics, data-availability rules, sequencer, and red-team below remain useful
 > background but this file is not the launch spec.
 
 ## What this is
@@ -31,7 +31,7 @@ Feasible with existing primitives — sparse Merkle trees, commit-reveal, Bitcoi
 anchoring, content-addressed data — and **no soft fork**. Its *safety*
 (uniqueness, sovereignty, no-forgery) is strong and Bitcoin-anchored. Its
 *liveness* rests on one irreducible assumption — data availability — which
-degrades **gracefully**: under DA failure you cannot make new claims, but you
+degrades **gracefully**: under data-availability failure you cannot make new claims, but you
 cannot lose names you already hold. That asymmetry is what makes it defensible.
 (Caveat surfaced by red-teaming: this holds for live operation and for existing
 owners who retain their own proofs; a *late-joining* full verifier still depends
@@ -142,7 +142,7 @@ cannot decide ownership.
 - A root is **valid to clients only if its batch data is available.** Clients
   **fail closed**: a root whose leaves cannot be retrieved is treated as invalid,
   so the chain cannot advance past hidden data.
-- **Owner-aligned DA:** each owner retains their own leaf + path + inserting
+- **Owner-aligned data availability:** each owner retains their own leaf + path + inserting
   batch. The union of what owners keep approximates the full set; archival
   mirrors add redundancy and serve non-membership neighborhoods to new claimants.
 - **Damage is liveness, not safety.** Withholding data blocks *new* claims
@@ -161,22 +161,22 @@ cannot decide ownership.
 | Equivocator | Can't forge sigs; double-insert is a detectable invalid transition; conflicting roots resolved by Bitcoin order | None on safety |
 | Sybil | Issuance gate; publisher Sybil can't forge or double-insert | None on safety |
 | Publisher-griefer (submits a batch, never pays) | Publisher fronts the miner fee only for claims with a committed/locked payment; a non-payer is simply excluded — no money loss (see [`../design/ONT_ISSUANCE_FEE_MECHANICS.md`](../spec/ONT_ISSUANCE_FEE_MECHANICS.md) §6) | Ordinary service-DoS (work/slots) → publisher admission cost (entry fee / payment-lock / PoW); L1 fallback means no one is denied a name |
-| Data-withholder | Fail-closed clients; owner-aligned DA; liveness-only damage | **The one real open problem** |
+| Data-withholder | Fail-closed clients; owner-aligned data availability; liveness-only damage | **The one real open problem** |
 
 ## Scoring against the invariants
 
 | Invariant | Result | Notes |
 | --- | --- | --- |
 | I1 Uniqueness | **Pass** | Enforced at insertion; double-insert detectable; commit-reveal fixes ordering fairness; deterministic replay |
-| I2 Sovereignty | **Pass** | One-time cost, no rent, no revocation, owner-key control. Caveat: a *current* proof must be refreshed against current state (control preserved; refresh depends on DA) |
+| I2 Sovereignty | **Pass** | One-time cost, no rent, no revocation, owner-key control. Caveat: a *current* proof must be refreshed against current state (control preserved; refresh depends on data availability) |
 | I3 Neutrality | **Pass at target** | Mechanical rules, no editor; permissionless Bitcoin-sequenced batches; bootstrap operator allowed only under the §9 sunset test |
-| I4 Verifiability | **Pass, conditional** | Light clients: compact proofs + honest-watcher fraud detection. Full indexers: replay. Rests on DA + ≥1 honest full verifier (optimistic assumption — stated, not hidden) |
+| I4 Verifiability | **Pass, conditional** | Light clients: compact proofs + honest-watcher fraud detection. Full indexers: replay. Rests on data availability + ≥1 honest full verifier (optimistic assumption — stated, not hidden) |
 | I5 Bitcoin settlement | **Pass** | Roots ordered by Bitcoin; direct-L1 claim is the un-censorable fallback; reorgs handled by `K`-confirm finality + deterministic replay |
 
 ## Honest residual risks / open problems
 
 1. **Data availability** is the single irreducible assumption. It degrades
-   liveness, not safety — but the bootstrap operator's DA, the fail-closed rule,
+   liveness, not safety — but the bootstrap operator's data availability, the fail-closed rule,
    and owner-aligned retention all need to be shown to actually hold under an
    adversary. This is the make-or-break.
 2. **Full-verifier state growth.** Light, per-name verification is `O(log N)` and
@@ -189,7 +189,7 @@ cannot decide ownership.
    it doesn't quietly collapse back to one privileged publisher.
 4. **Proof refresh.** Membership paths go stale as the tree mutates; producing a
    current proof needs current-tree access (an indexer). Ownership (control) is
-   sovereign regardless; resolution liveness depends on DA.
+   sovereign regardless; resolution liveness depends on data availability.
 5. **Reorg depth `K`** and the minimum commit→reveal delay are parameters that
    trade latency against safety; pick explicitly.
 
@@ -224,11 +224,11 @@ the victim reveals via direct-L1), or to steal/alter a name without the owner ke
 
 **Claims downgraded for honesty:**
 
-- "DA failure is liveness-only, *never* safety" was too strong. It holds for live
+- "data-availability failure is liveness-only, *never* safety" was too strong. It holds for live
   operation and for existing owners who retain their own proofs (the canonical
   tip cannot advance past withheld data, so their last-valid proof stays current).
   But a *late-joining full verifier* reconstructing from genesis depends on
-  historical DA, or on **anchored state snapshots** it must partly trust — the
+  historical data availability, or on **anchored state snapshots** it must partly trust — the
   same situation as Bitcoin's assumeutxo. Bounded, not eliminated.
 - I3 is clean on **ownership** (mechanical rules, no editor) but **bounded** on
   **inclusion/ordering**. Permissionless batch production can concentrate toward
@@ -256,7 +256,7 @@ Bitcoin only orders the anchor txs.
 
 1. Process Bitcoin in `(height, tx-index)` order from genesis.
 2. An anchor tx is *eligible* if `prev_root` equals the current canonical tip.
-3. It is *accepted* iff its batch data is retrievable within the DA window **and**
+3. It is *accepted* iff its batch data is retrievable within the data-availability window **and**
    the transition is valid (well-formed ops, valid signatures, commit TTL and
    priority respected, insertions satisfy non-membership, no double-insert).
    Direct-L1 claims embedded in Bitcoin txs are folded in at their own height.
@@ -293,7 +293,7 @@ trusted.
    sizes and insertion cost.
 2. **Accumulator chain anchored to a Bitcoin signet:** publish roots, replay
    `R_n → R_{n+1}`, reject invalid transitions.
-3. **Fail-closed DA check:** a client that refuses a root whose batch leaves are
+3. **Fail-closed data-availability check:** a client that refuses a root whose batch leaves are
    unavailable; demonstrate liveness-degradation-only under withholding.
 4. **Direct-L1 fallback:** a censored claim that forces itself into canonical
    state via a Bitcoin tx.

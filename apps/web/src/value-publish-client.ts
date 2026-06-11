@@ -568,7 +568,7 @@ function renderLookupRecord(
     `<div class="result-item"><label>Next Sequence</label><p class="field-value">${escapeHtml(String(state.lastSuggestedSequence ?? 1))}</p></div>`,
     `<div class="result-item"><label>Ownership Ref</label><p class="field-value">${escapeHtml(truncateMiddle(ownershipRefFor(nameRecord), 12, 10))}</p></div>`,
     `<div class="result-item"><label>Bond Requirement</label><p class="field-value">${escapeHtml(
-      nameRecord.acquisitionKind === "accumulator" ? "none (cheap-rail claim)" : formatSats(nameRecord.requiredBondSats)
+      nameRecord.acquisitionKind === "accumulator" ? "none (batched-path claim)" : formatSats(nameRecord.requiredBondSats)
     )}</p></div>`,
     renderValueHistory(valueHistory),
     renderResolverCompare(valueCompare, valueCompareError)
