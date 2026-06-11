@@ -1,5 +1,9 @@
 # ONT Contest Grief Cost Model
 
+> **SUPERSEDED (2026-06-11):** completed analysis — its conclusions are decisions
+> in [`docs/core/DECISIONS.md`](../../core/DECISIONS.md) (contested-auction entries).
+> Kept for provenance per doc-canon (#45).
+
 Context: Mat asked what it would cost an adversary to keep ONT from scaling by pushing the namespace above the critical contested-claim rate.
 
 > **Status (updated 2026-06-09).** The original version of this model analyzed the

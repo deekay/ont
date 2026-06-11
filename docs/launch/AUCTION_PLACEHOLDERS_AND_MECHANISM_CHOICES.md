@@ -8,7 +8,7 @@ This note separates two things that can easily get blurred together:
 Related notes:
 
 - [ONT_LAUNCH_V1_BRIEF.md](./ONT_LAUNCH_V1_BRIEF.md)
-- [CONTESTED_AUCTION_REFERENCE.md](./CONTESTED_AUCTION_REFERENCE.md)
+- [CONTESTED_AUCTION_REFERENCE.md](../spec/CONTESTED_AUCTION_REFERENCE.md)
 - [BITCOIN_REVIEW_CLOSURE_MATRIX.md](../research/archive/BITCOIN_REVIEW_CLOSURE_MATRIX.md)
 
 ## Real Mechanism Choices

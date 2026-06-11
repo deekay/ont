@@ -136,5 +136,5 @@ signet. None of these is an invariant violation — the strongest thing a confor
 the design stage.
 
 See also: [`ONT_RISK_REGISTER.md`](./ONT_RISK_REGISTER.md),
-[`ONT_DATA_AVAILABILITY_AGREEMENT.md`](./ONT_DATA_AVAILABILITY_AGREEMENT.md),
+[`ONT_DATA_AVAILABILITY_AGREEMENT.md`](../spec/ONT_DATA_AVAILABILITY_AGREEMENT.md),
 [`ONT_RISKS_PLAIN_LANGUAGE.md`](./ONT_RISKS_PLAIN_LANGUAGE.md).

@@ -1,5 +1,9 @@
 # Value Record History And Keybase Notes
 
+> **SUPERSEDED (2026-06-11):** completed analysis — its conclusions are decisions
+> in [`docs/core/DECISIONS.md`](../../core/DECISIONS.md) (value-record entries).
+> Kept for provenance per doc-canon (#45).
+
 This note answers a narrower question than the Bitcoin ownership protocol:
 
 > if an ONT value changes from `foo` to `bar`, can a later resolver or client

@@ -52,7 +52,7 @@ name to anyone — it **nullifies** it (reopens for claiming). There is no order
 a block-winning miner ordering its own cheap claim first gains *nothing* (worst case it denies the
 name — ₿1,000, no payoff). Acquiring a contested name requires a qualifying bond — identical cost for a
 miner and for anyone — which is what makes ordering worthless for acquisition. See
-[`ONT_ACQUISITION_STATE_MACHINE.md`](./ONT_ACQUISITION_STATE_MACHINE.md) and R16.
+[`ONT_ACQUISITION_STATE_MACHINE.md`](../spec/ONT_ACQUISITION_STATE_MACHINE.md) and R16.
 
 **D2 — Disjoint names commute, so ordering is irrelevant for the long tail.** A million people
 claiming a million *different* names don't compete; their insertions merge order-independently

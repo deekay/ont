@@ -77,7 +77,7 @@ bond land by `anchorHeight + W_notice`?), not order-derived. (Decision #37; MEV 
 **"Then I'll grief you with collisions forever."** Each denial round costs the attacker a fresh
 sunk ₿1,000. The defender exits the loop **once**: post a qualifying bond, the auction opens, and
 the griefer must out-bid with real capital locked ~1 year — or lose the name. The
-[attrition model](./research/ONT_NULLIFICATION_ATTRITION_MODEL.md): at a 5%/yr opportunity-cost
+[attrition model](./research/archive/ONT_NULLIFICATION_ATTRITION_MODEL.md): at a 5%/yr opportunity-cost
 assumption, the attacker's sunk spend exceeds the defender's carry at every phase of the window
 schedule — **one bond ends the game**. The disclosed asymmetry (Decision #43): no bond floor is
 simultaneously cheap for a poor defender and dear for a rich attacker. We accept and document that
@@ -228,7 +228,7 @@ are **not frozen today**.
 1. **The DA rule and transport** — is fail-closed-by-height sound against withholding and reorgs?
    Should the availability marker be folded into the anchor itself? Is publisher-served +
    voluntary mirrors enough for v1?
-   ([`design/ONT_DATA_AVAILABILITY_AGREEMENT.md`](./design/ONT_DATA_AVAILABILITY_AGREEMENT.md) §8b)
+   ([`design/ONT_DATA_AVAILABILITY_AGREEMENT.md`](./spec/ONT_DATA_AVAILABILITY_AGREEMENT.md) §8b)
 2. **Publisher trust-minimization** — is pay-first + reputable operators the right v1 stance, or
    is there a *deployable-today* way to bind payment to inclusion atomically?
 3. **The bond floor** — ₿50,000 is the price of escalation *and* of defense; is there a better
@@ -244,11 +244,11 @@ are **not frozen today**.
    decaying launch gate?
 9. **The watchtower credential** — the cleanest name-scoped, abort-only construction for an
    unattended recovery veto?
-   ([`design/ONT_LONG_TAIL_RECOVERY.md`](./design/ONT_LONG_TAIL_RECOVERY.md) §5.6)
+   ([`design/ONT_LONG_TAIL_RECOVERY.md`](./research/archive/ONT_LONG_TAIL_RECOVERY.md) §5.6)
 
 ---
 
 Repo: [github.com/deekay/ont](https://github.com/deekay/ont) · deeper:
 [`ONT_DESIGN_BRIEF.md`](./ONT_DESIGN_BRIEF.md) · exact lifecycle:
-[`design/ONT_ACQUISITION_STATE_MACHINE.md`](./design/ONT_ACQUISITION_STATE_MACHINE.md) · plain
+[`design/ONT_ACQUISITION_STATE_MACHINE.md`](./spec/ONT_ACQUISITION_STATE_MACHINE.md) · plain
 language: [`ONT.md`](./ONT.md).

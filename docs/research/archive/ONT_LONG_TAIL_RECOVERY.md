@@ -1,5 +1,9 @@
 # ONT — Recovery for Names With No UTXO (Long-Tail & Post-Maturity)
 
+> **SUPERSEDED (2026-06-11):** recovery design moved on — see the recovery invoke
+> spec ([`docs/spec/ONT_RECOVERY_INVOKE_SPEC.md`](../../spec/ONT_RECOVERY_INVOKE_SPEC.md))
+> and [`docs/research/OWNER_KEY_RECOVERY.md`](../OWNER_KEY_RECOVERY.md). Kept for history.
+
 Owner-key loss is the most *human* risk in the system: ordinary people lose keys constantly, and
 "lose your phone → lose your name forever" is a hard sell for mass adoption. This note works through
 how recovery extends to names that have **no on-chain footprint** — the cheap long-tail names, and
@@ -197,6 +201,6 @@ actor can only act for keys it holds). 10 tests assert, in code:
 
 The model validates the security shape; it is not the Bitcoin-tx-level mechanism (still open item 2).
 
-See also: [`ONT_DATA_AVAILABILITY_AGREEMENT.md`](./ONT_DATA_AVAILABILITY_AGREEMENT.md) (the DA rule
-this leans on), [`ONT_REQUIREMENTS_CONFORMANCE.md`](./ONT_REQUIREMENTS_CONFORMANCE.md) (F6, I2),
-[`ONT_RISK_REGISTER.md`](./ONT_RISK_REGISTER.md).
+See also: [`ONT_DATA_AVAILABILITY_AGREEMENT.md`](../../spec/ONT_DATA_AVAILABILITY_AGREEMENT.md) (the DA rule
+this leans on), [`ONT_REQUIREMENTS_CONFORMANCE.md`](../../design/ONT_REQUIREMENTS_CONFORMANCE.md) (F6, I2),
+[`ONT_RISK_REGISTER.md`](../../design/ONT_RISK_REGISTER.md).

@@ -179,7 +179,7 @@ This Compose stack does **not** yet include:
 
 If you want the full VPS layout, including running the node yourself on a server you control, use:
 
-- [VPS_SETUP.md](../operators/VPS_SETUP.md)
+- [VPS_SETUP.md](./VPS_SETUP.md)
 
 ## Useful Commands
 

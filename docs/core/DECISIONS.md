@@ -8,11 +8,11 @@ context.
 Related notes:
 
 - [../ONT.md](../ONT.md) — the single source of truth.
-- [../design/ONT_ACQUISITION_STATE_MACHINE.md](../design/ONT_ACQUISITION_STATE_MACHINE.md) —
+- [../design/ONT_ACQUISITION_STATE_MACHINE.md](../spec/ONT_ACQUISITION_STATE_MACHINE.md) —
   the current acquisition reference: claim first, accumulator finality if
   uncontested, L1 bonded auction only if contested.
 - [../launch/ONT_LAUNCH_V1_BRIEF.md](../launch/ONT_LAUNCH_V1_BRIEF.md)
-- [../launch/CONTESTED_AUCTION_REFERENCE.md](../launch/CONTESTED_AUCTION_REFERENCE.md) —
+- [../launch/CONTESTED_AUCTION_REFERENCE.md](../spec/CONTESTED_AUCTION_REFERENCE.md) —
   contested-auction reference.
 - [BITCOIN_REVIEW_CLOSURE_MATRIX.md](../research/archive/BITCOIN_REVIEW_CLOSURE_MATRIX.md)
 

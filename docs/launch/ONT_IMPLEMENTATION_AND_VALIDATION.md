@@ -33,7 +33,7 @@ reviewer should hold is **real-and-on-chain** vs **library/CLI-only** vs
   crypto cross-checks that assert byte-identical agreement with the engine.
 - Private-signet smoke proving real on-chain `AUCTION_BID`, transfer, value-record,
   and recovery-descriptor activity (not just fixtures).
-- See [TESTING.md](../core/TESTING.md).
+- See [TESTING.md](../operate/TESTING.md).
 
 ## Still open / not done (do not imply otherwise)
 
@@ -46,7 +46,7 @@ reviewer should hold is **real-and-on-chain** vs **library/CLI-only** vs
 
 ## Where to go next
 
-[`ONT_ACQUISITION_STATE_MACHINE.md`](../design/ONT_ACQUISITION_STATE_MACHINE.md) ·
-[`CONTESTED_AUCTION_REFERENCE.md`](./CONTESTED_AUCTION_REFERENCE.md) ·
+[`ONT_ACQUISITION_STATE_MACHINE.md`](../spec/ONT_ACQUISITION_STATE_MACHINE.md) ·
+[`CONTESTED_AUCTION_REFERENCE.md`](../spec/CONTESTED_AUCTION_REFERENCE.md) ·
 [`AUCTION_SETTLEMENT_AND_OWNERSHIP.md`](./AUCTION_SETTLEMENT_AND_OWNERSHIP.md) ·
 [`../ONT_DESIGN_BRIEF.md`](../ONT_DESIGN_BRIEF.md) (risks, alternatives, open questions).

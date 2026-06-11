@@ -9,8 +9,8 @@ marked ⏳ with today's location linked.
 | --- | --- | --- |
 | **Curious newcomer** | [ONT.md](./ONT.md) — the front door | [ONT_ONE_PAGER.md](./ONT_ONE_PAGER.md) |
 | **Bitcoin reviewer** | [ONT_DESIGN_BRIEF.md](./ONT_DESIGN_BRIEF.md) (⏳ becomes `DESIGN.md`) | risks + open questions (below) |
-| **Implementer** | the normative docs (below; ⏳ gather into `spec/`) | [core/STATUS.md](./core/STATUS.md) for what's wired |
-| **Operator** | [core/SELF_HOSTING.md](./core/SELF_HOSTING.md) (⏳ moves to `operate/`) | demos + operators (below) |
+| **Implementer** | [spec/](./spec/) — the normative docs (below) | [core/STATUS.md](./core/STATUS.md) for what's wired |
+| **Operator** | [operate/SELF_HOSTING.md](./operate/SELF_HOSTING.md) | demos + operators (below) |
 | **The team** | [core/STATUS.md](./core/STATUS.md) — source of truth for what's real | [core/DECISIONS.md](./core/DECISIONS.md) — the memory |
 
 ## The front door
@@ -40,26 +40,26 @@ what's actually wired — if any doc disagrees with it, STATUS wins.
 
 ## For implementers (the normative layer)
 
-⏳ These gather into `docs/spec/`; a doc there claims normative status. Today:
+The normative layer lives in `docs/spec/`; a doc there claims normative status:
 
-- [acquisition state machine](./design/ONT_ACQUISITION_STATE_MACHINE.md) —
+- [acquisition state machine](./spec/ONT_ACQUISITION_STATE_MACHINE.md) —
   claim, notice, uncontested finality, contested escalation
-- [data-availability agreement](./design/ONT_DATA_AVAILABILITY_AGREEMENT.md) —
+- [data-availability agreement](./spec/ONT_DATA_AVAILABILITY_AGREEMENT.md) —
   the fail-closed availability rule
-- [issuance fee mechanics](./design/ONT_ISSUANCE_FEE_MECHANICS.md)
-- [contested auction reference](./launch/CONTESTED_AUCTION_REFERENCE.md)
-- [publisher protocol spec](./research/ONT_PUBLISHER_PROTOCOL_SPEC.md)
-- [recovery invoke spec](./research/ONT_RECOVERY_INVOKE_SPEC.md)
+- [issuance fee mechanics](./spec/ONT_ISSUANCE_FEE_MECHANICS.md)
+- [contested auction reference](./spec/CONTESTED_AUCTION_REFERENCE.md)
+- [publisher protocol spec](./spec/ONT_PUBLISHER_PROTOCOL_SPEC.md)
+- [recovery invoke spec](./spec/ONT_RECOVERY_INVOKE_SPEC.md)
 
 Builder orientation: [core/CURRENT_ARCHITECTURE_BRIEF.md](./core/CURRENT_ARCHITECTURE_BRIEF.md)
 (⏳ merges with [core/ARCHITECTURE.md](./core/ARCHITECTURE.md) into one doc).
 
 ## For operators
 
-⏳ These move to `docs/operate/`. Today:
-[self-hosting](./core/SELF_HOSTING.md) · [testing](./core/TESTING.md) ·
-[new-user testing guide](./core/NEW_USER_TESTING_GUIDE.md) ·
-[operators/](./operators/) (domain, Supabase, VPS) · [demo/](./demo/)
+Everything operational lives in `docs/operate/`:
+[self-hosting](./operate/SELF_HOSTING.md) · [testing](./operate/TESTING.md) ·
+[new-user testing guide](./operate/NEW_USER_TESTING_GUIDE.md) ·
+[operators](./operate/) (domain, Supabase, VPS) · [demo](./operate/demo/)
 (walkthroughs, signet, Sparrow)
 
 ## Launch working material

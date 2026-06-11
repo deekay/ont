@@ -20,11 +20,11 @@ Canonical reading order:
 
 1. [../ONT.md](../ONT.md) - plain-language source of truth.
 2. [../design/ONT_SOVEREIGNTY_MAP.md](../design/ONT_SOVEREIGNTY_MAP.md) - the minimal trust surface.
-3. [../design/ONT_ACQUISITION_STATE_MACHINE.md](../design/ONT_ACQUISITION_STATE_MACHINE.md) - claim, notice, uncontested finality, and auction escalation.
-4. [../design/README.md](../design/README.md) - current design index.
+3. [../design/ONT_ACQUISITION_STATE_MACHINE.md](../spec/ONT_ACQUISITION_STATE_MACHINE.md) - claim, notice, uncontested finality, and auction escalation.
+4. [../README.md](../README.md) - the reader map (the old design index is archived).
 5. [../launch/ONT_LAUNCH_V1_BRIEF.md](../launch/ONT_LAUNCH_V1_BRIEF.md) - launch/review framing.
 6. [./ARCHITECTURE.md](./ARCHITECTURE.md) - runtime layers and product components.
-7. [./SIMPLIFICATION_AUDIT.md](./SIMPLIFICATION_AUDIT.md) - cleanup map and remaining simplification work.
+7. [./SIMPLIFICATION_AUDIT.md](../research/archive/SIMPLIFICATION_AUDIT.md) - cleanup map and remaining simplification work.
 
 Treat [../research/archive/](../research/archive/) as provenance only. Do not
 infer active design from archived docs.
@@ -81,10 +81,10 @@ Auction and indexing:
 
 Scaling prototypes:
 
-- [../../packages/core/src/research/accumulator.ts](../../packages/core/src/research/accumulator.ts) - sparse Merkle accumulator.
+- [../../packages/core/src/accumulator.ts](../../packages/core/src/accumulator.ts) - sparse Merkle accumulator.
 - [../../packages/core/src/research/delta-merge-sim.ts](../../packages/core/src/research/delta-merge-sim.ts) - leaderless per-block merge simulation.
 - [../../packages/core/src/research/da-convergence-sim.ts](../../packages/core/src/research/da-convergence-sim.ts) - data-availability convergence simulation.
-- [../../packages/core/src/research/root-anchor.ts](../../packages/core/src/research/root-anchor.ts) - Bitcoin anchor transaction measurement.
+- [../../packages/core/src/root-anchor.ts](../../packages/core/src/root-anchor.ts) - Bitcoin anchor transaction measurement.
 - [../../packages/core/src/research/batch-rail.ts](../../packages/core/src/research/batch-rail.ts) - batch rail behavior.
 - [../../packages/core/src/research/recovery-sim.ts](../../packages/core/src/research/recovery-sim.ts) - recovery state machine simulation.
 

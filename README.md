@@ -22,8 +22,8 @@ detail:
 4. **[Design brief](./docs/ONT_DESIGN_BRIEF.md)** — the full design: model, trust surface,
    scaling and data availability, economics, prior art, risks
 5. **[docs/design/](./docs/design/)** — per-mechanism references: the
-   [acquisition state machine](./docs/design/ONT_ACQUISITION_STATE_MACHINE.md),
-   [data-availability agreement](./docs/design/ONT_DATA_AVAILABILITY_AGREEMENT.md),
+   [acquisition state machine](./docs/spec/ONT_ACQUISITION_STATE_MACHINE.md),
+   [data-availability agreement](./docs/spec/ONT_DATA_AVAILABILITY_AGREEMENT.md),
    [MEV/ordering analysis](./docs/design/ONT_MEV_ORDERING_ANALYSIS.md),
    [sovereignty map](./docs/design/ONT_SOVEREIGNTY_MAP.md),
    [risk register](./docs/design/ONT_RISK_REGISTER.md)
@@ -39,7 +39,7 @@ analysis — kept current with decisions, but check dates.
 If you want to evaluate rather than browse:
 
 1. **Read the lifecycle (~10 min):**
-   [the acquisition state machine](./docs/design/ONT_ACQUISITION_STATE_MACHINE.md). The points
+   [the acquisition state machine](./docs/spec/ONT_ACQUISITION_STATE_MACHINE.md). The points
    that matter beyond the one-pager's flow: a **bond — not a bare claim — opens the auction**
    (Decision #37); two bare claims with no bond **nullify** (deny, never award — so block
    ordering, even a miner's own, can't be converted into a name); **bond-first** is allowed for
@@ -190,7 +190,7 @@ the challenge-window veto should not require the owner to be online: the target 
 non-custodial watcher holding a **name-scoped, abort-only credential** — it can cancel a malicious
 recovery, never move the name (Decision #40). The credential construction is an open design
 problem, raised for external feedback
-([ONT_LONG_TAIL_RECOVERY.md §5.6](./docs/design/ONT_LONG_TAIL_RECOVERY.md)).
+([ONT_LONG_TAIL_RECOVERY.md §5.6](./docs/research/archive/ONT_LONG_TAIL_RECOVERY.md)).
 
 ## The trust surface, and auditing it yourself
 
@@ -255,7 +255,7 @@ negotiable. For each: what evidence would break it, and where we are still expos
   **fail-closed DA deadline is the sharpest open item** — until it's implemented, the
   withhold-then-reveal defense for contested names is not operational. On denial-by-collision: a
   spite griefer can nullify a targeted name for ₿1,000 per round, with no payoff; the
-  [attrition model](./docs/research/ONT_NULLIFICATION_ATTRITION_MODEL.md) shows one qualifying
+  [attrition model](./docs/research/archive/ONT_NULLIFICATION_ATTRITION_MODEL.md) shows one qualifying
   bond ends the denial loop, with the attacker's sunk cost exceeding the defender's carry at
   every window phase.
 - **Unambiguous** — two honest observers never disagree about a name's owner.
@@ -295,7 +295,7 @@ be frozen and published before launch; until then, nothing here should be called
 - **Collision denies, never awards.** A spite-griefer can nullify a targeted name for ₿1,000
   per round, all sunk.
 - **One qualifying bond ends the denial loop.** The
-  [nullification-attrition model](./docs/research/ONT_NULLIFICATION_ATTRITION_MODEL.md): once the
+  [nullification-attrition model](./docs/research/archive/ONT_NULLIFICATION_ATTRITION_MODEL.md): once the
   defender posts a bond, the name goes to auction and settles — re-colliding stops working — and
   at a 5%/yr opportunity-cost assumption the attacker's cumulative sunk cost exceeds the
   defender's carry at every phase of the window schedule.
@@ -324,12 +324,12 @@ npm run selfhost:up      # http://127.0.0.1:3000
 ```
 
 To point the stack at your own Bitcoin backend, see
-[SELF_HOSTING.md](./docs/core/SELF_HOSTING.md). The hosted signet demo exercises the cheap rail
+[SELF_HOSTING.md](./docs/operate/SELF_HOSTING.md). The hosted signet demo exercises the cheap rail
 live: claim a name at [claim.opennametags.org](https://claim.opennametags.org) (keys generated in
 your browser; the page runs offline for key generation) and watch it appear in the
 [explorer](https://opennametags.org/explore) once the anchor confirms. Walkthroughs:
-[Sparrow private-signet](./docs/demo/SPARROW_PRIVATE_SIGNET.md) ·
-[Flint demo](./docs/demo/FLINT_DEMO.md).
+[Sparrow private-signet](./docs/operate/demo/SPARROW_PRIVATE_SIGNET.md) ·
+[Flint demo](./docs/operate/demo/FLINT_DEMO.md).
 
 ## Repository map
 
@@ -352,8 +352,8 @@ proof-bundle — the frozen core) + `packages/protocol` (names · wire · events
 ## Where feedback is most valuable
 
 A useful review order: this page → [design brief](./docs/ONT_DESIGN_BRIEF.md) →
-[acquisition state machine](./docs/design/ONT_ACQUISITION_STATE_MACHINE.md) →
-[DA agreement](./docs/design/ONT_DATA_AVAILABILITY_AGREEMENT.md) →
+[acquisition state machine](./docs/spec/ONT_ACQUISITION_STATE_MACHINE.md) →
+[DA agreement](./docs/spec/ONT_DATA_AVAILABILITY_AGREEMENT.md) →
 [risk register](./docs/design/ONT_RISK_REGISTER.md). The full ask list is the one-pager's feedback
 section plus [OPEN_QUESTIONS_FOR_EXPERTS.md](./docs/research/OPEN_QUESTIONS_FOR_EXPERTS.md); the
 sharpest items, in rough order:

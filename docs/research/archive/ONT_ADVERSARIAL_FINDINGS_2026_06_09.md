@@ -1,5 +1,9 @@
 # ONT Adversarial E2E Findings — 2026-06-09
 
+> **SUPERSEDED (2026-06-11):** point-in-time findings; the fixes landed and the
+> surviving risks live in the consolidated risk doc (see [`docs/README.md`](../../README.md)
+> for its current location). Kept here unchanged for provenance.
+
 Context: a multi-agent adversarial campaign drove the full name lifecycle (cheap
 claim → notice → collision/bond → auction → soft close → settle → maturity →
 transfer → recovery) plus DA and resolver-integrity attacks. 53 scenarios across

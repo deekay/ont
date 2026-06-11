@@ -1,5 +1,9 @@
 # ONT Nullification-Attrition Model
 
+> **SUPERSEDED (2026-06-11):** completed analysis — its conclusions are decisions
+> in [`docs/core/DECISIONS.md`](../../core/DECISIONS.md) (nullification entries).
+> Kept for provenance per doc-canon (#45).
+
 Context: the top-ranked open area in `ONT_OPEN_ANALYSIS_AREAS_2026_06_09.md`.
 Decision #37 closed the dust-cost blockspace attack but left a dust-cost
 *denial* attack: collide a cheap claim (`₿1,000`, never bond) so it nullifies

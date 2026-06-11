@@ -132,7 +132,7 @@ That leaves two narrower real risks:
 **Where it stands:** archival is well covered — the creator plus aligned institutions (e.g. Block,
 Coinbase) can each run a server. Crucially that's **"any one is enough, and none can lie"** (every
 answer checks against Bitcoin). The **agreement rule** now has a worked-through design (see
-[`ONT_DATA_AVAILABILITY_AGREEMENT.md`](./ONT_DATA_AVAILABILITY_AGREEMENT.md)). The key realization:
+[`ONT_DATA_AVAILABILITY_AGREEMENT.md`](../spec/ONT_DATA_AVAILABILITY_AGREEMENT.md)). The key realization:
 the dangerous disagreement only matters for **contested** names. For the long tail nobody else
 wants, a late batch just registers later — no harm. So the hard part shrinks to a small corner
 (contested names), which can fall back to putting full data directly on Bitcoin. **This is now

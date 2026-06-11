@@ -17,7 +17,7 @@ Related notes:
 - [ONT_ONE_PAGER.md](../../ONT_ONE_PAGER.md) — the review one-pager
 - [ONT_DESIGN_BRIEF.md](../../ONT_DESIGN_BRIEF.md) — the deeper design brief for Bitcoin reviewers
 - [ONT_LAUNCH_V1_BRIEF.md](../../launch/ONT_LAUNCH_V1_BRIEF.md)
-- [CONTESTED_AUCTION_REFERENCE.md](../../launch/CONTESTED_AUCTION_REFERENCE.md)
+- [CONTESTED_AUCTION_REFERENCE.md](../../spec/CONTESTED_AUCTION_REFERENCE.md)
 
 ## The Short Version
 
@@ -196,7 +196,7 @@ sequence right now:
 2. [ONT_ONE_PAGER.md](../../ONT_ONE_PAGER.md)
 3. [ONT_DESIGN_BRIEF.md](../../ONT_DESIGN_BRIEF.md)
 4. [ONT_IMPLEMENTATION_AND_VALIDATION.md](../../launch/ONT_IMPLEMENTATION_AND_VALIDATION.md)
-5. [CONTESTED_AUCTION_REFERENCE.md](../../launch/CONTESTED_AUCTION_REFERENCE.md)
+5. [CONTESTED_AUCTION_REFERENCE.md](../../spec/CONTESTED_AUCTION_REFERENCE.md)
 
 ## The Right Takeaway
 

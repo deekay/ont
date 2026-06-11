@@ -12,7 +12,7 @@ own node. Use `rpc` when you want the most complete and controllable write path
 for auction bids, transfers, and destination updates.
 
 If you want to run the current prototype on your own VPS, use
-[VPS_SETUP.md](../operators/VPS_SETUP.md).
+[VPS_SETUP.md](../VPS_SETUP.md).
 
 ## Terminal-Only Live Flow
 

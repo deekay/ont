@@ -178,7 +178,7 @@ blockspace** — arguably the ideal shape of post-subsidy fee pressure.
   a *service* margin on top of the mandated gate, not the gate itself (per C2).
 - ONT.md ("paid to Bitcoin miners") and R13 ("miner fee") are correct and are made concrete here.
 
-See also: [`ONT_RISK_REGISTER.md`](./ONT_RISK_REGISTER.md) (R13 gate form, R5 drift),
+See also: [`ONT_RISK_REGISTER.md`](../design/ONT_RISK_REGISTER.md) (R13 gate form, R5 drift),
 [`ONT_FLAT_NAMESPACE_ONE_PAGER.md`](../research/archive/ONT_FLAT_NAMESPACE_ONE_PAGER.md),
 [`ONT_DATA_AVAILABILITY_AGREEMENT.md`](./ONT_DATA_AVAILABILITY_AGREEMENT.md) (DA-failure handling the
 publisher-fronting model relies on).

@@ -1,5 +1,8 @@
 # ONT — Signet Prototype Scope
 
+> **SUPERSEDED (2026-06-11):** the prototype shipped; what is actually wired today
+> is tracked in [`docs/core/STATUS.md`](../../core/STATUS.md). Kept here unchanged for history.
+
 The empirical capstone: turn the abstract models (delta-merge, DA convergence, recovery) into
 **measured behavior on real Bitcoin**, on a private signet. This is what converts "modeled in code"
 into "validated at the transaction level," and settles the unvalidated numbers (R11).
@@ -122,7 +125,7 @@ with serialized membership/non-membership proofs, and measure the proof sizes. I
 most foundational piece, everything else builds on it, and it immediately produces one of the most
 -cited unknown numbers (proof size) — a concrete confidence increment before the larger Phase 2 lift.
 
-See also: [`ONT_FLAT_NAMESPACE_ONE_PAGER.md`](../research/archive/ONT_FLAT_NAMESPACE_ONE_PAGER.md) (the assumptions this
-measures), [`PRELAUNCH_SCALING_CONFIDENCE_PLAN.md`](../launch/PRELAUNCH_SCALING_CONFIDENCE_PLAN.md),
-[`ONT_DATA_AVAILABILITY_AGREEMENT.md`](./ONT_DATA_AVAILABILITY_AGREEMENT.md),
-[`ONT_REQUIREMENTS_CONFORMANCE.md`](./ONT_REQUIREMENTS_CONFORMANCE.md).
+See also: [`ONT_FLAT_NAMESPACE_ONE_PAGER.md`](./ONT_FLAT_NAMESPACE_ONE_PAGER.md) (the assumptions this
+measures), [`PRELAUNCH_SCALING_CONFIDENCE_PLAN.md`](../../launch/PRELAUNCH_SCALING_CONFIDENCE_PLAN.md),
+[`ONT_DATA_AVAILABILITY_AGREEMENT.md`](../../spec/ONT_DATA_AVAILABILITY_AGREEMENT.md),
+[`ONT_REQUIREMENTS_CONFORMANCE.md`](../../design/ONT_REQUIREMENTS_CONFORMANCE.md).

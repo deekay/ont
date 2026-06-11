@@ -116,7 +116,7 @@ premium, e.g. `bitcoin`) — *never* by a bare second claim. A bare cheap collis
 name (it reopens for claiming) but can never *take* it. So ordering a cheap claim first buys
 nothing — the only way to acquire a contested name is to lock a real returnable bond, identical for
 a miner and for everyone else; this closes the former ordering grab (R16) at the root. See
-[`design/ONT_ACQUISITION_STATE_MACHINE.md`](./design/ONT_ACQUISITION_STATE_MACHINE.md).
+[`design/ONT_ACQUISITION_STATE_MACHINE.md`](./spec/ONT_ACQUISITION_STATE_MACHINE.md).
 
 **Off-chain records.** What a name *points to* (a Bitcoin/Lightning destination, an HTTPS
 target, etc.) is an owner-signed record: sequence-numbered and predecessor-hash-chained
@@ -194,7 +194,7 @@ Billions of names cannot each be a Bitcoin transaction, so cheap uncontested cla
   settled; the **transport** — how the bytes are served and mirrored — is the live open call,
   with content-addressed/marker-committed bytes (publisher-served + anyone-mirrorable, not
   consensus-critical) as the working direction and a **core area flagged for feedback**. See
-  [`design/ONT_DATA_AVAILABILITY_AGREEMENT.md`](./design/ONT_DATA_AVAILABILITY_AGREEMENT.md) (§8b transport).
+  [`design/ONT_DATA_AVAILABILITY_AGREEMENT.md`](./spec/ONT_DATA_AVAILABILITY_AGREEMENT.md) (§8b transport).
 - **Leaderless multi-publisher.** Distinct-name inserts commute; genuine conflicts resolve
   by deterministic priority (block height, then tx index, then txid). No single publisher
   owns the root. See
@@ -205,7 +205,7 @@ Billions of names cannot each be a Bitcoin transaction, so cheap uncontested cla
   validation is **not yet implemented** in the replay/consensus path (the live signet
   publisher pays a flat configured anchor fee); implementing it inside the audited boundary
   is queued work. See
-  [`design/ONT_ISSUANCE_FEE_MECHANICS.md`](./design/ONT_ISSUANCE_FEE_MECHANICS.md) and the
+  [`design/ONT_ISSUANCE_FEE_MECHANICS.md`](./spec/ONT_ISSUANCE_FEE_MECHANICS.md) and the
   Known-incomplete list in [`core/STATUS.md`](./core/STATUS.md).
 
 **Honest status.** The rail is **live end-to-end on the private signet** (since
@@ -301,7 +301,7 @@ identical cost for a miner and for anyone else, which closes the former ordering
 ≤4-char opening bonds are the *mandatory* bond-first case of this one mechanism, and the ₿50,000
 escalation floor (the cost to open/contest an auction) graduates from placeholder to a real launch
 decision. See
-[`design/ONT_ACQUISITION_STATE_MACHINE.md`](./design/ONT_ACQUISITION_STATE_MACHINE.md),
+[`design/ONT_ACQUISITION_STATE_MACHINE.md`](./spec/ONT_ACQUISITION_STATE_MACHINE.md),
 [`design/ONT_MEV_ORDERING_ANALYSIS.md`](./design/ONT_MEV_ORDERING_ANALYSIS.md) §D3, and R16 in
 [`design/ONT_RISK_REGISTER.md`](./design/ONT_RISK_REGISTER.md).
 
@@ -379,12 +379,12 @@ sound and where it's weakest.
 
 Canonical: [`ONT.md`](./ONT.md) · [`ONT_ONE_PAGER.md`](./ONT_ONE_PAGER.md) ·
 [`core/CURRENT_ARCHITECTURE_BRIEF.md`](./core/CURRENT_ARCHITECTURE_BRIEF.md) ·
-[`core/SIMPLIFICATION_AUDIT.md`](./core/SIMPLIFICATION_AUDIT.md)
+[`core/SIMPLIFICATION_AUDIT.md`](./research/archive/SIMPLIFICATION_AUDIT.md)
 
 Design depth: [sovereignty map](./design/ONT_SOVEREIGNTY_MAP.md) ·
-[acquisition state machine](./design/ONT_ACQUISITION_STATE_MACHINE.md) ·
-[issuance/fee mechanics](./design/ONT_ISSUANCE_FEE_MECHANICS.md) ·
-[data-availability agreement](./design/ONT_DATA_AVAILABILITY_AGREEMENT.md) ·
+[acquisition state machine](./spec/ONT_ACQUISITION_STATE_MACHINE.md) ·
+[issuance/fee mechanics](./spec/ONT_ISSUANCE_FEE_MECHANICS.md) ·
+[data-availability agreement](./spec/ONT_DATA_AVAILABILITY_AGREEMENT.md) ·
 [MEV / ordering](./design/ONT_MEV_ORDERING_ANALYSIS.md) ·
 [risk register](./design/ONT_RISK_REGISTER.md) ·
 [requirements](./design/ONT_DESIGN_REQUIREMENTS.md)

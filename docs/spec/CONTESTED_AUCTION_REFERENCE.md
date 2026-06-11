@@ -3,7 +3,7 @@
 Status: Current reference for the contested-name auction path. The full
 acquisition model is defined in
 [`../ONT.md`](../ONT.md) and
-[`../design/ONT_ACQUISITION_STATE_MACHINE.md`](../design/ONT_ACQUISITION_STATE_MACHINE.md).
+[`../design/ONT_ACQUISITION_STATE_MACHINE.md`](./ONT_ACQUISITION_STATE_MACHINE.md).
 
 Read this file only as the deeper reference for what happens after a claim is
 contested.

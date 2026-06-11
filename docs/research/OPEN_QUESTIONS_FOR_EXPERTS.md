@@ -14,7 +14,7 @@ construction (PTLCs and similar) isn't worth the complexity for the small risk i
 **Decision:** ONT does **not** treat PTLCs — or any adaptor-conditional Lightning payment — as a
 near-term design tradeoff. v1 uses a **pay-first flow with reputable publishers** (pay, then
 included; a non-payer is simply left out — see
-[`../design/ONT_ISSUANCE_FEE_MECHANICS.md`](../design/ONT_ISSUANCE_FEE_MECHANICS.md)). Atomically
+[`../design/ONT_ISSUANCE_FEE_MECHANICS.md`](../spec/ONT_ISSUANCE_FEE_MECHANICS.md)). Atomically
 binding the off-chain payment to on-chain inclusion is a **longer-term research item**, deferred,
 with no v1 dependency on a specific primitive.
 

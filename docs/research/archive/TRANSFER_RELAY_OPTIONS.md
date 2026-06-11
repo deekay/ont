@@ -1,5 +1,9 @@
 # Transfer Relay Options
 
+> **SUPERSEDED (2026-06-11):** completed analysis — its conclusions are decisions
+> in [`docs/core/DECISIONS.md`](../../core/DECISIONS.md) (transfer relay entries) and the
+> known-tradeoffs list in [`docs/core/STATUS.md`](../../core/STATUS.md). Kept for provenance.
+
 This note explains why the current `TRANSFER` event is still awkward for broad relay compatibility, and which directions are actually available if we want to change it.
 
 ## Current shape

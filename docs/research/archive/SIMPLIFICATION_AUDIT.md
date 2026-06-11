@@ -1,5 +1,9 @@
 # ONT simplification audit
 
+> **SUPERSEDED (2026-06-11):** this audit is complete — the doc-canon decision
+> ([`docs/core/DECISIONS.md`](../../core/DECISIONS.md), doc-canon (#45)) is its output.
+> Kept here unchanged for history.
+
 Status: working audit, 2026-06-01. First cleanup pass applied the same day:
 current launch docs now point at the one-path claim model, older auction-first
 launch docs are marked historical, visible `₿1,000` wording replaces

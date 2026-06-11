@@ -4,7 +4,7 @@ Status: Current launch/review brief, 2026-06-01.
 
 This is the review target for ONT v1. It follows the current source of truth in
 [`../ONT.md`](../ONT.md) and the acquisition reference in
-[`../design/ONT_ACQUISITION_STATE_MACHINE.md`](../design/ONT_ACQUISITION_STATE_MACHINE.md).
+[`../design/ONT_ACQUISITION_STATE_MACHINE.md`](../spec/ONT_ACQUISITION_STATE_MACHINE.md).
 
 ## One-Sentence v1
 

@@ -1,5 +1,9 @@
 # Contest-window philosophy — design note
 
+> **SUPERSEDED (2026-06-11):** completed analysis — its conclusions are decisions
+> in [`docs/core/DECISIONS.md`](../../core/DECISIONS.md) (notice/contest-window entries).
+> Kept for provenance per doc-canon (#45).
+
 Status: design note, not frozen. Establishes *how to think about* the
 notice/contest window and the bond-forfeiture edges around a contested
 name. The concrete parameters (window length, schedule shape, any slashing)
