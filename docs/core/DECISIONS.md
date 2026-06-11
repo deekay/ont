@@ -795,6 +795,84 @@ Implications:
   is the canonical list of what a newcomer must audit, whatever it currently
   contains.
 
+45. doc-canon: the documentation canon, the jargon law, and stable decision
+names — 2026-06-11
+
+*Short name: **doc-canon**. Decisions are referenced by short stable name, not
+bare number (see the naming rule below).*
+
+Ratified by DK interactively, item by item, in ONT - dev on 2026-06-11 (six
+items). This ratifies the **structure** of the documentation only — where
+every file lives and lands. It approves no document's content; content changes
+keep flowing through the normal writer/reviewer/merge protocol branch by
+branch.
+
+**The canon (item 1).** Four readers, each with exactly one entry point; every
+active doc ends up in, merged into, or archived behind one of nine homes:
+
+| Home | Reader |
+| --- | --- |
+| `ONT.md` | curious newcomer (the front door) |
+| `ONT_ONE_PAGER.md` | reviewer outreach (parity-bound to ONT.md) |
+| `DESIGN.md` | Bitcoin reviewer (design brief + sovereignty/trust story) |
+| `GLOSSARY.md` | everyone (every term, defined once, nowhere else) |
+| `RISKS.md` | reviewer (today's five risk/adversarial docs → one; R-numbers kept as anchors) |
+| `OPEN_QUESTIONS.md` | reviewer (today's three open-question docs → one) |
+| `spec/` | implementer (the normative layer) |
+| `operate/` | operator (how to run it) |
+| `core/STATUS.md` + `core/DECISIONS.md` | team (source of truth + memory) |
+
+**Merge-ins (item 2).** Absorbed then retired: design brief + sovereignty map +
+design-requirements/conformance → `DESIGN.md`; the two architecture docs → one
+`ARCHITECTURE.md`; five risk docs → `RISKS.md`; three open-question docs →
+`OPEN_QUESTIONS.md`; auction placeholders/window schedule/parameter packet →
+STATUS.md's parameter table + `spec/AUCTION.md`; the rest of `launch/` → one
+`LAUNCH.md` + `spec/`. The `launch/` directory ceases to exist.
+
+**Moves (item 3).** Normative docs (acquisition state machine, data-availability
+agreement, issuance fee mechanics, contested auction reference, publisher
+protocol spec, recovery invoke spec) → `docs/spec/`. Operational docs
+(self-hosting, testing guides, operators/, demo/) → `docs/operate/`. "Spec"
+becomes a protected word: a doc in `spec/` claims normative status.
+
+**Archives (item 4).** Principle: *an analysis whose conclusion became a
+decision is history, not documentation.* Completed analyses, the simplification
+audit, superseded designs, and replaced directory READMEs move to
+`research/archive/` via `git mv` with a SUPERSEDED banner naming the successor.
+Six genuinely open inputs stay live in `research/` (multi-publisher
+convergence, owner-key recovery, post-quantum/signature agility,
+decentralization & discovery, ONT-vs-Pubky/PKARR, the accumulator note).
+
+**The jargon law (item 5).** One concept, one name, defined once in
+`GLOSSARY.md`; plain words in prose with the term in parens at first use.
+Renames: the four batch-path synonyms ("cheap rail" / "accumulator rail" /
+"batch rail" / "batched commitment") → **the batched claim path**; "bare claim"
+→ "a claim with no bond"; "DA" → written out as "data availability" in prose,
+W/C/K notation only inside `spec/`; "frozen core" → "audited core (frozen at
+launch)"; "rail" as metaphor → prefer "path". Entrenched terms keep their names
+but each gets a GLOSSARY entry (nullified, bond-first, notice window, value
+record, proof bundle, first-anchor-wins, owner key, claim gate, maturity,
+settlement lock, mature owner, ₿ = 1 sat).
+
+**Process (item 6).** Execution is R1 (this entry + README-as-TOC) → R2 (the
+merges/moves) → R3 (the jargon pass + GLOSSARY, one-pager parity binding).
+Nothing is ever deleted: retirement is `git mv` + SUPERSEDED banner, so
+`git log --follow` keeps history. One branch per phase, writer/reviewer split,
+DK merges. Relative-link integrity is a standing review gate for every phase.
+
+**The naming rule (DK, item 6 ratification).** Decisions are discussed by a
+short stable name, never a bare number — outsiders and reviewers can't follow
+"decision 45". Convention: coin the name when the decision is created and
+record it in the entry itself; write "name (#N)" on first reference, the bare
+name after. Names are never reused or changed, same as numbers.
+
+Implications:
+- `docs/README.md` becomes the reader map for the canon (this phase).
+- The simplification audit is complete — this decision is its output — and is
+  archived in R2.
+- The one-pager parity obligation survives recuration: R3's jargon pass binds
+  it to ONT.md.
+
 ## Fairness Principles To Carry Into The Launch Rewrite
 
 The rewritten launch draft should explicitly state:
