@@ -1,5 +1,9 @@
 # ONT From Zero
 
+> **SUPERSEDED (2026-06-10):** this note has been absorbed into
+> [`docs/ONT.md`](../../ONT.md), which is now the single newcomer entry point.
+> It is kept here unchanged for history; read ONT.md instead.
+
 This note is meant for someone who knows little or nothing about Open Name Tags
 (ONT) and wants the shortest honest orientation before reading deeper design or
 protocol notes.
