@@ -24,7 +24,7 @@ Last updated: 2026-06-10.
 | Mobile iOS app | **Prototype (signet demo)** | Feature-complete walkable demo; demo-mode default-on; mainnet host placeholder. Not release-ready. |
 | Web explainer (opennametags.org) | **Live** | Marketing/docs + read tooling. |
 | Bare-claim site (claim.opennametags.org) | **Live (signet)** | 12-word phrase (one wallet, many names; gap-scan restore from the words alone) + verified quote + stub-payment claim; self-contained page runs offline for key generation. |
-| Unified wallet secret (12 words everywhere) | **Live** | The same 12-word phrase (masterSeed = first 32 bytes of the BIP-39 seed, owner keys m/696969'/0'/i') derives identical keys on the claim site, the web tools, and the mobile app — locked by shared conformance vectors all four implementations test against. |
+| Unified wallet secret (12 words everywhere) | **Live** | The same 12-word phrase (masterSeed = first 32 bytes of the BIP-39 seed, owner keys m/696969'/0'/i') derives identical keys on the claim site, the web tools, and the mobile app — locked by shared conformance vectors all four implementations test against (engine, web, mobile, and — since 2026-06-10 — the claim site via `apps/claim/src/keys.conformance.test.ts`). |
 
 ## Key numbers
 
@@ -36,7 +36,7 @@ Last updated: 2026-06-10.
 | Short-name opening bond (≤4 chars, **mandatory bond-first** — no cheap-claim path) | **₿100,000,000** (≈1 BTC) at 1 char, halving per char; 5+ chars use gate + contention | working baseline (`@ont/protocol` bond curve, clamped to ≤4 chars) |
 | Bond maturity | ~52,560 blocks (~1 yr) | placeholder / test override |
 | Notice window | **6 blocks (test); target = weeks** | placeholder · fairness lever, **not frozen** |
-| OP_RETURN event size | **up to ~171 bytes** (recover-owner; most events smaller) | measured (above the 80-byte default policy; relies on modern node policy) |
+| OP_RETURN event size | **up to 171 bytes exactly** (recover-owner; most events smaller) | test-pinned (`packages/protocol/src/wire-size.test.ts`); above the 80-byte default policy; relies on modern node policy |
 | On-chain footprint (issuance) | **~0.015–0.019 vB/name** amortized @ ~10k/batch | measured |
 
 ## What the "frozen core" does and does NOT determine (honest boundary)
