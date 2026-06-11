@@ -1,5 +1,13 @@
 # Publisher protocol — v0 spec
 
+> **Normativity: `candidate`** — per the clean-build (#46) ledger
+> ([SOFTWARE_INVENTORY.md](../core/SOFTWARE_INVENTORY.md)). No section of
+> this file is `normative` yet: rules here become law only by surviving the
+> five-step normative hardening for the phase that implements them
+> (hardens for B3/B4 — wire shapes cited by B1 harden at B1). Statements of status elsewhere in this file are
+> historical; the ledger wins.
+
+
 Status: candidate spec, drafted from existing design commitments in
 `@ont/protocol`, `@ont/consensus`, `@ont/core/research`. Not frozen.
 

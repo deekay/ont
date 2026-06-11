@@ -6,7 +6,8 @@
 > status. Per the normative-hardening amendment, **no spec section enters as
 > `normative`** — promotion is earned per section through the five-step
 > hardening before the phase that implements it. Snapshot basis:
-> `main` @ 60d4673, ~57k lines TS.
+> `main` @ 60d4673 — ~57k lines TS in the workspace (`packages/*`, `apps/*`)
+> plus ~9.5k lines in the out-of-workspace `mobile/` app.
 
 ## Half 1 — Code: classification and fates
 
@@ -41,9 +42,16 @@ the unit's *functionality* and *code* are for during the rebuild.
 | `apps/cli` | ~6.5k | operator/prototype CLI; demo residue suspected | operate/ | **rewrite** (B5) after a demo-residue pass; residue **retires** |
 | `apps/claim` | ~1.0k | self-contained claim site; `keys.conformance.test.ts` locks the 12-word cross-surface derivation | 12-word secret conformance; claim flow | **rewrite** (B5); conformance test is keep-as-reference-grade mining |
 
+### Out-of-workspace software
+
+| Unit | Lines | What it is (verified read) | Doc rules it maps to | Fate |
+| --- | --- | --- | --- | --- |
+| `mobile/` | ~9.5k | Expo/React Native iOS app, top-level (not in the pnpm workspace); prototype signet demo per STATUS (demo-mode default-on, mainnet host placeholder); `mobile/checks/` carries the mobile half of the 12-word cross-surface conformance | 12-word secret conformance; recovery invoke spec (wallet-proof flows); glossary (user-facing copy) | **rewrite in the separate post-B5 mobile effort** (ruled call 4), consuming `@ont/*` packages; quarantines with everything else at B1 start; `mobile/checks/` conformance vectors are keep-as-reference-grade mining |
+
 **No unit remains `unknown`.** The three Item-3 unknowns (`packages/architect`,
 `packages/db`, the indexer/resolver split) were resolved by direct read on
-2026-06-11 and classified above.
+2026-06-11 and classified above; the out-of-workspace `mobile/` app is
+classified above as well.
 
 ### Named mining sources (Item 2's golden artifacts)
 
@@ -59,9 +67,11 @@ the unit's *functionality* and *code* are for during the rebuild.
 Per the hardening amendment: every rule-bearing section enters as
 **`candidate`**; `normative` is earned per section via the five-step
 hardening, just-in-time for the phase that implements it. Non-rule-bearing
-material is `analysis`. Status is recorded here and as a status header in
-each spec file (headers land in the same PR as each file's first hardening
-pass, so files are touched once with review).
+material is `analysis`. Status is recorded here **and as a status header in
+each spec file** — the headers land in the same PR as this ledger, so a
+reader opening any spec file sees its ledger status. The first hardening
+pass refines status to section level; pre-existing status claims inside the
+files are historical and the ledger wins.
 
 | Spec file | Enters as | Hardened for phase | Notes |
 | --- | --- | --- | --- |

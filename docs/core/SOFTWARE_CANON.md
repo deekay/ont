@@ -209,7 +209,14 @@ STATUS.md is updated in the same PR that changes what is real — including
 components decommissioned under Item 6. Spec gaps produce named spec PRs,
 never inline improvisation.
 
-## Current inventory (snapshot @ main 60d4673; ledger to follow as Item 3's deliverable)
+## Pre-inventory snapshot (B0, @ main 60d4673) — SUPERSEDED
+
+> This table is the initial-read snapshot the B0 plan was written from,
+> preserved for the record. The Item 3 deliverable that supersedes it is
+> [SOFTWARE_INVENTORY.md](./SOFTWARE_INVENTORY.md) — fates, doc-rule
+> mappings, the spec normativity ledger, and the resolution of every
+> `unknown` below (including the out-of-workspace `mobile/` app this
+> snapshot missed). Where the two disagree, the inventory wins.
 
 | Unit | Lines (TS) | Initial read | Likely fate |
 | --- | --- | --- | --- |

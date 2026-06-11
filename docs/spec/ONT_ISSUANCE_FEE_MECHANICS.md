@@ -1,5 +1,13 @@
 # ONT — Issuance Fee Mechanics (how the claim gate reaches miners)
 
+> **Normativity: `candidate`** — per the clean-build (#46) ledger
+> ([SOFTWARE_INVENTORY.md](../core/SOFTWARE_INVENTORY.md)). No section of
+> this file is `normative` yet: rules here become law only by surviving the
+> five-step normative hardening for the phase that implements them
+> (hardens for B2). Statements of status elsewhere in this file are
+> historical; the ledger wins.
+
+
 How does the per-name claim fee (₿1,000 — ~$1, fixed in bitcoin) actually work in the **batched** path,
 such that it is simultaneously a real anti-spam gate, neutral, blockspace-minimal, *and* genuine
 miner revenue? This note works that through, because two of the project's headline claims are in

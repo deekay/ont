@@ -1,5 +1,13 @@
 # Contested Auction Reference
 
+> **Normativity: `candidate`** — per the clean-build (#46) ledger
+> ([SOFTWARE_INVENTORY.md](../core/SOFTWARE_INVENTORY.md)). No section of
+> this file is `normative` yet: rules here become law only by surviving the
+> five-step normative hardening for the phase that implements them
+> (hardens for B2). Statements of status elsewhere in this file are
+> historical; the ledger wins.
+
+
 Status: Current reference for the contested-name auction path. The full
 acquisition model is defined in
 [`../ONT.md`](../ONT.md) and

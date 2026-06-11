@@ -1,5 +1,13 @@
 # ONT — The Data-Availability Agreement Problem (R1)
 
+> **Normativity: `candidate`** — per the clean-build (#46) ledger
+> ([SOFTWARE_INVENTORY.md](../core/SOFTWARE_INVENTORY.md)). No section of
+> this file is `normative` yet: rules here become law only by surviving the
+> five-step normative hardening for the phase that implements them
+> (hardens for B2/B3 — blocked on the pre-B2 marker-vs-folded-anchor named spec decision (OPEN_QUESTIONS §1.1)). Statements of status elsewhere in this file are
+> historical; the ledger wins.
+
+
 The deepest existential risk (R1) isn't "can we store the data" — archival is the easy half,
 solved 1-of-N. It's **convergence**: can every honest participant independently arrive at the
 *same* ownership state, anchored only to Bitcoin, with no trusted party? This note states the
