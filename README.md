@@ -136,7 +136,7 @@ mobile app — locked by shared conformance vectors.
 | data-availability fetch, retry/backoff, snapshot persistence | `apps/resolver`, `apps/indexer` | Operational |
 | Quotes, payment, batching thresholds, anchor broadcast | `apps/publisher` | Operational — no ownership authority |
 
-**The honest boundary, stated plainly.** the audited core determines owner-key authority and
+**The honest boundary, stated plainly.** The audited core determines owner-key authority and
 replay validation. **Auction settlement → ownership currently lives outside it**, in experimental
 indexer code: `applyAuctionBid` validates and records bids, but deciding winner-becomes-owner is
 not yet inside the audited boundary. Decision #42: settlement **will move inside the frozen
@@ -193,7 +193,7 @@ problem, raised for external feedback
 
 ## The trust surface, and auditing it yourself
 
-- **the audited core is three files** — `engine.ts`, `state.ts`, `proof-bundle.ts` in
+- **The audited core (frozen at launch) is three files** — `engine.ts`, `state.ts`, `proof-bundle.ts` in
   `packages/consensus/src/` — over the `@ont/protocol` + `@ont/bitcoin` primitives.
   `packages/consensus/src/trust-surface.test.ts` **fails the build** if the core grows a
   dependency or file outside its documented allowed set, so the surface a newcomer must audit

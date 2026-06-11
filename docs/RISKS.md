@@ -616,7 +616,7 @@ watching and do not have coin out of cold storage to contest in time.
 #### 1.2 Sybil-contest griefing — force a victim's claim to auction with a throwaway claim
 
 *(Update note, 2026-06-11: Decision #37 — bond opens the auction, 2026-06-04 — supersedes
-the escalation rule this section describes. A bare second claim with no qualifying bond now
+the escalation rule this section describes. A second claim with no qualifying bond now
 **nullifies** the name (no owner; it reopens for claiming) and can never force an auction;
 only a bond escalates. The attack reshapes from forced escalation to denial — the current
 treatment is the ranked assessment §2 below and

@@ -188,7 +188,7 @@ Concrete changes to `apps/publisher` once B is the target:
      shared notice window (Decision #37). Per `ONT.md`'s one-path model this
      does *not* silently resolve by first-writer-wins; it escalates the name
      to a bonded auction (see "Contested claims" below).
-   - *nullified* — bare competing claims for the leaf collided in the window
+   - *nullified* — competing claims for the leaf collided in the window
      with no qualifying bond: the name resolves to no owner and reopens for
      claiming (Decision #37). Either way the publisher's job is to surface
      the contention to the claimant, not to declare a loser.
@@ -233,7 +233,7 @@ the name is **contested** and escalates to a bonded L1 auction —
 which is the *only* way an auction ever starts. The cheap claim is the sole
 entry path; the auction is an escalation of it, not a parallel path.
 *(Update note, 2026-06-11 — per Decision #37 the trigger is a **bond**, not a
-bare competing claim: a bare collision nullifies the name instead of opening
+competing claim alone: a bare collision nullifies the name instead of opening
 an auction, and bond-first is allowed, so "competing claim → auction" above is
 the pre-#37 rule.)*
 `docs/spec/CONTESTED_AUCTION_REFERENCE.md` is the in-depth design of that
@@ -309,7 +309,7 @@ neighbor for the ordering/fairness half of the notice window.
    open.
 
 3. **Griefing bound under escalation.** *(Update note, 2026-06-11 — per
-   Decision #37 a bare second claim no longer forces an auction; it nullifies
+   Decision #37 a second claim alone no longer forces an auction; it nullifies
    the name, so the grief reshapes from forced escalation to denial. The
    current cost model is
    [`archive/ONT_CONTEST_GRIEF_COST_MODEL.md`](./archive/ONT_CONTEST_GRIEF_COST_MODEL.md)

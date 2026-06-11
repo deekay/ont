@@ -116,7 +116,7 @@ claim (₿1,000 gate, owner pubkey committed)
 Acquisition has exactly two outcomes: a cheap claim that **finalizes uncontested**, or the
 **winning bond in an auction**. An auction is opened by a **bond** — posted against an existing
 claim, or **bond-first** with no prior claim (the natural path for a name you already know is
-premium, e.g. `bitcoin`) — *never* by a bare second claim. A bare cheap collision can **nullify** a
+premium, e.g. `bitcoin`) — *never* by a second claim alone. A cheap collision with no bond can **nullify** a
 name (it reopens for claiming) but can never *take* it. So ordering a cheap claim first buys
 nothing — the only way to acquire a contested name is to lock a real returnable bond, identical for
 a miner and for everyone else; this closes the former ordering grab (R16) at the root. See

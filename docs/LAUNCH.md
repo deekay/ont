@@ -138,7 +138,7 @@ flowchart LR
    competing claim lands), the claim finalizes through the accumulator.
 5. If a qualifying bond is posted in that window — against the claim, or
    bond-first — the name becomes contested and escalates to the bonded L1
-   auction path. If a bare competing data-availability-valid claim lands with no bond, the
+   auction path. If a competing data-availability-valid claim lands with no bond, the
    name is nullified at window close and reopens for claiming.
 6. Whether final by accumulator or auction, the resulting name is controlled by
    the owner key.

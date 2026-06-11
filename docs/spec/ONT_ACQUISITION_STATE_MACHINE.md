@@ -108,7 +108,7 @@ for the deeper R1 treatment.
 A name escalates to the bonded L1 auction when a **qualifying bond** is posted —
 either against an existing in-window claim, or **bond-first** with no prior cheap
 claim (the natural path for a name you already know is premium, e.g. `bitcoin`).
-The escalation trigger is the **bond**, not a bare second claim: a cheap collision
+The escalation trigger is the **bond**, not a second claim alone: a cheap collision
 alone can nullify a name (above) but can never open an auction or award the name.
 
 The auction exists for price discovery and anti-griefing when more than one party

@@ -25,9 +25,9 @@ editorial judgment.
 
 A name escalates to the L1 bonded auction when a **qualifying bond** is posted —
 either against an in-window claim or **bond-first** (no prior claim). The bond,
-not a bare second claim, is the escalation trigger.
+not a second claim alone, is the escalation trigger.
 
-If two or more bare DA-valid claims for the same name land inside the notice
+If two or more DA-valid claims for the same name land inside the notice
 window with **no bond**, the name does not finalize and is **nullified** — it
 resolves to no owner and reopens for claiming (a bare collision can deny, never
 award). A single uncontested claim with no bond finalizes through the accumulator.
