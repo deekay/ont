@@ -1,13 +1,15 @@
 # ONT Software Canon — the clean-build plan
 
-> **Status: DRAFT — pre-ratification.** This is the B0 artifact for
-> **clean-build (#46, proposed)**: the blank-page reimplementation of all ONT
-> software from the canon docs. Synthesized 2026-06-11 from DK's directive
-> (assume all existing software is bad; rewrite with the care the docs got),
+> **Status: RATIFIED 2026-06-11.** This is the B0 artifact for
+> **clean-build (#46)**: the blank-page reimplementation of all ONT software
+> from the canon docs. Synthesized 2026-06-11 from DK's directive (assume all
+> existing software is bad; rewrite with the care the docs got),
 > ClaudeleLunatique's B0 brief, and ChatLunatique's adversarial passes.
-> Nothing below is binding until DK ratifies item by item; the ratified
-> version becomes the clean-build entry in [DECISIONS.md](./DECISIONS.md)
-> and this doc becomes the standing plan.
+> DK ratified all seven items in an item-by-item walk (Sprout 'ONT - dev',
+> Items 1–7), including two amendments raised during the walk
+> (normative hardening; nothing-is-precious), and ruled all six open calls.
+> This doc is the standing plan; the decision record is the clean-build
+> entry in [DECISIONS.md](./DECISIONS.md).
 
 ## The premise
 
@@ -55,6 +57,32 @@ section becomes law only through a named spec PR (writer/reviewer/merge).
 Code never invents a rule: when implementation finds a gap or contradiction,
 the loop is **stop → named spec PR → then code**, even when it slows a phase.
 
+**Normative-hardening amendment (ratified during the walk).** R1–R3
+battle-tested the docs' *structure and vocabulary*, not the content of the
+rules, so nothing is grandfathered: at initial classification **no section
+enters the ledger as `normative`** — rule-bearing sections enter as
+`candidate` (the rest as `analysis`), and `normative` is a status **earned by
+surviving attack**. Promotion runs a five-step hardening per section:
+
+1. **Rule extraction** — the section's binding rules restated as crisp,
+   testable invariants;
+2. **Source check** — each rule cites its authority
+   ([ONT.md](../ONT.md), [DECISIONS.md](./DECISIONS.md), STATUS) or stays
+   `candidate`;
+3. **Adversarial content pass** — ChatLunatique attacks the rules themselves:
+   old-model leakage, server-authority leakage, grief/economic edges,
+   reorg/timing, missing-data, omitted-bid/transcript cases;
+4. **Attacks become tests** — every accepted attack lands as an executable
+   negative test or vector in the phase's conformance suite;
+5. **Section-level sign-off** — DK ratifies the promotion.
+
+Roles: ClaudeleLunatique extracts, classifies, and proposes tests;
+ChatLunatique attacks content; DK ratifies every promotion and resolves
+conflicts. Timing is **per-phase, just-in-time**: phase N's implementation is
+blocked until the sections it implements are hardened; hardening for phase
+N+1 may run during phase N (it is review work, not implementation — B2 kernel
+hardening may start during B1).
+
 **Item 2 — Existing code is evidence and test material, not source of
 truth.** Nothing is copied forward by default. Two artifact classes are
 *mined*: golden/conformance vectors (wire-size pins, root-anchor codec
@@ -75,8 +103,9 @@ halves:
   before their layer's phase starts.
 - **Spec:** the normativity classification from Item 1, recorded as a status
   header in each spec file.
-Old code moves to quarantine (location: DK call, see open calls) with
-pointers, mirroring `research/archive/`. Nothing is deleted.
+Old code moves to quarantine — the in-tree `legacy/` directory (ruled
+calls), excluded from build/test/lint — with pointers, mirroring
+`research/archive/`. Nothing is deleted.
 
 **Item 4 — Tests before implementation; traceability as the acceptance
 standard.** Each phase opens with its conformance suite written and reviewed
@@ -87,7 +116,9 @@ doc rule without a test isn't done. Negative tests are first-class: a lying
 resolver, a withholding publisher, an omitted auction bid, or a forged
 summary must provably be unable to mint, steal, or falsely finalize a name.
 
-**Item 5 — Inside-out phasing with hard gates.**
+**Item 5 — Inside-out phasing with hard gates.** Each phase opens with its
+spec sections **hardened** (Item 1 amendment) and its conformance suite
+written and reviewed, and closes through its gate:
 
 - **B1 — wire layer.** Pure functions, no I/O. Name grammar, canonical
   encode/decode, owner-key derivation/signatures, transfer/recovery/
@@ -131,29 +162,52 @@ summary must provably be unable to mint, steal, or falsely finalize a name.
   if deployed single-writer. *Gate:* the full batched-claim-path loop runs
   on signet on the new stack; the negative-test battery passes against live
   adapters.
-- **B5 — surfaces.** Web/explorer, wallet, CLI, claim site, mobile (scope:
-  DK call). All rules consumed via L1–L4 APIs. *Gate:* the operate/demo
-  walkthroughs pass on the new stack; user-facing copy obeys the glossary;
-  parity review against the old surfaces before cutover.
+- **B5 — surfaces.** Web/explorer, wallet, CLI, claim site (mobile is a
+  separate effort after B5 — see ruled calls). All rules consumed via L1–L4
+  APIs. *Gate:* the operate/demo walkthroughs pass on the new stack;
+  user-facing copy obeys the glossary. No parity review against the old
+  surfaces — the bar is the hardened spec and the walkthroughs, never
+  behavioral equivalence with quarantined code (Item 6).
 
 **Phase sequencing:** implementation for phase N+1 may not begin until phase
 N is merged. *Reviewed* interface tests and design spikes for N+1 are allowed
 earlier — encouraged, even, since B3's witness shapes may expose B2 interface
 mistakes — but they merge as tests/notes, never as implementation.
 
-**Item 6 — One live system; deliberate cutover.** The signet deployment
-(claim site + explorer) keeps running on the old stack until the relevant
-phase passes parity, then cuts over visibly. No silent breakage of the live
-demo. Cutover schedule per phase vs big-bang: DK call (open calls).
+**Item 6 — Nothing is precious; the new system replaces, it does not
+coexist** *(inverted from the drafted "one live system / parity cutover" by
+DK during the walk)*. The deployed signet components — claim site, explorer,
+publisher, resolver — have **no protected status**. They may be taken down
+and stay down until the new stack earns deployment through its own gates;
+being out of commission for a while is an accepted cost of getting the new
+software right.
 
-**Item 7 — Process and review.** One branch per phase (`clean-build-b1`, …).
-Writer: ClaudeleLunatique. Adversarial reviewer: ChatLunatique, with an
-explicit hunting list per gate — old-model leakage (pre-bond-opens
-semantics, retired vocabulary), server-authority leakage (an adapter or the
-evidence layer deciding anything), accidental preservation of dead
-experiments, missing negative tests, and doc-rule gaps. DK merges. STATUS.md
-is updated in the same PR that changes what is real. Spec gaps produce named
-spec PRs, never inline improvisation.
+- **No parity requirement.** The bar for new software is the hardened spec
+  and its conformance + negative suites — never behavioral equivalence with
+  code we officially assume is bad.
+- **Every new component states its purpose before it is built.** A written
+  purpose/scope/tests statement (what it is for, why it exists, what is
+  included, how it is tested) is part of each component's opening — rigor
+  about why each piece of software exists replaces rigor about keeping old
+  pieces alive.
+- **Deliberate decommission replaces deliberate cutover.** Taking a live
+  component down is an announced event with STATUS.md updated in the same
+  change — visible, never silent.
+- Old code is still quarantined readable-not-running (Item 3); quarantine is
+  for mining, not for keeping services warm.
+
+**Item 7 — Process and review.** One branch per phase (`clean-build-b1`, …);
+each phase merges whole through its gate or doesn't merge. Writer:
+ClaudeleLunatique. Adversarial reviewer: ChatLunatique, at **two layers** —
+spec *content* before a phase (the Item 1 hardening pass) and *code* at the
+gate, with an explicit hunting list per gate: old-model leakage
+(pre-bond-opens semantics, retired vocabulary), server-authority leakage (an
+adapter or the evidence layer deciding anything), accidental preservation of
+dead experiments, missing negative tests, and doc-rule gaps. The hunting
+list is written down per phase so review is checkable, not vibes. DK merges.
+STATUS.md is updated in the same PR that changes what is real — including
+components decommissioned under Item 6. Spec gaps produce named spec PRs,
+never inline improvisation.
 
 ## Current inventory (snapshot @ main 60d4673; ledger to follow as Item 3's deliverable)
 
@@ -175,17 +229,29 @@ spec PRs, never inline improvisation.
 ~57k lines total. Calibration: the docs recuration covered ~60 files in three
 phases at ~4 review rounds each.
 
-## Open calls (DK decides at ratification)
+## Ruled calls (DK, 2026-06-11, at ratification)
 
-1. **Where new code lives:** parallel packages in this repo with in-place
-   quarantine (continuous history, existing CI/deploy plumbing — writer's
-   lean) vs a greenfield repo (cleanest psychology, costs history).
-2. **Quarantine location:** `legacy/` directory vs a frozen branch.
-3. **Package names:** ratify `@ont/wire`, `@ont/consensus`, `@ont/evidence`
-   (or better names) now, so they never churn.
-4. **Mobile:** in B5 or a separate effort.
-5. **Cutover policy:** per-phase signet cutover (faster feedback, riskier)
-   vs big-bang at B4/B5 parity (safer, longer double-maintenance).
-6. **B2 test bar for a freeze candidate:** vectors + property + documenting
-   tests, or additionally an external audit before the boundary freezes
-   (interacts with the launch timeline and boundary-manifest (#44)).
+1. **Where new code lives: parallel packages in this repo**, with in-place
+   quarantine. Spec and code share one repo and one history; traceability
+   (doc-cite → test → impl) and same-PR STATUS.md updates depend on it. A
+   second repo would reintroduce spec/code drift.
+2. **Quarantine location: `legacy/` directory in-tree.** Old code is mining
+   material for golden vectors and documenting tests, so it stays readable
+   without branch-switching; excluded from build/test/lint so it cannot leak
+   into the new stack.
+3. **Package names ratified: `@ont/wire`, `@ont/consensus`,
+   `@ont/evidence`.** Adapter and surface package names are coined at B4/B5
+   when their shapes are real.
+4. **Mobile: a separate effort after B5.** The B5 gate is not hostage to
+   mobile toolchains. B3/B4 design the wallet-proof and resolver interfaces
+   with mobile as a *named consumer*, so the later effort consumes `@ont/*`
+   packages rather than re-deriving them.
+5. **Decommission timing: live signet components come down at B1 start.**
+   One announced decommission event, STATUS.md updated in the same change
+   (Item 6). Signet returns only when new phases earn deployment through
+   their gates.
+6. **B2 test bar: the conformance/negative/property suites (plus hardened
+   spec) gate B3.** An external audit is scheduled when the kernel freezes
+   and runs concurrently; findings become named spec PRs. The audit becomes
+   a hard gate before anything mainnet-facing (interacts with
+   boundary-manifest (#44)).

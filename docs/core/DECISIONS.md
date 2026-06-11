@@ -880,6 +880,72 @@ Implications:
 - The one-pager parity obligation survives recuration: R3's jargon pass binds
   it to ONT.md.
 
+46. clean-build: blank-page reimplementation of all ONT software from the
+canon docs — 2026-06-11
+
+*Short name: **clean-build**.*
+
+Ratified by DK interactively, item by item, in ONT - dev on 2026-06-11
+(seven items, two amendments raised and ratified during the walk, six open
+calls ruled). The full standing plan is
+[SOFTWARE_CANON.md](./SOFTWARE_CANON.md); this entry records the decision.
+
+**The premise.** The docs are a recurated canon (doc-canon (#45)); the
+software is not — it grew code-first and the docs were written to catch up
+with it. clean-build inverts that for good: all ONT software is rewritten
+from the spec as if no code existed, with the writer → adversarial review →
+DK-merge discipline the recuration used. Existing code is assumed bad.
+
+**The seven ratified items, in brief:**
+1. **Docs are the spec; only ratified sections are law.** A spec normativity
+   ledger classifies every section `normative`/`candidate`/`analysis`; code
+   implements only `normative`; gaps stop work and route through named spec
+   PRs. *Amendment — normative hardening:* nothing is grandfathered; no
+   section enters the ledger as `normative`. Promotion is earned per section
+   via a five-step hardening (rule extraction → source check → adversarial
+   content pass → attacks become negative tests → DK sign-off), per-phase
+   just-in-time.
+2. **Existing code is evidence and test material, not source of truth.**
+   Only golden/conformance vectors and documenting tests are mined.
+3. **Inventory, normativity, and quarantine before anything else.**
+   `SOFTWARE_INVENTORY.md` is the B1-blocking ledger; old code quarantines
+   to the in-tree `legacy/` directory; nothing is deleted.
+4. **Tests before implementation.** Traceability standard per
+   ownership-affecting rule: doc citation → executable test/vector →
+   implementation path. Negative tests are first-class.
+5. **Inside-out phasing with hard gates:** B1 wire (`@ont/wire`) → B2
+   ownership kernel (`@ont/consensus`, the complete audited boundary as pure
+   predicates) → B3 evidence layer (`@ont/evidence`, non-deciding) → B4
+   adapters (publisher, resolver) → B5 surfaces. Phase N+1 implementation
+   waits for phase N's merge; interface tests/spikes may go earlier.
+6. **Nothing is precious; the new system replaces, it does not coexist**
+   *(DK inverted the drafted "one live system / parity cutover")*. Deployed
+   signet components have no protected status; downtime is accepted; there
+   is no parity-against-old-code bar; every new component needs a written
+   purpose/scope/tests statement before build; announced decommission events
+   replace cutover.
+7. **Process and review.** One branch per phase; writer ClaudeleLunatique;
+   adversarial reviewer ChatLunatique at two layers (spec content via
+   hardening, code at gates, with a written hunting list per gate); DK
+   merges; STATUS.md updates in the same PR that changes reality.
+
+**The six ruled calls:** new code lives as parallel packages in this repo;
+quarantine is the in-tree `legacy/` directory; package names `@ont/wire`,
+`@ont/consensus`, `@ont/evidence` are ratified; mobile is a separate effort
+after B5 (a named consumer of `@ont/*`); live signet components come down at
+B1 start via one announced decommission event; the B2 gate is the
+conformance/negative/property suites, with an external audit run
+concurrently from kernel freeze and hard-gating anything mainnet-facing.
+
+Implications:
+- `SOFTWARE_INVENTORY.md` (code fates + spec normativity ledger) is the
+  next deliverable and blocks B1.
+- The word "core" without qualification is retired from architecture
+  vocabulary; `packages/core`'s name dies with the rewrite.
+- The marker-vs-folded-anchor data-availability mechanism
+  (OPEN_QUESTIONS §1.1) is a required pre-B2 named spec decision — B0
+  deliberately does not choose it.
+
 ## Fairness Principles To Carry Into The Launch Rewrite
 
 The rewritten launch draft should explicitly state:
