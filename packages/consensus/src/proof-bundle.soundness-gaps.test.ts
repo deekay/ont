@@ -1,5 +1,5 @@
 // Soundness tests for the portable proof-bundle verifier — born from the
-// 2026-06-09 adversarial e2e campaign (docs/research/ONT_ADVERSARIAL_FINDINGS_2026_06_09.md).
+// 2026-06-09 adversarial e2e campaign (docs/research/archive/ONT_ADVERSARIAL_FINDINGS_2026_06_09.md).
 //
 // PB1/PB2/PB3 (the accumulator membership-soundness gaps) are now CLOSED: the
 // verifier recomputes the sparse-Merkle root from (leaf, value, siblings) using

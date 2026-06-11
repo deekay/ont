@@ -1,12 +1,12 @@
 # Candidate: Bitcoin-Anchored Insertion-Unique Name Accumulator
 
 Status: candidate design + feasibility analysis. Judged against
-[ONT_DESIGN_REQUIREMENTS.md](../design/ONT_DESIGN_REQUIREMENTS.md). Not a v1 commitment.
+[ONT_DESIGN_REQUIREMENTS.md](./archive/ONT_DESIGN_REQUIREMENTS.md). Not a v1 commitment.
 
 > Note: the **allocation model** was refined after this doc was written. Names are
 > now **publicly visible** at claim, and contention triggers the contested L1
 > auction path rather than pure earliest-commit first-come. The current design is
-> in [ONT_ACQUISITION_STATE_MACHINE.md](../design/ONT_ACQUISITION_STATE_MACHINE.md);
+> in [ONT_ACQUISITION_STATE_MACHINE.md](../spec/ONT_ACQUISITION_STATE_MACHINE.md);
 > the accumulator mechanics, DA rules, sequencer, and red-team below remain useful
 > background but this file is not the launch spec.
 
@@ -160,7 +160,7 @@ cannot decide ownership.
 | Censor (publisher) | Direct-L1 claim path is un-censorable (I5) | Pays L1 cost in the censored case |
 | Equivocator | Can't forge sigs; double-insert is a detectable invalid transition; conflicting roots resolved by Bitcoin order | None on safety |
 | Sybil | Issuance gate; publisher Sybil can't forge or double-insert | None on safety |
-| Publisher-griefer (submits a batch, never pays) | Publisher fronts the miner fee only for claims with a committed/locked payment; a non-payer is simply excluded — no money loss (see [`../design/ONT_ISSUANCE_FEE_MECHANICS.md`](../design/ONT_ISSUANCE_FEE_MECHANICS.md) §6) | Ordinary service-DoS (work/slots) → publisher admission cost (entry fee / payment-lock / PoW); L1 fallback means no one is denied a name |
+| Publisher-griefer (submits a batch, never pays) | Publisher fronts the miner fee only for claims with a committed/locked payment; a non-payer is simply excluded — no money loss (see [`../design/ONT_ISSUANCE_FEE_MECHANICS.md`](../spec/ONT_ISSUANCE_FEE_MECHANICS.md) §6) | Ordinary service-DoS (work/slots) → publisher admission cost (entry fee / payment-lock / PoW); L1 fallback means no one is denied a name |
 | Data-withholder | Fail-closed clients; owner-aligned DA; liveness-only damage | **The one real open problem** |
 
 ## Scoring against the invariants
@@ -268,7 +268,7 @@ Bitcoin only orders the anchor txs.
 **Publisher economics (why anyone bothers, and why it stays cheap).** The per-name
 **gate is the anchor tx's miner fee**, not publisher revenue: the anchor is valid
 only if it pays `≥ Σ gᵢ` to miners, so a publisher can never pocket or compete away
-the gate (see [`ONT_ISSUANCE_FEE_MECHANICS.md`](../design/ONT_ISSUANCE_FEE_MECHANICS.md)).
+the gate (see [`ONT_ISSUANCE_FEE_MECHANICS.md`](../spec/ONT_ISSUANCE_FEE_MECHANICS.md)).
 A publisher fronts that fee, aggregates `N` users, and keeps only a thin **service**
 margin on top of the gate + blockspace cost. Competition drives that service margin
 toward zero. A user who can find no publisher (or is censored) posts their own anchor

@@ -3,7 +3,7 @@
 Open Name Tags (ONT) is a Bitcoin-anchored naming system for names you can actually own — like
 `alice` — with no company, registrar, token, or rent.
 
-> The full, canonical description lives in [`../ONT.md`](../ONT.md). This page is the short version
+> The full, canonical description lives in [`../ONT.md`](../../ONT.md). This page is the short version
 > and defers to it on anything that disagrees.
 
 ## The Core Model

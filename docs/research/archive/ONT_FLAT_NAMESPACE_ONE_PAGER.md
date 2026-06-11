@@ -38,11 +38,11 @@ v1 commitment.
 | Bitcoin blockspace | 1,000,000 vB/block; 144 blocks/day | = 52.56B vB/year |
 | Block subsidy (2026, post-2024 halving) | 3.125 BTC/block | → 164,250 BTC/year |
 | BTC price | **$100,000** | pure parameter; scales $ figures linearly |
-| Anchor blockspace cost (150 vB root tx) | **~$1.50 normal / ~$15 congested** | *blockspace* cost only, independent of batch size. Under the miner-fee gate the anchor *also* carries the aggregate gate `Σg ≈ N×₿1,000` as its fee — see [`ONT_ISSUANCE_FEE_MECHANICS.md`](./ONT_ISSUANCE_FEE_MECHANICS.md) |
+| Anchor blockspace cost (150 vB root tx) | **~$1.50 normal / ~$15 congested** | *blockspace* cost only, independent of batch size. Under the miner-fee gate the anchor *also* carries the aggregate gate `Σg ≈ N×₿1,000` as its fee — see [`ONT_ISSUANCE_FEE_MECHANICS.md`](../../spec/ONT_ISSUANCE_FEE_MECHANICS.md) |
 | Anchor (root) on-chain size | **150 vB** *(measured 162–194 vB — see note)* | independent of names in the batch |
 | Names per batch | **10,000** | → 0.015 vB/name *(measured 0.016–0.019 vB/name)* |
 | ONT blockspace share | **1%** (526M vB/yr) | 5% and 0.1% shown for range |
-| Long-tail gate | **₿1,000/name** (~$1; = 0.00001 BTC) | fixed bitcoin amount, floats with BTC price; **paid to miners** as the anchor tx fee (R13 decided; mechanics in [`ONT_ISSUANCE_FEE_MECHANICS.md`](./ONT_ISSUANCE_FEE_MECHANICS.md)) |
+| Long-tail gate | **₿1,000/name** (~$1; = 0.00001 BTC) | fixed bitcoin amount, floats with BTC price; **paid to miners** as the anchor tx fee (R13 decided; mechanics in [`ONT_ISSUANCE_FEE_MECHANICS.md`](../../spec/ONT_ISSUANCE_FEE_MECHANICS.md)) |
 | Contested name on-chain footprint | **~110 vB** | winner-only L1 hardening + bond UTXO; bids off-chain |
 | Length-floor (bond) | **≤4-char names only**; `₿1/2^(len−1)`; ₿1,000 (~$1) gate is the floor below | bonds are per-name UTXOs → confined so the bonded set stays small |
 

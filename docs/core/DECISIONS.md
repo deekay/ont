@@ -8,11 +8,11 @@ context.
 Related notes:
 
 - [../ONT.md](../ONT.md) — the single source of truth.
-- [../design/ONT_ACQUISITION_STATE_MACHINE.md](../design/ONT_ACQUISITION_STATE_MACHINE.md) —
+- [../design/ONT_ACQUISITION_STATE_MACHINE.md](../spec/ONT_ACQUISITION_STATE_MACHINE.md) —
   the current acquisition reference: claim first, accumulator finality if
   uncontested, L1 bonded auction only if contested.
-- [../launch/ONT_LAUNCH_V1_BRIEF.md](../launch/ONT_LAUNCH_V1_BRIEF.md)
-- [../launch/CONTESTED_AUCTION_REFERENCE.md](../launch/CONTESTED_AUCTION_REFERENCE.md) —
+- [../launch/ONT_LAUNCH_V1_BRIEF.md](../research/archive/ONT_LAUNCH_V1_BRIEF.md)
+- [../launch/CONTESTED_AUCTION_REFERENCE.md](../spec/CONTESTED_AUCTION_REFERENCE.md) —
   contested-auction reference.
 - [BITCOIN_REVIEW_CLOSURE_MATRIX.md](../research/archive/BITCOIN_REVIEW_CLOSURE_MATRIX.md)
 
@@ -937,7 +937,7 @@ Need to define:
 - how clients should present resolver freshness and signed-record conflicts
 
 4. Reviewer-facing modeling and risk disclosure — **[ANSWERED]** *this is now
-`docs/ONT_DESIGN_BRIEF.md` (footprint numbers, trade-off tables, §9 feedback
+`docs/DESIGN.md` (ex-ONT_DESIGN_BRIEF — footprint numbers, trade-off tables, feedback
 questions). One bullet below aged into being false and is corrected inline.*
 
 The rewritten draft should explicitly document:

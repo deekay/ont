@@ -1,5 +1,5 @@
 // @ont/core public surface, grouped by trust level. The authoritative account of
-// what is and isn't sovereignty-critical lives in docs/design/ONT_SOVEREIGNTY_MAP.md;
+// what is and isn't sovereignty-critical lives in docs/DESIGN.md (trust surface / sovereignty map);
 // trust-surface.test.ts freezes the boundary so the core below cannot silently grow
 // to depend on the groups beneath it.
 
@@ -7,7 +7,7 @@
 // Lives in its own package, @ont/consensus, so the rules that decide whether a name
 // can be taken depend only on @ont/protocol + @ont/bitcoin and can never import the
 // allocation, indexer, website, or research code below. Re-exported here for the
-// convenience of existing @ont/core consumers. See docs/design/ONT_SOVEREIGNTY_MAP.md.
+// convenience of existing @ont/core consumers. See docs/DESIGN.md (trust surface / sovereignty map).
 export * from "@ont/consensus";
 
 // --- Allocation (NOT the sovereignty core) ---

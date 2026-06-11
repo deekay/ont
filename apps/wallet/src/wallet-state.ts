@@ -51,11 +51,13 @@ export type CheapClaimStatus = "provisional" | "final" | "contested";
 /**
  * Lifecycle of a cheap-rail (batched) claim, per ONT.md's one-path model. A
  * fresh cheap claim is **not** final on the publisher's confirmation: anchoring
- * opens a *notice window*, and the claim only finalizes if no competing claim
- * for the same name lands during it. So the wallet records the claim as
- * `provisional` and only treats it as `final` once it has observed canonical
- * state (via `sync`) accept it after the window closes. A competing claim
- * escalates the name to the bonded auction, which the wallet marks `contested`.
+ * opens a *notice window*, and the claim only finalizes if the window closes
+ * clean. So the wallet records the claim as `provisional` and only treats it
+ * as `final` once it has observed canonical state (via `sync`) accept it after
+ * the window closes. Per Decision #37, a qualifying bond posted in the window
+ * escalates the name to the bonded auction (the wallet marks it `contested`);
+ * bare competing claims with no bond nullify the name at window close (no
+ * owner — it reopens for claiming).
  */
 export interface CheapRailClaim {
   readonly status: CheapClaimStatus;

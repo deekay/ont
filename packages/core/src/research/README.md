@@ -3,7 +3,7 @@
 Everything in this folder is **research**: property prototypes and numerical models that validate
 scaling-design claims. **None of it is part of the sovereignty trust surface** — none of these
 modules can take, move, or change ownership of a name. A reviewer auditing "can my name be taken?"
-can ignore this entire directory (see [`ONT_SOVEREIGNTY_MAP.md`](../../../../docs/design/ONT_SOVEREIGNTY_MAP.md)).
+can ignore this entire directory (see the trust-surface map in [`DESIGN.md`](../../../../docs/DESIGN.md)).
 
 | Module | What it proves |
 | --- | --- |
@@ -16,7 +16,7 @@ can ignore this entire directory (see [`ONT_SOVEREIGNTY_MAP.md`](../../../../doc
 These would become (or inform) the **long-tail accumulator rail** — an *additive, separately
 auditable* layer that must never weaken the sovereignty of names on the frozen consensus core.
 They are deliberately kept out of that core. See `feedback-freeze-minimal-auditable-core` and
-[`ONT_SIGNET_PROTOTYPE_SCOPE.md`](../../../../docs/design/ONT_SIGNET_PROTOTYPE_SCOPE.md).
+[`ONT_SIGNET_PROTOTYPE_SCOPE.md`](../../../../docs/research/archive/ONT_SIGNET_PROTOTYPE_SCOPE.md).
 
 **Graduated to production (no longer here):** `accumulator.ts` and `root-anchor.ts` moved up to
 `packages/core/src/` once the live indexer began observing the anchored root chain. They are the

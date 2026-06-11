@@ -4,6 +4,14 @@ Status: design note, not frozen. Surfaces a real tension in the current
 code and proposes a direction. The neutrality-sensitive choices at the end
 need a human decision before any of this is wired.
 
+> **Update note (2026-06-11):** parts of this note predate Decision #37 (bond
+> opens the auction, 2026-06-04). Where the text says a competing in-window
+> claim "escalates" or "forces" an auction, read it per #37: only a
+> **qualifying bond** opens an auction; two or more bare claims with no bond
+> **nullify** the name (no owner; reopens). Inline notes mark the two affected
+> passages. The normative rule is
+> [`../spec/ONT_ACQUISITION_STATE_MACHINE.md`](../spec/ONT_ACQUISITION_STATE_MACHINE.md).
+
 Companion to `ONT_PUBLISHER_PROTOCOL_SPEC.md`, which deliberately scoped
 multi-publisher coordination *out* ("each publisher runs independently;
 conflicts resolve at the consensus layer"). This note is about what that
@@ -60,12 +68,16 @@ defeats withhold-then-reveal name theft.
 Model B is the right answer for a permissionless, neutral system, and more of
 it is built than I first credited. `packages/core/src/research/batch-rail.ts`
 (`runBatchRail`) already composes the pieces into a runnable rail: it
-DA-filters deltas (`isCanonical`), groups claims by name, **escalates a name
-with ≥2 distinct in-window claimants to the L1 bonded auction instead of
-first-writer-wins**, finalizes uncontested names on a real `Accumulator`, and
-its convergence + escalation + already-owned cases are covered by
-`batch-rail.test.ts`. So the notice-window/contested logic this note worried
-was missing is, in fact, implemented and tested.
+DA-filters deltas (`isCanonical`), groups claims by name, applies a
+notice-window contested branch instead of first-writer-wins, finalizes
+uncontested names on a real `Accumulator`, and its convergence + escalation +
+already-owned cases are covered by `batch-rail.test.ts`. **Caveat (Decision
+#37):** the sim's contested *trigger* is still the pre-#37 rule — it escalates
+on ≥2 distinct in-window claimants, whereas the current rule is that only a
+qualifying bond escalates and bare collisions nullify the name. So the
+notice-window machinery this note worried was missing is implemented and
+tested, but its trigger condition must be updated to bond-opens / collision-
+nullifies before anything consumes it.
 
 What is *not* wired is the consumption. The resolver has no rail code (grep
 `apps/resolver/src` for `runBatchRail`/`mergeBlock` — nothing), so no live
@@ -172,11 +184,14 @@ Concrete changes to `apps/publisher` once B is the target:
    - *dropped_existing* — the name was already final on a prior canonical
      root. The publisher should have caught this at quote time, but a race
      between quote and anchor can still produce it. Refund.
-   - *contested* — another claim for the same leaf landed inside the shared
-     notice window. Per `ONT.md`'s one-path model this does *not* silently
-     resolve by first-writer-wins; it escalates the name to a bonded auction
-     (see "Contested claims" below). The publisher's job is to surface the
-     contention to the claimant, not to declare a loser.
+   - *contested* — a qualifying bond was posted against the leaf inside the
+     shared notice window (Decision #37). Per `ONT.md`'s one-path model this
+     does *not* silently resolve by first-writer-wins; it escalates the name
+     to a bonded auction (see "Contested claims" below).
+   - *nullified* — bare competing claims for the leaf collided in the window
+     with no qualifying bond: the name resolves to no owner and reopens for
+     claiming (Decision #37). Either way the publisher's job is to surface
+     the contention to the claimant, not to declare a loser.
 
 4. **Rebatch is rarely needed.** Because distinct-leaf inserts commute and
    the merge re-applies winners against the *current* canonical root, a
@@ -195,10 +210,12 @@ sha256(name), ownerCommitment === owner key, inclusion proof via
 
 - After the notice window closes, fetch the canonical accumulator state (from
   a resolver) and confirm the leaf for the claimed name commits *this wallet's*
-  owner key. Three outcomes: the leaf commits this wallet's key (owned); a
-  competing claim landed in the window (contested — the name is in auction, and
-  the wallet must decide whether to bid); or the name was already final on a
-  prior root (taken — the publisher should have caught this at quote time).
+  owner key. Four outcomes (per Decision #37): the leaf commits this wallet's
+  key (owned); a qualifying bond was posted in the window (contested — the name
+  is in auction, and the wallet must decide whether to bid); bare competing
+  claims collided with no bond (nullified — no owner, the name reopens, and the
+  wallet can re-claim); or the name was already final on a prior root (taken —
+  the publisher should have caught this at quote time).
 
 This is the case that matters: a wallet must never record a name as owned on
 the strength of a publisher receipt alone, because the receipt is issued
@@ -215,16 +232,23 @@ common, cheap, batched case). If a competing claim *does* land in the window,
 the name is **contested** and escalates to a bonded L1 auction —
 which is the *only* way an auction ever starts. The cheap claim is the sole
 entry path; the auction is an escalation of it, not a parallel rail.
-`docs/launch/CONTESTED_AUCTION_REFERENCE.md` is the in-depth design of that
+*(Update note, 2026-06-11 — per Decision #37 the trigger is a **bond**, not a
+bare competing claim: a bare collision nullifies the name instead of opening
+an auction, and bond-first is allowed, so "competing claim → auction" above is
+the pre-#37 rule.)*
+`docs/spec/CONTESTED_AUCTION_REFERENCE.md` is the in-depth design of that
 escalated path (≈7-day window, soft close, returnable bonds).
 
-The mechanical consequence for the convergence layer is mostly already built.
-`runBatchRail` in `batch-rail.ts` implements the notice-window escalation
-correctly today and is covered by `batch-rail.test.ts`: it DA-filters the
-deltas, groups same-name claims, and for each name checks whether two or more
-distinct claimants land within `noticeWindowBlocks` of the earliest claim. If
-so the name is pushed to `escalatedNames` (→ auction); if not the earliest
-claim finalizes. So the escalation logic is real, not aspirational. The
+The mechanical consequence for the convergence layer is mostly already built —
+with one known rule gap. `runBatchRail` in `batch-rail.ts` implements the
+**pre-#37** notice-window escalation and is covered by `batch-rail.test.ts`: it
+DA-filters the deltas, groups same-name claims, and for each name checks
+whether two or more distinct claimants land within `noticeWindowBlocks` of the
+earliest claim. If so the name is pushed to `escalatedNames` (→ auction); if
+not the earliest claim finalizes. So the escalation machinery is real, not
+aspirational — but its *trigger* is the old rule: per Decision #37 the policy
+layer must key escalation on a **qualifying bond** and **nullify** bare
+collisions, and the sim has not been updated to that trigger yet. The
 remaining work is narrower than I first stated:
 
 - **`mergeBlock` is the low-level primitive, not the contested-claims policy.**
@@ -232,7 +256,8 @@ remaining work is narrower than I first stated:
   picking the earliest commit and marking the rest `dropped_conflict`. That is
   the raw first-writer-wins merge step; it is *correct as a primitive*.
   `runBatchRail` is the layer that applies the one-path policy on top — it does
-  not blindly drop the loser inside an open window, it escalates the name. The
+  not blindly drop the loser inside an open window, it routes the name to the
+  contested branch (today with the pre-#37 trigger noted above). The
   resolver should therefore consume `runBatchRail`, not `mergeBlock` /
   `confirmedStateForNode` directly.
 - **Commit priority still governs the settled cases.** A claim whose leaf is
@@ -266,8 +291,8 @@ Remaining sub-questions (implementation shape, not protocol shape):
   (they are neither bond nor refundable), which is fine as anti-spam but
   should be stated so the auction's bond accounting does not double-count them.
 
-`docs/design/ONT_MEV_ORDERING_ANALYSIS.md` is the right neighbor for the
-ordering/fairness half of the notice window.
+The MEV & ordering analysis in [`../RISKS.md`](../RISKS.md) is the right
+neighbor for the ordering/fairness half of the notice window.
 
 ## Neutrality tradeoffs (the decisions that need you)
 
@@ -283,7 +308,13 @@ ordering/fairness half of the notice window.
    + recomputable; the choice among piggyback / public-good / fee-market is
    open.
 
-3. **Griefing bound under escalation.** Because contested claims go to auction
+3. **Griefing bound under escalation.** *(Update note, 2026-06-11 — per
+   Decision #37 a bare second claim no longer forces an auction; it nullifies
+   the name, so the grief reshapes from forced escalation to denial. The
+   current cost model is
+   [`archive/ONT_CONTEST_GRIEF_COST_MODEL.md`](./archive/ONT_CONTEST_GRIEF_COST_MODEL.md)
+   and the ranked assessment in [`../RISKS.md`](../RISKS.md). Original text
+   follows.)* Because contested claims go to auction
    rather than a silent race, a griefer cannot cheaply void a victim's claim —
    they can only *force an auction* by claiming the same name in the notice
    window, which costs them their own ₿1,000 gate and then a returnable bond to
@@ -300,7 +331,8 @@ ordering/fairness half of the notice window.
 2. **Consume `runBatchRail` in the resolver** as the canonical-root deriver,
    behind the DA windows from `da-convergence-sim.ts`. `runBatchRail` already
    composes the merge (`mergeBlock`), the DA filter (`confirmedStateForNode`),
-   and the notice-window escalation; the resolver should call it rather than
+   and the notice-window contested branch (re-keyed to the #37 trigger first —
+   see step 6); the resolver should call it rather than
    re-implementing those pieces. This is the load-bearing wiring and the most
    valuable single step. It is mostly promotion of already-tested code, plus the
    provisional/lifecycle classifier from the contested-claims section above.
@@ -309,14 +341,17 @@ ordering/fairness half of the notice window.
 4. **Add the canonical-root re-check to the wallet** before it records a name
    as owned.
 5. **Checkpoints** once 2–4 are real, to restore cheap light-client follow.
-6. **Finish the notice window + auction escalation** per `ONT.md`. The
-   escalation itself is already implemented and tested in `runBatchRail`
-   (same-name, ≥2 distinct claimants in window → `escalatedNames`); what remains
-   is the provisional leaf state — a per-name lifecycle classifier
-   (absent / provisional / contested / final) with per-leaf window deadlines —
-   so the resolver and wallet can distinguish "anchored but window still open"
-   from "final." Until that exists the wallet records claims as owned on the
-   publisher receipt alone, which is the honest correctness gap to close first.
+6. **Finish the notice window + auction escalation** per `ONT.md` and
+   Decision #37. The escalation *machinery* is implemented and tested in
+   `runBatchRail`, but with the pre-#37 trigger (same-name, ≥2 distinct
+   claimants in window → `escalatedNames`); it must be re-keyed so only a
+   qualifying bond escalates and a bare collision nullifies the name at window
+   close. Also remaining is the provisional leaf state — a per-name lifecycle
+   classifier (absent / provisional / contested / nullified / final) with
+   per-leaf window deadlines — so the resolver and wallet can distinguish
+   "anchored but window still open" from "final." Until that exists the wallet
+   records claims as owned on the publisher receipt alone, which is the honest
+   correctness gap to close first.
 
 ## Why this is worth doing now
 

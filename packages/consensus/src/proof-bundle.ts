@@ -12,7 +12,7 @@ import {
 
 // The two current acquisition paths. Ark/RGB explorations were removed from the
 // frozen verifier: they were never the launch path, and the sovereignty core
-// must stay small enough to audit. See docs/core/SIMPLIFICATION_AUDIT.md (Phase 4).
+// must stay small enough to audit. See docs/research/archive/SIMPLIFICATION_AUDIT.md (Phase 4).
 export type ProofBundleSource = "bitcoin_l1_direct_auction" | "accumulator_batch_claim";
 
 export type ProofBundleCheckStatus = "passed" | "failed";

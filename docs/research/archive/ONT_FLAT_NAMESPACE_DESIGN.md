@@ -1,7 +1,7 @@
 # ONT Flat Namespace — Design Summary
 
 A plain-language summary of the design we converged on. Deep references:
-[ONT_DESIGN_REQUIREMENTS.md](../../design/ONT_DESIGN_REQUIREMENTS.md) (the criteria) and
+[ONT_DESIGN_REQUIREMENTS.md](./ONT_DESIGN_REQUIREMENTS.md) (the criteria) and
 [BITCOIN_ANCHORED_NAME_ACCUMULATOR.md](../BITCOIN_ANCHORED_NAME_ACCUMULATOR.md)
 (the accumulator mechanics + red-team).
 

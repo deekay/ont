@@ -1,5 +1,5 @@
 // Thin HTTP client for a publisher's API (see
-// docs/research/ONT_PUBLISHER_PROTOCOL_SPEC.md). A publisher is a batching
+// docs/spec/ONT_PUBLISHER_PROTOCOL_SPEC.md). A publisher is a batching
 // service the wallet uses for the cheap-claim rail — pay a small Lightning
 // invoice, receive an inclusion proof anchored to Bitcoin. The wallet doesn't
 // grant the publisher any authority over the name; the publisher's response is

@@ -937,9 +937,10 @@ async function runClaimCheap(flags: ParsedFlags): Promise<void> {
     claimedAt: new Date().toISOString()
   });
   // A cheap claim is NOT final on the publisher's receipt: anchoring opens a
-  // notice window, and the claim only finalizes if no competing claim lands
-  // during it (ONT.md, "Claiming a name — one path"). Record it as provisional
-  // and let `sync` advance it once canonical state confirms the window closed.
+  // notice window, and the claim only finalizes if the window closes clean —
+  // no qualifying bond (which escalates to auction) and no bare colliding
+  // claim (which nullifies; Decision #37). Record it as provisional and let
+  // `sync` advance it once canonical state confirms the window closed.
   const noticeWindowCloseHeight = anchorHeight > 0 ? anchorHeight + DEFAULT_NOTICE_WINDOW_BLOCKS : 0;
   state.recordCheapClaim(quote.name, { noticeWindowCloseHeight, noticeWindowBlocks: DEFAULT_NOTICE_WINDOW_BLOCKS });
   state.save(walletStatePath());

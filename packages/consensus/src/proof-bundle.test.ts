@@ -10,7 +10,7 @@ import {
 } from "./index.js";
 
 // Only the two current acquisition paths. Ark/RGB explorations were removed from
-// the frozen verifier (see docs/core/SIMPLIFICATION_AUDIT.md, Phase 4).
+// the frozen verifier (see docs/research/archive/SIMPLIFICATION_AUDIT.md, Phase 4).
 const PROOF_BUNDLE_FIXTURES = [
   "direct-l1-auction-proof.json",
   "accumulator-batch-claim-proof.json"

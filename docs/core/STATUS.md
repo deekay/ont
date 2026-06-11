@@ -39,6 +39,29 @@ Last updated: 2026-06-10.
 | OP_RETURN event size | **up to 171 bytes exactly** (recover-owner; most events smaller) | test-pinned (`packages/protocol/src/wire-size.test.ts`); above the 80-byte default policy; relies on modern node policy |
 | On-chain footprint (issuance) | **~0.015–0.019 vB/name** amortized @ ~10k/batch | measured |
 
+## Launch parameters (auction + notice mechanics)
+
+Consolidated 2026-06-11 from the parameter review packet and window schedule (normative home
+now [`../spec/AUCTION.md`](../spec/AUCTION.md)). These extend Key numbers above (claim gate,
+min bond, short-name bond curve, bond maturity, notice window) — like them, **every value here
+is a placeholder / working default, not a frozen launch constant**: the mechanism shape is the
+design choice, the numbers are calibration.
+
+| Parameter | Current default | Status |
+| --- | --- | --- |
+| Name grammar | `[a-z0-9]{1,32}`, case-insensitive input, lowercase canonical | working baseline |
+| Opening-bid floor | higher of the length price (₿100,000,000 at 1 char, halving per char) and the ₿50,000 long-name minimum (lengths 12–32) | placeholder (curve per Key numbers) |
+| Base auction window | **1,008 blocks (~7 days)** | placeholder; launch-era recommendation: 30 days, decaying to 7 days by height schedule |
+| Soft-close window / extension | **144 blocks (~1 day)**; a bid inside the final 144 blocks moves close to bid block + 144 | placeholder |
+| Hard cap on extensions | none | current lean (mechanism choice, not a number) |
+| Minimum raise (normal) | max(₿1,000, **5%**) | placeholder |
+| Minimum raise (soft close) | max(₿1,000, **10%**) | placeholder |
+| Winner bond maturity model | fixed **52,560 blocks (~1 yr)**; epoch-halving helper is prototype residue to remove or quarantine | placeholder (value per Key numbers) |
+| Notice-window decay schedule | height-keyed recommendation: **90d → 60d → 30d → 14d → 7d** over ~18 months; adaptivity extend-only, never market-shrunk | recommendation, **not frozen** (live test value per Key numbers) |
+| Early bond break / reauction | name released; anyone can reopen; reauction anchored to release block; floor resets to length floor; no cooldown | placeholder |
+| Destination record max payload | **65,535 bytes** | placeholder |
+| Destination record types at launch | Bitcoin payment target, HTTPS target, profile/destination bundle, raw/app-defined | under review |
+
 ## What the "frozen core" does and does NOT determine (honest boundary)
 
 The CI-locked **three consensus files** (`@ont/consensus`) are the audited trust surface, and they

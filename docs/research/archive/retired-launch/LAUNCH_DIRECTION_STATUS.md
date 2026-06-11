@@ -8,10 +8,10 @@ provenance is preserved, but it is no longer the current launch direction.
 Current references:
 
 - [`../../../ONT.md`](../../../ONT.md) — plain-language source of truth
-- [`../../../design/ONT_ACQUISITION_STATE_MACHINE.md`](../../../design/ONT_ACQUISITION_STATE_MACHINE.md) —
+- [`../../../design/ONT_ACQUISITION_STATE_MACHINE.md`](../../../spec/ONT_ACQUISITION_STATE_MACHINE.md) —
   current acquisition reference
-- [`ONT_LAUNCH_V1_BRIEF.md`](../../../launch/ONT_LAUNCH_V1_BRIEF.md) — current launch/review brief
-- [`CONTESTED_AUCTION_REFERENCE.md`](../../../launch/CONTESTED_AUCTION_REFERENCE.md) —
+- [`ONT_LAUNCH_V1_BRIEF.md`](../ONT_LAUNCH_V1_BRIEF.md) — current launch/review brief
+- [`CONTESTED_AUCTION_REFERENCE.md`](../../../spec/CONTESTED_AUCTION_REFERENCE.md) —
   current contested-auction reference
 
 Current launch posture:

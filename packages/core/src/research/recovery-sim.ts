@@ -1,7 +1,7 @@
 /**
  * Recovery prototype — break-glass recovery for UTXO-less names.
  *
- * `docs/design/ONT_LONG_TAIL_RECOVERY.md` proposes recovery that works for names with no on-chain
+ * `docs/research/archive/ONT_LONG_TAIL_RECOVERY.md` proposes recovery that works for names with no on-chain
  * footprint (the long tail, and any name after its bond matures): the owner *arms* a backup recovery
  * set off-chain; *invoking* recovery opens a Bitcoin-timed challenge window; the owner's main key can
  * *veto* within the window; otherwise it *finalizes* to a new key. Sovereignty is preserved because
