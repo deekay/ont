@@ -807,8 +807,9 @@ every file lives and lands. It approves no document's content; content changes
 keep flowing through the normal writer/reviewer/merge protocol branch by
 branch.
 
-**The canon (item 1).** Four readers, each with exactly one entry point; every
-active doc ends up in, merged into, or archived behind one of nine homes:
+**The canon (item 1).** The reader-first canon gives each major reader a clear
+entry point; every active doc ends up in, merged into, or archived behind one
+of nine homes:
 
 | Home | Reader |
 | --- | --- |
