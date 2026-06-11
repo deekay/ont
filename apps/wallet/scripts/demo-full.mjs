@@ -110,10 +110,10 @@ try {
   wallet("info");
 
   // ---- Rail 1: cheap (publisher-backed) ----
-  step("claim alice via the cheap rail (publisher + stub Lightning)");
+  step("claim alice via the batched claim path (publisher + stub Lightning)");
   wallet("claim", "alice", "--rail", "cheap");
 
-  step("names — alice is now a provisional cheap-rail claim (final once its notice window closes)");
+  step("names — alice is now a provisional batched-path claim (final once its notice window closes)");
   wallet("names");
 
   // ---- Rail 2: on-chain auction (synthetic funding) ----
@@ -151,13 +151,13 @@ try {
   console.log(
     [
       "Both rails walked end-to-end.",
-      "  - alice was claimed via the cheap rail (publisher-backed Lightning payment, accumulator inclusion proof).",
+      "  - alice was claimed via the batched claim path (publisher-backed Lightning payment, accumulator inclusion proof).",
       "  - satoshi was claimed via the on-chain auction rail (signed PSBT, ready to broadcast).",
       "",
       "Next:",
       "  - the on-chain claim's signed tx is ready to broadcast (--broadcast).",
-      "  - the cheap-rail claim is provisional: it finalizes only if its notice window closes",
-      "    uncontested (a qualifying bond escalates it to the bonded auction; bare competing",
+      "  - the batched-path claim is provisional: it finalizes only if its notice window closes",
+      "    uncontested (a qualifying bond escalates it to the bonded auction; competing",
       "    claims with no bond nullify it — no owner, and the name reopens). Run `sync`",
       "    after the window to confirm.",
       "  - run `export-proof <name>` to produce a portable ownership proof anyone can verify."

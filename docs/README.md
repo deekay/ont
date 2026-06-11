@@ -8,6 +8,7 @@ marked ⏳ with today's location linked.
 | You are… | Start here | Then |
 | --- | --- | --- |
 | **Curious newcomer** | [ONT.md](./ONT.md) — the front door | [ONT_ONE_PAGER.md](./ONT_ONE_PAGER.md) |
+| **Everyone** | [GLOSSARY.md](./GLOSSARY.md) — every term, defined once | — |
 | **Bitcoin reviewer** | [DESIGN.md](./DESIGN.md) | [RISKS.md](./RISKS.md) + [OPEN_QUESTIONS.md](./OPEN_QUESTIONS.md) |
 | **Implementer** | [spec/](./spec/) — the normative docs (below) | [core/STATUS.md](./core/STATUS.md) for what's wired |
 | **Operator** | [operate/SELF_HOSTING.md](./operate/SELF_HOSTING.md) | demos + operators (below) |
@@ -86,8 +87,8 @@ the living version is.
 
 ## House rules
 
-- **One concept, one name**: every term is defined once (⏳ `GLOSSARY.md`,
-  landing in the jargon pass); prose uses plain words with the term in parens
+- **One concept, one name**: every term is defined once, in
+  [GLOSSARY.md](./GLOSSARY.md); prose uses plain words with the term in parens
   at first use.
 - **Decisions have stable short names** (e.g. doc-canon (#45)) — bare numbers
   don't travel; see the conventions in [core/DECISIONS.md](./core/DECISIONS.md).

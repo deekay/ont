@@ -76,7 +76,7 @@ bold "init wallet"
 npx tsx "${WALLET_CLI}" init >/dev/null
 
 # ---- test 1: claim --rail cheap (default stub payer) ----
-bold "1) claim alice via the cheap rail (stub payment)"
+bold "1) claim alice via the batched claim path (stub payment)"
 OUT="$(npx tsx "${WALLET_CLI}" claim alice --rail cheap 2>&1)"
 expect_substring "claim cheap: requested a quote" "requesting quote" "${OUT}"
 expect_substring "claim cheap: got an available quote" "quote " "${OUT}"

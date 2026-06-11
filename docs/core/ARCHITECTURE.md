@@ -38,11 +38,11 @@ There is one acquisition path:
 1. A user claims a valid flat name and pays the fixed claim gate, currently
    `₿1,000`, as a Bitcoin miner fee.
 2. A public notice window gives others a chance to claim the same name.
-3. If no one else claims it, the name becomes final through the accumulator
-   rail. The owner key controls transfer, recovery setup, and value records.
-4. A **qualifying bond — not a bare claim — opens the auction** (Decision #37):
+3. If no one else claims it, the name becomes final through the batched claim
+   path. The owner key controls transfer, recovery setup, and value records.
+4. A **qualifying bond — not a claim alone — opens the auction** (Decision #37):
    if a bond is posted in the window, the name escalates to a visible ascending
-   auction with returnable Bitcoin bonds. Two or more bare claims with no bond
+   auction with returnable Bitcoin bonds. Two or more claims with no bond
    **nullify** the name instead — no owner, and it reopens for claiming.
    Collisions can deny; only bonds can award.
 5. The winner receives the same owner-key-controlled name as an uncontested
@@ -249,7 +249,7 @@ Auction and indexing:
 - [../../packages/core/src/experimental-auction.ts](../../packages/core/src/experimental-auction.ts) - current live-auction derivation code. The file name is historical; the model is now the contested-auction path.
 - [../../packages/core/src/indexer.ts](../../packages/core/src/indexer.ts) - chain replay, name state, auction observations, and resolver snapshots.
 
-Accumulator rail and scaling research (see [STATUS.md](./STATUS.md) for which
+Batched claim path and scaling research (see [STATUS.md](./STATUS.md) for which
 pieces are live on signet versus simulation-only):
 
 - [../../packages/core/src/accumulator.ts](../../packages/core/src/accumulator.ts) - sparse Merkle accumulator.
@@ -277,7 +277,7 @@ Do not reintroduce these unless there is an explicit new design decision:
 - Universal direct-auction launch docs. Retired launch docs live under
   [../research/archive/retired-launch/](../research/archive/retired-launch/).
 - Sponsor credits as the active scaling plan. Sponsor-credit docs are
-  historical. The current scaling path is the accumulator rail with contest
+  historical. The current scaling path is the batched claim path with contest
   escalation to L1.
 - Ark, RGB, Lightning/LSP, and custom L2 bonding as launch dependencies. They
   remain research topics only.
@@ -508,5 +508,5 @@ When continuing work:
   introduce.
 - Make docs say what the system does now, then place future work behind an
   explicit research label.
-- Preserve the additive scaling posture: long-tail rail improvements must not
+- Preserve the additive scaling posture: long-tail path improvements must not
   weaken already-settled names or the L1 contested-auction path.

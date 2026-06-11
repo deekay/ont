@@ -27,7 +27,7 @@ validation — not rule-breaks:
 4. **✅ Upgrade/governance neutrality decided (2026-05-24): opt-in upgrades only** — rules change only as versions users adopt; no forced changes. (Closes the previously-unregistered I3 gap.)
 5. **✅ §9 bootstrap pledges committed (2026-05-24):** founder no-pre-grab + DA server is sunset-bound scaffolding.
 6. **🟡 MEV/ordering (R9) — analyzed (2026-05-24):** can't steal a name via ordering; residual bounded. Open only: open-auction relay-bid handling (or adopt sealed second-price).
-7. **🟡 Empirical — Phases 1 & 2 built offline (2026-05-24, `ONT_SIGNET_PROTOTYPE_SCOPE.md`):** **C1** accumulator + serialized proofs (~log₂(N), <1 KB); **C2** anchor codec + `RootChain` + block read-back + measured anchor vBytes (162–194 vB, *above* the 150 estimate); **C3/C4** the production batch rail (`batch-rail.ts`) — DA-filtered deltas merged into the real accumulator, derived roots anchored, honest nodes **converge** (naive forks), withholding self-harms, resulting state **provable**. Remaining: the *live* signet measurements/broadcast (needs the node) + protocol wire migration.
+7. **🟡 Empirical — Phases 1 & 2 built offline (2026-05-24, `ONT_SIGNET_PROTOTYPE_SCOPE.md`):** **C1** accumulator + serialized proofs (~log₂(N), <1 KB); **C2** anchor codec + `RootChain` + block read-back + measured anchor vBytes (162–194 vB, *above* the 150 estimate); **C3/C4** the production batched claim path (`batch-rail.ts`) — DA-filtered deltas merged into the real accumulator, derived roots anchored, honest nodes **converge** (naive forks), withholding self-harms, resulting state **provable**. Remaining: the *live* signet measurements/broadcast (needs the node) + protocol wire migration.
 
 ---
 
@@ -69,13 +69,13 @@ validation — not rule-breaks:
 | --- | --- | --- |
 | **A1 Flat namespace** | ✅ | Single flat string space; kept (not flexed). |
 | **A2 Low cost for ordinary names** | ✅ (spirit) | ₿1,000 (~$1) is cheap for mass use — but see T2 for the quantified conflict. |
-| **A3 Simplicity** | 🟡 | *User* story is simple ("claim for ₿1,000 / ~$1, own forever"); the *verifier/mechanism* story (accumulator + DA agreement + windows + two rails + auction) is not. Acceptable under §11 (A3 is the lowest-priority flex), but real. |
+| **A3 Simplicity** | 🟡 | *User* story is simple ("claim for ₿1,000 / ~$1, own forever"); the *verifier/mechanism* story (accumulator + DA agreement + windows + two paths + auction) is not. Acceptable under §11 (A3 is the lowest-priority flex), but real. |
 
 ## 7. Scale & Cost Targets
 
 | Target | Verdict | Evidence / gap |
 | --- | --- | --- |
-| **T1 10^8–10^9 without per-name blockspace** | 🟡 (contingent) | Long-tail batch rail does this (0.015 vB/name) — *if* R2 (throughput, prototyped), R1 (DA, prototyped), and a low contest rate (R3, the bet) all hold, and the signet numbers (R11) confirm. |
+| **T1 10^8–10^9 without per-name blockspace** | 🟡 (contingent) | The long-tail batched claim path does this (0.015 vB/name) — *if* R2 (throughput, prototyped), R1 (DA, prototyped), and a low contest rate (R3, the bet) all hold, and the signet numbers (R11) confirm. |
 | **T2 User cost (₿1,000 / ~$1 target)** | ✅ (resolved 2026-05-23) | T2 revised from "cents-scale" to **₿1,000 (~$1)** — accepted for human mass adoption; revisit toward cents only if feedback or machine/IoT-at-billions pushes back. The earlier conflict is closed by setting the target to the design. |
 | **T3 Verifier budget; cost not growing with N** | 🟡 | Per-name verification is compact and ~log₂(N) — **now measured** (`accumulator.ts`): proofs 339 B @ 100 → 577 B @ 10k names, ~1.1 KB @ 1e9 ✅. **Bootstrapping full state** at billions is still O(N) (R12) → leans on verifiable snapshots. Per-name ✅ / full-bootstrap 🟡. |
 

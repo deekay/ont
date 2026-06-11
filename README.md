@@ -1,7 +1,7 @@
 # Open Name Tags (ONT) — the system as built
 
 This page is one layer below the **[one-pager](./docs/ONT_ONE_PAGER.md)** — read that first; this
-README assumes it. Here we cover how the two rails actually run end to end, where each rule is
+README assumes it. Here we cover how the two acquisition paths actually run end to end, where each rule is
 enforced, what the three service roles do operationally, how to audit the trust surface yourself,
 and what evidence would falsify our claims.
 
@@ -39,8 +39,8 @@ If you want to evaluate rather than browse:
 
 1. **Read the lifecycle (~10 min):**
    [the acquisition state machine](./docs/spec/ONT_ACQUISITION_STATE_MACHINE.md). The points
-   that matter beyond the one-pager's flow: a **bond — not a bare claim — opens the auction**
-   (Decision #37); two bare claims with no bond **nullify** (deny, never award — so block
+   that matter beyond the one-pager's flow: a **bond — not a claim alone — opens the auction**
+   (Decision #37); two claims with no bond **nullify** (deny, never award — so block
    ordering, even a miner's own, can't be converted into a name); **bond-first** is allowed for
    known-premium names, and the ≤4-character opening bonds are the mandatory case of the same
    mechanism; both outcomes are **deadline-derived** — a verifier observes chain state at the
@@ -53,31 +53,31 @@ If you want to evaluate rather than browse:
    [claim.opennametags.org](https://claim.opennametags.org) and watch it appear in the
    [explorer](https://opennametags.org/explore) once the anchor confirms on the signet.
 
-## Architecture: the two rails, end to end
+## Architecture: the two paths, end to end
 
-Both rails end the same way — a name bound to one **owner key** — and a verifier derives both from
+Both paths end the same way — a name bound to one **owner key** — and a verifier derives both from
 Bitcoin, not from any server's say-so.
 
 ```mermaid
 flowchart TB
-  subgraph CHEAP["Cheap rail — every name starts here (live on signet)"]
+  subgraph CHEAP["Batched claim path — every name starts here (live on signet)"]
     W["Wallet / claim site<br/>pay-first claim"] --> PB["Publisher<br/>batches claims into a<br/>sparse-Merkle accumulator"]
     PB -->|"OP_RETURN anchor<br/>prevRoot → newRoot"| BTC[("Bitcoin")]
     BTC --> IX["Indexer decodes the anchor<br/>(RPC polling + replay)"]
-    IX -->|"GET /da/:root"| DA["Publisher DA endpoint<br/>serves the batch leaves"]
-    DA --> RV["Re-verify every membership proof<br/>against the anchored root"]
+    IX -->|"GET /da/:root"| DAEP["Publisher data-availability endpoint<br/>serves the batch leaves"]
+    DAEP --> RV["Re-verify every membership proof<br/>against the anchored root"]
     RV --> RES["Name resolves<br/>(resolver API / public explorer)"]
   end
-  subgraph CONT["Contested rail — opened only by a bond"]
+  subgraph CONT["Contested path — opened only by a bond"]
     BD["Qualifying bond<br/>(vs an existing claim, or bond-first)"] --> AUC["L1 open-ascending auction<br/>bonded bids, soft close"]
     AUC --> SET["Settle — largest bond wins,<br/>owner immediately"]
     SET --> MAT["Bond maturity ≈ 1 yr,<br/>then released"]
   end
   W -. "someone bonds during the notice window" .-> BD
-  W -. "2+ bare claims, no bond → nullified, reopens" .-> NX["No owner"]
+  W -. "2+ claims with no bond → nullified, reopens" .-> NX["No owner"]
 ```
 
-**The cheap rail** (live on signet end-to-end since 2026-06-09):
+**The batched claim path** (live on signet end-to-end since 2026-06-09):
 
 1. **Claim, pay-first.** The claim site or wallet requests a quote, pays the publisher (Lightning
    on mainnet; stubbed on signet), and submits the name + intended owner key. A non-payer is
@@ -98,11 +98,11 @@ flowchart TB
 What the live loop does **not** yet enforce (disclosed in STATUS): the **fail-closed availability
 deadline** — "batch bytes not public by a Bitcoin-height-keyed deadline don't count." The
 `AvailabilityMarker` event is wire-defined and tested but never emitted in production, and the
-W/C/K windows run only in research simulations. Today, missing bytes are simply retried with
+data-availability windows run only in research simulations. Today, missing bytes are simply retried with
 backoff — fine for an honest single publisher on signet, but the withhold-then-reveal defense for
 contested names depends on the deadline rule.
 
-**The contested rail** (a bonded bid runs end-to-end on signet):
+**The contested path** (a bonded bid runs end-to-end on signet):
 
 1. **A qualifying bond opens the auction** (Decision #37) — posted against an existing claim
    during its notice window, or *bond-first* with no prior claim (the natural path for a
@@ -114,7 +114,7 @@ contested names depends on the deadline rule.
 4. **Maturity.** The winning bond stays posted (≈1 year target — an ONT rule, not a Bitcoin
    timelock: break it early and you forfeit the name), then releases.
 
-A bare second claim never enters this rail: two or more cheap claims with no bond **nullify** the
+A second claim alone never enters this path: two or more cheap claims with no bond **nullify** the
 name — no owner, reopens for claiming. Collisions can deny; only bonds can award.
 
 **Two keys, one secret.** The *wallet key* signs the Bitcoin transactions (claims, bonds,
@@ -126,17 +126,17 @@ mobile app — locked by shared conformance vectors.
 
 | Rule | Lives in | Boundary |
 | --- | --- | --- |
-| Owner-key authority: transfers, value records, recovery — replay validation | `packages/consensus/src/engine.ts`, `state.ts` | **Frozen consensus core** (CI-locked) |
-| Portable proofs: structure + Merkle-inclusion/header-PoW vs Bitcoin | `packages/consensus/src/proof-bundle.ts` | **Frozen consensus core** |
+| Owner-key authority: transfers, value records, recovery — replay validation | `packages/consensus/src/engine.ts`, `state.ts` | **Audited consensus core** (CI-locked) |
+| Portable proofs: structure + Merkle-inclusion/header-PoW vs Bitcoin | `packages/consensus/src/proof-bundle.ts` | **Audited consensus core** |
 | Names, wire formats, events, payload signatures | `packages/protocol/src/` | Protocol primitives |
-| Anchor decode, accumulator membership verification, batch merge | `packages/core/src/indexer.ts`, `root-anchor.ts`, `accumulator.ts` | Canonical indexer (outside the frozen core) |
-| Auction settlement — winner becomes owner | `packages/core/src/experimental-auction.ts` | **Outside the frozen core today** — see below |
-| Notice-window outcomes (finalize / nullify / bond-escalate) + DA windows | `packages/core/src/research/batch-rail.ts` + simulations | Design + simulation only |
+| Anchor decode, accumulator membership verification, batch merge | `packages/core/src/indexer.ts`, `root-anchor.ts`, `accumulator.ts` | Canonical indexer (outside the audited core) |
+| Auction settlement — winner becomes owner | `packages/core/src/experimental-auction.ts` | **Outside the audited core today** — see below |
+| Notice-window outcomes (finalize / nullify / bond-escalate) + data-availability windows | `packages/core/src/research/batch-rail.ts` + simulations | Design + simulation only |
 | Value/recovery record acceptance, chain ordering per ownership interval | `apps/resolver/src/validation.ts` | Resolver policy |
-| DA fetch, retry/backoff, snapshot persistence | `apps/resolver`, `apps/indexer` | Operational |
+| data-availability fetch, retry/backoff, snapshot persistence | `apps/resolver`, `apps/indexer` | Operational |
 | Quotes, payment, batching thresholds, anchor broadcast | `apps/publisher` | Operational — no ownership authority |
 
-**The honest boundary, stated plainly.** The frozen core determines owner-key authority and
+**The honest boundary, stated plainly.** The audited core determines owner-key authority and
 replay validation. **Auction settlement → ownership currently lives outside it**, in experimental
 indexer code: `applyAuctionBid` validates and records bids, but deciding winner-becomes-owner is
 not yet inside the audited boundary. Decision #42: settlement **will move inside the frozen
@@ -154,10 +154,10 @@ parameters are placeholders until they're frozen and published before launch (se
   pending claim exceeds `maxBatchAgeSeconds` (the signet demo anchors instantly with size 1; real
   batching is the same code with bigger thresholds).
 - **Anchor broadcast.** Real OP_RETURN broadcast on signet.
-- **DA serving.** `GET /da/{root}` returns the sealed batch's leaves for any anchored root.
+- **Data-availability serving.** `GET /da/{root}` returns the sealed batch's leaves for any anchored root.
 - **What a restart must survive.** The publisher snapshots quotes, pending paid claims, and batch
   history (`ONT_PUBLISHER_STORE_PATH`). On restore it replays batches in order and rebuilds each
-  DA bundle at exactly the accumulator state where that batch's `newRoot` was captured — without
+  data-availability bundle at exactly the accumulator state where that batch's `newRoot` was captured — without
   this, a restart would 404 `/da/{root}` for every prior batch and strand any indexer that hadn't
   synced yet.
 - **Known limits.** Lightning is stubbed on signet (the LN provider is mainnet-only); leaderless
@@ -171,13 +171,13 @@ parameters are placeholders until they're frozen and published before launch (se
   and consensus engine — ownership is recomputed, never asserted.
 - **Snapshot persistence.** Indexer state persists to a file or Postgres (via `@ont/db`); a
   restart resumes from the snapshot instead of re-scanning the chain.
-- **Cheap-rail DA loop.** For every observed-but-unresolved anchor root, fetch `/da/{root}` and
+- **Batched-path data-availability loop.** For every observed-but-unresolved anchor root, fetch `/da/{root}` and
   merge only the leaves whose proofs verify against the on-chain root, with per-root exponential
   backoff (1×, 2×, 4×… the poll interval, capped at 30 minutes) so a missing batch can't make the
   resolver hammer the publisher.
 - **Record serving.** Value records and recovery artifacts are owner-signed, sequence-numbered,
   predecessor-linked chains **keyed by ownership interval** — an L1 name's interval by its current
-  state txid, a cheap-rail name's by its finalizing anchor txid. A new owner starts a fresh chain,
+  state txid, a batched-path name's by its finalizing anchor txid. A new owner starts a fresh chain,
   and stale records from a prior owner are rejected (`apps/resolver/src/validation.ts`). The
   resolver stores and serves records; it cannot invent them — a forged record fails owner-signature
   verification at every client.
@@ -193,7 +193,7 @@ problem, raised for external feedback
 
 ## The trust surface, and auditing it yourself
 
-- **The frozen core is three files** — `engine.ts`, `state.ts`, `proof-bundle.ts` in
+- **The audited core (frozen at launch) is three files** — `engine.ts`, `state.ts`, `proof-bundle.ts` in
   `packages/consensus/src/` — over the `@ont/protocol` + `@ont/bitcoin` primitives.
   `packages/consensus/src/trust-surface.test.ts` **fails the build** if the core grows a
   dependency or file outside its documented allowed set, so the surface a newcomer must audit
@@ -214,7 +214,7 @@ npm install
 npm run test -w @ont/consensus   # trust-surface lock + proof bundles (incl. Bitcoin Merkle/PoW)
 npm run test -w @ont/protocol    # wire formats, payloads, conformance vectors
 npm run test -w @ont/core        # indexer, accumulator, auction state, research quarantine
-npm run test -w @ont/publisher   # pay-first flow + the cheap-rail loop test (publisher bytes → indexer decode)
+npm run test -w @ont/publisher   # pay-first flow + the batched-path loop test (publisher bytes → indexer decode)
 ```
 
 ## What would falsify our claims
@@ -251,7 +251,7 @@ negotiable. For each: what evidence would break it, and where we are still expos
   *Broken by:* a chokepoint with no route around it. The backstops: direct L1 claiming is always
   available, any resolver is replaceable, and verification catches a lying one.
   *Exposure:* the live publisher is single-writer; discovery is config-seeded; and the
-  **fail-closed DA deadline is the sharpest open item** — until it's implemented, the
+  **fail-closed data-availability deadline is the sharpest open item** — until it's implemented, the
   withhold-then-reveal defense for contested names is not operational. On denial-by-collision: a
   spite griefer can nullify a targeted name for ₿1,000 per round, with no payoff; the
   [attrition model](./docs/research/archive/ONT_NULLIFICATION_ATTRITION_MODEL.md) shows one qualifying
@@ -260,7 +260,7 @@ negotiable. For each: what evidence would break it, and where we are still expos
 - **Unambiguous** — two honest observers never disagree about a name's owner.
   *Broken by:* two honest verifiers computing different owners from the same chain. The mechanism
   is deterministic replay, with conflicts resolved by block height, then tx index, then txid.
-  *Exposure:* until the DA deadline is live, "exclude unavailable bytes" is not an enforced
+  *Exposure:* until the data-availability deadline is live, "exclude unavailable bytes" is not an enforced
   deterministic rule; and multi-publisher convergence is proven in simulation only.
 
 ## What's live vs. prototype vs. designed
@@ -270,9 +270,9 @@ truth and wins over this summary.
 
 | Status | Summary |
 | --- | --- |
-| **Live (signet)** | Owner-key transfer / value records / recovery; bonded auction bid resolver-accepted; the **accumulator cheap rail end-to-end since 2026-06-09** (claim → anchor → DA fetch → re-verify → public explorer); single-writer publisher with restart-surviving DA bundles; bare-claim site; unified 12-word secret across all surfaces |
+| **Live (signet)** | Owner-key transfer / value records / recovery; bonded auction bid resolver-accepted; the **batched claim path end-to-end since 2026-06-09** (claim → anchor → data-availability fetch → re-verify → public explorer); single-writer publisher with restart-surviving data-availability bundles; claim site; unified 12-word secret across all surfaces |
 | **Prototype** | Bitcoin-inclusion verifier (tested vs a real mainnet block; producers don't emit proofs); mobile iOS app (walkable signet demo) |
-| **Designed** | Registry-free discovery; the watchtower; the fail-closed DA deadline (W/C/K); leaderless multi-publisher deployment |
+| **Designed** | Registry-free discovery; the watchtower; the fail-closed data-availability deadline; leaderless multi-publisher deployment |
 
 ## The numbers
 
@@ -303,7 +303,7 @@ be frozen and published before launch; until then, nothing here should be called
   ship no sponsorship or proxy-bonding tooling, in v1 or as a protocol direction — third-party
   bonding is already permissionless (anyone can post a bond on any name), and a loan is arranged
   outside the protocol.
-- **Known-incomplete, disclosed** (details in STATUS): the fail-closed DA deadline isn't live, so
+- **Known-incomplete, disclosed** (details in STATUS): the fail-closed data-availability deadline isn't live, so
   the withhold-then-reveal defense isn't operational; light-client inclusion proofs aren't emitted
   end-to-end; and auction proof bundles enforce highest-listed-bid-wins and bid-set
   well-formedness but not *set-completeness* against L1 — closing that is the same light-client
@@ -323,7 +323,7 @@ npm run selfhost:up      # http://127.0.0.1:3000
 ```
 
 To point the stack at your own Bitcoin backend, see
-[SELF_HOSTING.md](./docs/operate/SELF_HOSTING.md). The hosted signet demo exercises the cheap rail
+[SELF_HOSTING.md](./docs/operate/SELF_HOSTING.md). The hosted signet demo exercises the batched claim path
 live: claim a name at [claim.opennametags.org](https://claim.opennametags.org) (keys generated in
 your browser; the page runs offline for key generation) and watch it appear in the
 [explorer](https://opennametags.org/explore) once the anchor confirms. Walkthroughs:
@@ -333,16 +333,16 @@ your browser; the page runs offline for key generation) and watch it appear in t
 ## Repository map
 
 TypeScript monorepo (`npm` workspaces). **Audit-first:** `packages/consensus` (engine · state ·
-proof-bundle — the frozen core) + `packages/protocol` (names · wire · events · payloads).
+proof-bundle — the audited core) + `packages/protocol` (names · wire · events · payloads).
 
 - `packages/bitcoin` — Bitcoin RPC/esplora pollers, parsing, chain-source helpers
 - `packages/core` — canonical indexer, accumulator, auction state, and the quarantined research/simulation code
 - `packages/architect` — transaction-prep / PSBT building (shared by web + CLI)
 - `packages/db` — snapshot + record persistence adapters (file / Postgres)
-- `apps/publisher` — the cheap-rail publisher: quotes, pay-first batching, anchor broadcast, `/da/{root}`
-- `apps/resolver` — read API: ownership, value/recovery records, provenance, the DA loop
+- `apps/publisher` — the batched-path publisher: quotes, pay-first batching, anchor broadcast, `/da/{root}`
+- `apps/resolver` — read API: ownership, value/recovery records, provenance, the data-availability loop
 - `apps/indexer` — standalone chain-indexing entrypoint
-- `apps/claim` — the self-contained bare-claim site (claim.opennametags.org)
+- `apps/claim` — the self-contained claim site (claim.opennametags.org)
 - `apps/web` — hosted site: explorer, auctions, transfer prep
 - `apps/cli` — auction / transfer / record / operator tooling
 - `apps/wallet` — local desktop wallet/client prototype
@@ -352,12 +352,12 @@ proof-bundle — the frozen core) + `packages/protocol` (names · wire · events
 
 A useful review order: this page → [design](./docs/DESIGN.md) →
 [acquisition state machine](./docs/spec/ONT_ACQUISITION_STATE_MACHINE.md) →
-[DA agreement](./docs/spec/ONT_DATA_AVAILABILITY_AGREEMENT.md) →
+[data-availability agreement](./docs/spec/ONT_DATA_AVAILABILITY_AGREEMENT.md) →
 [risks](./docs/RISKS.md). The full ask list is the one-pager's feedback
 section plus [OPEN_QUESTIONS.md](./docs/OPEN_QUESTIONS.md); the
 sharpest items, in rough order:
 
-1. **The DA deadline and transport** — is fail-closed-by-height sound, and is publisher-served +
+1. **The data-availability deadline and transport** — is fail-closed-by-height sound, and is publisher-served +
    voluntary mirrors enough for v1? Should the availability marker be folded into the anchor?
 2. **Light-client verification** — launch blocker, or acceptable post-launch?
 3. **The OP_RETURN carrier** — are ~171-byte events acceptable on mainnet?

@@ -132,7 +132,7 @@ names are few (~110 vB each, ~4.78M/yr ceiling at 1% blockspace).
 | Approach | What it is | Trust added | Where it fits |
 | --- | --- | --- | --- |
 | **A. Full data on Bitcoin** | Put the bytes on-chain | None (pure Bitcoin) | The **censorship-resistant floor** + contested-name fallback. Too expensive for the long tail |
-| **B. Fail-closed window + on-chain availability marker** | §6a–6c | 1-of-N honest archive | The **default long-tail rail** |
+| **B. Fail-closed window + on-chain availability marker** | §6a–6c | 1-of-N honest archive | The **default long-tail path** |
 | **C. DA sampling (erasure-coded, Celestia-style)** | Light clients sample chunks to gain availability confidence cheaply | Honest-minority DA network | Optional upgrade *if* trust-minimized light-client availability at scale is required |
 | D. Bonded attestation + slashing | Publishers bond "it's available," slashed on fault | — | **Rejected**: non-availability isn't objectively provable, so slashing can't trigger cleanly. Adds friction, not convergence |
 

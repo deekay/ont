@@ -117,7 +117,7 @@
       real cost is carry (~$5,000/yr at 5%), since the principal returns. Honest residual: long-tail names
       nobody contests can be squatted at ₿1,000 each. Squatting isn't impossible; it's priced.</li>
     <li><strong>"I'll front-run your claim."</strong> Ordering can't award a name — not even a miner's.
-      Two bare claims with no bond <strong>nullify</strong>: no owner, the name reopens. A bare claim can
+      Two claims with no bond <strong>nullify</strong>: no owner, the name reopens. A claim with no bond can
       deny, never award; outcomes are deadline-derived, not order-derived. There is no MEV to extract from
       the claim path.</li>
     <li><strong>"Then I'll grief you with collisions forever."</strong> Each denial round burns the
@@ -165,7 +165,7 @@
       resolver stack on a private signet; discovery is config-seeded (registry-free on-chain scan designed,
       not built). Anyone can self-host both. No token to dump, no rent stream; in-flight exposure is ~$1
       per pending claim. If all project infrastructure vanished, ownership re-derives from Bitcoin plus the
-      mirrorable batch bytes — subject to the DA caveat above.</li>
+      mirrorable batch bytes — subject to the data-availability caveat above.</li>
   </ul>
 </div>
 
@@ -232,8 +232,8 @@
       <path class="ar" d="M494,161 C522,161 518,97 545,97"/>
     </svg>
     <div class="figcap"><strong>Either path ends in the same place</strong> — a name controlled by your
-      key. Two or more bare claims with no bond <strong>nullify</strong> — no owner, the name reopens; a
-      bare claim can deny, never award. <strong>Bond-first</strong> is allowed for known-premium names. An
+      key. Two or more claims with no bond <strong>nullify</strong> — no owner, the name reopens; a
+      claim with no bond can deny, never award. <strong>Bond-first</strong> is allowed for known-premium names. An
       auction winner owns at <strong>settlement</strong> — the bond stays posted ~1 yr then returns, an ONT
       replay rule (break it early and you forfeit the name), not a Bitcoin timelock.</div>
   </div>
@@ -248,7 +248,7 @@
         <tr><td>Auction bond floor</td><td><span class="b">₿50,000</span> ~$50, returnable</td><td>placeholder · load-bearing</td></tr>
         <tr><td>Bond maturity</td><td>~52,560 blocks (~1 yr)</td><td>placeholder / test override</td></tr>
         <tr><td>Notice window</td><td>target weeks (test: 6 blocks)</td><td>placeholder · fairness lever</td></tr>
-        <tr><td>DA windows (W/C/K)</td><td>unset</td><td>open</td></tr>
+        <tr><td>Data-availability windows</td><td>unset</td><td>open</td></tr>
         <tr><td>On-chain footprint</td><td>~0.015–0.019 vB/name @ ~10k/batch</td><td>measured</td></tr>
         <tr><td>OP_RETURN event size</td><td>up to ~171 bytes</td><td>measured</td></tr>
       </table>
@@ -272,19 +272,19 @@
 
   <h2>Status — honest (signet prototype; not mainnet-ready)</h2>
   <p><strong>Live end-to-end on a private signet:</strong> owner-key transfer, owner-signed value records,
-    recovery, a bonded auction bid the resolver accepts — and, since 2026-06-09, the full cheap rail: a
+    recovery, a bonded auction bid the resolver accepts — and, since 2026-06-09, the full batched claim path: a
     claim at claim.opennametags.org is batched, anchored on-chain, re-verified by the indexer against the
     anchored root, and appears in the public explorer. One 12-word phrase derives identical keys across the
     claim site, web tools, and the mobile app, locked by shared conformance vectors.
-    <strong>Not live (disclosed):</strong> the fail-closed DA deadline (design + simulation only); the
+    <strong>Not live (disclosed):</strong> the fail-closed data-availability deadline (design + simulation only); the
     light-client emit path; multi-publisher (simulated; production is single-writer); real Lightning
-    payment (stubbed on signet); auction settlement inside the frozen core (decided, gated on demonstrated
+    payment (stubbed on signet); auction settlement inside the audited core (decided, gated on demonstrated
     correctness). Parameters are placeholders — the rules are designed to freeze at launch and are
     <strong>not frozen today</strong>.</p>
 
   <h2>What we most want pushed on</h2>
   <ul>
-    <li><strong>The DA rule and transport</strong> — is fail-closed-by-height sound against withholding and
+    <li><strong>The data-availability rule and transport</strong> — is fail-closed-by-height sound against withholding and
       reorgs? Should the availability marker be <strong>folded into the anchor</strong> itself? Is
       publisher-served + voluntary mirrors enough for v1?</li>
     <li><strong>Publisher trust-minimization</strong> — is pay-first + reputable operators the right v1
@@ -306,7 +306,7 @@
 
   <div class="foot">Repo: github.com/deekay/ont · deeper: <code>docs/DESIGN.md</code> · exact
     lifecycle: <code>docs/spec/ONT_ACQUISITION_STATE_MACHINE.md</code> · plain language:
-    <code>docs/ONT.md</code> · canonical status + numbers: <code>docs/core/STATUS.md</code>.</div>
+    <code>docs/ONT.md</code> · canonical status + numbers: <code>docs/core/STATUS.md</code>. Parity-bound to <code>docs/ONT.md</code>: if this page and ONT.md disagree, ONT.md wins.</div>
 </div>
 
 </body>

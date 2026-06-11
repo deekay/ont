@@ -1860,7 +1860,7 @@ function printUsage(): void {
   console.log("");
   console.log("The model: you claim a human-readable name on Bitcoin for a small fixed fee. If no one");
   console.log("else claims it, it's simply yours; if someone contests it with a bond, it escalates to a");
-  console.log("bonded auction (bare competing claims with no bond just nullify it, and it reopens).");
+  console.log("bonded auction (competing claims with no bond just nullify it, and it reopens).");
   console.log("Either way you end up with a name controlled by one owner key.");
   console.log("");
   console.log("This CLI operates the live prototype mechanics: building, signing, and broadcasting");

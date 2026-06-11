@@ -38,7 +38,7 @@ that could **actually sink the project**:
    on a few prize names, low once most claims are long-tail handles nobody else wants — and
    the high-contest phase is also the low-volume phase that plain Bitcoin can absorb.
 3. **The premium short-name auction** (R4) — *resolved by removal, 2026-05-24*: there is no
-   off-chain auction. The accumulator rail is uncontested-only; a contested name escalates
+   off-chain auction. The batched claim path is uncontested-only; a contested name escalates
    to the proven L1 bonded auction. The residual auction risk is closure gaming and bid
    mechanics on L1 (see the ranked assessment below and
    [`OPEN_QUESTIONS.md`](./OPEN_QUESTIONS.md) §2.1).
@@ -46,7 +46,7 @@ that could **actually sink the project**:
 How to read the shape of the risk (register view, 2026-06-04):
 
 - **What could actually kill it:** R2 (chaining) was the *unsolved-mechanism* risk — now
-  prototyped into the production batch rail; R1 (DA) and R3 (contest rate) are the *bets*
+  prototyped into the production batched claim path; R1 (data availability) and R3 (contest rate) are the *bets*
   the whole thesis rests on.
 - **What's just work:** R11–R15 are knowable — prototype and decide.
 - **What recent decisions newly exposed:** R5 (BTC-price drift, a direct cost of the
@@ -72,22 +72,22 @@ Severity: **fatal** (could kill the design), **high**, **medium**, **low**.
 
 | ID | Risk | Kind | Severity | Status / next step |
 | --- | --- | --- | --- | --- |
-| R1 | **Data availability / convergence** — honest nodes must agree on one root from Bitcoin alone; withholding can't halt others (self-harm) but a timing disagreement on a *contested* leaf forks the chain | Bet → approach prototyped | Fatal (liveness) | **Decomposed + prototyped ([`spec/ONT_DATA_AVAILABILITY_AGREEMENT.md`](./spec/ONT_DATA_AVAILABILITY_AGREEMENT.md), `da-convergence-sim.ts`):** uncontested leaves self-heal (commutativity + K-block lag); contested leaves use a Bitcoin-timed availability marker + fail-closed challenge, escalating to direct-L1. Convergence vs. a withholding adversary passes in code (naive rule forks, proposed converges) — **now over the production accumulator** (`batch-rail.ts`), with the resulting ownership provable via C1 proofs. Residual = isolated 1-of-N archive assumption. Open: pin windows, spec the marker tx, decide on DA sampling |
-| R2 | **Leaderless chaining / throughput** — many anchors/block need to chain with no privileged sequencer; naive racing collapses to ~1 batch/block or re-centralizes | Unsolved → mechanism prototyped | Fatal (scale) | **Candidate prototyped: per-block delta-merge** (`packages/core/src/delta-merge-sim.ts`) — commutativity, conflict determinism, DA-exclusion, compact proofs all pass — **now wired into the production batch rail** (`batch-rail.ts`): deltas merged into the real C1 accumulator with derived roots anchored in the C2 root chain. Remaining work is live scale numbers (→ R11), not mechanism. See [`OPEN_QUESTIONS.md`](./OPEN_QUESTIONS.md) |
+| R1 | **Data availability / convergence** — honest nodes must agree on one root from Bitcoin alone; withholding can't halt others (self-harm) but a timing disagreement on a *contested* leaf forks the chain | Bet → approach prototyped | Fatal (liveness) | **Decomposed + prototyped ([`spec/ONT_DATA_AVAILABILITY_AGREEMENT.md`](./spec/ONT_DATA_AVAILABILITY_AGREEMENT.md), `da-convergence-sim.ts`):** uncontested leaves self-heal (commutativity + K-block lag); contested leaves use a Bitcoin-timed availability marker + fail-closed challenge, escalating to direct-L1. Convergence vs. a withholding adversary passes in code (naive rule forks, proposed converges) — **now over the production accumulator** (`batch-rail.ts`), with the resulting ownership provable via C1 proofs. Residual = isolated 1-of-N archive assumption. Open: pin windows, spec the marker tx, decide on data-availability sampling |
+| R2 | **Leaderless chaining / throughput** — many anchors/block need to chain with no privileged sequencer; naive racing collapses to ~1 batch/block or re-centralizes | Unsolved → mechanism prototyped | Fatal (scale) | **Candidate prototyped: per-block delta-merge** (`packages/core/src/delta-merge-sim.ts`) — commutativity, conflict determinism, data-availability exclusion, compact proofs all pass — **now wired into the production batched claim path** (`batch-rail.ts`): deltas merged into the real C1 accumulator with derived roots anchored in the C2 root chain. Remaining work is live scale numbers (→ R11), not mechanism. See [`OPEN_QUESTIONS.md`](./OPEN_QUESTIONS.md) |
 | R3 | **Contest rate** — capacity swings ~100× on a number unknowable until launch. *Assumed time-varying:* high but low-volume early (everyone piles onto `bitcoin`/`google`/dictionary words), falling as the namespace matures and the marginal claim is a long-tail handle (`sallysmith2165`) nobody contests | Bet | High | Design must degrade safely toward L1 economics. Note the heavy-contest regime coincides with low volume (absorbable on L1); premium set is bounded and depletes. Monitor post-launch; expect a low contested floor (speculative racing), not zero |
-| R4 | **Off-chain auction binding + ordering** — making escalating bids visible, binding, and cheap at once | Resolved by removal 2026-05-24 | (was High) | **Decided: no off-chain auction.** The accumulator rail is *uncontested-only*; a contested long-tail name escalates to the proven **L1 bonded auction**. This deletes the visible+binding+cheap problem from the rail (`batch-rail.ts` now escalates contests). See [`OPEN_QUESTIONS.md`](./OPEN_QUESTIONS.md) |
+| R4 | **Off-chain auction binding + ordering** — making escalating bids visible, binding, and cheap at once | Resolved by removal 2026-05-24 | (was High) | **Decided: no off-chain auction.** the batched claim path is *uncontested-only*; a contested long-tail name escalates to the proven **L1 bonded auction**. This deletes the visible+binding+cheap problem from the rail (`batch-rail.ts` now escalates contests). See [`OPEN_QUESTIONS.md`](./OPEN_QUESTIONS.md) |
 | R5 | **BTC-price drift of gate/floors** — fixed-bitcoin amounts mean anti-spam/anti-squat strength floats with BTC price (no-oracle tradeoff) | Bet | Medium | Decide whether drift is acceptable or needs a neutral re-peg mechanism |
 | R6 | **≤4-char cliff + junk-short over-tax** — 12,500× floor jump at 4→5; `x7q2` floored like `bank` | Undecided | Low–Med | Accepted for now; revisit if boundary gaming appears |
 | R7 | **Cold-start (5–8 char premium)** — no length floor, relies on contention; a quiet launch lets an early whale sweep premium names cheaply before the market is liquid (you can't reliably get competing bidders on day 1) | Bet → options identified | Medium | Loud scheduled launch + watch tooling; secondary market reprices (a sweeper paid real money, can't rent, must resell). **Mitigation options (2026-05-26), all must stay mechanical/uniform (I3):** (a) **decaying launch gate** — claim cost starts high at genesis and decays on a fixed pre-announced schedule to the ₿1,000 floor; hits *cheap* capture directly, uniform, no selection rule, sybil-proof, freeze-friendly — **leading candidate**; (b) **slow-drip supply cap** — throttle names/period early to force contention; open issues: which claims clear when over-subscribed, must sunset, demand-gating is gameable / can starve, taxes the long tail; (c) **accept it** — a one-time land rush captured by an early mover. ≤4-char already protected by length floors. Ruled out: reserved lists (violate I3), per-person caps (sybil) |
 | R8 | **Publisher / inclusion concentration** — economies of scale may centralize liveness/cost even if not safety | Bet | Medium | Direct-L1 caps pricing at L1 cost; monitor concentration |
-| R9 | **MEV / ordering games** — publisher (or publisher+miner) sees pending claims & bids; subtle latency/selective-inclusion value | Analyzed | Medium | **Analyzed (see the MEV & ordering analysis below):** ordering **can't steal a name** — an auction is opened by a *bond*, not a bare claim, so a cheap collision can only *nullify* a name (deny), never award it; acquiring a contested name requires the winning bond (same cost for a miner as for anyone). Disjoint names commute; L1 fallback bounds censorship. Residual (reveal-contestation = R7; open-auction relay bid handling) bounded; the former below-threshold ordering grab is closed (see **R16**). Adds a vote for sealed second-price (R4) |
+| R9 | **MEV / ordering games** — publisher (or publisher+miner) sees pending claims & bids; subtle latency/selective-inclusion value | Analyzed | Medium | **Analyzed (see the MEV & ordering analysis below):** ordering **can't steal a name** — an auction is opened by a *bond*, not a claim alone, so a cheap collision can only *nullify* a name (deny), never award it; acquiring a contested name requires the winning bond (same cost for a miner as for anyone). Disjoint names commute; L1 fallback bounds censorship. Residual (reveal-contestation = R7; open-auction relay bid handling) bounded; the former below-threshold ordering grab is closed (see **R16**). Adds a vote for sealed second-price (R4) |
 | R10 | **Patient accumulation at the gate** — slow hoarding of medium-value names at ₿1,000 (~$1) each | Bet | Low | Bounded by linear cost + low per-name value; accept |
 | R11 | **Paper design — unvalidated numbers** — 150 vB anchor, 110 vB contested, 10k/batch, SMT proof sizes all estimated | Unvalidated → partly measured | High | **Measured (`accumulator.ts`, `root-anchor.ts`):** SMT proofs ~log₂(N), 339 B @ 100 → 577 B @ 10k (~1.1 KB @ 1e9); **anchor tx 162–194 vB — ABOVE the 150 vB estimate** (still ~0.016–0.019 vB/name @ 10k, tiny). Still pending: contested vB, real batch sizes, live broadcast |
 | R12 | **Full-verifier state growth** — fresh full indexer is O(N) (hundreds of GB at billions) → leans on trusted snapshots | Uncertain | Medium | Bitcoin-anchored snapshots (assumeutxo-style); state pruning |
 | R13 | **Gate form** — miner-fee (security-budget systemic-ness + publisher intermediation) vs PoW (verification/centralization) | Decided 2026-05-24 | Medium | **Decided: Bitcoin miner fee** (simplicity + security-budget contribution). Accepted: Bitcoin both prices and orders; PoW would have been cleaner for neutrality/censorship-fallback. R5 drift still applies |
 | R14 | **Unpinned parameters** — K-confirm depth, commit→reveal delay, notice window, bond maturity | Undecided | Low | Pin during prototype with explicit latency/safety tradeoffs |
 | R15 | **Destination/resolution freshness** — ownership is unique but the destination is an owner-signed off-chain record (stale-routing risk for payment handles) | Undecided | Medium | Bind records to monotonic version + recent Bitcoin-height freshness marker |
-| R16 | **No-bond-fallback / ordering grab** — an earlier draft resolved an un-bonded contest by raw `(height, tx-index)` ordering, which let a block-winning miner self-claim and *take* a low-value contested name for ~₿1,000 paid to itself (fee-to-self), converting ordering power into acquisition | **Resolved by design** | Low | **Fix: a bond — not a bare claim — opens the auction.** A cheap collision with no bond *nullifies* the name (it reopens for claiming), never awards it; acquiring a contested name requires a qualifying bond (largest wins), bond-first allowed. So front-running a cheap claim buys nothing, and acquisition costs the same locked capital for a miner as for anyone. Residual: a spite-griefer can still *deny* (nullify) a targeted name for ₿1,000 with no payoff, defendable by bonding — unprofitable, accepted. See [`spec/ONT_ACQUISITION_STATE_MACHINE.md`](./spec/ONT_ACQUISITION_STATE_MACHINE.md) and the MEV & ordering analysis below (§D3) |
+| R16 | **No-bond-fallback / ordering grab** — an earlier draft resolved an un-bonded contest by raw `(height, tx-index)` ordering, which let a block-winning miner self-claim and *take* a low-value contested name for ~₿1,000 paid to itself (fee-to-self), converting ordering power into acquisition | **Resolved by design** | Low | **Fix: a bond — not a claim alone — opens the auction.** A cheap collision with no bond *nullifies* the name (it reopens for claiming), never awards it; acquiring a contested name requires a qualifying bond (largest wins), bond-first allowed. So front-running a cheap claim buys nothing, and acquisition costs the same locked capital for a miner as for anyone. Residual: a spite-griefer can still *deny* (nullify) a targeted name for ₿1,000 with no payoff, defendable by bonding — unprofitable, accepted. See [`spec/ONT_ACQUISITION_STATE_MACHINE.md`](./spec/ONT_ACQUISITION_STATE_MACHINE.md) and the MEV & ordering analysis below (§D3) |
 
 ---
 
@@ -439,14 +439,14 @@ Worth extracting: (1) **front-running** a valuable name, (2) **manipulating an a
 ### 2. The structural defenses already in the design
 
 **D1 — Front-running a cheap claim wins nothing; acquisition is bond-gated.** *(Revised
-2026-06-04.)* The accumulator rail's claims may be **public** (not commit-reveal-hidden),
+2026-06-04.)* the batched claim path's claims may be **public** (not commit-reveal-hidden),
 so a watcher can see `coffee` being claimed. Front-running it grants no steal: an auction
-is opened only by a **bond**, not a bare claim, so a second cheap claim doesn't take the
+is opened only by a **bond**, not a claim alone, so a second cheap claim doesn't take the
 name — a no-bond collision **nullifies** it (it reopens for claiming), and to *acquire*
 the name the front-runner must post a real returnable bond and win the auction (*outbid*,
 not out-order). So name front-running is defused by bond-gated acquisition, not by hiding
 names. (This supersedes the earlier reliance on commit-reveal name hiding; sealed-bid
-commitments still apply within the L1 auction itself, but the rail needs no name-hiding.)
+commitments still apply within the L1 auction itself, but the path needs no name-hiding.)
 
 **Why ordering can't substitute for a bond (R16).** A cheap collision with no bond doesn't
 award the name to anyone — it **nullifies** it (reopens for claiming). There is no
@@ -485,7 +485,7 @@ publishers, selective inclusion is an efficiency attack, not a sovereignty attac
 **Together, D1–D4 mean the thing that would be catastrophic — stealing a name via
 ordering — is not possible.** A name is acquired only by an uncontested cheap claim that
 finalizes or by the winning bond in an auction, and an auction is opened by a **bond**,
-never by a bare claim. The (height, tx-index) commit-priority tie-break in the merge is
+never by a claim alone. The (height, tx-index) commit-priority tie-break in the merge is
 only a determinism floor for delta ordering — it never awards a contested name, so gaming
 tx-index by fee buys no name. A cheap collision can at most **nullify** a name (deny, no
 payoff), never take it (former R16, resolved by making the bond the escalation trigger).
@@ -496,7 +496,7 @@ payoff), never take it (former R16, resolved by making the bond the escalation t
 | --- | --- | --- |
 | **Reveal-contestation** | Once a name is revealed, a watcher can contest it within the notice window, forcing an auction on a name someone hoped to get cheaply | Not theft — the contester must *bid and win*, paying real value. Forces fair price discovery, the design's intent. This is really **R7 (cold start)** wearing an MEV hat; same mitigations (generous window, loud launch, watchers). |
 | **Relay bid manipulation** | In the *open* auction, a relay/publisher selectively delays or drops bids to help a colluding bidder | Bounded by **direct-L1 fallback** (a censored bidder settles on L1) and **anti-snipe** (activity-extended close). Removed entirely by sealed second-price (§4). |
-| **Tie-break gaming** | Pay a higher fee to win a same-block (height, tx-index) tie | **Low value.** A name is acquired only by an uncontested cheap claim or a winning bond; an auction is opened by a bond, never by a bare claim. So winning a same-block tie never wins a contested name — a cheap collision can at most *nullify* it (R16 resolved). The tie-break is only a delta-determinism floor for merge ordering. |
+| **Tie-break gaming** | Pay a higher fee to win a same-block (height, tx-index) tie | **Low value.** A name is acquired only by an uncontested cheap claim or a winning bond; an auction is opened by a bond, never by a claim alone. So winning a same-block tie never wins a contested name — a cheap collision can at most *nullify* it (R16 resolved). The tie-break is only a delta-determinism floor for merge ordering. |
 | **Selective inclusion** | Publisher refuses to batch your claim | Bounded by L1 fallback + competitive publishers; costs you latency, not the name. Overlaps R8. |
 
 ### 4. By-product: MEV resistance argues for sealed second-price (Option B)
@@ -538,7 +538,7 @@ this layer predate Decision #37 (bond opens the auction; bare collisions nullify
 bracketed update notes mark where the contest rule changed.*
 
 A working inventory of how ONT can be attacked, griefed, or degraded across all four
-surfaces — the cheap rail, the publisher, the resolver, and the auction — plus a prominent
+surfaces — the batched claim path, the publisher, the resolver, and the auction — plus a prominent
 section on launch-fairness, which is the threat with the shortest fuse. Each entry names
 the attack, what it costs the attacker, what defends against it today (with a code or doc
 reference), and where the residual gap is. Items marked **GAP** have no current defense in
@@ -589,7 +589,7 @@ defense that works, works because a client can recompute the answer from Bitcoin
 and refuse to trust an intermediary's claim. Every gap that remains is a place where a
 client currently trusts an intermediary instead of recomputing.
 
-### Surface 1 — the cheap rail (claiming)
+### Surface 1 — the batched claim path (claiming)
 
 #### 1.1 Launch capture — a whale claims the top N names before anyone is watching
 
@@ -616,7 +616,7 @@ watching and do not have coin out of cold storage to contest in time.
 #### 1.2 Sybil-contest griefing — force a victim's claim to auction with a throwaway claim
 
 *(Update note, 2026-06-11: Decision #37 — bond opens the auction, 2026-06-04 — supersedes
-the escalation rule this section describes. A bare second claim with no qualifying bond now
+the escalation rule this section describes. A second claim with no qualifying bond now
 **nullifies** the name (no owner; it reopens for claiming) and can never force an auction;
 only a bond escalates. The attack reshapes from forced escalation to denial — the current
 treatment is the ranked assessment §2 below and
@@ -651,7 +651,7 @@ desirable name and races their own in first.
 
 - **Defense today:** under the one-path model this does not hand the front-runner the
   name. Two claims for the same name inside the window = contested = auction. *(Update
-  note, 2026-06-11: per Decision #37 this now reads — two bare claims with no bond
+  note, 2026-06-11: per Decision #37 this now reads — two claims with no bond
   **nullify** the name (deny, reopen); only a qualifying bond opens the auction. Either
   way the front-runner gains nothing, which is this section's point; see the MEV &
   ordering analysis above, D1/D3.)* Front-running a cheap claim only *triggers the
@@ -677,23 +677,23 @@ against the accumulator. So the publisher cannot forge ownership. What it *can* 
 Anchor a claim on-chain but withhold the batch bytes, then reveal them later to
 retroactively "win" a name against a competitor who could not see the claim in time.
 
-- **Defense today:** the DA filter, fail-closed. `da-convergence-sim.ts` requires an
+- **Defense today:** the data-availability filter, fail-closed. `da-convergence-sim.ts` requires an
   availability marker mined by `anchorHeight + W` and the bytes surfacing by `+ W + C`; a
   delta that was not actually available is *excluded*, not treated as canonical.
-  `runBatchRail` only counts DA-valid deltas. A documenting test ("a withheld competing
+  `runBatchRail` only counts data-availability-valid deltas. A documenting test ("a withheld competing
   claim cannot force a contest") confirms a withheld claim cannot even trigger an
   escalation. This is the defense the convergence note calls out as "what defeats
   withhold-then-reveal name theft."
-- **Residual gap:** the DA windows (`W`, `C`, `K`) are parameters; if set too short an
+- **Residual gap:** the data-availability windows (defined in the spec) are parameters; if set too short an
   attacker with marginal network control could still race the availability marker. They
   must be chosen conservatively and decoupled from the notice window (see the philosophy
-  note, "do not couple the contest window to the DA confirm-depth").
+  note, "do not couple the contest window to the data-availability confirm-depth").
 
 #### 2.2 Equivocation — anchor one thing, serve another
 
 Commit `newRoot` on-chain but serve different batch bytes off-chain to different clients.
 
-- **Defense today:** `newRoot = root(prevRoot ⊕ delta)` is a *DA binding*. An indexer that
+- **Defense today:** `newRoot = root(prevRoot ⊕ delta)` is a *data-availability binding*. An indexer that
   fetches the published batch leaves and recomputes `newRoot` rejects the anchor if it
   does not match
   ([`research/ONT_MULTI_PUBLISHER_CONVERGENCE.md`](./research/ONT_MULTI_PUBLISHER_CONVERGENCE.md),
@@ -719,7 +719,7 @@ it wants for itself, a competitor's brand).
   yet deliver, because every test and smoke runs a single publisher
   ([`research/ONT_MULTI_PUBLISHER_CONVERGENCE.md`](./research/ONT_MULTI_PUBLISHER_CONVERGENCE.md),
   "why this is worth doing now"). Until multi-publisher coexistence is real, a censoring
-  publisher is a single point of failure for the cheap rail.
+  publisher is a single point of failure for the batched claim path.
 
 #### 2.4 Denial of service — no rate-limiting
 
@@ -732,7 +732,7 @@ endpoints and takes the publisher offline.
 - **Residual gap (GAP):** standard service-hardening (rate limits, proof-of-work or paid
   quotes, connection limits) is unbuilt. This is operational, not protocol — but it
   interacts with censorship: knocking out the one reachable publisher *is* censorship of
-  the whole cheap rail until discovery + multiple publishers exist.
+  the whole batched claim path until discovery + multiple publishers exist.
 
 #### 2.5 Quote/anchor race — name taken between quote and payment
 
@@ -956,9 +956,9 @@ The gaps that are unbuilt today, ranked by how load-bearing they are for the cor
    home of the "Bitcoin seed-IP analog?" question — see
    [`research/ONT_DECENTRALIZATION_AND_DISCOVERY.md`](./research/ONT_DECENTRALIZATION_AND_DISCOVERY.md).
 3. **Multi-publisher coexistence not wired (2.1, 2.2, 2.5).** The convergence logic
-   (`runBatchRail`, DA filter, merge) exists and is tested, but no live resolver consumes
+   (`runBatchRail`, data-availability filter, merge) exists and is tested, but no live resolver consumes
    it and the publisher anchors off its own accumulator. One publisher = one point of
-   failure for the cheap rail today.
+   failure for the batched claim path today.
 4. **No publisher DoS hardening (2.4).** Operational, but interacts with censorship.
 5. **Launch-fairness levers beyond the contest window (launch section).** Open auction for
    top-N, transparency feed, pre-announced frozen schedule — design decisions, not yet
@@ -973,7 +973,7 @@ The gaps that are unbuilt today, ranked by how load-bearing they are for the cor
 2. Is a light-client proof-bundle verification path in scope before launch, or do we ship
    with "trust your resolver set, fan out to detect disagreement" and close the gap after?
    (Determines whether 3.2 is a launch blocker.)
-3. What are the DA window parameters (`W`, `C`, `K`) and the launch contest window, as
+3. What are the data-availability window parameters (defined in the spec) and the launch contest window, as
    concrete heights — and are they published before launch?
 4. Should the protocol ever express slashing (a financial penalty for walking after
    winning), which requires a script-level bond construction, or is "lose the name, name
@@ -1062,7 +1062,7 @@ Why it matters:
   round, but only the victim needs a full uncollided window).
 - The victim's escape is posting a `₿50,000` returnable bond the attacker won't outbid —
   which makes *defense affordability*, not name loss, the real exposure for small users.
-- At scale this is an adoption/UX attack on the cheap rail; Bitcoin blockspace is
+- At scale this is an adoption/UX attack on the batched claim path; Bitcoin blockspace is
   untouched.
 
 Mitigations:
@@ -1145,7 +1145,7 @@ Mitigations:
 
 ### 5. Data availability / multi-publisher integration gap
 
-The DA and merge design is strong in notes/prototypes, but the live resolver/publisher
+The data-availability and merge design is strong in notes/prototypes, but the live resolver/publisher
 path is not fully wired.
 
 Attack shapes:
@@ -1157,14 +1157,14 @@ Attack shapes:
 
 Current posture:
 
-- Fail-closed DA and availability marker design are documented and prototyped.
+- Fail-closed data-availability and availability-marker design are documented and prototyped.
 - Multi-publisher convergence logic exists in research/prototype code.
-- The live resolver still does not consume the full cheap-rail derivation end to end.
+- The live resolver still does not consume the full batched-path derivation end to end.
 
 Mitigations:
 
 - Treat live multi-publisher canonical derivation as a launch gate for the cheap path.
-- Pin DA windows and marker transaction format.
+- Pin data-availability windows and marker transaction format.
 - Require wallets to distinguish provisional / contested / final.
 - Never let a wallet record ownership from a publisher receipt alone.
 
