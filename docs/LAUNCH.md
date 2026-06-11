@@ -134,8 +134,9 @@ flowchart LR
 1. A claimant submits a claim binding a valid name to an owner key.
 2. The claim is anchored to Bitcoin and pays the fixed claim gate to miners.
 3. The claim is provisional during the notice window.
-4. If no qualifying bond is posted against the name in that window (and no bare
-   competing claim lands), the claim finalizes through the accumulator.
+4. If no qualifying bond is posted against the name in that window (and no
+   competing claim with no bond lands), the claim finalizes through the
+   accumulator.
 5. If a qualifying bond is posted in that window — against the claim, or
    bond-first — the name becomes contested and escalates to the bonded L1
    auction path. If a competing data-availability-valid claim lands with no bond, the

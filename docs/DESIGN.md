@@ -374,8 +374,8 @@ locked until maturity and is then released, so the ~1-year maturity is a *capita
 gate on using the name. The cost is liquidity/opportunity, not a burn or a payment to anyone.
 Bond continuity is enforced at consensus-replay time (ONT-level), not by Bitcoin script.
 
-**Bond-first / the escalation trigger.** An auction is opened by a **bond**, not a bare second
-claim — posted against an existing in-window claim, or *bond-first* with no prior claim (the
+**Bond-first / the escalation trigger.** An auction is opened by a **bond**, not a second claim
+alone — posted against an existing in-window claim, or *bond-first* with no prior claim (the
 natural path for a name you already know is premium, e.g. `bitcoin`). A bare cheap collision can
 only **nullify** a name (it resolves to no owner and reopens for claiming), never award it. This is
 what makes ordering worthless for acquisition: front-running a cheap claim can at most *deny*

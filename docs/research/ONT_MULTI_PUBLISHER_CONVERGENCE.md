@@ -212,8 +212,8 @@ sha256(name), ownerCommitment === owner key, inclusion proof via
   a resolver) and confirm the leaf for the claimed name commits *this wallet's*
   owner key. Four outcomes (per Decision #37): the leaf commits this wallet's
   key (owned); a qualifying bond was posted in the window (contested — the name
-  is in auction, and the wallet must decide whether to bid); bare competing
-  claims collided with no bond (nullified — no owner, the name reopens, and the
+  is in auction, and the wallet must decide whether to bid); competing claims
+  collided with no bond (nullified — no owner, the name reopens, and the
   wallet can re-claim); or the name was already final on a prior root (taken —
   the publisher should have caught this at quote time).
 
