@@ -566,6 +566,8 @@ Implications:
 
 37. Bond opens the auction (escalation trigger = bond, not bare claim) — 2026-06-04
 
+*Short name: **bond-opens** (named 2026-06-11 per the doc-canon naming rule).*
+
 When a contested name's auction window expires with **zero qualifying bonds**, an
 earlier draft resolved it by lowest `(anchor height, tx-index, claim txid)`
 ordering. **That is rejected** — it let a block-winning miner self-claim and *take*
@@ -700,6 +702,8 @@ claim-site, and mobile implementations all test against.
 
 42. Auction settlement moves inside the frozen core (resolves A3) — 2026-06-09
 
+*Short name: **settlement-into-core** (named 2026-06-11 per the doc-canon naming rule).*
+
 Winner-becomes-owner currently lives in experimental indexer code;
 `applyAuctionBid` in the frozen `@ont/consensus` files only validates and
 records bids. Decision: **move auction settlement into the frozen boundary**,
@@ -761,6 +765,8 @@ Implications:
 
 44. The trust-surface boundary is mutable during development; it freezes at
 public/mainnet launch — 2026-06-10
+
+*Short name: **boundary-manifest** (named 2026-06-11 per the doc-canon naming rule).*
 
 The "frozen core" had been read as frozen *now*: the trust-surface CI test
 fails the build if the consensus allowlist changes, which pushed
