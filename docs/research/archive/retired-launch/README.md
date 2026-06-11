@@ -9,7 +9,7 @@ Do not use these files as current protocol guidance. Start instead with:
 
 - [`../../../ONT.md`](../../../ONT.md)
 - [`../../../design/ONT_ACQUISITION_STATE_MACHINE.md`](../../../spec/ONT_ACQUISITION_STATE_MACHINE.md)
-- [`../../../launch/ONT_LAUNCH_V1_BRIEF.md`](../../../launch/ONT_LAUNCH_V1_BRIEF.md)
+- [`../../../launch/ONT_LAUNCH_V1_BRIEF.md`](../ONT_LAUNCH_V1_BRIEF.md)
 - [`../../../launch/CONTESTED_AUCTION_REFERENCE.md`](../../../spec/CONTESTED_AUCTION_REFERENCE.md)
 
 Archived here:

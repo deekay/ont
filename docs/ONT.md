@@ -65,7 +65,7 @@ Either way — uncontested, or won at auction — you end up with the same thing
 name controlled by your owner key. The winner's bond stays locked for a maturity period as a
 commitment, then comes back; it is skin in the game, not destroyed money. (The auction's exact
 form is a working assumption under active review — see the
-[design brief](./ONT_DESIGN_BRIEF.md) — and the specific fees, windows, and bond floors are
+[design brief](./DESIGN.md) — and the specific fees, windows, and bond floors are
 placeholders until launch; [`core/STATUS.md`](./core/STATUS.md) lists current values.)
 
 ## Nobody decides — allocation is neutral
@@ -153,13 +153,13 @@ None of this changes the design above — it is a matter of maturity, not direct
 ## Going deeper
 
 - **[One-pager](./ONT_ONE_PAGER.md)** — the short, review-oriented summary.
-- **[Design brief](./ONT_DESIGN_BRIEF.md)** — one level below this page, for technical reviewers:
+- **[Design](./DESIGN.md)** — one level below this page, for technical reviewers:
   the model, trust surface, scaling and data availability, economics, prior art, and the open
   questions (including the auction form).
 - **[Status](./core/STATUS.md)** — the single source of truth for what is real today and the key
   numbers.
 - **[Decision log](./core/DECISIONS.md)** — every decision, in order, with its current status.
-- **[Current architecture brief](./core/CURRENT_ARCHITECTURE_BRIEF.md)** — the builder's map:
+- **[Architecture](./core/ARCHITECTURE.md)** — the builder's map:
   active design, active code entrypoints, retired paths, and next work.
 - **Earlier explorations** (in `docs/research/`, marked historical) — paths considered and not
   pursued, kept for honesty. They are not the design; don't read them as the plan.

@@ -11,7 +11,7 @@ Related notes:
 - [../design/ONT_ACQUISITION_STATE_MACHINE.md](../spec/ONT_ACQUISITION_STATE_MACHINE.md) —
   the current acquisition reference: claim first, accumulator finality if
   uncontested, L1 bonded auction only if contested.
-- [../launch/ONT_LAUNCH_V1_BRIEF.md](../launch/ONT_LAUNCH_V1_BRIEF.md)
+- [../launch/ONT_LAUNCH_V1_BRIEF.md](../research/archive/ONT_LAUNCH_V1_BRIEF.md)
 - [../launch/CONTESTED_AUCTION_REFERENCE.md](../spec/CONTESTED_AUCTION_REFERENCE.md) —
   contested-auction reference.
 - [BITCOIN_REVIEW_CLOSURE_MATRIX.md](../research/archive/BITCOIN_REVIEW_CLOSURE_MATRIX.md)

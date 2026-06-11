@@ -13,7 +13,7 @@ start with:
 - [`../../ONT.md`](../../ONT.md)
 - [`../../design/README.md`](./RETIRED_DESIGN_README.md)
 - [`../../design/ONT_ACQUISITION_STATE_MACHINE.md`](../../spec/ONT_ACQUISITION_STATE_MACHINE.md)
-- [`../../launch/ONT_LAUNCH_V1_BRIEF.md`](../../launch/ONT_LAUNCH_V1_BRIEF.md)
+- [`../../launch/ONT_LAUNCH_V1_BRIEF.md`](./ONT_LAUNCH_V1_BRIEF.md)
 - [`../../launch/CONTESTED_AUCTION_REFERENCE.md`](../../spec/CONTESTED_AUCTION_REFERENCE.md)
 
 If an archived document disagrees with those files, the current design files win.

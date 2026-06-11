@@ -22,23 +22,23 @@ founder pledges no name pre-grab and a sunset-bound data-availability server.
 
 ## Start here — current design (in reading order)
 
-First read **[../core/CURRENT_ARCHITECTURE_BRIEF.md](../../core/CURRENT_ARCHITECTURE_BRIEF.md)** if you are
+First read **[../core/CURRENT_ARCHITECTURE_BRIEF.md](./CURRENT_ARCHITECTURE_BRIEF.md)** if you are
 new to the repo or refreshing a builder LLM. It is the current handoff after cleanup: active design,
 active code entrypoints, and retired paths.
 
-1. **[ONT_SOVEREIGNTY_MAP.md](../../design/ONT_SOVEREIGNTY_MAP.md)** — the ~7-file trust surface: why no one can take
+1. **[ONT_SOVEREIGNTY_MAP.md](./ONT_SOVEREIGNTY_MAP.md)** — the ~7-file trust surface: why no one can take
    your name, and what a reviewer can ignore. Read this first.
-2. **[ONT_DESIGN_REQUIREMENTS.md](../../design/ONT_DESIGN_REQUIREMENTS.md)** — the invariants and requirements the
+2. **[ONT_DESIGN_REQUIREMENTS.md](./ONT_DESIGN_REQUIREMENTS.md)** — the invariants and requirements the
    design must meet.
-3. **[ONT_REQUIREMENTS_CONFORMANCE.md](../../design/ONT_REQUIREMENTS_CONFORMANCE.md)** — design vs. every
+3. **[ONT_REQUIREMENTS_CONFORMANCE.md](./ONT_REQUIREMENTS_CONFORMANCE.md)** — design vs. every
    requirement; current status (no invariant violated, no open conflicts).
 4. **[ONT_ACQUISITION_STATE_MACHINE.md](../../spec/ONT_ACQUISITION_STATE_MACHINE.md)** — the current acquisition
    reference: claim, notice, uncontested accumulator finality, and contested L1 auction escalation.
 5. **[ONT_DATA_AVAILABILITY_AGREEMENT.md](../../spec/ONT_DATA_AVAILABILITY_AGREEMENT.md)** — the convergence/DA
    rule (R1): how honest nodes agree under a withholding adversary.
-6. **[ONT_HARD_PROBLEMS.md](../../design/ONT_HARD_PROBLEMS.md)** — R2 (leaderless chaining) and R4 (now resolved:
+6. **[ONT_HARD_PROBLEMS.md](./ONT_HARD_PROBLEMS.md)** — R2 (leaderless chaining) and R4 (now resolved:
    contests escalate to L1).
-7. **[ONT_MEV_ORDERING_ANALYSIS.md](../../design/ONT_MEV_ORDERING_ANALYSIS.md)** — R9: you can't steal a name via
+7. **[ONT_MEV_ORDERING_ANALYSIS.md](./ONT_MEV_ORDERING_ANALYSIS.md)** — R9: you can't steal a name via
    ordering.
 8. **[ONT_LONG_TAIL_RECOVERY.md](./ONT_LONG_TAIL_RECOVERY.md)** — recovery for UTXO-less names (a
    committed feature; deferred out of the first accumulator freeze).
@@ -51,10 +51,10 @@ authoritative. The earlier `ONT_FLAT_NAMESPACE_DESIGN` summary is superseded by 
 
 ### Supporting / reference (current)
 - **[ONT_ISSUANCE_FEE_MECHANICS.md](../../spec/ONT_ISSUANCE_FEE_MECHANICS.md)** — how the per-name claim gate reaches miners in the batched path (the gate *is* the anchor's miner fee); resolves the fee/security-budget inconsistency.
-- **[ONT_RISK_REGISTER.md](../../design/ONT_RISK_REGISTER.md)** + **[ONT_RISKS_PLAIN_LANGUAGE.md](../../design/ONT_RISKS_PLAIN_LANGUAGE.md)** — the living risk register and its jargon-free companion.
-- **[ONT_ONE_PAGER.md](../../ONT_ONE_PAGER.md)** + **[ONT_DESIGN_BRIEF.md](../../ONT_DESIGN_BRIEF.md)** — the canonical review one-pager and design brief.
-- **[PRELAUNCH_SCALING_CONFIDENCE_PLAN.md](../../launch/PRELAUNCH_SCALING_CONFIDENCE_PLAN.md)** — what v1 must preserve to keep scaling additive.
-- **[ONT_LAUNCH_V1_BRIEF.md](../../launch/ONT_LAUNCH_V1_BRIEF.md)** — current v1 launch/review brief.
+- **[ONT_RISK_REGISTER.md](./ONT_RISK_REGISTER.md)** + **[ONT_RISKS_PLAIN_LANGUAGE.md](./ONT_RISKS_PLAIN_LANGUAGE.md)** — the living risk register and its jargon-free companion.
+- **[ONT_ONE_PAGER.md](../../ONT_ONE_PAGER.md)** + **[ONT_DESIGN_BRIEF.md](./ONT_DESIGN_BRIEF.md)** — the canonical review one-pager and design brief.
+- **[PRELAUNCH_SCALING_CONFIDENCE_PLAN.md](./PRELAUNCH_SCALING_CONFIDENCE_PLAN.md)** — what v1 must preserve to keep scaling additive.
+- **[ONT_LAUNCH_V1_BRIEF.md](./ONT_LAUNCH_V1_BRIEF.md)** — current v1 launch/review brief.
 - **[../core/SIMPLIFICATION_AUDIT.md](./SIMPLIFICATION_AUDIT.md)** — cleanup map for removing
   older design residue from the docs and implementation.
 

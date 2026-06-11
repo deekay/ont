@@ -1,10 +1,14 @@
 # ONT launch v1 brief
 
+> **SUPERSEDED (2026-06-11):** absorbed into [`docs/LAUNCH.md`](../../LAUNCH.md)
+> per doc-canon (#45). Kept for provenance; this copy is no longer updated.
+
+
 Status: Current launch/review brief, 2026-06-01.
 
 This is the review target for ONT v1. It follows the current source of truth in
-[`../ONT.md`](../ONT.md) and the acquisition reference in
-[`../design/ONT_ACQUISITION_STATE_MACHINE.md`](../spec/ONT_ACQUISITION_STATE_MACHINE.md).
+[`../ONT.md`](../../ONT.md) and the acquisition reference in
+[`../design/ONT_ACQUISITION_STATE_MACHINE.md`](../../spec/ONT_ACQUISITION_STATE_MACHINE.md).
 
 ## One-Sentence v1
 

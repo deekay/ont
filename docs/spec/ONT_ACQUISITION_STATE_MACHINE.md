@@ -148,8 +148,8 @@ claim (₿1,000, nullify) — no payoff, defendable by the target bonding; unpro
 and accepted. The ₿50,000 escalation floor (the cost to open/contest an auction) is
 now load-bearing — high enough to deter frivolous escalation, low enough not to
 block legitimate contests. See
-[`ONT_MEV_ORDERING_ANALYSIS.md`](../design/ONT_MEV_ORDERING_ANALYSIS.md) §D3 and
-[`ONT_RISK_REGISTER.md`](../design/ONT_RISK_REGISTER.md) R16.
+the MEV & ordering analysis (§D3) and
+R16 in [`RISKS.md`](../RISKS.md).
 
 ## Bonded Ownership
 

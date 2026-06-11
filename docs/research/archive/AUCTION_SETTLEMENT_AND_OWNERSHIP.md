@@ -1,5 +1,9 @@
 # Auction Settlement And Ownership
 
+> **SUPERSEDED (2026-06-11):** absorbed into [`docs/spec/AUCTION.md`](../../spec/AUCTION.md) and [`docs/LAUNCH.md`](../../LAUNCH.md)
+> per doc-canon (#45). Kept for provenance; this copy is no longer updated.
+
+
 This note describes the current experimental settlement shape for ONT auctions.
 
 The important design choice is:

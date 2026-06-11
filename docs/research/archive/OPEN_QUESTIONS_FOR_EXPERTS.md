@@ -1,5 +1,9 @@
 # Open Questions for Domain Experts
 
+> **SUPERSEDED (2026-06-11):** absorbed into [`docs/OPEN_QUESTIONS.md`](../../OPEN_QUESTIONS.md)
+> per doc-canon (#45). Kept for provenance; this copy is no longer updated.
+
+
 Sharp, prepped questions to put to specific domain experts when the chance arises.
 Kept here so the framing isn't re-derived each time. Working notes, not design.
 
@@ -14,7 +18,7 @@ construction (PTLCs and similar) isn't worth the complexity for the small risk i
 **Decision:** ONT does **not** treat PTLCs — or any adaptor-conditional Lightning payment — as a
 near-term design tradeoff. v1 uses a **pay-first flow with reputable publishers** (pay, then
 included; a non-payer is simply left out — see
-[`../design/ONT_ISSUANCE_FEE_MECHANICS.md`](../spec/ONT_ISSUANCE_FEE_MECHANICS.md)). Atomically
+[`../design/ONT_ISSUANCE_FEE_MECHANICS.md`](../../spec/ONT_ISSUANCE_FEE_MECHANICS.md)). Atomically
 binding the off-chain payment to on-chain inclusion is a **longer-term research item**, deferred,
 with no v1 dependency on a specific primitive.
 

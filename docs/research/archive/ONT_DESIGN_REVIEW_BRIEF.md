@@ -4,7 +4,7 @@ This file has been split into two clearer review targets.
 
 Use these instead:
 
-- [ONT_LAUNCH_V1_BRIEF.md](../../launch/ONT_LAUNCH_V1_BRIEF.md): the concrete v1 design
+- [ONT_LAUNCH_V1_BRIEF.md](./ONT_LAUNCH_V1_BRIEF.md): the concrete v1 design
   to review and harden
 - [ONT_SCALING_EXPLORATIONS.md](./ONT_SCALING_EXPLORATIONS.md): post-launch
   scaling design space, including sponsored flat issuance, subnames, batching,

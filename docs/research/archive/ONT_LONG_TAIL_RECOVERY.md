@@ -202,5 +202,5 @@ actor can only act for keys it holds). 10 tests assert, in code:
 The model validates the security shape; it is not the Bitcoin-tx-level mechanism (still open item 2).
 
 See also: [`ONT_DATA_AVAILABILITY_AGREEMENT.md`](../../spec/ONT_DATA_AVAILABILITY_AGREEMENT.md) (the DA rule
-this leans on), [`ONT_REQUIREMENTS_CONFORMANCE.md`](../../design/ONT_REQUIREMENTS_CONFORMANCE.md) (F6, I2),
-[`ONT_RISK_REGISTER.md`](../../design/ONT_RISK_REGISTER.md).
+this leans on), [`ONT_REQUIREMENTS_CONFORMANCE.md`](./ONT_REQUIREMENTS_CONFORMANCE.md) (F6, I2),
+[`ONT_RISK_REGISTER.md`](./ONT_RISK_REGISTER.md).

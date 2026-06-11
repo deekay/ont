@@ -1,5 +1,9 @@
 # Auction Placeholders And Mechanism Choices
 
+> **SUPERSEDED (2026-06-11):** absorbed into [`docs/spec/AUCTION.md`](../../spec/AUCTION.md) and the parameter table in [`docs/core/STATUS.md`](../../core/STATUS.md)
+> per doc-canon (#45). Kept for provenance; this copy is no longer updated.
+
+
 This note separates two things that can easily get blurred together:
 
 - the **mechanism family** we are leaning toward
@@ -8,8 +12,8 @@ This note separates two things that can easily get blurred together:
 Related notes:
 
 - [ONT_LAUNCH_V1_BRIEF.md](./ONT_LAUNCH_V1_BRIEF.md)
-- [CONTESTED_AUCTION_REFERENCE.md](../spec/CONTESTED_AUCTION_REFERENCE.md)
-- [BITCOIN_REVIEW_CLOSURE_MATRIX.md](../research/archive/BITCOIN_REVIEW_CLOSURE_MATRIX.md)
+- [CONTESTED_AUCTION_REFERENCE.md](../../spec/CONTESTED_AUCTION_REFERENCE.md)
+- [BITCOIN_REVIEW_CLOSURE_MATRIX.md](./BITCOIN_REVIEW_CLOSURE_MATRIX.md)
 
 ## Real Mechanism Choices
 

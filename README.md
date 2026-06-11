@@ -19,14 +19,13 @@ detail:
 1. **[ONT.md](./docs/ONT.md)** — the plain-language source of truth
 2. **[One-pager](./docs/ONT_ONE_PAGER.md)** — the reviewer's summary (assumed read)
 3. **This README** — the system as built
-4. **[Design brief](./docs/ONT_DESIGN_BRIEF.md)** — the full design: model, trust surface,
-   scaling and data availability, economics, prior art, risks
-5. **[docs/design/](./docs/design/)** — per-mechanism references: the
-   [acquisition state machine](./docs/spec/ONT_ACQUISITION_STATE_MACHINE.md),
-   [data-availability agreement](./docs/spec/ONT_DATA_AVAILABILITY_AGREEMENT.md),
-   [MEV/ordering analysis](./docs/design/ONT_MEV_ORDERING_ANALYSIS.md),
-   [sovereignty map](./docs/design/ONT_SOVEREIGNTY_MAP.md),
-   [risk register](./docs/design/ONT_RISK_REGISTER.md)
+4. **[DESIGN.md](./docs/DESIGN.md)** — the full design: model, trust surface,
+   scaling and data availability, economics, prior art
+5. **[docs/spec/](./docs/spec/)** and **[RISKS.md](./docs/RISKS.md)** — per-mechanism references: the
+   [acquisition state machine](./docs/spec/ONT_ACQUISITION_STATE_MACHINE.md) and
+   [data-availability agreement](./docs/spec/ONT_DATA_AVAILABILITY_AGREEMENT.md) (normative),
+   plus the risk register (R-anchors), MEV/ordering analysis, and whole-system threat model,
+   all consolidated in [RISKS.md](./docs/RISKS.md)
 6. **The code** — `packages/{protocol,consensus,core}/src` — for claims about code, code wins
 
 Two cross-cutting files: **[DECISIONS.md](./docs/core/DECISIONS.md)** is the numbered decision
@@ -227,7 +226,7 @@ negotiable. For each: what evidence would break it, and where we are still expos
   owner key moves a name.
   *Broken by:* any code path that transfers or revokes a name without the current owner key's
   signature, or any recurring-payment rule. Check `engine.ts` replay rules and the
-  [sovereignty map](./docs/design/ONT_SOVEREIGNTY_MAP.md).
+  [sovereignty map](./docs/DESIGN.md).
   *Exposure:* an armed recovery depends on a challenge-window veto; delegating that veto to a
   non-custodial watcher needs the abort-only credential that doesn't exist yet. Pre-maturity,
   spending a winning bond forfeits the name — a disclosed rule the owner opts into, not a
@@ -351,11 +350,11 @@ proof-bundle — the frozen core) + `packages/protocol` (names · wire · events
 
 ## Where feedback is most valuable
 
-A useful review order: this page → [design brief](./docs/ONT_DESIGN_BRIEF.md) →
+A useful review order: this page → [design](./docs/DESIGN.md) →
 [acquisition state machine](./docs/spec/ONT_ACQUISITION_STATE_MACHINE.md) →
 [DA agreement](./docs/spec/ONT_DATA_AVAILABILITY_AGREEMENT.md) →
-[risk register](./docs/design/ONT_RISK_REGISTER.md). The full ask list is the one-pager's feedback
-section plus [OPEN_QUESTIONS_FOR_EXPERTS.md](./docs/research/OPEN_QUESTIONS_FOR_EXPERTS.md); the
+[risks](./docs/RISKS.md). The full ask list is the one-pager's feedback
+section plus [OPEN_QUESTIONS.md](./docs/OPEN_QUESTIONS.md); the
 sharpest items, in rough order:
 
 1. **The DA deadline and transport** — is fail-closed-by-height sound, and is publisher-served +

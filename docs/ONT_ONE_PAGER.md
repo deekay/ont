@@ -2,7 +2,7 @@
 
 *A short, human-readable name — like `alice` — settled on Bitcoin, that you actually own.*
 *This page leads with the trust model, because that's the first real question. Deeper:
-[`ONT_DESIGN_BRIEF.md`](./ONT_DESIGN_BRIEF.md) · plain language: [`ONT.md`](./ONT.md) · canonical
+[`DESIGN.md`](./DESIGN.md) · plain language: [`ONT.md`](./ONT.md) · canonical
 status + numbers: [`core/STATUS.md`](./core/STATUS.md) (it wins if anything here drifts). Amounts
 are ₿ where **₿1 = 1 satoshi**; ~$ helpers assume ~$100,000/BTC and drift with the price.*
 
@@ -72,7 +72,7 @@ with no bond **nullify**: the name resolves to no owner and reopens. So front-ru
 (₿1,000 sunk, zero payoff), never the name. *Taking* a contested name requires posting the largest
 bond — identical cost for a miner and for you — and outcomes are deadline-derived (did a qualifying
 bond land by `anchorHeight + W_notice`?), not order-derived. (Decision #37; MEV analysis in
-[`design/ONT_MEV_ORDERING_ANALYSIS.md`](./design/ONT_MEV_ORDERING_ANALYSIS.md).)
+[`RISKS.md`](./RISKS.md)'s MEV & ordering analysis.)
 
 **"Then I'll grief you with collisions forever."** Each denial round costs the attacker a fresh
 sunk ₿1,000. The defender exits the loop **once**: post a qualifying bond, the auction opens, and
@@ -244,11 +244,11 @@ are **not frozen today**.
    decaying launch gate?
 9. **The watchtower credential** — the cleanest name-scoped, abort-only construction for an
    unattended recovery veto?
-   ([`design/ONT_LONG_TAIL_RECOVERY.md`](./research/archive/ONT_LONG_TAIL_RECOVERY.md) §5.6)
+   ([`research/archive/ONT_LONG_TAIL_RECOVERY.md`](./research/archive/ONT_LONG_TAIL_RECOVERY.md) §5.6)
 
 ---
 
 Repo: [github.com/deekay/ont](https://github.com/deekay/ont) · deeper:
-[`ONT_DESIGN_BRIEF.md`](./ONT_DESIGN_BRIEF.md) · exact lifecycle:
+[`DESIGN.md`](./DESIGN.md) · exact lifecycle:
 [`design/ONT_ACQUISITION_STATE_MACHINE.md`](./spec/ONT_ACQUISITION_STATE_MACHINE.md) · plain
 language: [`ONT.md`](./ONT.md).

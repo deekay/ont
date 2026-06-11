@@ -1,5 +1,9 @@
 # ONT Parameter Review Packet
 
+> **SUPERSEDED (2026-06-11):** absorbed into the parameter table in [`docs/core/STATUS.md`](../../core/STATUS.md) and [`docs/spec/AUCTION.md`](../../spec/AUCTION.md)
+> per doc-canon (#45). Kept for provenance; this copy is no longer updated.
+
+
 This is a concise list of protocol and product parameters that should be reviewed before launch. The values below reflect the current prototype defaults, not final recommendations. Amounts use ₿ where **₿1 = 1 satoshi** (so ₿1,000 ≈ $1, and ₿100,000,000 = 1 BTC).
 
 ## Core Name Rules

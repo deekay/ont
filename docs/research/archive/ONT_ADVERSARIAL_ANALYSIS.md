@@ -1,5 +1,9 @@
 # Adversarial analysis — whole-system threat model
 
+> **SUPERSEDED (2026-06-11):** absorbed into [`docs/RISKS.md`](../../RISKS.md)
+> per doc-canon (#45). Kept for provenance; this copy is no longer updated.
+
+
 Status: design note, not frozen. A working inventory of how ONT can be
 attacked, griefed, or degraded across all four surfaces — the cheap rail,
 the publisher, the resolver, and the auction — plus a prominent section on

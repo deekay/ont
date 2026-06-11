@@ -1,4 +1,6 @@
-# ONT Design Brief — for Bitcoin reviewers
+# ONT Design — for Bitcoin reviewers
+
+> On 2026-06-11, per decision doc-canon (#45) in [`core/DECISIONS.md`](./core/DECISIONS.md), this document absorbed the design brief (`ONT_DESIGN_BRIEF.md`), the sovereignty map (`design/ONT_SOVEREIGNTY_MAP.md`), and the design requirements (`design/ONT_DESIGN_REQUIREMENTS.md`); the requirement-by-requirement code mapping moved to [`spec/CONFORMANCE.md`](./spec/CONFORMANCE.md).
 
 This is the level below the [one-pager](./ONT_ONE_PAGER.md): enough to critique the
 design, push on alternatives, and decide whether it's interesting. It is honest about what
@@ -34,8 +36,10 @@ auction form, UX) is negotiable; these are the bright lines.
 - **I5 — Censorship-resistant settlement.** Final ordering and dispute resolution derive
   from Bitcoin, which no ONT party can censor beyond Bitcoin's own assumptions.
 
-See [`design/ONT_DESIGN_REQUIREMENTS.md`](./design/ONT_DESIGN_REQUIREMENTS.md) and
-[`design/ONT_SOVEREIGNTY_MAP.md`](./design/ONT_SOVEREIGNTY_MAP.md).
+The full clean-sheet requirements these invariants come from — functional requirements,
+scarcity rules, targets, adversary model, and the priority ordering when they conflict —
+are [§10](#10-requirements--the-clean-sheet-constitution) below. The trust-surface /
+sovereignty map is [§4](#4-trust-surface-sovereignty-and-verification).
 
 ## 2. Prior art, and why ONT is different
 
@@ -116,7 +120,7 @@ premium, e.g. `bitcoin`) — *never* by a bare second claim. A bare cheap collis
 name (it reopens for claiming) but can never *take* it. So ordering a cheap claim first buys
 nothing — the only way to acquire a contested name is to lock a real returnable bond, identical for
 a miner and for everyone else; this closes the former ordering grab (R16) at the root. See
-[`design/ONT_ACQUISITION_STATE_MACHINE.md`](./spec/ONT_ACQUISITION_STATE_MACHINE.md).
+[`spec/ONT_ACQUISITION_STATE_MACHINE.md`](./spec/ONT_ACQUISITION_STATE_MACHINE.md).
 
 **Off-chain records.** What a name *points to* (a Bitcoin/Lightning destination, an HTTPS
 target, etc.) is an owner-signed record: sequence-numbered and predecessor-hash-chained
@@ -141,7 +145,7 @@ through a temporary UTXO, and your original key holds a **veto** during a challe
 An outsider cannot start it, and you can block it — so recovery can never become a way to
 take your name. See [`research/OWNER_KEY_RECOVERY.md`](./research/OWNER_KEY_RECOVERY.md).
 
-## 4. Trust surface and verification
+## 4. Trust surface, sovereignty, and verification
 
 **The surface is deliberately tiny.** Who-owns-what is a deterministic function of Bitcoin.
 The audited core — **to be frozen at launch** (Decision #44) — is `engine.ts` (event
@@ -176,6 +180,85 @@ phone/browser light-client path — "trust no resolver; check against Bitcoin he
 not closed end-to-end. Full verifiers are solid today; light-client verification is the
 next build, and we'd value a view on whether it's a launch blocker.
 
+### The sovereignty map
+
+**For a newcomer who wants to answer one question: "if I own a name here, can anyone take it from me — and can I check that myself, without trusting anyone?"**
+
+This is the map of the *trust surface*: the small set of rules that make a name yours, and exactly
+where each lives in the code. ONT is meant to be read and frozen like a consensus system, not a
+product that quietly changes under you — so this surface is deliberately tiny. If you understand the
+rules below, you understand the whole sovereignty guarantee. Everything else in the repo (wallets,
+indexers, the website, simulations) is convenience that *cannot* take your name.
+
+Status: living map of the v1 sovereignty core, originally dated 2026-05-24.
+
+#### The guarantee in one table
+
+| What you're promised | The rule | Where it lives |
+| --- | --- | --- |
+| Your name is a fixed, plain string | Names are `[a-z0-9]`, 1–32 chars, normalized to one canonical form | `protocol/names.ts` |
+| **Only your key can move your name** | A transfer is valid only if the **current owner's key** signed it | `core/engine.ts` `applyTransfer` + `protocol/events.ts` `verifyTransferAuthorization` |
+| One name, one owner | A name already owned cannot be claimed again; state is derived by deterministic replay | `core/engine.ts` (block replay) + `core/state.ts` |
+| No rent, no expiry, no forced sale | Nothing in the rules lets anyone reclaim, expire, or seize a name; the bond is returnable | the *absence* of any such rule in `core/engine.ts`; bond math in `protocol/bond.ts` |
+| Recovery can't become theft | A name moves via recovery only through a backup **you armed yourself**, and **your main key can veto** it during a challenge window | `protocol/recovery-descriptor.ts`, `recovery-wallet-proof.ts`, `core/engine.ts` `applyRecoverOwner` |
+| Bitcoin decides order and finality | Every state change is a Bitcoin transaction; the state is a deterministic replay of Bitcoin, so two honest reviewers always agree | `core/engine.ts` `applyBlockTransactionsWithProvenance` |
+| You can prove ownership to anyone | A portable proof bundle lets a fresh verifier check ownership from public data, trusting no server | `core/proof-bundle.ts` |
+
+That's the whole trust surface: **~7 files.** A bad actor's only routes to "take your name" are (1) forge your signature, (2) break Bitcoin's ordering, or (3) find a bug in those files. There is no admin, no registrar, no expiry, no override.
+
+#### The rules, plainly
+
+1. **A name is just a normalized string.** No hidden classes, no reserved lists — `normalizeName` maps any input to one canonical `[a-z0-9]{1,32}` form, so `Alice` and `alice` are the same name and there's no ambiguity about what you own.
+
+2. **Ownership is a key, and only that key can move the name.** Your name's current state names an owner public key. To transfer it, the protocol requires a Schnorr signature from *that* key over the exact transfer (`prevStateTxid`, new owner, …). `applyTransfer` rejects anything else as `transfer_invalid_signature`. No signature from your key ⇒ the name does not move. Full stop.
+
+3. **Uniqueness is enforced by deterministic replay, not by a server's say-so.** Everyone computes the same ownership state by replaying the same Bitcoin transactions in Bitcoin's order. A name that's already owned can't be re-claimed, and two honest nodes never disagree about who owns it.
+
+4. **No rent, no revocation, no forced sale.** Read the rules and notice what's *missing*: there is no code path by which time passes and you lose a name, or by which any party reassigns it. The bond is returnable at maturity (opportunity cost, not a fee), and after maturity the name is held free. Sovereignty here is partly a guarantee about code that **does not exist**.
+
+5. **Recovery is opt-in and can't be turned into theft.** If (and only if) you armed a backup arrangement with your own key, a pre-designated recovery wallet can start moving the name — and that opens a challenge window in which **your main key can cancel it**. No outsider can ever invoke it against you; it's recovery, never revocation. (Decided 2026-05-24: recovery is a first-class feature, with wallets arming a sensible default.)
+
+6. **Bitcoin is the clock and the judge.** ONT adds no new consensus. Ordering and dispute finality come from Bitcoin; ONT clients just replay Bitcoin transactions through the rules above. That's why no ONT party can censor or reorder you beyond Bitcoin's own assumptions.
+
+7. **You can verify your own name.** Ownership is provable with a portable, source-tagged proof bundle that a fresh verifier checks against the public chain — you never have to trust the resolver that handed it to you.
+
+#### How a skeptic verifies a name themselves
+
+1. Take the name and the claimed owner key.
+2. Replay the relevant Bitcoin transactions through the rules (`applyBlockTransactionsWithProvenance`) — or check a portable proof bundle with `verifyProofBundle`.
+3. Confirm the chain of ownership ends at that key, every transfer along the way carried that-owner's signature, and no conflicting claim exists.
+4. You needed no server's permission and no trust in the project — only Bitcoin and these rules.
+
+#### What is **not** in the trust surface (you can ignore it for sovereignty)
+
+- **Resolvers / indexers** — they *serve* answers and replay the rules for convenience, but they can't forge ownership; you verify against Bitcoin. A lying resolver is caught, not obeyed.
+- **Wallets, CLI, website** — they help you *build* transactions; they hold no authority over names.
+- **Auctions** — they decide *who gets* a contested or premium name (allocation), not whether ownership is sovereign once held. Important, but a separate concern from "can my name be taken."
+- **The long-tail accumulator rail** (the batched, cheap-issuance path) — additive, more complex, and **separately auditable**; it is being designed so it can never weaken the sovereignty of a name on the bonded core. It is not part of this minimal launch trust surface.
+- **Everything labeled a simulation / prototype / experiment** — research that proves properties, not shipped consensus code.
+
+#### Frozen vs. mutable
+
+- **Frozen (this map):** the consensus core — the rules above. Changes here require users to re-extend trust, so they should be rare and exceptional (opt-in only).
+- **Mutable:** resolvers, indexers, wallets, the website, tooling, docs, research. These can improve freely because they can't take your name.
+
+#### The package boundary
+
+The core-side trust surface now lives in its own package, **`@ont/consensus`** (`engine.ts`,
+`state.ts`, `proof-bundle.ts`), which depends only on `@ont/protocol` and `@ont/bitcoin`. A reviewer
+can audit the whole surface by reading that one small package plus the protocol-side rules above; its
+entire dependency footprint is visible in `packages/consensus/package.json`. `@ont/core` re-exports it
+for convenience, so allocation (auctions), the indexer, and research/simulation code can *consume* the
+core but the package boundary makes it physically impossible for the core to import them.
+
+The boundary is also **enforced in code**: `packages/consensus/src/trust-surface.test.ts` fails CI if
+the frozen core imports anything beyond `@ont/protocol`/`@ont/bitcoin` and its own files, and
+`packages/core/src/research-quarantine.test.ts` keeps research a leaf nothing else depends on. So the
+trust surface a newcomer must audit cannot silently grow. This realizes
+`feedback-freeze-minimal-auditable-core`. See also
+[`spec/CONFORMANCE.md`](./spec/CONFORMANCE.md) (the I1–I5 invariants this
+surface implements).
+
 ## 5. Scaling — the accumulator rail and data availability
 
 Billions of names cannot each be a Bitcoin transaction, so cheap uncontested claims batch:
@@ -194,7 +277,7 @@ Billions of names cannot each be a Bitcoin transaction, so cheap uncontested cla
   settled; the **transport** — how the bytes are served and mirrored — is the live open call,
   with content-addressed/marker-committed bytes (publisher-served + anyone-mirrorable, not
   consensus-critical) as the working direction and a **core area flagged for feedback**. See
-  [`design/ONT_DATA_AVAILABILITY_AGREEMENT.md`](./spec/ONT_DATA_AVAILABILITY_AGREEMENT.md) (§8b transport).
+  [`spec/ONT_DATA_AVAILABILITY_AGREEMENT.md`](./spec/ONT_DATA_AVAILABILITY_AGREEMENT.md) (§8b transport).
 - **Leaderless multi-publisher.** Distinct-name inserts commute; genuine conflicts resolve
   by deterministic priority (block height, then tx index, then txid). No single publisher
   owns the root. See
@@ -205,7 +288,7 @@ Billions of names cannot each be a Bitcoin transaction, so cheap uncontested cla
   validation is **not yet implemented** in the replay/consensus path (the live signet
   publisher pays a flat configured anchor fee); implementing it inside the audited boundary
   is queued work. See
-  [`design/ONT_ISSUANCE_FEE_MECHANICS.md`](./spec/ONT_ISSUANCE_FEE_MECHANICS.md) and the
+  [`spec/ONT_ISSUANCE_FEE_MECHANICS.md`](./spec/ONT_ISSUANCE_FEE_MECHANICS.md) and the
   Known-incomplete list in [`core/STATUS.md`](./core/STATUS.md).
 
 **Honest status.** The rail is **live end-to-end on the private signet** (since
@@ -301,9 +384,9 @@ identical cost for a miner and for anyone else, which closes the former ordering
 ≤4-char opening bonds are the *mandatory* bond-first case of this one mechanism, and the ₿50,000
 escalation floor (the cost to open/contest an auction) graduates from placeholder to a real launch
 decision. See
-[`design/ONT_ACQUISITION_STATE_MACHINE.md`](./spec/ONT_ACQUISITION_STATE_MACHINE.md),
-[`design/ONT_MEV_ORDERING_ANALYSIS.md`](./design/ONT_MEV_ORDERING_ANALYSIS.md) §D3, and R16 in
-[`design/ONT_RISK_REGISTER.md`](./design/ONT_RISK_REGISTER.md).
+[`spec/ONT_ACQUISITION_STATE_MACHINE.md`](./spec/ONT_ACQUISITION_STATE_MACHINE.md),
+the MEV & ordering analysis (§D3) and R16 in
+[`RISKS.md`](./RISKS.md).
 
 **Parameters — frozen vs placeholder (be skeptical of the placeholders):**
 
@@ -340,15 +423,15 @@ they're decided.
 | --- | --- | --- |
 | **OP_RETURN payloads up to ~171 bytes** (recover-owner; most events smaller) | Simpler; we confirmed ONT OP_RETURNs relay + confirm on signet | Hide the root in script via a covenant (e.g. CTV-family) — needs a soft fork, limits to upgraded nodes |
 | **Batched rail + DA** vs pure L1 | Required to hit the billions-of-names target (~0.015 vB/name); contested escalate to L1 | Pure L1: every claim a tx (~1 vB/name, 1000× footprint) — simpler, no DA risk, but won't scale |
-| **Open ascending auction** | Visible bids, soft close, returnable bond; matches L1 transparency | Sealed second-price — sidesteps MEV/relay-bid timing (see [`design/ONT_MEV_ORDERING_ANALYSIS.md`](./design/ONT_MEV_ORDERING_ANALYSIS.md)) |
+| **Open ascending auction** | Visible bids, soft close, returnable bond; matches L1 transparency | Sealed second-price — sidesteps MEV/relay-bid timing (see the MEV & ordering analysis in [`RISKS.md`](./RISKS.md)) |
 | **Bond enforced at ONT-replay, not script** | Simpler; deterrent is "lose the name," sufficient for denial-seekers | Script-level slashing (covenant / presigned penalty) — stronger deterrent, "lose the bitcoin," but a real script construction |
 | **Gate fixed in ₿ (drifts in USD)** | No oracle; neutral | USD-peg (oracle, breaks I3) or PoW/burn (no drift, no security-budget contribution) |
-| **Cold-start premium-name land-rush** | Long, pre-announced, height-keyed notice window buys time for a competitive early market to form (so premium names aren't swept cheaply) | Decaying launch gate (start high, decay to ₿1,000) — punishes early sweepers uniformly; the leading contingency. Or accept the one-time rush. See [`design/ONT_RISK_REGISTER.md`](./design/ONT_RISK_REGISTER.md) (R7) |
+| **Cold-start premium-name land-rush** | Long, pre-announced, height-keyed notice window buys time for a competitive early market to form (so premium names aren't swept cheaply) | Decaying launch gate (start high, decay to ₿1,000) — punishes early sweepers uniformly; the leading contingency. Or accept the one-time rush. See [`RISKS.md`](./RISKS.md) (R7) |
 | **Bond can be spent without a valid successor** → name invalidates (reopens to claim) | Effective against a griefer who wants *denial* | Weaker against a pure grief-maximizer; script slashing would punish the coin too |
 | **Miner self-issuance** (a miner mines its own anchor fee-free) | Bounded by hashrate share; endemic to Bitcoin (miners already include own txs fee-free) | Accepted; not a unique ONT break |
 
 The deeper adversarial treatment (publisher fee-theft/censorship, eclipse, MEV, DoS) is in
-[`research/ONT_ADVERSARIAL_ANALYSIS.md`](./research/ONT_ADVERSARIAL_ANALYSIS.md) and
+the whole-system threat model in [`RISKS.md`](./RISKS.md) and
 [`research/ONT_DECENTRALIZATION_AND_DISCOVERY.md`](./research/ONT_DECENTRALIZATION_AND_DISCOVERY.md).
 
 ## 9. What we'd most value your feedback on
@@ -375,26 +458,269 @@ We are explicitly **not** asking you to pick the final auction window, bond floo
 settlement duration — those stay provisional. We are asking whether the **architecture** is
 sound and where it's weakest.
 
-## 10. Deeper references
+## 10. Requirements — the clean-sheet constitution
+
+Status: foundational requirements, written deliberately without anchoring on any
+existing ONT solution. The purpose is to judge candidate designs against fixed
+criteria instead of defending prior research. A design either satisfies these or
+it does not.
+
+Convention: **Invariants** are non-negotiable (a violation kills the design).
+**Aims** are strong preferences we optimize for but may flex. **Targets** are
+quantified goals. Each requirement states, where useful, how we would know it is
+violated.
+
+**The requirement-by-requirement mapping of the current design (and code) against this
+section is [`spec/CONFORMANCE.md`](./spec/CONFORMANCE.md).**
+
+### 10.1 Purpose
+
+ONT is a system of **human-readable payment/destination handles**. A user must
+be able to name a person, agent, organization, service, or device and be
+confident the name resolves to the one correct destination its owner controls.
+
+The naming of a destination must be:
+
+- meaningful to humans (memorable strings)
+- owned, not rented
+- resolvable by anyone without permission
+- verifiable without trusting the party that answered
+
+### 10.2 Actors
+
+| Actor | Job | Can be malicious? |
+| --- | --- | --- |
+| Claimer | Acquires a name. | Yes |
+| Owner | Holds the owner key; controls the name and its destination record. | Yes |
+| Sender / resolver-user | Looks up a name to reach a destination. | No (the party we protect) |
+| Resolver / indexer | Serves lookups and evidence; replays rules. | Yes |
+| Verifier | Independently checks a proof of ownership. | Honest, possibly partial data |
+| Adversary | Squatter, griefer, censor, equivocator, Sybil, data-withholder. | Yes |
+| Bootstrap operator | Early scaffolding infrastructure (see §10.9). | Yes |
+
+### 10.3 Functional Requirements
+
+- **F1 Claim.** Anyone can acquire an unowned valid name by a mechanical rule.
+- **F2 Resolve.** Anyone can resolve a name to its current destination record,
+  unambiguously (see I1).
+- **F3 Prove.** An owner can produce a portable proof of ownership that a fresh
+  verifier checks without trusting the source (see I4).
+- **F4 Transfer.** An owner can transfer the name to a new owner key; the
+  transfer is itself provable and does not weaken the name's guarantees.
+- **F5 Update destination.** An owner can update the mutable destination record
+  the name points to, authorized by the owner key.
+- **F6 Recover.** **(Decided 2026-05-24: a requirement.)** If an owner loses their
+  key, the system must support recovery, and wallets arm a default backup at claim
+  time so ordinary users are protected by default. It must stay recovery-not-revocation
+  (only the owner's own pre-armed keys can move the name; owner-vetoable). Mechanism:
+  `ONT_LONG_TAIL_RECOVERY.md`.
+
+### 10.4 Hard Invariants
+
+- **I1 — Global uniqueness / unambiguous resolution.** A name resolves to
+  exactly one owner and one current destination, globally and consistently. Two
+  honest resolvers must never return different owners for the same name. This is
+  required by the payment use case: ambiguity means money goes to the wrong
+  party. *Violated if:* any mechanism allows the same string to mean different
+  destinations to different honest observers.
+
+- **I2 — Sovereign ownership.** Acquisition cost is one-time. After acquisition
+  there is no rent, no renewal, no forced sale, and no revocation. The name is
+  controlled solely by the owner key, is permanent, and its proof is portable.
+  *Violated if:* holding a name requires ongoing payment, ongoing capital lockup,
+  or exposes the holder to having it taken without their consent.
+
+- **I3 — Neutrality.** No party — explicitly including the founder — acts as
+  editor, issuer, registrar, or allocator. Names are allocated by a mechanical
+  rule, never by discretion. No reserved lists, no editorial name classes, no
+  founder allocation, no new token whose issuance a party controls. *Violated
+  if:* any name's fate depends on a person's or committee's judgment, or any
+  party can mint scarcity and hand it out. (Bounded bootstrap exceptions: §10.9.)
+  **Evolution (decided 2026-05-24): opt-in upgrades only** — rules may change after
+  launch only as new versions users choose to adopt; no party can force a change.
+  Preserves I3 while avoiding permanent ossification.
+
+- **I4 — Verifiability without trust.** A fresh verifier can reconstruct why a
+  name is owned from public/portable data, without trusting any single resolver,
+  relay, operator, or the founder. *Violated if:* the answer to "why does this
+  person own this name?" is "ask service X and believe it."
+
+- **I5 — Censorship-resistant settlement.** Final ordering and dispute
+  resolution derive from Bitcoin, which no party in the ONT system can censor or
+  reorder beyond Bitcoin's own assumptions. Bitcoin is the backstop that makes
+  I1–I4 enforceable when parties misbehave. *Violated if:* a disputed or
+  censored name has no Bitcoin-anchored path to resolution.
+
+### 10.5 Scarcity and Cost Model
+
+- **S1 — Bitcoin is the ordering and dispute-finality anchor.** Conflicts and
+  final settlement are decided by Bitcoin. (Implements I5.)
+
+- **S2 — Issuance may be gated by a neutral scarce resource.** A cost gate on
+  claiming is permitted to resist Sybil/mass-grabbing. The gate must itself be
+  neutral (I3): no issuer, no validator set, locally verifiable.
+
+- **S3 — Credibility bar for any scarce resource.** A scarcity mechanism must
+  NOT rely on another blockchain's consensus, validator set, governance, or
+  token. Acceptable scarcity: Bitcoin capital/blockspace, and **proof-of-work
+  (energy)** — credible because it is thermodynamic, has no issuer, and is
+  locally verifiable. *Rejected:* ETH/SOL/other-chain tokens or staking as the
+  scarce resource.
+
+- **S4 — No new token.** ONT introduces no new transferable consensus asset.
+
+- **S5 — Prefer not to destroy user funds.** Burning users' bitcoin is
+  dispreferred. (Spending energy via PoW, or paying Bitcoin transaction fees to
+  miners, is consistent with this — neither destroys user-held coins.)
+
+- **S6 — Anti-squat cost must be sovereignty-preserving.** Any cost that deters
+  squatting must be one-time and sunk at acquisition, never recurring or
+  contestable (else it violates I2).
+
+### 10.6 Aims (Strong but Flexible)
+
+- **A1 — Flat namespace.** Names are a single flat string space (`alice`, not
+  `alice@thing`), for aesthetics and simplicity. Flex only if the math forces
+  it; if flexed, the result must still satisfy I1–I5.
+- **A2 — Low cost for ordinary names.** Long-tail names should be cheap enough
+  for mass, casual use.
+- **A3 — Simplicity.** Prefer designs a careful user and a fresh verifier can
+  understand.
+
+### 10.7 Scale and Cost Targets (proposed — confirm)
+
+- **T1 — Issuance ceiling.** Be capable of issuing on the order of 10^8–10^9
+  names without per-name Bitcoin blockspace, trending toward global population +
+  agents/devices over time.
+- **T2 — User cost.** Ordinary long-tail acquisition should cost far less than a
+  Bitcoin on-chain transaction. **Target set to ₿1,000 (~$1)
+  (decided 2026-05-23):** cheap enough for human mass adoption, high enough to
+  deter bulk squatting and meaningfully contribute to the security budget.
+  Revisit toward cents only if feedback or a machine/IoT-at-billions use case
+  pushes back. (₿1,000 is the fixed amount; its ~$1 helper floats with BTC price — see R5.)
+- **T3 — Verifier budget.** A fresh verifier should be able to validate any
+  single name's ownership with compact data, and bootstrap full state on
+  commodity hardware/storage. Verification cost per name must not grow with total
+  names issued.
+
+(Numbers are placeholders to make trade-offs concrete; adjust before they become
+load-bearing.)
+
+### 10.8 Adversary Model
+
+A design must state its defense and cost for each:
+
+- **Squatter** — mass-acquires plausibly-valuable names to resell.
+- **Griefer** — tries to block, delay, or invalidate honest claims cheaply.
+- **Censor** — relay/resolver/miner refuses to publish or serve.
+- **Equivocator** — issues conflicting claims/records to different parties.
+- **Sybil** — spins up unlimited identities/keys at near-zero cost.
+- **Data-withholder** — publishes a commitment but hides the data needed to
+  verify it.
+- **Founder-capture** — uses any bootstrap role to entrench advantage.
+
+For each, the design should answer: what stops it, and how much scarce resource
+(BTC, energy) must the attacker spend per unit of harm?
+
+### 10.9 Bootstrap-Compromise Acceptance Test
+
+Neutrality (I3) may be relaxed during kickstart only if the compromise is:
+
+1. **Sunset-bound** — ends on a date, metric, or "until X exists" condition.
+2. **Transparent** — stated openly, never hidden in resolver behavior.
+3. **Exitable / non-entrenching** — others can replace the bootstrap party; it
+   cannot lock in a founder advantage that outlives the bootstrap.
+4. **Legibly parameterized** — parameters are public so people can judge "good
+   enough."
+5. **No retroactive capture** — does not let the bootstrap party pre-grab
+   valuable names or skim ongoing rent.
+
+A compromise that fails #3 or #5 is a registrar, not scaffolding, and is
+rejected.
+
+**Founder commitments (made 2026-05-24):** (a) **no pre-grab** — the founder will not
+register valuable names for himself before or at launch; he plays by the same mechanical
+rule as everyone (satisfies #5). (b) **DA server is temporary** — the founder's
+data-availability server is sunset-bound scaffolding with a stated end condition (e.g.
+"until enough independent operators run them"), never a permanent dependency (satisfies #1, #3).
+
+### 10.10 Non-Goals
+
+- Not a general smart-contract platform.
+- Not a store of mutable bulk data on Bitcoin.
+- Not a new currency or token.
+- Not a hierarchical/DNS-style delegated namespace (unless A1 is flexed).
+- Not reliant on any non-Bitcoin chain for security or scarcity.
+
+### 10.11 Priority Ordering When Requirements Conflict
+
+When goals collide, resolve in this order:
+
+1. **Co-equal hard invariants (never sacrificed):** I3 Neutrality, I2
+   Sovereignty, I1 Uniqueness, I4 Verifiability, I5 Bitcoin settlement.
+2. **Then flex, in order:** Bitcoin-only scarcity purity (relax toward PoW
+   before anything else) → A1 Flat namespace → A3 Simplicity.
+3. **Scale (T1–T3) is the objective we maximize subject to the above** — not a
+   reason to breach an invariant.
+
+### 10.12 Implications for the Solution Space (derived, not requirements)
+
+These follow from the requirements and pre-constrain any candidate design:
+
+- Because I1 (uniqueness) is required by the payment use case, the "drop
+  uniqueness / petname" escape from Byzantine-agreement cost is **unavailable**.
+  Agreement cost must instead be made cheap when *uncontested* and paid in full
+  only on real disputes.
+- Because I2 forbids recurring/contestable costs, squatting can only be deterred
+  by a one-time sunk acquisition cost (S6) plus long-tail substitutability, with
+  genuinely scarce names settled on Bitcoin.
+- Because I4 forbids trusting one resolver, "prove no challenge occurred over a
+  window" (a non-inclusion-over-time proof) is a liability; designs that make
+  ownership final at a *point in time* (e.g. uniqueness enforced at insertion)
+  avoid the hardest data-availability problem.
+- Because S1+S3 separate roles, the likely shape is: **PoW prices issuance,
+  Bitcoin orders and settles disputes** — not PoW or Bitcoin doing both.
+  **(Decided 2026-05-24: gate = a Bitcoin miner fee, so Bitcoin both prices and
+  orders. Permitted by S2/S3; chosen over PoW for simplicity + the security-budget
+  contribution, accepting that PoW would have been cleaner for neutrality and the
+  censorship fallback. R5 drift still applies.)**
+
+### 10.13 Open Questions To Settle Next
+
+1. **F6 recovery:** requirement, best-effort, or out of scope? A mechanism now
+   exists for UTXO-less names (`ONT_LONG_TAIL_RECOVERY.md`, 2026-05-24) — arm
+   off-chain, invoke via a rare temporary recovery UTXO, owner veto on-chain;
+   stays recovery-not-revocation. **Decided 2026-05-24: it is a requirement, with
+   wallet-default arming.** Still to spec: the tx + the transfer-resets-arming rule.
+2. **Scale targets (T1–T3):** T2 user cost **set to ₿1,000 (~$1)** (2026-05-23, revisit on
+   feedback); T1 and T3 placeholders still to confirm.
+3. **Transferability of cheap-issued names:** free owner-key transfer, or
+   transfer-friction (e.g. harden-before-resale) to suppress squat-and-flip?
+   (Trades a property right against squat resistance.)
+4. **PoW parameters in principle:** per-claim cost target, and whether to use a
+   memory-hard function — only relevant once a candidate uses PoW.
+
+## 11. Deeper references
 
 Canonical: [`ONT.md`](./ONT.md) · [`ONT_ONE_PAGER.md`](./ONT_ONE_PAGER.md) ·
-[`core/CURRENT_ARCHITECTURE_BRIEF.md`](./core/CURRENT_ARCHITECTURE_BRIEF.md) ·
-[`core/SIMPLIFICATION_AUDIT.md`](./research/archive/SIMPLIFICATION_AUDIT.md)
+[`core/ARCHITECTURE.md`](./core/ARCHITECTURE.md) ·
+[simplification audit (archived)](./research/archive/SIMPLIFICATION_AUDIT.md)
 
-Design depth: [sovereignty map](./design/ONT_SOVEREIGNTY_MAP.md) ·
+Design depth: [sovereignty map (§4)](#4-trust-surface-sovereignty-and-verification) ·
+[requirements (§10)](#10-requirements--the-clean-sheet-constitution) ·
+[requirements conformance](./spec/CONFORMANCE.md) ·
 [acquisition state machine](./spec/ONT_ACQUISITION_STATE_MACHINE.md) ·
 [issuance/fee mechanics](./spec/ONT_ISSUANCE_FEE_MECHANICS.md) ·
 [data-availability agreement](./spec/ONT_DATA_AVAILABILITY_AGREEMENT.md) ·
-[MEV / ordering](./design/ONT_MEV_ORDERING_ANALYSIS.md) ·
-[risk register](./design/ONT_RISK_REGISTER.md) ·
-[requirements](./design/ONT_DESIGN_REQUIREMENTS.md)
+[MEV / ordering](./RISKS.md) ·
+[risk register](./RISKS.md)
 
-Research / adversarial: [adversarial analysis](./research/ONT_ADVERSARIAL_ANALYSIS.md) ·
+Research / adversarial: [adversarial analysis](./RISKS.md) ·
 [multi-publisher convergence](./research/ONT_MULTI_PUBLISHER_CONVERGENCE.md) ·
 [decentralization + discovery](./research/ONT_DECENTRALIZATION_AND_DISCOVERY.md) ·
 [post-quantum / signature agility](./research/POST_QUANTUM_AND_SIGNATURE_AGILITY.md) ·
 [prior art: Pubky/Pkarr](./research/ONT_VS_PUBKY_PKARR.md) ·
-[open questions for experts](./research/OPEN_QUESTIONS_FOR_EXPERTS.md)
+[open questions for experts](./OPEN_QUESTIONS.md)
 
 The code: the trust surface is `packages/consensus/src/{engine,state,proof-bundle}.ts` +
 `packages/protocol/src/`. Verify with `npm run test -w @ont/consensus` (and `@ont/protocol`,

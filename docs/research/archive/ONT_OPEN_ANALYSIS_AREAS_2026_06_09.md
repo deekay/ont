@@ -1,5 +1,9 @@
 # ONT Open Analysis Areas — 2026-06-09
 
+> **SUPERSEDED (2026-06-11):** absorbed into [`docs/OPEN_QUESTIONS.md`](../../OPEN_QUESTIONS.md)
+> per doc-canon (#45). Kept for provenance; this copy is no longer updated.
+
+
 Context: a reassessment of the May 26 – Jun 9 dev-channel feedback (especially
 Moneyball's eleven questions) against the post-PR#12–15 repo state and
 Decisions #37–41. The decisions answered the hardest objections; these are the

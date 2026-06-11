@@ -1,5 +1,9 @@
 # ONT Flat Namespace — Risk Register (living)
 
+> **SUPERSEDED (2026-06-11):** absorbed into [`docs/RISKS.md`](../../RISKS.md) (R-numbers remain stable anchors there)
+> per doc-canon (#45). Kept for provenance; this copy is no longer updated.
+
+
 Tracks the open uncertainties and failure modes for the flat-namespace / accumulator
 design. **Kind** tells you what to *do* about each:
 

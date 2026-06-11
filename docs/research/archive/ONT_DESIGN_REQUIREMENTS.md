@@ -1,5 +1,9 @@
 # ONT Design Requirements (Clean Sheet)
 
+> **SUPERSEDED (2026-06-11):** absorbed into [`docs/DESIGN.md`](../../DESIGN.md)
+> per doc-canon (#45). Kept for provenance; this copy is no longer updated.
+
+
 Status: foundational requirements, written deliberately without anchoring on any
 existing ONT solution. The purpose is to judge candidate designs against fixed
 criteria instead of defending prior research. A design either satisfies these or

@@ -1,5 +1,9 @@
 # ONT — Design vs. Requirements Conformance
 
+> **SUPERSEDED (2026-06-11):** absorbed into [`docs/spec/CONFORMANCE.md`](../../spec/CONFORMANCE.md)
+> per doc-canon (#45). Kept for provenance; this copy is no longer updated.
+
+
 A line-by-line check of the current design against every requirement in
 [`ONT_DESIGN_REQUIREMENTS.md`](./ONT_DESIGN_REQUIREMENTS.md). "The design" = the Bitcoin-sequenced
 name accumulator as specified across the one-pager, the risk work, the DA-agreement note, and the
@@ -136,5 +140,5 @@ signet. None of these is an invariant violation — the strongest thing a confor
 the design stage.
 
 See also: [`ONT_RISK_REGISTER.md`](./ONT_RISK_REGISTER.md),
-[`ONT_DATA_AVAILABILITY_AGREEMENT.md`](../spec/ONT_DATA_AVAILABILITY_AGREEMENT.md),
+[`ONT_DATA_AVAILABILITY_AGREEMENT.md`](../../spec/ONT_DATA_AVAILABILITY_AGREEMENT.md),
 [`ONT_RISKS_PLAIN_LANGUAGE.md`](./ONT_RISKS_PLAIN_LANGUAGE.md).

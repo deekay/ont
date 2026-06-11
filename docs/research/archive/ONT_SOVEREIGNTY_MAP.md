@@ -1,5 +1,9 @@
 # ONT — Sovereignty Map
 
+> **SUPERSEDED (2026-06-11):** absorbed into [`docs/DESIGN.md`](../../DESIGN.md)
+> per doc-canon (#45). Kept for provenance; this copy is no longer updated.
+
+
 **For a newcomer who wants to answer one question: "if I own a name here, can anyone take it from me — and can I check that myself, without trusting anyone?"**
 
 This is the map of the *trust surface*: the small set of rules that make a name yours, and exactly

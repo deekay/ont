@@ -252,6 +252,5 @@ items 1–3 above (pin windows, specify the marker tx, decide on DA sampling) re
 prototype is an abstract model, not the real Bitcoin-tx-level mechanism. But the core convergence
 claim now holds in code, and the hard residue is small and named.
 
-See also: [`ONT_HARD_PROBLEMS.md`](../design/ONT_HARD_PROBLEMS.md) (R2 delta-merge, which this builds on),
-[`ONT_RISK_REGISTER.md`](../design/ONT_RISK_REGISTER.md), and the plain-language
-[`ONT_RISKS_PLAIN_LANGUAGE.md`](../design/ONT_RISKS_PLAIN_LANGUAGE.md).
+See also: [`OPEN_QUESTIONS.md`](../OPEN_QUESTIONS.md) (R2 delta-merge, which this builds on), and
+[`RISKS.md`](../RISKS.md) — the register plus the plain-language walkthrough.

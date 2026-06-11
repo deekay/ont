@@ -8,7 +8,7 @@ marked ⏳ with today's location linked.
 | You are… | Start here | Then |
 | --- | --- | --- |
 | **Curious newcomer** | [ONT.md](./ONT.md) — the front door | [ONT_ONE_PAGER.md](./ONT_ONE_PAGER.md) |
-| **Bitcoin reviewer** | [ONT_DESIGN_BRIEF.md](./ONT_DESIGN_BRIEF.md) (⏳ becomes `DESIGN.md`) | risks + open questions (below) |
+| **Bitcoin reviewer** | [DESIGN.md](./DESIGN.md) | [RISKS.md](./RISKS.md) + [OPEN_QUESTIONS.md](./OPEN_QUESTIONS.md) |
 | **Implementer** | [spec/](./spec/) — the normative docs (below) | [core/STATUS.md](./core/STATUS.md) for what's wired |
 | **Operator** | [operate/SELF_HOSTING.md](./operate/SELF_HOSTING.md) | demos + operators (below) |
 | **The team** | [core/STATUS.md](./core/STATUS.md) — source of truth for what's real | [core/DECISIONS.md](./core/DECISIONS.md) — the memory |
@@ -23,20 +23,16 @@ what's actually wired — if any doc disagrees with it, STATUS wins.
 
 ## For Bitcoin reviewers
 
-- **[ONT_DESIGN_BRIEF.md](./ONT_DESIGN_BRIEF.md)** — footprint numbers,
-  trade-off tables, feedback questions. ⏳ Absorbs the
-  [sovereignty map](./design/ONT_SOVEREIGNTY_MAP.md) and
-  [design requirements](./design/ONT_DESIGN_REQUIREMENTS.md) to become `DESIGN.md`.
-- **Risks** — ⏳ five docs consolidate into one `RISKS.md`. Today:
-  [risk register](./design/ONT_RISK_REGISTER.md) ·
-  [plain-language risks](./design/ONT_RISKS_PLAIN_LANGUAGE.md) ·
-  [MEV/ordering](./design/ONT_MEV_ORDERING_ANALYSIS.md) ·
-  [adversarial analysis](./research/ONT_ADVERSARIAL_ANALYSIS.md) ·
-  [adversarial risk ranking](./research/ONT_ADVERSARIAL_RISK_RANKING.md)
-- **Open questions** — ⏳ three docs consolidate into one `OPEN_QUESTIONS.md`. Today:
-  [hard problems](./design/ONT_HARD_PROBLEMS.md) ·
-  [questions for experts](./research/OPEN_QUESTIONS_FOR_EXPERTS.md) ·
-  [open analysis areas](./research/ONT_OPEN_ANALYSIS_AREAS_2026_06_09.md)
+- **[DESIGN.md](./DESIGN.md)** — the full design: model, trust surface
+  (sovereignty map), scaling and data availability, economics, footprint
+  numbers, trade-off tables, prior art, and the clean-sheet requirements.
+- **[RISKS.md](./RISKS.md)** — the consolidated risk doc: the register
+  (R-numbers are stable anchors), the plain-language walkthrough, the
+  MEV/ordering analysis, the whole-system threat model, and the ranked
+  launch assessment.
+- **[OPEN_QUESTIONS.md](./OPEN_QUESTIONS.md)** — the genuinely open design
+  and analysis questions, consolidated for an external reviewer deciding
+  where to push.
 
 ## For implementers (the normative layer)
 
@@ -46,13 +42,17 @@ The normative layer lives in `docs/spec/`; a doc there claims normative status:
   claim, notice, uncontested finality, contested escalation
 - [data-availability agreement](./spec/ONT_DATA_AVAILABILITY_AGREEMENT.md) —
   the fail-closed availability rule
+- [auction](./spec/AUCTION.md) — contested-auction mechanism, parameters, and
+  window schedule
+- [conformance](./spec/CONFORMANCE.md) — requirement-by-requirement code mapping
 - [issuance fee mechanics](./spec/ONT_ISSUANCE_FEE_MECHANICS.md)
 - [contested auction reference](./spec/CONTESTED_AUCTION_REFERENCE.md)
 - [publisher protocol spec](./spec/ONT_PUBLISHER_PROTOCOL_SPEC.md)
 - [recovery invoke spec](./spec/ONT_RECOVERY_INVOKE_SPEC.md)
 
-Builder orientation: [core/CURRENT_ARCHITECTURE_BRIEF.md](./core/CURRENT_ARCHITECTURE_BRIEF.md)
-(⏳ merges with [core/ARCHITECTURE.md](./core/ARCHITECTURE.md) into one doc).
+Builder orientation: [core/ARCHITECTURE.md](./core/ARCHITECTURE.md) — the one
+architecture doc: active design, active code entrypoints, retired paths, and
+next work.
 
 ## For operators
 
@@ -62,16 +62,12 @@ Everything operational lives in `docs/operate/`:
 [operators](./operate/) (domain, Supabase, VPS) · [demo](./operate/demo/)
 (walkthroughs, signet, Sparrow)
 
-## Launch working material
+## Launch
 
-⏳ Consolidates into one `LAUNCH.md` + `spec/` + STATUS.md's parameter table. Today:
-[launch v1 brief](./launch/ONT_LAUNCH_V1_BRIEF.md) ·
-[settlement & ownership](./launch/AUCTION_SETTLEMENT_AND_OWNERSHIP.md) ·
-[implementation & validation](./launch/ONT_IMPLEMENTATION_AND_VALIDATION.md) ·
-[parameter review packet](./launch/ONT_PARAMETER_REVIEW_PACKET.md) ·
-[placeholders & mechanism choices](./launch/AUCTION_PLACEHOLDERS_AND_MECHANISM_CHOICES.md) ·
-[window schedule](./launch/ONT_WINDOW_SCHEDULE.md) ·
-[scaling confidence plan](./launch/PRELAUNCH_SCALING_CONFIDENCE_PLAN.md)
+**[LAUNCH.md](./LAUNCH.md)** — the launch narrative: v1 scope, scaling
+confidence gates, and the external review packet. Mechanism details live in
+[spec/AUCTION.md](./spec/AUCTION.md); every pinned or placeholder number lives
+in [core/STATUS.md](./core/STATUS.md)'s parameter table.
 
 ## Research (live inputs)
 

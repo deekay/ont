@@ -15,8 +15,8 @@ default.** Do not assert project state from a previous session's context.
 ## Canonical doc order (read before asserting; notes are not facts)
 
 1. `docs/ONT.md` — plain-language source of truth (one-path model)
-2. `docs/ONT_DESIGN_BRIEF.md` — canonical design brief
-3. `docs/design/ONT_ACQUISITION_STATE_MACHINE.md` — exact lifecycle
+2. `docs/DESIGN.md` — canonical design (for reviewers)
+3. `docs/spec/ONT_ACQUISITION_STATE_MACHINE.md` — exact lifecycle
 4. `docs/core/DECISIONS.md` + `docs/core/STATUS.md` — decisions and status
 5. Code for code claims: `packages/{protocol,core,consensus}/src/*`
 

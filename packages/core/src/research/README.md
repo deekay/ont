@@ -3,7 +3,7 @@
 Everything in this folder is **research**: property prototypes and numerical models that validate
 scaling-design claims. **None of it is part of the sovereignty trust surface** — none of these
 modules can take, move, or change ownership of a name. A reviewer auditing "can my name be taken?"
-can ignore this entire directory (see [`ONT_SOVEREIGNTY_MAP.md`](../../../../docs/design/ONT_SOVEREIGNTY_MAP.md)).
+can ignore this entire directory (see the trust-surface map in [`DESIGN.md`](../../../../docs/DESIGN.md)).
 
 | Module | What it proves |
 | --- | --- |

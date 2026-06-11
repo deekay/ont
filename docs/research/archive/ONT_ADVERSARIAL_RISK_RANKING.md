@@ -1,5 +1,9 @@
 # ONT Adversarial Risk Current Assessment
 
+> **SUPERSEDED (2026-06-11):** absorbed into [`docs/RISKS.md`](../../RISKS.md)
+> per doc-canon (#45). Kept for provenance; this copy is no longer updated.
+
+
 Context: a whole-system adversarial assessment — wealthy-actor capture, griefing of small users, the simple name path, auction dynamics and closure gaming, and the extra problems of a system with only dozens-to-hundreds of early users.
 
 ## Ranked Risks

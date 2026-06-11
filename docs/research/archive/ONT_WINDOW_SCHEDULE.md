@@ -1,5 +1,9 @@
 # ONT Window Schedule Recommendation
 
+> **SUPERSEDED (2026-06-11):** absorbed into [`docs/spec/AUCTION.md`](../../spec/AUCTION.md) and the parameter table in [`docs/core/STATUS.md`](../../core/STATUS.md)
+> per doc-canon (#45). Kept for provenance; this copy is no longer updated.
+
+
 Context: how to think about long windows — whether auctions should run 30+ days, and whether windows should shorten over time by block height or by market characteristics.
 
 ## Distinguish Two Windows

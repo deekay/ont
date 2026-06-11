@@ -1,5 +1,9 @@
 # ONT Pre-Launch Scaling Confidence Plan
 
+> **SUPERSEDED (2026-06-11):** absorbed into [`docs/LAUNCH.md`](../../LAUNCH.md)
+> per doc-canon (#45). Kept for provenance; this copy is no longer updated.
+
+
 This document defines what ONT should know before launch so reviewers can
 support a simple L1 v1 without feeling that the project is ignoring scale or
 painting itself into a corner.
@@ -28,7 +32,7 @@ auctions do not scale to all humans, apps, agents, and devices.
 That concern is valid.
 
 The investigation behind the current scale hypothesis is recorded in
-[SCALABILITY_INVESTIGATION_AND_HYPOTHESES.md](../research/archive/SCALABILITY_INVESTIGATION_AND_HYPOTHESES.md).
+[SCALABILITY_INVESTIGATION_AND_HYPOTHESES.md](./SCALABILITY_INVESTIGATION_AND_HYPOTHESES.md).
 
 The answer should not be "trust us, scaling later." It should be:
 

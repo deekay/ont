@@ -1,5 +1,9 @@
 # ONT — Two Hard Problems: Leaderless Chaining & The Off-Chain Auction
 
+> **SUPERSEDED (2026-06-11):** absorbed into [`docs/OPEN_QUESTIONS.md`](../../OPEN_QUESTIONS.md)
+> per doc-canon (#45). Kept for provenance; this copy is no longer updated.
+
+
 Deep dives on the two **unsolved-mechanism** risks from the
 [risk register](./ONT_RISK_REGISTER.md) (R2, R4). One has a candidate solution I'm
 fairly confident in; the other has an honest negative result that walks back earlier

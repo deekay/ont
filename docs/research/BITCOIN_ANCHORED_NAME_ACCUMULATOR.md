@@ -1,7 +1,7 @@
 # Candidate: Bitcoin-Anchored Insertion-Unique Name Accumulator
 
 Status: candidate design + feasibility analysis. Judged against
-[ONT_DESIGN_REQUIREMENTS.md](../design/ONT_DESIGN_REQUIREMENTS.md). Not a v1 commitment.
+[ONT_DESIGN_REQUIREMENTS.md](./archive/ONT_DESIGN_REQUIREMENTS.md). Not a v1 commitment.
 
 > Note: the **allocation model** was refined after this doc was written. Names are
 > now **publicly visible** at claim, and contention triggers the contested L1

@@ -126,6 +126,6 @@ most foundational piece, everything else builds on it, and it immediately produc
 -cited unknown numbers (proof size) — a concrete confidence increment before the larger Phase 2 lift.
 
 See also: [`ONT_FLAT_NAMESPACE_ONE_PAGER.md`](./ONT_FLAT_NAMESPACE_ONE_PAGER.md) (the assumptions this
-measures), [`PRELAUNCH_SCALING_CONFIDENCE_PLAN.md`](../../launch/PRELAUNCH_SCALING_CONFIDENCE_PLAN.md),
+measures), [`PRELAUNCH_SCALING_CONFIDENCE_PLAN.md`](./PRELAUNCH_SCALING_CONFIDENCE_PLAN.md),
 [`ONT_DATA_AVAILABILITY_AGREEMENT.md`](../../spec/ONT_DATA_AVAILABILITY_AGREEMENT.md),
-[`ONT_REQUIREMENTS_CONFORMANCE.md`](../../design/ONT_REQUIREMENTS_CONFORMANCE.md).
+[`ONT_REQUIREMENTS_CONFORMANCE.md`](./ONT_REQUIREMENTS_CONFORMANCE.md).

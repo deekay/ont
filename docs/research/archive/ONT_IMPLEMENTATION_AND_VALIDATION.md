@@ -1,9 +1,13 @@
 # ONT Implementation And Validation
 
+> **SUPERSEDED (2026-06-11):** absorbed into [`docs/LAUNCH.md`](../../LAUNCH.md)
+> per doc-canon (#45). Kept for provenance; this copy is no longer updated.
+
+
 A concrete, honest status of what is actually built, what is prototype, and what
 is stubbed — so a reviewer can calibrate the claims. Canonical design + the
-solved/prototype/open framing live in [`../ONT_DESIGN_BRIEF.md`](../ONT_DESIGN_BRIEF.md)
-and [`../ONT.md`](../ONT.md); this is the implementation snapshot.
+solved/prototype/open framing live in [`../ONT_DESIGN_BRIEF.md`](./ONT_DESIGN_BRIEF.md)
+and [`../ONT.md`](../../ONT.md); this is the implementation snapshot.
 
 The consensus core, wire formats, and signatures are real and cross-checked
 byte-for-byte against a second (mobile) implementation. The honest distinction a
@@ -33,7 +37,7 @@ reviewer should hold is **real-and-on-chain** vs **library/CLI-only** vs
   crypto cross-checks that assert byte-identical agreement with the engine.
 - Private-signet smoke proving real on-chain `AUCTION_BID`, transfer, value-record,
   and recovery-descriptor activity (not just fixtures).
-- See [TESTING.md](../operate/TESTING.md).
+- See [TESTING.md](../../operate/TESTING.md).
 
 ## Still open / not done (do not imply otherwise)
 
@@ -46,7 +50,7 @@ reviewer should hold is **real-and-on-chain** vs **library/CLI-only** vs
 
 ## Where to go next
 
-[`ONT_ACQUISITION_STATE_MACHINE.md`](../spec/ONT_ACQUISITION_STATE_MACHINE.md) ·
-[`CONTESTED_AUCTION_REFERENCE.md`](../spec/CONTESTED_AUCTION_REFERENCE.md) ·
+[`ONT_ACQUISITION_STATE_MACHINE.md`](../../spec/ONT_ACQUISITION_STATE_MACHINE.md) ·
+[`CONTESTED_AUCTION_REFERENCE.md`](../../spec/CONTESTED_AUCTION_REFERENCE.md) ·
 [`AUCTION_SETTLEMENT_AND_OWNERSHIP.md`](./AUCTION_SETTLEMENT_AND_OWNERSHIP.md) ·
-[`../ONT_DESIGN_BRIEF.md`](../ONT_DESIGN_BRIEF.md) (risks, alternatives, open questions).
+[`../ONT_DESIGN_BRIEF.md`](./ONT_DESIGN_BRIEF.md) (risks, alternatives, open questions).
