@@ -5,9 +5,16 @@ A v0 reference implementation of the publisher protocol described in
 
 A publisher is a batching service: it accepts wallet claim requests, takes
 payment, batches the claims into a sparse-Merkle accumulator, and anchors
-each batch to Bitcoin via an OP_RETURN. It holds no user keys, can't forge
-ownership (consensus enforces insertion-uniqueness), and can't inflate fees
-(consensus enforces fee ≥ Σ gates). Anyone can run one.
+each batch to Bitcoin via an OP_RETURN. It holds no user keys, can't decide
+ownership (Bitcoin does), and can't take an *existing* name (replay enforces
+first-anchor-wins / insertion-uniqueness). It *constructs* batches, though, so
+a wrong-owner-key leaf for a *new* claim is possible — the defense is that
+misbehavior is public, recourse is on-chain under the normal claim/bond rules,
+and the loss is bounded at the gate + service fee. The design also requires an
+anchor's miner fee to be ≥ Σ per-name gates so the claim gate can't be batched
+away — note that consensus-side validation of that fee rule is **not yet
+implemented** (see `docs/core/STATUS.md`, Known-incomplete). Anyone can run
+one.
 
 ## What's here
 
@@ -17,8 +24,10 @@ ownership (consensus enforces insertion-uniqueness), and can't inflate fees
 - **`payment.ts`** — `PaymentVerifier` interface + `StubPaymentVerifier`
   (accepts any proof; replace with a real LN-node verifier in production).
 - **`anchor.ts`** — `AnchorBroadcaster` interface + `StubAnchorBroadcaster`
-  (returns a deterministic synthetic txid; replace with real broadcast in
-  production).
+  (returns a deterministic synthetic txid; for tests and offline dev).
+- **`esplora-anchor.ts`** — `EsploraAnchorBroadcaster`: real anchor
+  construction, signing, and broadcast via an Esplora endpoint. This is the
+  live private-signet path (pays a flat configured `feeSats`).
 - **`server.ts`** — HTTP wiring over `node:http`, mirrors apps/resolver.
 - **`types.ts`** — wire types matching the spec.
 
@@ -57,7 +66,7 @@ root without trusting the publisher's word.
 | Accumulator inserts + proofs | real (`@ont/core`) | real |
 | OP_RETURN payload encoding | real (`@ont/protocol`) | real |
 | Payment verification | accepts any proof | check BOLT11 paymentHash via LN node sidecar |
-| Anchor tx broadcast | synthetic txid, no chain effect | sign + broadcast via Bitcoin node or Esplora |
+| Anchor tx broadcast | real on private signet (`EsploraAnchorBroadcaster`); synthetic stub in tests | sign + broadcast via Bitcoin node or Esplora, with fee ≥ Σ gates once that rule is enforced |
 | Persistence | in-memory | JSON file or SQLite |
 | Multi-publisher coordination | n/a (publisher unaware of others) | consensus handles it (`@ont/core/research/delta-merge-sim.ts`) |
 
@@ -71,9 +80,12 @@ root without trusting the publisher's word.
   accumulator state. Fine for dev.
 - **One claim per batch.** The submit handler seals a batch with just the
   one claim it just accepted. A real publisher aggregates by time/size.
-- **No fee math against actual blockspace.** The consensus rule (fee ≥ Σ
-  gates) is the policy; v0 doesn't compute the on-chain fee at all since
-  it doesn't actually broadcast.
+- **No aggregate fee math.** The designed rule (fee ≥ Σ gates) is not
+  computed anywhere yet: the stub broadcaster doesn't broadcast at all, and
+  the Esplora broadcaster pays a flat configured `feeSats` independent of
+  batch size. Consensus-side validation is also unimplemented (see
+  `docs/core/STATUS.md`, Known-incomplete).
 
-These are all wired-but-stubbed by design — the structure is correct, the
-chain effects aren't. Each is a focused follow-up.
+These are wired-but-incomplete by design — the structure is correct, and
+real chain effects exist only on the private-signet path via the Esplora
+broadcaster. Each is a focused follow-up.

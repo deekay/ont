@@ -79,9 +79,10 @@
     several parameters are placeholders, flagged below.</p>
   <table>
     <tr><th>You don't trust…</th><th>…because</th></tr>
-    <tr><td><strong>Publishers</strong> (write-side)</td><td>They can't mint ownership: a claim binds
-      <em>your</em> owner key, and every batch leaf is re-verified against the Bitcoin-anchored root.
-      Misbehavior is contestable on-chain; loss is bounded at ~$1.</td></tr>
+    <tr><td><strong>Publishers</strong> (write-side)</td><td>They can't decide ownership (Bitcoin does)
+      and can't take an <em>existing</em> name (first-anchor-wins at replay). A publisher <em>can</em>
+      misbatch a new claim — wrong key, omission — but misbehavior is public, the recourse is on-chain
+      under the normal claim/bond rules, and the loss is bounded at ~$1.</td></tr>
     <tr><td><strong>Resolvers</strong> (read-side)</td><td>Every answer traces to an anchored root and
       owner signatures. A lying resolver fails re-verification — caught, not obeyed (light-client caveat
       below).</td></tr>
@@ -126,11 +127,13 @@
       defense takes bond-floor capital. We document that rather than paper over it — no sponsorship or
       proxy-bonding tooling, in v1 or as a protocol direction; third-party bonding is already
       permissionless, and a loan is arranged outside the protocol.</li>
-    <li><strong>"The publisher steals my name — or my dollar."</strong> It can't take a name: a wrong owner
-      key or a pocketed payment is contestable on-chain, forcing an auction the rightful owner wins. Worst
-      case ≈ ₿1,000 + the thin fee, ~$1. The flow is deliberately <strong>pay-first with reputable
-      publishers</strong>; with ~$1 at risk, atomic payment↔inclusion binding is later research, not a v1
-      dependency.</li>
+    <li><strong>"The publisher steals my name — or my dollar."</strong> It can't decide ownership by fiat —
+      Bitcoin does — and it can't take a name you already own (first-anchor-wins at replay). It <em>can</em>
+      commit a wrong owner key or pocket a payment on a new claim; that misbehavior is public, and your
+      recourse is on-chain: re-claim via another publisher or L1, or contest with a bond under the normal
+      largest-qualifying-bond rule. Worst case ≈ ₿1,000 + the thin fee, ~$1. The flow is deliberately
+      <strong>pay-first with reputable publishers</strong>; with ~$1 at risk, atomic payment↔inclusion
+      binding is later research, not a v1 dependency.</li>
     <li><strong>"The resolver lies to me."</strong> Verify-don't-trust: the indexer re-verifies every batch
       membership proof against the on-chain anchored root; value records are owner-signed and
       sequence-linked — servable, not inventable. <strong>Honest gaps:</strong> producers don't emit

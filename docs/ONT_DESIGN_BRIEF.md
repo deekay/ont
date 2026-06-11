@@ -143,14 +143,17 @@ take your name. See [`research/OWNER_KEY_RECOVERY.md`](./research/OWNER_KEY_RECO
 
 ## 4. Trust surface and verification
 
-**The surface is deliberately tiny.** Who-owns-what is a deterministic function of Bitcoin,
-implemented in a frozen core: `engine.ts` (event replay), `state.ts` (name state), and
-`proof-bundle.ts` (portable proofs), over the `@ont/protocol` primitives (names, wire
-formats, events, transfer/value/recovery payloads). A CI test
-(`packages/consensus/src/trust-surface.test.ts`) **fails the build** if that core grows a
-dependency on anything but `@ont/protocol` / `@ont/bitcoin`, or if the package gains a file
-outside the documented set — so the surface a newcomer must audit cannot silently grow.
-Allocation (auctions), convenience (resolver/indexer), and research/simulation code live
+**The surface is deliberately tiny.** Who-owns-what is a deterministic function of Bitcoin.
+The audited core — **to be frozen at launch** (Decision #44) — is `engine.ts` (event
+replay), `state.ts` (name state), and `proof-bundle.ts` (portable proofs), over the
+`@ont/protocol` primitives (names, wire formats, events, transfer/value/recovery payloads).
+Today that boundary implements **owner-key authority and replay validation**; auction
+settlement and cheap-rail finalization are migrating inside per Decisions #42/#44, and
+until they land those rules live outside it (see [`core/STATUS.md`](./core/STATUS.md) for
+the honest scoped claim). A CI test (`packages/consensus/src/trust-surface.test.ts`)
+**fails the build** if the boundary changes without a recorded decision — the allowlist is
+the boundary manifest, so the surface a newcomer must audit cannot silently drift.
+Allocation policy, convenience (resolver/indexer), and research/simulation code live
 *outside* this boundary.
 
 **A fresh verifier** replays Bitcoin transactions carrying ONT events through the engine
@@ -196,17 +199,25 @@ Billions of names cannot each be a Bitcoin transaction, so cheap uncontested cla
   by deterministic priority (block height, then tx index, then txid). No single publisher
   owns the root. See
   [`research/ONT_MULTI_PUBLISHER_CONVERGENCE.md`](./research/ONT_MULTI_PUBLISHER_CONVERGENCE.md).
-- **The gate is enforced, not advisory.** A batch anchor counts only if its Bitcoin
-  transaction fee is **≥ the sum of the per-name gates** — so the ₿1,000 cannot be
-  batched away, and miners receive ₿1,000 × N. See
-  [`design/ONT_ISSUANCE_FEE_MECHANICS.md`](./design/ONT_ISSUANCE_FEE_MECHANICS.md).
+- **The gate rule (designed; not yet enforced in code).** The rule is that a batch anchor
+  counts only if its Bitcoin transaction fee is **≥ the sum of the per-name gates** — so the
+  ₿1,000 cannot be batched away, and miners receive ₿1,000 × N. As of 2026-06-10 this
+  validation is **not yet implemented** in the replay/consensus path (the live signet
+  publisher pays a flat configured anchor fee); implementing it inside the audited boundary
+  is queued work. See
+  [`design/ONT_ISSUANCE_FEE_MECHANICS.md`](./design/ONT_ISSUANCE_FEE_MECHANICS.md) and the
+  Known-incomplete list in [`core/STATUS.md`](./core/STATUS.md).
 
-**Honest status.** This rail is implemented and unit-tested — `runBatchRail` plus
-simulations that assert delta commutativity and convergence against a data-withholding
-adversary. But the **live resolver/indexer does not yet consume it**: today it derives
-state from single-publisher anchors. Promoting the rail from research into the canonical
-indexer is the single largest remaining architecture step, and the DA windows
-(`W`, `C`, `K`) are unpinned.
+**Honest status.** The rail is **live end-to-end on the private signet** (since
+2026-06-09): a claim is batched, anchored on-chain, and the indexer re-verifies every
+membership proof against the Bitcoin-anchored root before a name resolves —
+verify-don't-trust at every hop, with `runBatchRail` simulations additionally asserting
+delta commutativity and convergence against a data-withholding adversary. What is **not**
+live is the adversarial half: the fail-closed DA deadline (the availability marker and the
+`W`/`C`/`K` windows) is enforced only in design and simulation, transport is
+publisher-served v1 (content-addressed mirroring is the working direction), multi-publisher
+convergence is simulated but not deployed, and the windows themselves are unpinned.
+Enforcing the deadline rule in the live path is the sharpest remaining architecture step.
 
 **Publisher payment and trust-minimization.** A publisher bundles many claims and pays the single
 aggregate miner fee for the batch, out of payments it has already collected off-chain (Lightning).
@@ -214,10 +225,14 @@ v1 uses a **pay-first flow with reputable publishers**: the operator includes a 
 payment, and a non-paying claim is simply left out — so the publisher takes **no capital risk** (it
 never pays a fee for a claim it hasn't been paid for); the small, bounded risk sits with the *user*.
 The residual trust is that a *paid-but-excluded* claimant relies on the operator's reputation
-and the L1 fallback. Crucially, **a publisher cannot steal a name**: if it pockets the payment or
-commits the wrong owner key, the rightful party **contests on-chain, which forces an auction they
-win** — so the worst a bad publisher can do is cost a claimant ~₿1,000 (~$1) and a re-claim, never
-take the name. **Atomically binding** the off-chain payment to on-chain inclusion is a
+and the L1 fallback. Crucially, **a publisher cannot assign ownership by fiat**: ownership is
+decided by Bitcoin-ordered events and the owner key, never by the publisher's word — a batch is
+data the publisher *produces*, not authority it holds. If a publisher pockets a payment or commits
+the wrong owner key, the rightful party's recourse is on-chain: re-claim, or contest with a bond,
+where allocation follows the normal largest-qualifying-bond rule. The worst case is **bounded** —
+losing the ~₿1,000 (~$1) gate/service fee plus the work of re-claiming or contesting — and the
+misbehavior is publicly visible. The trust story is bounded harm + reputation + on-chain recourse,
+not cryptographic impossibility of publisher misbehavior. **Atomically binding** the off-chain payment to on-chain inclusion is a
 **longer-term research item, not a v1 dependency** — we are deliberately *not* designing v1 around
 adaptor-conditional Lightning payments, which are a long-roadmap capability. The trust is **bounded**
 either way: a publisher never controls a *name* (ownership remains the owner key + Bitcoin), the
@@ -310,7 +325,7 @@ they're decided.
 | Area | State | Notes |
 | --- | --- | --- |
 | Owner-key model (transfer / value / recovery auth) | **Solved + live** | Enforced at replay; proven on signet; byte-identical across two implementations |
-| Minimal frozen trust surface | **Solved** | 3 consensus files CI-locked (no-growth test); the protocol rules they build on are audit surface, pinned by review |
+| Minimal audited trust surface (frozen at launch) | **Boundary enforced; scope expanding** | 3 consensus files CI-manifested (Decision #44), covering owner-key authority + replay validation today; settlement and cheap-rail rules are moving inside (#42). The protocol rules they build on are audit surface, pinned by review |
 | Returnable-bond contested auction | **Solved + live** | Bid → resolver-accepted end-to-end on signet |
 | Bitcoin-inclusion proof verification (Merkle + PoW) | **Solved (verifier)** | Tested vs real mainnet block; producers don't emit inclusion proofs yet |
 | Accumulator rail (claim → anchor → verified resolve → explore) | **Live (signet)** | End-to-end since 2026-06-09, verify-don't-trust at every hop; **open: fail-closed DA deadline (W/C/K) enforcement (sim-only today), content-addressed mirroring (§8b), leaderless multi-publisher** |

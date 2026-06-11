@@ -89,9 +89,11 @@ one can force a new version of the rules on you.
 
 The core lifecycle — claim, own, transfer, update, recover a name, and settle a contested name by
 auction — runs end-to-end on a private Bitcoin test network. The batched commitment that lets cheap
-uncontested claims scale to billions is prototyped and measured, and is being hardened before it goes
-live. This is a matter of *maturity, not direction*: the design above is the plan, and the parts not
-yet live don't change it.
+uncontested claims scale to billions also runs end-to-end there (since 2026-06-09): a claim is
+anchored on Bitcoin, independently re-verified against the anchored commitment, and resolves
+publicly. Its adversarial protections — most importantly the data-availability deadline that defends
+contested names against withheld data — are still being hardened. This is a matter of *maturity,
+not direction*: the design above is the plan, and the parts not yet live don't change it.
 
 ## Going deeper
 
