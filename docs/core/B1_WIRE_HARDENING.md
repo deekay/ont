@@ -300,14 +300,14 @@ Per Item 1: gap ⇒ stop ⇒ named spec PR ⇒ then code.
 - **G1 — wire-format spec.** There is no normative wire-format document:
   frame bytes, version-reject rule, exhaustive event-type enumeration,
   per-event byte layouts, endianness, canonical-name-bytes rule (W3),
-  domain-separation labels and conventions (W13/W13a), commitment
-  truncation (W16), and the INCLUDES_NAME flag rule live only in
-  `packages/protocol` source and tests. The candidate stub is reserved at
-  [`docs/spec/WIRE_FORMAT.md`](../spec/WIRE_FORMAT.md); its content lands
-  as the G1 named spec PR written from this extraction + the mined
-  vectors after the attack pass settles the invariants. **This is the main
-  B1 spec deliverable; most candidate-stays items above promote through
-  it.**
+  domain-separation labels and conventions (W13/W13a), commitment width /
+  the full-width commitment layout (W16, as ruled), and the INCLUDES_NAME
+  flag rule lived only in `packages/protocol` source and tests. The G1
+  spec text is now drafted at
+  [`docs/spec/WIRE_FORMAT.md`](../spec/WIRE_FORMAT.md) from this
+  extraction with the W16/W17 rulings applied; it promotes (with this
+  doc's sign-off) after its own review. **This is the main B1 spec
+  deliverable; most candidate-stays items above promote through it.**
 - **G2 — off-chain envelope encodings.** The owner-signed off-chain shapes
   (W14 value record, W15 recovery descriptor, W15a wallet proof) have
   concrete field sets and digest layouts only in code; no doc specifies
