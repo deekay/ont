@@ -124,10 +124,13 @@ unratified docs; needs the named spec PR listed in Gaps before promotion.
   vectors in engine/web/mobile/`apps/claim/src/keys.conformance.test.ts`
   (mining source). **Cited.**
   *Tests:* the mined 12-word vectors verbatim; gap-scan restore vector.
-- **W13.** Every ONT signature digest is **domain-separated**: SHA-256 over
-  a length-prefixed UTF-8 label followed by the fields, so a signature can
-  never be replayed in another context. The two on-chain authorization
-  digests, byte-precise:
+- **W13.** Every **ONT owner-key Schnorr digest** is **domain-separated**:
+  SHA-256 over a length-prefixed UTF-8 label followed by the fields, so a
+  signature can never be replayed in another context. (Deliberate
+  exception: the BIP322 recovery wallet proof signs a normalized *text
+  message*, not an ONT hash construction — see W15a; it is an
+  address-key signature verified by a BIP322 verifier, outside this rule.)
+  The two on-chain authorization digests, byte-precise:
   - transfer: `sha256( lenPrefix("ont-transfer-owner") ‖ prevStateTxid(32)
     ‖ newOwnerPubkey(32) ‖ flags(1) ‖ successorBondVout(1) )`
   - recover-owner: `sha256( lenPrefix("ont-recover-owner") ‖
@@ -167,8 +170,8 @@ unratified docs; needs the named spec PR listed in Gaps before promotion.
   the full field set: `format`, `recordVersion`, `name`, `ownerPubkey`
   (32-byte x-only hex), `ownershipRef` (32-byte hex), `sequence`,
   `previousRecordHash` (32-byte hex or null), `valueType` (1 byte),
-  `payloadHex` (bounded; working bound 65,535 bytes — a kernel/launch
-  parameter, not a wire constant), `issuedAt` (ISO timestamp), `signature`
+  `payloadHex` (see payload-bound note below), `issuedAt` (ISO timestamp),
+  `signature`
   (64-byte Schnorr). The signature digest is domain-separated and
   byte-precise: label, version byte, length-prefixed normalized name,
   ownerPubkey, ownershipRef, sequence u64 BE, null-flagged
@@ -176,8 +179,14 @@ unratified docs; needs the named spec PR listed in Gaps before promotion.
   length-prefixed issuedAt (`value-record.ts:142-169`).
   Chain *rules* (sequence exactly +1, hash links to head) are kernel/adapter
   material (B2/B4) — B1 owns shape and digest.
+  *Payload bound, two distinct things:* **65,535 bytes is the encodable
+  wire bound** — a B1 constant if this format survives, forced by the u16
+  payload-length prefix in the digest and enforced at
+  `value-record.ts:164,184-185`. A launch policy may *accept* less than
+  the encodable bound; that lower cap is the kernel/launch parameter
+  STATUS lists. The wire bound is not policy.
   *Source:* spec/ONT_ACQUISITION_STATE_MACHINE.md (sequence/predecessor
-  concept), STATUS (payload bound); field set and digest layout are
+  concept), STATUS (accepted-payload cap); field set and digest layout are
   code-only. **Candidate-stays — needs G2** (spec must state the envelope
   encoding and digest layout; the old stack's JSON envelope is evidence,
   not authority).
@@ -185,21 +194,51 @@ unratified docs; needs the named spec PR listed in Gaps before promotion.
   descriptorVersion 1) carries: `name`, `ownerPubkey`, `ownershipRef`,
   `sequence`, `previousDescriptorHash` (or null), `recoveryAddress`,
   `signingProfile` (default `bip322`), `challengeWindowBlocks` (default
-  144), `issuedAt`, owner `signature` (64-byte Schnorr); its sha256
-  descriptor hash (32) is what the on-chain RecoverOwner event references
-  (`recovery-descriptor.ts:13-29`).
+  144), `issuedAt`, owner `signature` (64-byte Schnorr). Its
+  domain-separated digest, byte-precise — this digest is both what the
+  owner signs and the sha256 "descriptor hash" the on-chain RecoverOwner
+  event references:
+  `sha256( lenPrefix("ont-recovery-descriptor") ‖ version(1) ‖
+  lenPrefix(name) ‖ ownerPubkey(32) ‖ ownershipRef(32) ‖ sequence(u64 BE)
+  ‖ nullFlag(previousDescriptorHash) ‖ lenPrefix(recoveryAddress) ‖
+  lenPrefix(signingProfile) ‖ challengeWindowBlocks(u32 BE) ‖
+  lenPrefix(issuedAt) )` where `nullFlag(x)` = `0x00` if null else `0x01 ‖
+  x(32)` (`recovery-descriptor.ts:142-170`).
   *Source:* spec/ONT_RECOVERY_INVOKE_SPEC.md names the surface; field set
-  is code-only. **Candidate-stays — needs G2.**
+  and digest layout are code-only. **Candidate-stays — needs G2.**
+  *Tests:* descriptor digest golden vectors; null-vs-present
+  previousDescriptorHash pair.
 - **W15a.** The recovery wallet proof is a **separate object**
   (`ont-recovery-wallet-proof`, proofVersion 1), not part of the
-  descriptor: `name`, `prevStateTxid`, `recoveryDescriptorHash`,
-  `newOwnerPubkey`, `successorBondVout`, `challengeWindowBlocks`, optional
-  chain-tip fields, plus `recoveryAddress`, `signingProfile`, the BIP322
-  `message`, and `signatureBase64` — a BIP322 signature by the recovery
-  *address* key, not an owner-key Schnorr signature
-  (`recovery-wallet-proof.ts:13-36`).
-  *Source:* spec/ONT_RECOVERY_INVOKE_SPEC.md (BIP322 proof); field set
-  code-only. **Candidate-stays — needs G2.**
+  descriptor, and it is the one non-Schnorr signature surface. Three
+  constructions, byte-precise:
+  - *The signed message* is normalized text, not a hash: nine NL-joined
+    lines — `"Open Name Tags owner recovery proof"`, then `profile:`,
+    `name:`, `prevStateTxid:`, `recoveryDescriptorHash:`,
+    `newOwnerPubkey:`, `successorBondVout:`, `challengeWindowBlocks:`,
+    `chainTip:` (value `<hash>@<height>` or `unspecified`) — signed BIP322
+    by the recovery *address* key and verified by a BIP322 verifier
+    (`events.ts:223-233`, `recovery-wallet-proof.ts:158-164`).
+  - *The proof hash* is domain-separated:
+    `sha256( lenPrefix("ont-recovery-wallet-proof") ‖ version(1) ‖
+    lenPrefix(name) ‖ prevStateTxid(32) ‖ recoveryDescriptorHash(32) ‖
+    newOwnerPubkey(32) ‖ successorBondVout(1) ‖
+    challengeWindowBlocks(u32 BE) ‖ presenceFlag(chainTipBlockHash) ‖
+    presenceFlag(chainTipHeight u32) ‖ lenPrefix(recoveryAddress) ‖
+    lenPrefix(signingProfile) ‖ lenPrefix(message) ‖
+    lenPrefix(signatureBase64) )` with `presenceFlag` = `0x00` if absent
+    else `0x01 ‖ value` (`recovery-wallet-proof.ts:174-201`).
+  - *The proof commitment* is the 32-byte proof hash concatenated with 32
+    reserved zero bytes (64 bytes total;
+    `createRecoveryWalletProofCommitment`,
+    `RECOVERY_WALLET_PROOF_COMMITMENT_RESERVED_HEX`). The reserved half is
+    an undocumented extension slot — the wire spec must state what it is
+    for or drop it. **Flag for attack.**
+  *Source:* spec/ONT_RECOVERY_INVOKE_SPEC.md (BIP322 proof concept); all
+  three layouts code-only. **Candidate-stays — needs G2.**
+  *Tests:* message-format golden vector (incl. `unspecified` chain tip);
+  proof-hash vectors with/without chain-tip fields; commitment
+  reserved-bytes pin.
   *Note:* the RecoverOwner *authorization semantics* (which key signs the
   on-chain invoke — the spec's own open question a/b/c) is NOT a B1
   question; it blocks B2's recovery-authority hardening and is listed
@@ -214,6 +253,11 @@ unratified docs; needs the named spec PR listed in Gaps before promotion.
   **Flag for attack:** is 128-bit truncation acceptable for these
   commitments (collision birthday bound ~2^64), given what the transcript
   completeness predicate (B2) will lean on them for?
+  *Round-2 ruling (ChatLunatique):* sustained as a real G1 decision point,
+  not branch-blocking while candidate-stays — but B2 must not lean on
+  these as full-width collision-resistant transcript commitments until G1
+  explicitly freezes the tradeoff. DK ruling pending (writer recommends
+  full-width).
 - **W17 — routed-out proposal.** The exported package envelopes are
   **wallet-handoff artifacts, not wire**: `ont-transfer-package` v1 is an
   *unsigned* advisory JSON envelope (transfer parameters plus UI copy —
@@ -225,7 +269,9 @@ unratified docs; needs the named spec PR listed in Gaps before promotion.
   primitive; the package envelopes move to the surfaces layer (B5
   wallet-handoff formats), where their advisory fields belong. Their
   `format`/`version` labels stay reserved in the W13a inventory either way.
-  **This is a scope ruling for the attack pass + DK, not settled here.**
+  *Round-2 ruling (ChatLunatique):* concurs — envelopes route to B5
+  wallet-handoff formats; commitment functions stay in B1 because the
+  on-chain bid carries those commitments. DK ruling pending.
 
 ## Gaps — named spec PRs required before affected promotion
 
