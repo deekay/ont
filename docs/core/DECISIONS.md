@@ -18,19 +18,25 @@ Related notes:
 
 ## How To Read This File
 
-This file now uses three buckets:
+This file is **one chronological decision log** plus an Open Questions section.
+(Restructured 2026-06-10: the old Resolved-vs-Working-Assumptions buckets had
+silently broken — entries were appended at the end regardless of bucket, so the
+section an entry sat in stopped meaning anything. Per-entry labels replace them.)
 
-- **Resolved decisions**
-  - stable enough that the project should speak and build as though they are
-    decided unless new evidence forces a revisit
-- **Current working assumptions**
-  - current lead direction for implementation, website framing, and external
-    review, but not yet an immutable launch freeze
-- **Open questions**
-  - still intentionally unresolved and not ready to be described as closed
-    decisions
+Conventions:
 
-## Resolved Decisions
+- Entries are numbered in the order they were decided. **Numbers are never
+  reused or renumbered** — too many docs and messages reference them.
+- An entry is a **resolved decision** unless a `Status:` line at its top says
+  otherwise. `Status: working assumption` marks a current lead direction that
+  is not yet a launch commitment; `Status: amended by #N` means a later
+  decision changed part of it (the entry text is preserved as written — read
+  the amending entry for what changed).
+- Open Questions at the bottom carry an `[OPEN]`, `[PARTIALLY ANSWERED]`, or
+  `[ANSWERED]` label; answered ones point at the decision or doc that answered
+  them and are kept for the record, not deleted.
+
+## Decision Log
 
 1. Ownership model
 
@@ -99,6 +105,10 @@ The winning bid transaction must establish both:
 
 7. One-path acquisition
 
+*Status: amended by #37 — escalation now requires a qualifying **bond**; a bare
+competing claim **nullifies** the name (no owner, reopens) rather than
+escalating it to auction. The one-path principle itself is unchanged.*
+
 Initial launch allocation uses one public claim path, not separate ordinary,
 premium, reserved, or founder lanes.
 
@@ -142,6 +152,10 @@ Keeping these separate avoids letting the older all-auction bond table define
 ordinary long-tail claims.
 
 11. Auction bond curve status
+
+*Status: resolved as leaned — the length-scaled curve is now clamped to the
+structurally scarce ≤4-char set (mandatory bond-first); 5+ char names use the
+gate + contention. Amounts remain pre-launch placeholders.*
 
 Bond amounts should be objective and mechanical. The prototype code still
 contains a length-halving bond curve with a floor, but launch should explicitly
@@ -463,12 +477,6 @@ Rationale:
 - they do not belong on Bitcoin
 - they should not complicate canonical indexer behavior
 
-## Current Working Assumptions
-
-These are not yet immutable launch commitments, but they are concrete enough
-that implementation, documentation, and reviewer-facing materials should treat
-them as the current defaults unless they are later revised explicitly.
-
 32. Retired two-lane and auction-only baselines
 
 The old ordinary/reserved two-lane model is retired. The later auction-for-every-
@@ -483,7 +491,13 @@ Current footprint work should be evaluated against:
 - transfers
 - value-record publication and retrieval
 
+33. *(Unassigned — numbering slip. No decision was ever recorded under this
+number; verified against the full git history, 2026-06-10. Kept so nobody
+wonders what was deleted.)*
+
 34. Launch architecture lead direction
+
+*Status: working assumption — lead direction, not a launch freeze.*
 
 The current lead launch architecture is the **one-path claim model**.
 
@@ -501,6 +515,9 @@ be treated as a working launch assumption rather than an immutable protocol
 freeze.
 
 35. Contested auction family
+
+*Status: working assumption — the auction form (open ascending vs sealed
+second-price) is explicitly one of the design brief's open feedback questions.*
 
 The current auction family applies when a name is contested:
 
@@ -633,6 +650,9 @@ Documentation impact:
   longer-term / non-v1.
 
 39. DA transport: content-addressed, publisher-served v1 (T2) — raised as a core feedback area — 2026-06-08
+
+*Status: working assumption — explicitly flagged for external reviewer
+feedback; the fail-closed deadline enforcement it pairs with is not yet live.*
 
 The cheap rail's data-availability story splits into *witnessing* (is the data
 attested available by a Bitcoin-timed deadline?) and *transport* (how the bytes
@@ -801,7 +821,13 @@ That means:
 
 ## Open Questions
 
-1. Value payload definitions
+*(Staleness pass 2026-06-10: labels added; answered questions are kept for the
+record and point at what answered them.)*
+
+1. Value payload definitions — **[PARTIALLY ANSWERED]** *initial standardized
+destination types are Decision #23 and value records are live on every surface;
+the BIP-321/BIP-353 compatibility framing now lives in the design brief's
+comparison table. Still open: the exact frozen payload byte-formats per type.*
 
 Need to define the exact payload format for:
 - `0x01` bitcoin payment target
@@ -812,14 +838,18 @@ For `0x01`, reviewer feedback should explicitly consider compatibility and trade
 - `BIP321` URI scheme guidance
 - `BIP353` DNS payment instructions
 
-2. Destination transport and discovery
+2. Destination transport and discovery — **[PARTIALLY ANSWERED]** *the
+resolver API surface is Decision #21 and resolvers serve value records live;
+batch-data transport direction is Decision #39. Still open: resolver/publisher
+discovery (config-seeded today; registry-free scan designed, not built — see
+STATUS.md).*
 
 Need to define:
 - whether the core protocol mandates any transport for off-chain destination records
 - whether there is a recommended default transport profile
 - how clients discover and fetch current destination records
 
-3. ONT-native resolver profile
+3. ONT-native resolver profile — **[OPEN]**
 
 Need to define:
 - the exact bootstrap format for default/configured resolver endpoints
@@ -827,7 +857,9 @@ Need to define:
 - whether optional resolver identity keys need a signed metadata profile
 - how clients should present resolver freshness and signed-record conflicts
 
-4. Reviewer-facing modeling and risk disclosure
+4. Reviewer-facing modeling and risk disclosure — **[ANSWERED]** *this is now
+`docs/ONT_DESIGN_BRIEF.md` (footprint numbers, trade-off tables, §9 feedback
+questions). One bullet below aged into being false and is corrected inline.*
 
 The rewritten draft should explicitly document:
 - preliminary blockspace estimates
@@ -841,22 +873,34 @@ Reviewer-facing trade-offs that should be stated plainly include:
 - v1 resolver usage may still concentrate destination-record availability around a small number of hosted resolvers
 - stale or failed auction bids may expose demand for a specific name before a
   bidder wins it
-- the owner key is distinct from the funding wallet key, and v1 does not include a protocol recovery path if that owner key is lost
+- the owner key is distinct from the funding wallet key. *(Correction
+  2026-06-10: the original bullet here claimed v1 has no protocol recovery
+  path for a lost owner key — that is no longer true. Owner-armed recovery is
+  designed and prototyped on signet, and recovery posture is Decision #40; see
+  `research/OWNER_KEY_RECOVERY.md`.)*
 
-5. Concrete wire format
+5. Concrete wire format — **[ANSWERED]** *the v1 event set is Decision #26,
+wire-format direction is Decision #28, the formats live in
+`@ont/protocol/src/wire.ts`, run on signet, and the size envelope is pinned by
+`wire-size.test.ts` (≤171 bytes, recover-owner).*
 
 Need to specify exact OP_RETURN payload formats for:
 - AUCTION_BID
 - TRANSFER
 
-6. Canonical indexing and tie-breaking rules
+6. Canonical indexing and tie-breaking rules — **[PARTIALLY ANSWERED]**
+*same-block auction tie-break is Decision #25; cheap-rail merge is
+first-anchor-wins with deterministic priority, live since 2026-06-09;
+duplicate-bid well-formedness is enforced by the proof bundle. Still open:
+reorg handling, which is the W/C/K window design (see #39 and STATUS.md's DA
+Known-incomplete entry).*
 
 Need to define:
 - reorg handling
 - duplicate bid handling
 - invalidation behavior for malformed sequences
 
-7. Wallet and CLI safety rules
+7. Wallet and CLI safety rules — **[OPEN]**
 
 Need to define UX and implementation safeguards to prevent users from accidentally breaking bond continuity before maturity.
 
