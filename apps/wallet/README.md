@@ -138,5 +138,4 @@ Environment: `ONT_WALLET_KEYSTORE` (default `ont-wallet.json`), `ONT_WALLET_STAT
 - exact Lexe sidecar `pay` request/response schema (confirm against docs.lexe.tech), and
   wiring against a real node.
 
-Status: design + prototype — not a mainnet wallet. See
-[`../../docs/research/ONT_WALLET_AND_ONBOARDING_DIRECTION.md`](../../docs/research/ONT_WALLET_AND_ONBOARDING_DIRECTION.md).
+Status: design + prototype — not a mainnet wallet.

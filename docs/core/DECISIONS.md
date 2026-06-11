@@ -937,7 +937,7 @@ Need to define:
 - how clients should present resolver freshness and signed-record conflicts
 
 4. Reviewer-facing modeling and risk disclosure — **[ANSWERED]** *this is now
-`docs/ONT_DESIGN_BRIEF.md` (footprint numbers, trade-off tables, §9 feedback
+`docs/DESIGN.md` (ex-ONT_DESIGN_BRIEF — footprint numbers, trade-off tables, feedback
 questions). One bullet below aged into being false and is corrected inline.*
 
 The rewritten draft should explicitly document:

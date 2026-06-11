@@ -1,7 +1,7 @@
 # @ont/publisher — ONT publisher reference
 
 A v0 reference implementation of the publisher protocol described in
-[`docs/research/ONT_PUBLISHER_PROTOCOL_SPEC.md`](../../docs/spec/ONT_PUBLISHER_PROTOCOL_SPEC.md).
+[`docs/spec/ONT_PUBLISHER_PROTOCOL_SPEC.md`](../../docs/spec/ONT_PUBLISHER_PROTOCOL_SPEC.md).
 
 A publisher is a batching service: it accepts wallet claim requests, takes
 payment, batches the claims into a sparse-Merkle accumulator, and anchors

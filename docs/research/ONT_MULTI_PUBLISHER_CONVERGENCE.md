@@ -203,10 +203,12 @@ sha256(name), ownerCommitment === owner key, inclusion proof via
 
 - After the notice window closes, fetch the canonical accumulator state (from
   a resolver) and confirm the leaf for the claimed name commits *this wallet's*
-  owner key. Three outcomes: the leaf commits this wallet's key (owned); a
-  competing claim landed in the window (contested — the name is in auction, and
-  the wallet must decide whether to bid); or the name was already final on a
-  prior root (taken — the publisher should have caught this at quote time).
+  owner key. Four outcomes (per Decision #37): the leaf commits this wallet's
+  key (owned); a qualifying bond was posted in the window (contested — the name
+  is in auction, and the wallet must decide whether to bid); bare competing
+  claims collided with no bond (nullified — no owner, the name reopens, and the
+  wallet can re-claim); or the name was already final on a prior root (taken —
+  the publisher should have caught this at quote time).
 
 This is the case that matters: a wallet must never record a name as owned on
 the strength of a publisher receipt alone, because the receipt is issued
@@ -230,13 +232,16 @@ the pre-#37 rule.)*
 `docs/spec/CONTESTED_AUCTION_REFERENCE.md` is the in-depth design of that
 escalated path (≈7-day window, soft close, returnable bonds).
 
-The mechanical consequence for the convergence layer is mostly already built.
-`runBatchRail` in `batch-rail.ts` implements the notice-window escalation
-correctly today and is covered by `batch-rail.test.ts`: it DA-filters the
-deltas, groups same-name claims, and for each name checks whether two or more
-distinct claimants land within `noticeWindowBlocks` of the earliest claim. If
-so the name is pushed to `escalatedNames` (→ auction); if not the earliest
-claim finalizes. So the escalation logic is real, not aspirational. The
+The mechanical consequence for the convergence layer is mostly already built —
+with one known rule gap. `runBatchRail` in `batch-rail.ts` implements the
+**pre-#37** notice-window escalation and is covered by `batch-rail.test.ts`: it
+DA-filters the deltas, groups same-name claims, and for each name checks
+whether two or more distinct claimants land within `noticeWindowBlocks` of the
+earliest claim. If so the name is pushed to `escalatedNames` (→ auction); if
+not the earliest claim finalizes. So the escalation machinery is real, not
+aspirational — but its *trigger* is the old rule: per Decision #37 the policy
+layer must key escalation on a **qualifying bond** and **nullify** bare
+collisions, and the sim has not been updated to that trigger yet. The
 remaining work is narrower than I first stated:
 
 - **`mergeBlock` is the low-level primitive, not the contested-claims policy.**
@@ -278,8 +283,8 @@ Remaining sub-questions (implementation shape, not protocol shape):
   (they are neither bond nor refundable), which is fine as anti-spam but
   should be stated so the auction's bond accounting does not double-count them.
 
-`docs/design/ONT_MEV_ORDERING_ANALYSIS.md` is the right neighbor for the
-ordering/fairness half of the notice window.
+The MEV & ordering analysis in [`../RISKS.md`](../RISKS.md) is the right
+neighbor for the ordering/fairness half of the notice window.
 
 ## Neutrality tradeoffs (the decisions that need you)
 
