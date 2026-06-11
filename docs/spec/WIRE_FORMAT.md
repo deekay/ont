@@ -220,11 +220,14 @@ the JSON is transport, the digest is the contract.
 
 ### 8.1 Value record (`ont-value-record`, recordVersion 2)
 
-Fields: `format`, `recordVersion`, `name`, `ownerPubkey`(32-hex),
-`ownershipRef`(32-hex), `sequence`, `previousRecordHash`(32-hex or null),
-`valueType`(1 byte; registry: `0x00` null, `0x01` Bitcoin payment target,
-`0x02` HTTPS target, `0xff` raw/app-defined), `payloadHex`, `issuedAt`
-(ISO timestamp), `signature`(64, owner Schnorr).
+Fields (the complete JSON envelope; a parser MUST reject an envelope whose
+`format` or `recordVersion` does not match exactly):
+`format` = `"ont-value-record"`, `recordVersion` = `2`, `name`,
+`ownerPubkey`(32-hex), `ownershipRef`(32-hex), `sequence`,
+`previousRecordHash`(32-hex or null), `valueType`(1 byte; registry: `0x00`
+null, `0x01` Bitcoin payment target, `0x02` HTTPS target, `0xff`
+raw/app-defined), `payloadHex`, `issuedAt` (ISO timestamp),
+`signature`(64, owner Schnorr).
 
 Digest: `sha256( lenPrefix("ont-value-record") ‖ version(1) ‖
 lenPrefix(name) ‖ ownerPubkey(32) ‖ ownershipRef(32) ‖ sequence(u64) ‖
@@ -245,8 +248,16 @@ Fields (the complete JSON envelope; a parser MUST reject an envelope whose
 `format` = `"ont-recovery-descriptor"`, `descriptorVersion` = `1`, `name`,
 `ownerPubkey`(32-hex), `ownershipRef`(32-hex), `sequence`,
 `previousDescriptorHash`(32-hex or null), `recoveryAddress`,
-`signingProfile` (default `bip322`), `challengeWindowBlocks`, `issuedAt`
-(ISO timestamp), `signature`(64, owner Schnorr).
+`signingProfile`, `challengeWindowBlocks`, `issuedAt` (ISO timestamp),
+`signature`(64, owner Schnorr).
+
+The descriptor's `signingProfile` is deliberately looser than the proof's
+(§8.3): after trim+lowercase normalization it must match
+`[a-z0-9._-]{1,32}` (default `bip322`) — the grammar leaves room for
+future profiles. But descriptorVersion 1 *defines* only `bip322`: a
+descriptor naming any other profile is well-formed yet cannot be invoked,
+because invocation requires the §8.3 proof, which rejects every profile
+except `bip322`.
 
 Digest (= the descriptor hash the on-chain RecoverOwner event references):
 `sha256( lenPrefix("ont-recovery-descriptor") ‖ version(1) ‖
@@ -267,7 +278,14 @@ Fields (the complete JSON envelope; a parser MUST reject an envelope whose
 `prevStateTxid`(32-hex), `recoveryDescriptorHash`(32-hex),
 `newOwnerPubkey`(32-hex), `successorBondVout`, `challengeWindowBlocks`,
 optional `chainTipBlockHash`(32-hex) and `chainTipHeight`,
-`recoveryAddress`, `signingProfile`, `message`, `signatureBase64`.
+`recoveryAddress`, `signingProfile` = `"bip322"`, `message`,
+`signatureBase64`.
+
+- **`signingProfile` is constrained:** a parser normalizes the value
+  (trim, lowercase) and MUST reject the proof if the result is not exactly
+  `bip322` — proofVersion 1 defines no other profile. The proof hash and
+  the message's `profile:` line both use the normalized literal `bip322`,
+  so the hashed value and the signed value can never diverge.
 
 - **Message** — the exact template. Nine lines joined by a single LF
   (`0x0a`), **no trailing newline**; each labeled line is the literal label,
