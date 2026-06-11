@@ -77,6 +77,7 @@ files are historical and the ledger wins.
 | Spec file | Enters as | Hardened for phase | Notes |
 | --- | --- | --- | --- |
 | `spec/AUCTION.md` | candidate | B2 | bond-opens (#37) semantics; transcript completeness feeds the kernel predicate |
+| `spec/WIRE_FORMAT.md` | candidate | B1 | reserved stub created at B1 hardening (gap G1 of B1_WIRE_HARDENING.md); content lands via the G1 named spec PR |
 | `spec/CONFORMANCE.md` | candidate | B1 | vector definitions; B1 gate consumes it first |
 | `spec/CONTESTED_AUCTION_REFERENCE.md` | candidate | B2 | reference flow; check old-model leakage against bond-opens |
 | `spec/ONT_ACQUISITION_STATE_MACHINE.md` | candidate | B2 | the kernel's backbone; first hardening target |

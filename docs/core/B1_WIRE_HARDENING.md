@@ -39,16 +39,19 @@ unratified docs; needs the named spec PR listed in Gaps before promotion.
   *Tests:* accept/reject vector table over the boundary (length 1, 32, 33,
   0; each excluded character class); property test `validName ⇒ matches
   regex`.
-- **W2.** Normalization is a total function: any input maps to its canonical
-  lowercase form or is rejected; normalization is idempotent;
-  `normalize(A) = normalize(a)`.
+- **W2.** *Accepted input* (what a surface lets a user type) is
+  case-insensitive: normalization is a total function mapping any input to
+  its canonical lowercase form or rejecting it; normalization is
+  idempotent; `normalize("Alice") = normalize("alice") = "alice"`.
   *Source:* DESIGN.md (normalizeName). **Cited.**
   *Tests:* idempotence property; case-folding vectors; mixed-garbage
   rejection vectors.
-- **W3.** On the wire, a name appears only in canonical bytes. A decoder
-  MUST reject a payload whose name bytes are non-canonical (e.g. contains
-  `A-Z`), rather than normalize silently — two on-chain encodings of the
-  same name is malleability.
+- **W3.** *Canonical name bytes* (what appears on the wire) are stricter
+  than accepted input: a name in any encoded payload appears only in its
+  canonical form, and a decoder MUST reject a payload whose name bytes are
+  non-canonical (e.g. contains `A-Z`), rather than normalize silently —
+  two on-chain encodings of the same name is malleability. Normalization
+  is a surface/input concern (W2); the wire never normalizes.
   *Source:* implied by W1+W2; stated nowhere explicitly.
   **Candidate-stays — needs G1 (wire-format spec PR).** Flag for attack:
   is reject-don't-normalize the right rule?
@@ -121,34 +124,108 @@ unratified docs; needs the named spec PR listed in Gaps before promotion.
   vectors in engine/web/mobile/`apps/claim/src/keys.conformance.test.ts`
   (mining source). **Cited.**
   *Tests:* the mined 12-word vectors verbatim; gap-scan restore vector.
-- **W13.** The transfer digest covers exactly (prevStateTxid,
-  newOwnerPubkey, flags, successorBondVout) — byte-precise definition to be
-  fixed in the wire spec so independent implementations sign identically.
-  *Source:* DESIGN.md states the field list; byte-precise digest layout is
-  code-only. **Candidate-stays — needs G1.**
+- **W13.** Every ONT signature digest is **domain-separated**: SHA-256 over
+  a length-prefixed UTF-8 label followed by the fields, so a signature can
+  never be replayed in another context. The two on-chain authorization
+  digests, byte-precise:
+  - transfer: `sha256( lenPrefix("ont-transfer-owner") ‖ prevStateTxid(32)
+    ‖ newOwnerPubkey(32) ‖ flags(1) ‖ successorBondVout(1) )`
+  - recover-owner: `sha256( lenPrefix("ont-recover-owner") ‖
+    prevStateTxid(32) ‖ newOwnerPubkey(32) ‖ flags(1) ‖
+    successorBondVout(1) ‖ challengeWindowBlocks(u32 BE) ‖
+    recoveryDescriptorHash(32) )`
+  where `lenPrefix(s)` = u16 BE byte-length + UTF-8 bytes
+  (`packages/protocol/src/events.ts:327-358`).
+  *Source:* DESIGN.md states the transfer field list; the domain label and
+  byte layout are code-only. **Candidate-stays — needs G1** (the spec must
+  state label and layout, or independent implementations sign different
+  bytes).
+  *Tests:* digest golden vectors per event; cross-context negative test (a
+  valid transfer signature MUST NOT verify as a recover-owner authorization
+  over the same fields and vice versa).
   *Note:* whether a given transfer is *authorized* (current-owner check) is
   kernel (B2). B1 owns only "the digest is these bytes; the signature
   verifies against a given key."
+- **W13a — label inventory.** The protocol's full domain-label set, which
+  the wire spec must enumerate so no two contexts share a label:
+  `ont-transfer-owner`, `ont-recover-owner` (on-chain auth, length-prefixed
+  convention); `ont-value-record` v2, `ont-recovery-descriptor` v1,
+  `ont-recovery-wallet-proof` v1, `ont-transfer-package` v1,
+  `ont-auction-bid-package` v3 (off-chain envelopes, format+version
+  fields); `ont-auction-bidder-v1`, `ont-auction-lot-v1`,
+  `ont-auction-state-v1` (auction commitments, NUL-separated UTF-8
+  convention, `auction-bid-package.ts:363-412`).
+  **Flag for attack:** two separation conventions coexist (length-prefixed
+  binary vs NUL-separated text). The spec should either standardize on one
+  for new material or document both as frozen; NUL-separation of
+  unvalidated text fields is the weaker construction.
+  **Candidate-stays — needs G1.**
 
 ### W-OFFCHAIN — owner-signed off-chain shapes
 
-- **W14.** A value record carries: payload (bounded; current working bound
-  65,535 bytes — a kernel/launch parameter, not a wire constant), sequence
-  number, predecessor-record hash, owner signature (64). Chain rule
-  (sequence exactly +1, hash links to head) is stated for B2/B4 — B1 owns
-  only the byte shape.
-  *Source:* spec/ONT_ACQUISITION_STATE_MACHINE.md (sequence/predecessor),
-  STATUS (payload bound, placeholder). **Candidate-stays — needs G2:** no
-  doc specifies the actual encoding (JSON? CBOR? raw struct?); the old
-  stack's choice is evidence, not authority.
-- **W15.** A recovery descriptor is owner-signed: descriptor payload,
-  sha256 descriptor hash (32), owner Schnorr signature (64), optional
-  BIP322 recovery-wallet proof.
-  *Source:* spec/ONT_RECOVERY_INVOKE_SPEC.md. **Cited** for shape.
+- **W14.** A signed value record (`ont-value-record`, recordVersion 2) is
+  the full field set: `format`, `recordVersion`, `name`, `ownerPubkey`
+  (32-byte x-only hex), `ownershipRef` (32-byte hex), `sequence`,
+  `previousRecordHash` (32-byte hex or null), `valueType` (1 byte),
+  `payloadHex` (bounded; working bound 65,535 bytes — a kernel/launch
+  parameter, not a wire constant), `issuedAt` (ISO timestamp), `signature`
+  (64-byte Schnorr). The signature digest is domain-separated and
+  byte-precise: label, version byte, length-prefixed normalized name,
+  ownerPubkey, ownershipRef, sequence u64 BE, null-flagged
+  previousRecordHash, valueType byte, u16-length-prefixed payload bytes,
+  length-prefixed issuedAt (`value-record.ts:142-169`).
+  Chain *rules* (sequence exactly +1, hash links to head) are kernel/adapter
+  material (B2/B4) — B1 owns shape and digest.
+  *Source:* spec/ONT_ACQUISITION_STATE_MACHINE.md (sequence/predecessor
+  concept), STATUS (payload bound); field set and digest layout are
+  code-only. **Candidate-stays — needs G2** (spec must state the envelope
+  encoding and digest layout; the old stack's JSON envelope is evidence,
+  not authority).
+- **W15.** A signed recovery descriptor (`ont-recovery-descriptor`,
+  descriptorVersion 1) carries: `name`, `ownerPubkey`, `ownershipRef`,
+  `sequence`, `previousDescriptorHash` (or null), `recoveryAddress`,
+  `signingProfile` (default `bip322`), `challengeWindowBlocks` (default
+  144), `issuedAt`, owner `signature` (64-byte Schnorr); its sha256
+  descriptor hash (32) is what the on-chain RecoverOwner event references
+  (`recovery-descriptor.ts:13-29`).
+  *Source:* spec/ONT_RECOVERY_INVOKE_SPEC.md names the surface; field set
+  is code-only. **Candidate-stays — needs G2.**
+- **W15a.** The recovery wallet proof is a **separate object**
+  (`ont-recovery-wallet-proof`, proofVersion 1), not part of the
+  descriptor: `name`, `prevStateTxid`, `recoveryDescriptorHash`,
+  `newOwnerPubkey`, `successorBondVout`, `challengeWindowBlocks`, optional
+  chain-tip fields, plus `recoveryAddress`, `signingProfile`, the BIP322
+  `message`, and `signatureBase64` — a BIP322 signature by the recovery
+  *address* key, not an owner-key Schnorr signature
+  (`recovery-wallet-proof.ts:13-36`).
+  *Source:* spec/ONT_RECOVERY_INVOKE_SPEC.md (BIP322 proof); field set
+  code-only. **Candidate-stays — needs G2.**
   *Note:* the RecoverOwner *authorization semantics* (which key signs the
   on-chain invoke — the spec's own open question a/b/c) is NOT a B1
-  question; it blocks B2's recovery-authority hardening and is listed there.
-  B1 pins only the 64-byte slot and codec (W7).
+  question; it blocks B2's recovery-authority hardening and is listed
+  there. B1 pins only shapes, digests, and the 64-byte slot codec (W7).
+- **W16.** The auction commitments carried in the on-chain bid (W7) are
+  **truncated hashes**: `bidderCommitment` and `auctionLotCommitment` are
+  sha256 of NUL-separated labeled text, truncated to 32 hex chars = **16
+  bytes / 128 bits** (`computeAuctionBidderCommitment`,
+  `computeAuctionLotCommitment`, `auction-bid-package.ts:363-389`);
+  `auctionStateCommitment` (`ont-auction-state-v1`) is full-width.
+  *Source:* code-only. **Candidate-stays — needs G1.**
+  **Flag for attack:** is 128-bit truncation acceptable for these
+  commitments (collision birthday bound ~2^64), given what the transcript
+  completeness predicate (B2) will lean on them for?
+- **W17 — routed-out proposal.** The exported package envelopes are
+  **wallet-handoff artifacts, not wire**: `ont-transfer-package` v1 is an
+  *unsigned* advisory JSON envelope (transfer parameters plus UI copy —
+  mode titles, suitability text, command strings;
+  `transfer-package.ts:18-53`), and `ont-auction-bid-package` v3 mixes the
+  three commitments (wire, W16) with preview/UX state (phase, summaries,
+  would-become-leader; `auction-bid-package.ts:22-51`). Proposal: B1/
+  `@ont/wire` owns the commitment functions and any signed/hashed
+  primitive; the package envelopes move to the surfaces layer (B5
+  wallet-handoff formats), where their advisory fields belong. Their
+  `format`/`version` labels stay reserved in the W13a inventory either way.
+  **This is a scope ruling for the attack pass + DK, not settled here.**
 
 ## Gaps — named spec PRs required before affected promotion
 
@@ -156,15 +233,20 @@ Per Item 1: gap ⇒ stop ⇒ named spec PR ⇒ then code.
 
 - **G1 — wire-format spec.** There is no normative wire-format document:
   frame bytes, version-reject rule, exhaustive event-type enumeration,
-  per-event byte layouts, endianness, canonical-name-bytes rule (W3), and
-  the INCLUDES_NAME flag rule live only in `packages/protocol` source and
-  tests. Proposed: new `docs/spec/WIRE_FORMAT.md` written from this
-  extraction + the mined vectors, entering the ledger as `candidate` and
-  hardening within B1. **This is the main B1 spec deliverable; most
-  candidate-stays items above promote through it.**
-- **G2 — value-record encoding.** Off-chain record encoding is unspecified
-  (W14). Either a section of G1's spec PR or its own; blocks the
-  value-record part of `@ont/wire`, not the rest of B1.
+  per-event byte layouts, endianness, canonical-name-bytes rule (W3),
+  domain-separation labels and conventions (W13/W13a), commitment
+  truncation (W16), and the INCLUDES_NAME flag rule live only in
+  `packages/protocol` source and tests. The candidate stub is reserved at
+  [`docs/spec/WIRE_FORMAT.md`](../spec/WIRE_FORMAT.md); its content lands
+  as the G1 named spec PR written from this extraction + the mined
+  vectors after the attack pass settles the invariants. **This is the main
+  B1 spec deliverable; most candidate-stays items above promote through
+  it.**
+- **G2 — off-chain envelope encodings.** The owner-signed off-chain shapes
+  (W14 value record, W15 recovery descriptor, W15a wallet proof) have
+  concrete field sets and digest layouts only in code; no doc specifies
+  the envelope encoding or digests. Either a section of G1's spec PR or
+  its own; blocks the off-chain part of `@ont/wire`, not the rest of B1.
 
 ## Explicitly routed out of B1
 
