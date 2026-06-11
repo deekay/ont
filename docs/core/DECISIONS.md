@@ -739,6 +739,42 @@ Implications:
   the protocol's grief defense is that one bond ends denial; defense
   affordability beyond that is a disclosed limitation, not a promise.
 
+44. The trust-surface boundary is mutable during development; it freezes at
+public/mainnet launch — 2026-06-10
+
+The "frozen core" had been read as frozen *now*: the trust-surface CI test
+fails the build if the consensus allowlist changes, which pushed
+ownership-deciding code (auction settlement, cheap-rail finalization) to be
+built and hardened *outside* the audited boundary. Decision (DK, ratified
+2026-06-10): **the boundary is mutable during development.** The trust-surface
+allowlist may change — files in or out — only together with:
+
+- a numbered DECISIONS.md entry recording what moved and why, and
+- conformance coverage for any rule that moves (behavior-preservation against
+  pinned fixtures when extracting live behavior).
+
+The no-silent-growth CI ratchet stays: the allowlist in
+`packages/consensus/src/trust-surface.test.ts` is the boundary **manifest**,
+and unexplained drift still fails the build. What changes is the meaning of an
+allowlist edit — from "forbidden" to "deliberate, recorded, and reviewed."
+
+**Freezing becomes a launch gate**: the boundary freezes permanently before any
+public/mainnet launch, as a checklist item alongside the launch-parameter
+freeze. Until then, docs should say "audited boundary, to be frozen at launch";
+"frozen like Bitcoin" remains the user-facing end-state promise, not a
+description of the dev-time process.
+
+Implications:
+- Unblocks executing Decision #42 now: settlement moves inside the boundary
+  and is hardened there — where the audit attention is — rather than being
+  perfected outside first.
+- Clears the path for the cheap-rail finalization rules and anchor-acceptance
+  rules (aggregate gate-fee validation, DA deadline enforcement) to move
+  inside as lean rule extractions, not wholesale file relocations.
+- The "minimal audited core" claim stays honest at every moment: the manifest
+  is the canonical list of what a newcomer must audit, whatever it currently
+  contains.
+
 ## Fairness Principles To Carry Into The Launch Rewrite
 
 The rewritten launch draft should explicitly state:
