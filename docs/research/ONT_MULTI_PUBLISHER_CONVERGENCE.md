@@ -4,6 +4,14 @@ Status: design note, not frozen. Surfaces a real tension in the current
 code and proposes a direction. The neutrality-sensitive choices at the end
 need a human decision before any of this is wired.
 
+> **Update note (2026-06-11):** parts of this note predate Decision #37 (bond
+> opens the auction, 2026-06-04). Where the text says a competing in-window
+> claim "escalates" or "forces" an auction, read it per #37: only a
+> **qualifying bond** opens an auction; two or more bare claims with no bond
+> **nullify** the name (no owner; reopens). Inline notes mark the two affected
+> passages. The normative rule is
+> [`../spec/ONT_ACQUISITION_STATE_MACHINE.md`](../spec/ONT_ACQUISITION_STATE_MACHINE.md).
+
 Companion to `ONT_PUBLISHER_PROTOCOL_SPEC.md`, which deliberately scoped
 multi-publisher coordination *out* ("each publisher runs independently;
 conflicts resolve at the consensus layer"). This note is about what that
@@ -215,7 +223,11 @@ common, cheap, batched case). If a competing claim *does* land in the window,
 the name is **contested** and escalates to a bonded L1 auction —
 which is the *only* way an auction ever starts. The cheap claim is the sole
 entry path; the auction is an escalation of it, not a parallel rail.
-`docs/launch/CONTESTED_AUCTION_REFERENCE.md` is the in-depth design of that
+*(Update note, 2026-06-11 — per Decision #37 the trigger is a **bond**, not a
+bare competing claim: a bare collision nullifies the name instead of opening
+an auction, and bond-first is allowed, so "competing claim → auction" above is
+the pre-#37 rule.)*
+`docs/spec/CONTESTED_AUCTION_REFERENCE.md` is the in-depth design of that
 escalated path (≈7-day window, soft close, returnable bonds).
 
 The mechanical consequence for the convergence layer is mostly already built.
@@ -283,7 +295,13 @@ ordering/fairness half of the notice window.
    + recomputable; the choice among piggyback / public-good / fee-market is
    open.
 
-3. **Griefing bound under escalation.** Because contested claims go to auction
+3. **Griefing bound under escalation.** *(Update note, 2026-06-11 — per
+   Decision #37 a bare second claim no longer forces an auction; it nullifies
+   the name, so the grief reshapes from forced escalation to denial. The
+   current cost model is
+   [`archive/ONT_CONTEST_GRIEF_COST_MODEL.md`](./archive/ONT_CONTEST_GRIEF_COST_MODEL.md)
+   and the ranked assessment in [`../RISKS.md`](../RISKS.md). Original text
+   follows.)* Because contested claims go to auction
    rather than a silent race, a griefer cannot cheaply void a victim's claim —
    they can only *force an auction* by claiming the same name in the notice
    window, which costs them their own ₿1,000 gate and then a returnable bond to

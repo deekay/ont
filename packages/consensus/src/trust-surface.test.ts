@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 const srcDir = dirname(fileURLToPath(import.meta.url));
 
 // The sovereignty trust-surface MANIFEST of @ont/consensus.
-// See docs/design/ONT_SOVEREIGNTY_MAP.md ("the whole trust surface: ~7 files").
+// See docs/DESIGN.md (trust surface / sovereignty map) ("the whole trust surface: ~7 files").
 // Today these modules hold owner-key authority and replay validation: a name
 // moves only if its current owner key signed it, and that is provable to
 // anyone. They do NOT yet decide all ownership — auction settlement and
@@ -47,7 +47,7 @@ function importSpecifiers(file: string): readonly string[] {
   return specifiers;
 }
 
-describe("sovereignty trust surface (docs/design/ONT_SOVEREIGNTY_MAP.md)", () => {
+describe("sovereignty trust surface (docs/DESIGN.md (trust surface / sovereignty map))", () => {
   for (const file of SOVEREIGNTY_CORE) {
     it(`${file} depends only on protocol/bitcoin primitives and other core files`, () => {
       for (const specifier of importSpecifiers(file)) {
@@ -64,7 +64,7 @@ describe("sovereignty trust surface (docs/design/ONT_SOVEREIGNTY_MAP.md)", () =>
             `@ont/protocol, @ont/bitcoin, node builtins, and the other core files ` +
             `(${SOVEREIGNTY_CORE.join(", ")}). Importing allocation (auctions), indexer/resolver ` +
             `convenience, or research/simulation code here would silently expand the trust surface a ` +
-            `newcomer must audit. See docs/design/ONT_SOVEREIGNTY_MAP.md.`
+            `newcomer must audit. See docs/DESIGN.md (trust surface / sovereignty map).`
         ).toBe(true);
       }
     });

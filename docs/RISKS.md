@@ -533,7 +533,9 @@ See also: [`OPEN_QUESTIONS.md`](./OPEN_QUESTIONS.md) (auction options),
 
 ## Whole-system threat model
 
-*Absorbed from `research/ONT_ADVERSARIAL_ANALYSIS.md`. Design note, not frozen.*
+*Absorbed from `research/ONT_ADVERSARIAL_ANALYSIS.md`. Design note, not frozen. Parts of
+this layer predate Decision #37 (bond opens the auction; bare collisions nullify) —
+bracketed update notes mark where the contest rule changed.*
 
 A working inventory of how ONT can be attacked, griefed, or degraded across all four
 surfaces — the cheap rail, the publisher, the resolver, and the auction — plus a prominent
@@ -613,6 +615,15 @@ watching and do not have coin out of cold storage to contest in time.
 
 #### 1.2 Sybil-contest griefing — force a victim's claim to auction with a throwaway claim
 
+*(Update note, 2026-06-11: Decision #37 — bond opens the auction, 2026-06-04 — supersedes
+the escalation rule this section describes. A bare second claim with no qualifying bond now
+**nullifies** the name (no owner; it reopens for claiming) and can never force an auction;
+only a bond escalates. The attack reshapes from forced escalation to denial — the current
+treatment is the ranked assessment §2 below and
+[`spec/ONT_ACQUISITION_STATE_MACHINE.md`](./spec/ONT_ACQUISITION_STATE_MACHINE.md). The
+research sim cited below (`batch-rail.ts` and its documenting test) still implements the
+pre-#37 escalate-on-collision rule. The original text follows unchanged.)*
+
 Contesting is permissionless, and the "is this contested" check keys on *distinct delta
 id*, not real-world identity (`batch-rail.ts`: a name with ≥2 distinct in-window claimants
 escalates). So one actor can anchor a second claim for a victim's name under a throwaway
@@ -639,8 +650,12 @@ A publisher (or a miner, or anyone watching the mempool/quote traffic) sees a cl
 desirable name and races their own in first.
 
 - **Defense today:** under the one-path model this does not hand the front-runner the
-  name. Two claims for the same name inside the window = contested = auction.
-  Front-running a cheap claim only *triggers the auction*, it does not win it.
+  name. Two claims for the same name inside the window = contested = auction. *(Update
+  note, 2026-06-11: per Decision #37 this now reads — two bare claims with no bond
+  **nullify** the name (deny, reopen); only a qualifying bond opens the auction. Either
+  way the front-runner gains nothing, which is this section's point; see the MEV &
+  ordering analysis above, D1/D3.)* Front-running a cheap claim only *triggers the
+  auction*, it does not win it.
   Commit-priority ordering (`(height, txIndex, txid)`) decides who is "first" only among
   uncontested claims, where it does not matter because there is no competition.
 - **Residual gap:** a publisher uniquely positioned to see quote traffic before it is

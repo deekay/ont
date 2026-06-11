@@ -40,8 +40,11 @@ There is one acquisition path:
 2. A public notice window gives others a chance to claim the same name.
 3. If no one else claims it, the name becomes final through the accumulator
    rail. The owner key controls transfer, recovery setup, and value records.
-4. If the name is contested, it escalates to a visible ascending auction with
-   returnable Bitcoin bonds.
+4. A **qualifying bond — not a bare claim — opens the auction** (Decision #37):
+   if a bond is posted in the window, the name escalates to a visible ascending
+   auction with returnable Bitcoin bonds. Two or more bare claims with no bond
+   **nullify** the name instead — no owner, and it reopens for claiming.
+   Collisions can deny; only bonds can award.
 5. The winner receives the same owner-key-controlled name as an uncontested
    claimant. The auction path changes allocation, not the final ownership
    object.

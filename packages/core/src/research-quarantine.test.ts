@@ -9,7 +9,7 @@ const srcDir = dirname(fileURLToPath(import.meta.url));
 // Research / simulation code (src/research/*) proves scaling-design properties;
 // none of it can take or change a name. It must stay a leaf that the rest of
 // @ont/core (allocation, indexer) never depends on, just as the frozen core in
-// @ont/consensus never does. See docs/design/ONT_SOVEREIGNTY_MAP.md.
+// @ont/consensus never does. See docs/DESIGN.md (trust surface / sovereignty map).
 //
 // NOTE: the accumulator + anchored root chain GRADUATED out of src/research/ once
 // the live indexer began observing the root chain (accumulator.ts, root-anchor.ts
@@ -32,7 +32,7 @@ function importSpecifiers(file: string): readonly string[] {
   return specifiers;
 }
 
-describe("research quarantine (docs/design/ONT_SOVEREIGNTY_MAP.md)", () => {
+describe("research quarantine (docs/DESIGN.md (trust surface / sovereignty map))", () => {
   it("no production module outside src/research/ imports research/simulation code", () => {
     const offenders: string[] = [];
     for (const file of readdirSync(srcDir)) {

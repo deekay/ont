@@ -9,7 +9,7 @@
 // simulation code. trust-surface.test.ts freezes that, and the package boundary
 // makes it physically impossible to import the rest of the system in here.
 //
-// See docs/design/ONT_SOVEREIGNTY_MAP.md.
+// See docs/DESIGN.md (trust surface / sovereignty map).
 export * from "./engine.js";
 export * from "./state.js";
 export * from "./proof-bundle.js";

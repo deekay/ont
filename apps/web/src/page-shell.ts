@@ -5,16 +5,16 @@ const GITHUB_REPO_URL = "https://github.com/deekay/ont";
 const GITHUB_BLOB_BASE_URL = `${GITHUB_REPO_URL}/blob/main`;
 const DOC_URLS = {
   readme: `${GITHUB_BLOB_BASE_URL}/README.md`,
-  fromZero: `${GITHUB_BLOB_BASE_URL}/docs/core/ONT_FROM_ZERO.md`,
-  newUser: `${GITHUB_BLOB_BASE_URL}/docs/core/NEW_USER_TESTING_GUIDE.md`,
-  sparrowPrivateSignet: `${GITHUB_BLOB_BASE_URL}/docs/demo/SPARROW_PRIVATE_SIGNET.md`,
-  implementation: `${GITHUB_BLOB_BASE_URL}/docs/launch/ONT_IMPLEMENTATION_AND_VALIDATION.md`,
-  launchBrief: `${GITHUB_BLOB_BASE_URL}/docs/launch/ONT_LAUNCH_V1_BRIEF.md`,
-  auctionSettlement: `${GITHUB_BLOB_BASE_URL}/docs/launch/AUCTION_SETTLEMENT_AND_OWNERSHIP.md`,
-  destinations: `${GITHUB_BLOB_BASE_URL}/docs/research/VALUE_RECORD_HISTORY_AND_KEYBASE_NOTES.md`,
-  transfer: `${GITHUB_BLOB_BASE_URL}/docs/research/TRANSFER_RELAY_OPTIONS.md`,
+  fromZero: `${GITHUB_BLOB_BASE_URL}/docs/ONT.md`,
+  newUser: `${GITHUB_BLOB_BASE_URL}/docs/operate/NEW_USER_TESTING_GUIDE.md`,
+  sparrowPrivateSignet: `${GITHUB_BLOB_BASE_URL}/docs/operate/demo/SPARROW_PRIVATE_SIGNET.md`,
+  implementation: `${GITHUB_BLOB_BASE_URL}/docs/LAUNCH.md`,
+  launchBrief: `${GITHUB_BLOB_BASE_URL}/docs/LAUNCH.md`,
+  auctionSettlement: `${GITHUB_BLOB_BASE_URL}/docs/spec/AUCTION.md`,
+  destinations: `${GITHUB_BLOB_BASE_URL}/docs/research/archive/VALUE_RECORD_HISTORY_AND_KEYBASE_NOTES.md`,
+  transfer: `${GITHUB_BLOB_BASE_URL}/docs/research/archive/TRANSFER_RELAY_OPTIONS.md`,
   recovery: `${GITHUB_BLOB_BASE_URL}/docs/research/OWNER_KEY_RECOVERY.md`,
-  testing: `${GITHUB_BLOB_BASE_URL}/docs/core/TESTING.md`
+  testing: `${GITHUB_BLOB_BASE_URL}/docs/operate/TESTING.md`
 } as const;
 export interface PageShellOptions {
   basePath: string,

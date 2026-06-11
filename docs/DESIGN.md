@@ -322,7 +322,7 @@ either way: a publisher never controls a *name* (ownership remains the owner key
 worst it can do is refuse or fail a batch, and a user can always claim directly on L1.
 
 The user's all-in cost is the **₿1,000 gate (sunk, to miners) plus a thin publisher service fee** —
-the publisher's marginal per-name cost is single-digit sats (an amortized channel-close + anchor), and
+the publisher's marginal per-name cost is single-digit ₿ (an amortized channel-close + anchor), and
 any markup is capped by the direct-L1 alternative (≈₿1,000 at low fee rates), so the fee stays thin.
 **v1 starts with a few reputable publishers and minimizes this trust over time.**
 
