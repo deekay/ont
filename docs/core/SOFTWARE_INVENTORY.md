@@ -1,9 +1,10 @@
 # ONT Software Inventory — code fates and the spec normativity ledger
 
-> **Status: DRAFT — pending adversarial review.** This is the B1-blocking
-> ledger required by clean-build (#46) Item 3, in two halves: every code unit
-> classified with its doc-rule mapping, and every spec file's normativity
-> status. Per the normative-hardening amendment, **no spec section enters as
+> **Status: ACTIVE — reviewed 2026-06-11** (ChatLunatique adversarial
+> review, two rounds). This is the B1-blocking ledger required by
+> clean-build (#46) Item 3, in two halves: every code unit classified with
+> its doc-rule mapping, and every spec file's normativity status. It is a
+> living ledger: fate changes and status promotions land as reviewed PRs. Per the normative-hardening amendment, **no spec section enters as
 > `normative`** — promotion is earned per section through the five-step
 > hardening before the phase that implements it. Snapshot basis:
 > `main` @ 60d4673 — ~57k lines TS in the workspace (`packages/*`, `apps/*`)
