@@ -4,9 +4,26 @@
 If the README, one-pager, design brief, or the website disagree with this file, **this file
 wins** — fix the others. (It exists because those numbers drifted apart once; don't let them again.)
 
-Last updated: 2026-06-10.
+Last updated: 2026-06-11.
+
+## DECOMMISSION NOTICE — 2026-06-11
+
+**The live signet deployment is decommissioned.** Per clean-build (#46)
+(Item 6, *nothing is precious*, and ruled call 5 — see
+[SOFTWARE_CANON.md](./SOFTWARE_CANON.md)), every signet-live component —
+claim site, explorer/read tooling, publisher, indexer/resolver — comes down
+at B1 start and stays down until the new stack earns deployment through its
+own phase gates. There is no parity obligation to the old stack and no
+planned restart of the old code. The old code is quarantined
+readable-not-running; mining it for vectors and documenting tests is the
+only sanctioned use. This is the announced decommission event that ruled
+call 5 requires; the DNS/hosting teardown is executed by DK with this entry
+as the record.
 
 ## Status legend
+- **Decommissioned (2026-06-11)** — was live on signet; taken down at
+  clean-build (#46) B1 start. Capability statements in its Notes describe
+  the pre-decommission state, kept for mining reference.
 - **Live (signet)** — runs end-to-end on the private signet today.
 - **Prototype** — built + unit-tested, but **not wired into the canonical live path**.
 - **Designed** — specified, not yet built.
@@ -15,16 +32,16 @@ Last updated: 2026-06-10.
 
 | Component | Status | Notes |
 | --- | --- | --- |
-| Owner-key model (transfer / value record / recovery) | **Live (signet)** | Enforced at replay; byte-identical across the engine + mobile crypto. |
-| Contested-auction bonded bid | **Live (signet)** | Bid → resolver-accepted on signet. Proof bundle now enforces **highest-bid-wins** + **distinct-bid** well-formedness (was a gap). Set-*completeness* vs L1 still needs the light-client path — see Known-incomplete. |
+| Owner-key model (transfer / value record / recovery) | **Decommissioned (2026-06-11)** | Enforced at replay; byte-identical across the engine + mobile crypto. |
+| Contested-auction bonded bid | **Decommissioned (2026-06-11)** | Bid → resolver-accepted on signet. Proof bundle now enforces **highest-bid-wins** + **distinct-bid** well-formedness (was a gap). Set-*completeness* vs L1 still needs the light-client path — see Known-incomplete. |
 | Bitcoin-inclusion verifier (Merkle + PoW) | **Prototype** | The verifier exists and is tested vs a real mainnet block, but **producers don't emit the `bitcoinInclusion` section**, so the light-client path is **not closed end-to-end**. |
-| Batched claim path (batch claims) | **Live (signet)** | **End-to-end since 2026-06-09**: claim → publisher anchors on-chain → indexer decodes the anchor → fetches the batch leaves from the publisher (`/da/{root}`) → re-verifies every membership proof against the Bitcoin-anchored root → name resolves and shows in the public explorer. A lying data source can't mint ownership (verify-don't-trust), and a loop integration test pins the publisher-bytes→indexer-decode boundary. **Still open:** availability-marker / fail-closed deadline enforcement is design+simulation only (see Known-incomplete); transport is publisher-served v1 (content-addressed mirroring is the design direction). |
-| Publisher (batched-path batch anchor) | **Live (signet, single-writer)** | Pay-first; real signet anchor broadcast; data-availability bundles survive restart (rebuilt on snapshot replay). Lightning stubbed on signet (Lexe is mainnet-only); leaderless multi-publisher is simulated, not deployed. |
+| Batched claim path (batch claims) | **Decommissioned (2026-06-11)** | **End-to-end since 2026-06-09**: claim → publisher anchors on-chain → indexer decodes the anchor → fetches the batch leaves from the publisher (`/da/{root}`) → re-verifies every membership proof against the Bitcoin-anchored root → name resolves and shows in the public explorer. A lying data source can't mint ownership (verify-don't-trust), and a loop integration test pins the publisher-bytes→indexer-decode boundary. **Still open:** availability-marker / fail-closed deadline enforcement is design+simulation only (see Known-incomplete); transport is publisher-served v1 (content-addressed mirroring is the design direction). |
+| Publisher (batched-path batch anchor) | **Decommissioned (2026-06-11)** | Pay-first; real signet anchor broadcast; data-availability bundles survive restart (rebuilt on snapshot replay). Lightning stubbed on signet (Lexe is mainnet-only); leaderless multi-publisher is simulated, not deployed. |
 | Discovery (resolver/publisher) | **Designed** | Config-seeded today; registry-free on-chain scan designed, not built. |
 | Mobile iOS app | **Prototype (signet demo)** | Feature-complete walkable demo; demo-mode default-on; mainnet host placeholder. Not release-ready. |
-| Web explainer (opennametags.org) | **Live** | Marketing/docs + read tooling. |
-| Claim site (claim.opennametags.org) | **Live (signet)** | 12-word phrase (one wallet, many names; gap-scan restore from the words alone) + verified quote + stub-payment claim; self-contained page runs offline for key generation. |
-| Unified wallet secret (12 words everywhere) | **Live** | The same 12-word phrase (masterSeed = first 32 bytes of the BIP-39 seed, owner keys m/696969'/0'/i') derives identical keys on the claim site, the web tools, and the mobile app — locked by shared conformance vectors all four implementations test against (engine, web, mobile, and — since 2026-06-10 — the claim site via `apps/claim/src/keys.conformance.test.ts`). |
+| Web explainer (opennametags.org) | **Live (static) — read tooling Decommissioned (2026-06-11)** | Marketing/docs pages may stay up (static, no old-stack dependency — DK's hosting call); the explorer/read tooling is down with the resolver. |
+| Claim site (claim.opennametags.org) | **Decommissioned (2026-06-11)** | 12-word phrase (one wallet, many names; gap-scan restore from the words alone) + verified quote + stub-payment claim; self-contained page runs offline for key generation. |
+| Unified wallet secret (12 words everywhere) | **Conformance-locked (implementations quarantined)** | The same 12-word phrase (masterSeed = first 32 bytes of the BIP-39 seed, owner keys m/696969'/0'/i') derives identical keys on the claim site, the web tools, and the mobile app — locked by shared conformance vectors all four implementations test against (engine, web, mobile, and — since 2026-06-10 — the claim site via `apps/claim/src/keys.conformance.test.ts`). |
 
 ## Key numbers
 
