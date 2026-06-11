@@ -1,5 +1,13 @@
 # Recovery invoke — what's needed beyond what we already have
 
+> **Normativity: `candidate`** — per the clean-build (#46) ledger
+> ([SOFTWARE_INVENTORY.md](../core/SOFTWARE_INVENTORY.md)). No section of
+> this file is `normative` yet: rules here become law only by surviving the
+> five-step normative hardening for the phase that implements them
+> (hardens for B2 (authority rules) / B5 (flows) — split by section at hardening). Statements of status elsewhere in this file are
+> historical; the ledger wins.
+
+
 The wallet can *arm* a recovery descriptor today (`arm-recovery`); it cannot yet
 *invoke* recovery on-chain. This is the spec for what's still missing, written
 after digging through the protocol code to see what already exists.

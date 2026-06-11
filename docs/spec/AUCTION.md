@@ -1,8 +1,16 @@
 # ONT Auction Mechanism
 
+> **Normativity: `candidate`** — per the clean-build (#46) ledger
+> ([SOFTWARE_INVENTORY.md](../core/SOFTWARE_INVENTORY.md)). No section of
+> this file is `normative` yet: rules here become law only by surviving the
+> five-step normative hardening for the phase that implements them
+> (hardens for B2). Statements of status elsewhere in this file are
+> historical; the ledger wins.
+
+
 > Consolidated 2026-06-11 per doc-canon (#45) from `launch/AUCTION_PLACEHOLDERS_AND_MECHANISM_CHOICES.md`, `launch/ONT_WINDOW_SCHEDULE.md`, and the normative parts of `launch/ONT_PARAMETER_REVIEW_PACKET.md` (now archived).
 
-This is the normative mechanism document for the contested-name auction path:
+This is the mechanism document for the contested-name auction path:
 the design choices an implementer must honor, the current parameter defaults
 (all placeholders), and the recommended window schedule. The deeper rationale
 reference is [`CONTESTED_AUCTION_REFERENCE.md`](./CONTESTED_AUCTION_REFERENCE.md)

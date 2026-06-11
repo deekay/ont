@@ -1,5 +1,13 @@
 # ONT — Design vs. Requirements Conformance
 
+> **Normativity: `candidate`** — per the clean-build (#46) ledger
+> ([SOFTWARE_INVENTORY.md](../core/SOFTWARE_INVENTORY.md)). No section of
+> this file is `normative` yet: rules here become law only by surviving the
+> five-step normative hardening for the phase that implements them
+> (hardens for B1). Statements of status elsewhere in this file are
+> historical; the ledger wins.
+
+
 > Moved here from `design/ONT_REQUIREMENTS_CONFORMANCE.md` on 2026-06-11 per decision doc-canon (#45) in [`../core/DECISIONS.md`](../core/DECISIONS.md); the requirements it checks against now live in [`../DESIGN.md`](../DESIGN.md) §10 (original section numbers `§N` map to `§10.N` there). Verdicts below are as of 2026-05-24; [`../core/STATUS.md`](../core/STATUS.md) is the source of truth for what is wired today (several items marked "offline/unprototyped" here have since gone live on signet).
 
 A line-by-line check of the current design against every requirement in
