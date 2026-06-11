@@ -89,7 +89,11 @@ frame ‖ `flags`(1) ‖ `bondVout`(1) ‖ `settlementLockBlocks`(u32) ‖
 `auctionStateCommitment`(32) ‖ `bidderCommitment`(**32**) ‖
 `unlockBlock`(u32) ‖ `nameLength`(1) ‖ `name`(1–32, canonical bytes).
 
-- Fixed portion 147 bytes; maximum total 184 at the 32-char name.
+- Sizes, stated unambiguously: post-frame fixed fields total **142** bytes
+  (1+1+4+8+32+32+32+32); with the 5-byte frame the fixed portion is
+  **147**; the variable tail is `unlockBlock`(4) + `nameLength`(1) +
+  name(≤32); maximum total **184** at the 32-char name. (Legacy
+  arithmetic, same shape: 110 body + frame = 115 fixed, max 152.)
 - The `INCLUDES_NAME` flag (bit 0) MUST be set; a decoder MUST reject a bid
   without it. Bids always carry the name — there are no bare-hash bids.
 - The legacy layout used 16-byte truncated lot/bidder commitments (152-byte
@@ -147,14 +151,46 @@ constructions standardized on the length-prefixed convention (the legacy
 NUL-separated text convention is retired for new material), labels bumped
 to `-v2` accordingly:
 
+**Input renderings**, used by all three commitments — defined here so this
+section stands without any source file:
+
+- *text* (`auctionId`, `bidderId`): UTF-8, trimmed of leading/trailing
+  whitespace; MUST be non-empty after trimming.
+- *decimal(n)*: the canonical base-10 rendering of a non-negative integer —
+  no sign, no leading zeros (`"0"` for zero), no separators.
+- *hex32*: exactly 64 lowercase hex characters (a 32-byte value as text).
+- *absent*: an absent optional field renders as the **empty string** (a
+  zero-length `lenPrefix`, i.e. bytes `0x0000`). Unambiguous under
+  `lenPrefix` framing.
+
+The commitments:
+
 - `bidderCommitment = sha256( lenPrefix("ont-auction-bidder-v2") ‖
-  lenPrefix(bidderId) )`
+  lenPrefix(text(bidderId)) )`
 - `auctionLotCommitment = sha256( lenPrefix("ont-auction-lot-v2") ‖
-  lenPrefix(auctionId) ‖ lenPrefix(name) ‖ lenPrefix(decimal(unlockBlock)) )`
+  lenPrefix(text(auctionId)) ‖ lenPrefix(name) ‖
+  lenPrefix(decimal(unlockBlock)) )` — `name` in canonical bytes (§2).
 - `auctionStateCommitment = sha256( lenPrefix("ont-auction-state-v2") ‖
-  lenPrefix(field₁) ‖ … ‖ lenPrefix(fieldₙ) )` over the auction-state field
-  list in the legacy `ont-auction-state-v1` order, each field rendered as
-  its legacy text form, absent optional fields as empty strings.
+  lenPrefix(f₁) ‖ … ‖ lenPrefix(f₁₁) )` over exactly these eleven fields,
+  in this order:
+
+  | # | Field | Rendering |
+  | --- | --- | --- |
+  | 1 | `auctionId` | text |
+  | 2 | `name` | canonical name bytes |
+  | 3 | `currentBlockHeight` | decimal |
+  | 4 | `phase` | exactly one of `pending_unlock`, `awaiting_opening_bid`, `live_bidding`, `soft_close`, `settled`; anything else MUST be rejected |
+  | 5 | `unlockBlock` | decimal |
+  | 6 | `auctionCloseBlockAfter` | decimal, or absent |
+  | 7 | `openingMinimumBidSats` | decimal (satoshis) |
+  | 8 | `currentLeaderBidderCommitment` | hex32, or absent |
+  | 9 | `currentHighestBidSats` | decimal, or absent |
+  | 10 | `currentRequiredMinimumBidSats` | decimal, or absent |
+  | 11 | `settlementLockBlocks` | decimal |
+
+  (Field list and order carried from the legacy `ont-auction-state-v1`
+  construction, restated here in full so no source file is the hidden
+  spec.)
 
 No truncation anywhere: B2's transcript-completeness predicate may treat
 all three as full-width collision-resistant commitments.
@@ -204,10 +240,13 @@ material, not wire.
 
 ### 8.2 Recovery descriptor (`ont-recovery-descriptor`, descriptorVersion 1)
 
-Fields: `name`, `ownerPubkey`, `ownershipRef`, `sequence`,
-`previousDescriptorHash`(or null), `recoveryAddress`, `signingProfile`
-(default `bip322`), `challengeWindowBlocks`, `issuedAt`, owner
-`signature`(64, Schnorr).
+Fields (the complete JSON envelope; a parser MUST reject an envelope whose
+`format` or `descriptorVersion` differ from the values below):
+`format` = `"ont-recovery-descriptor"`, `descriptorVersion` = `1`, `name`,
+`ownerPubkey`(32-hex), `ownershipRef`(32-hex), `sequence`,
+`previousDescriptorHash`(32-hex or null), `recoveryAddress`,
+`signingProfile` (default `bip322`), `challengeWindowBlocks`, `issuedAt`
+(ISO timestamp), `signature`(64, owner Schnorr).
 
 Digest (= the descriptor hash the on-chain RecoverOwner event references):
 `sha256( lenPrefix("ont-recovery-descriptor") ‖ version(1) ‖
@@ -222,11 +261,38 @@ A separate object from the descriptor, and the deliberate exception to the
 Schnorr-digest rule: it is signed **BIP322 by the recovery address key**
 over a normalized *text message*, and verified by a BIP322 verifier.
 
-- **Message** (nine NL-joined lines):
-  `"Open Name Tags owner recovery proof"`, then `profile:`, `name:`,
-  `prevStateTxid:`, `recoveryDescriptorHash:`, `newOwnerPubkey:`,
-  `successorBondVout:`, `challengeWindowBlocks:`, `chainTip:` (value
-  `<blockHash>@<height>` or `unspecified`).
+Fields (the complete JSON envelope; a parser MUST reject an envelope whose
+`format` or `proofVersion` differ from the values below):
+`format` = `"ont-recovery-wallet-proof"`, `proofVersion` = `1`, `name`,
+`prevStateTxid`(32-hex), `recoveryDescriptorHash`(32-hex),
+`newOwnerPubkey`(32-hex), `successorBondVout`, `challengeWindowBlocks`,
+optional `chainTipBlockHash`(32-hex) and `chainTipHeight`,
+`recoveryAddress`, `signingProfile`, `message`, `signatureBase64`.
+
+- **Message** — the exact template. Nine lines joined by a single LF
+  (`0x0a`), **no trailing newline**; each labeled line is the literal label,
+  one colon, one space, then the value:
+
+  ```text
+  Open Name Tags owner recovery proof
+  profile: bip322
+  name: <canonical name>
+  prevStateTxid: <hex32>
+  recoveryDescriptorHash: <hex32>
+  newOwnerPubkey: <hex32>
+  successorBondVout: <decimal 0-255>
+  challengeWindowBlocks: <decimal>
+  chainTip: <hex32>@<decimal> | unspecified
+  ```
+
+  Value renderings are §6's: canonical name bytes, `hex32` = 64 lowercase
+  hex chars, `decimal` = canonical base-10. `chainTip` is
+  `<blockHash>@<height>` **only when both** `chainTipBlockHash` and
+  `chainTipHeight` are present; if either is absent it is the literal
+  string `unspecified`.
+- **Verification rule:** a parser MUST regenerate the message from the
+  envelope's normalized fields and reject the proof if the stored
+  `message` differs byte-for-byte, before any BIP322 verification.
 - **Proof hash:** `sha256( lenPrefix("ont-recovery-wallet-proof") ‖
   version(1) ‖ lenPrefix(name) ‖ prevStateTxid(32) ‖
   recoveryDescriptorHash(32) ‖ newOwnerPubkey(32) ‖ successorBondVout(1) ‖
