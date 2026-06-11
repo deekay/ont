@@ -9,15 +9,15 @@ This note is meant for someone who knows little or nothing about Open Name Tags
 protocol notes.
 
 It is not a specification. It is a framing and status document, and it defers to
-the canonical [`../ONT.md`](../ONT.md) on anything that disagrees.
+the canonical [`ONT.md`](../../ONT.md) on anything that disagrees.
 
 Related notes:
 
-- [../ONT.md](../ONT.md) — the single source of truth for what ONT is and how it works
-- [../ONT_ONE_PAGER.md](../ONT_ONE_PAGER.md) — the review one-pager
-- [../ONT_DESIGN_BRIEF.md](../ONT_DESIGN_BRIEF.md) — the deeper design brief for Bitcoin reviewers
-- [ONT_LAUNCH_V1_BRIEF.md](../launch/ONT_LAUNCH_V1_BRIEF.md)
-- [CONTESTED_AUCTION_REFERENCE.md](../launch/CONTESTED_AUCTION_REFERENCE.md)
+- [ONT.md](../../ONT.md) — the single source of truth for what ONT is and how it works
+- [ONT_ONE_PAGER.md](../../ONT_ONE_PAGER.md) — the review one-pager
+- [ONT_DESIGN_BRIEF.md](../../ONT_DESIGN_BRIEF.md) — the deeper design brief for Bitcoin reviewers
+- [ONT_LAUNCH_V1_BRIEF.md](../../launch/ONT_LAUNCH_V1_BRIEF.md)
+- [CONTESTED_AUCTION_REFERENCE.md](../../launch/CONTESTED_AUCTION_REFERENCE.md)
 
 ## The Short Version
 
@@ -161,7 +161,7 @@ What is real today:
 Two honesty notes on maturity:
 
 - The cheap uncontested ₿1,000 (~$1) claim path is live end-to-end on the
-  private signet (see above), per [`STATUS.md`](./STATUS.md). What is still
+  private signet (see above), per [`STATUS.md`](../../core/STATUS.md). What is still
   being hardened is its adversarial half: the fail-closed data-availability
   deadline is designed and simulated but not yet enforced in the live path, and
   batch transport is publisher-served v1.
@@ -192,11 +192,11 @@ So the right way to read the repo today is:
 If someone wants to learn the project in a reasonable order, this is the best
 sequence right now:
 
-1. [../ONT.md](../ONT.md)
-2. [../ONT_ONE_PAGER.md](../ONT_ONE_PAGER.md)
-3. [../ONT_DESIGN_BRIEF.md](../ONT_DESIGN_BRIEF.md)
-4. [ONT_IMPLEMENTATION_AND_VALIDATION.md](../launch/ONT_IMPLEMENTATION_AND_VALIDATION.md)
-5. [CONTESTED_AUCTION_REFERENCE.md](../launch/CONTESTED_AUCTION_REFERENCE.md)
+1. [ONT.md](../../ONT.md)
+2. [ONT_ONE_PAGER.md](../../ONT_ONE_PAGER.md)
+3. [ONT_DESIGN_BRIEF.md](../../ONT_DESIGN_BRIEF.md)
+4. [ONT_IMPLEMENTATION_AND_VALIDATION.md](../../launch/ONT_IMPLEMENTATION_AND_VALIDATION.md)
+5. [CONTESTED_AUCTION_REFERENCE.md](../../launch/CONTESTED_AUCTION_REFERENCE.md)
 
 ## The Right Takeaway
 

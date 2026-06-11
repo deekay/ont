@@ -22,8 +22,9 @@ means holding a key — the **owner key** — and nothing else:
 - Without the key, nobody can touch it. There is no renewal, no expiry, no revocation, and no
   admin. Once a name is yours, no one — including the people who built ONT — can take it or
   charge you to keep it.
-- Anyone can look the name up and **verify the answer against Bitcoin** instead of trusting
-  whoever served it.
+- Anyone can look the name up and **check the answer** instead of trusting whoever served it.
+  ONT is designed so that check runs against Bitcoin itself; today the last serverless leg of
+  that check is still being built (see "What's real today" below).
 
 ## What ONT commits to
 
@@ -90,9 +91,10 @@ ONT separates two layers, which is why it stays cheap:
   to nothing at all; richer owner-signed records can come later without changing the ownership
   rules.
 
-You can prove you own a name with a portable proof anyone can check against Bitcoin. Apps,
-wallets, and resolvers mirror and verify this data — they never get to decide it. A lying server
-gets caught, not obeyed.
+You can prove you own a name with a portable proof anyone can check against the protocol rules
+today; checking it against Bitcoin directly, with no server in the loop, is the design target and
+its last leg is still being built (see "What's real today"). Apps, wallets, and resolvers mirror
+and verify this data — they never get to decide it. A lying server gets caught, not obeyed.
 
 ## Fees and bonds, not rent
 
@@ -119,9 +121,11 @@ never be turned into a way for someone else to take a name.
 
 ONT is built to end up **frozen, like Bitcoin** — not a service that quietly changes under you:
 
-- The rules that decide ownership live in a deliberately small, audited core that a careful
-  reader can confirm in a handful of files. During development that boundary can still move;
-  **at launch it freezes**, and what is inside it is exactly what is audited.
+- At launch, every rule that decides ownership is intended to live in a deliberately small,
+  audited core that a careful reader can confirm in a handful of files. Today that core covers
+  owner-key authority and replay validation; auction settlement still runs outside it and is
+  being moved in (see "What's real today"). **At launch the boundary freezes**, and what is
+  inside it is exactly what is audited.
 - The project operates no privileged role, and any future rule change is **opt-in** — no one can
   force a new version on you.
 
