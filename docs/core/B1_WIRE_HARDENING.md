@@ -90,10 +90,18 @@ unratified docs; needs the named spec PR listed in Gaps before promotion.
   source). **Cited for the 171 envelope; candidate-stays for the full
   per-event table — needs G1.**
   *Tests:* byte-identical golden vectors mined from the old suite; the
-  "every event ≤ 171" envelope property.
-- **W8.** 171 bytes (RecoverOwner) is the wire's maximum event size,
-  enforced as a test invariant over *all* event types.
-  *Source:* STATUS key numbers, test-pinned. **Cited.**
+  envelope property over all event types.
+  *W16-ruling ripple:* these are the **legacy** layouts. The AuctionBid
+  layout changes under the ruled full-width commitments (see W16); the
+  G1 spec states the new table, and the old bid vector remains evidence
+  of the legacy codec only.
+- **W8.** The wire has a pinned maximum event size, enforced as a test
+  invariant over *all* event types. Legacy value: 171 bytes
+  (RecoverOwner). Under the W16 ruling the full-width bid (~184 bytes at
+  the 32-char name max) becomes the largest event; the G1 spec restates
+  the envelope value.
+  *Source:* STATUS key numbers, test-pinned (legacy value). **Cited for
+  the invariant; the new value lands with G1.**
 - **W9.** Multi-byte integers are big-endian unsigned (u32 block counts /
   batch sizes; u64 satoshi amounts). Amounts are integers of satoshis; the
   wire never carries fractional or signed amounts.
@@ -256,8 +264,16 @@ unratified docs; needs the named spec PR listed in Gaps before promotion.
   *Round-2 ruling (ChatLunatique):* sustained as a real G1 decision point,
   not branch-blocking while candidate-stays — but B2 must not lean on
   these as full-width collision-resistant transcript commitments until G1
-  explicitly freezes the tradeoff. DK ruling pending (writer recommends
-  full-width).
+  explicitly freezes the tradeoff.
+  **RULED (DK, 2026-06-11, event 27a1030b): full-width.** The rewrite uses
+  32-byte bidder and lot commitments; the G1 spec PR states the new bid
+  layout. Ripples: the new auction-bid event grows ~32 bytes (~184 at the
+  32-char name max), which displaces RecoverOwner as the largest event —
+  the W8 envelope is restated by the G1 spec, and the old 152-byte bid
+  vector (W7) becomes evidence of the *legacy* codec only, not a
+  conformance target for the new format. Relay headroom on modern node
+  policy was checked as part of the ruling. B2 may treat the commitments
+  as full-width collision-resistant once G1 lands.
 - **W17 — routed-out proposal.** The exported package envelopes are
   **wallet-handoff artifacts, not wire**: `ont-transfer-package` v1 is an
   *unsigned* advisory JSON envelope (transfer parameters plus UI copy —
@@ -271,7 +287,11 @@ unratified docs; needs the named spec PR listed in Gaps before promotion.
   `format`/`version` labels stay reserved in the W13a inventory either way.
   *Round-2 ruling (ChatLunatique):* concurs — envelopes route to B5
   wallet-handoff formats; commitment functions stay in B1 because the
-  on-chain bid carries those commitments. DK ruling pending.
+  on-chain bid carries those commitments.
+  **RULED (DK, 2026-06-11, event 27a1030b): routed out as proposed.**
+  `@ont/wire` owns only hashed/signed primitives; the
+  `ont-transfer-package` / `ont-auction-bid-package` envelopes are B5
+  wallet-handoff formats. Their labels stay reserved in W13a.
 
 ## Gaps — named spec PRs required before affected promotion
 
