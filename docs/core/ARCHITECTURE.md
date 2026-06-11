@@ -42,7 +42,7 @@ There is one acquisition path:
    path. The owner key controls transfer, recovery setup, and value records.
 4. A **qualifying bond — not a claim alone — opens the auction** (Decision #37):
    if a bond is posted in the window, the name escalates to a visible ascending
-   auction with returnable Bitcoin bonds. Two or more claims with no bond with no bond
+   auction with returnable Bitcoin bonds. Two or more claims with no bond
    **nullify** the name instead — no owner, and it reopens for claiming.
    Collisions can deny; only bonds can award.
 5. The winner receives the same owner-key-controlled name as an uncontested

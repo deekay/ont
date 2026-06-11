@@ -23,14 +23,15 @@ gives a batch Bitcoin ordering and timestamping. A claim is "anchored" once its
 batch's anchor confirms.
 
 **audited core (frozen at launch)** — the small set of consensus files
-(`packages/consensus/src/`, CI-locked) that decide name state, intended to be
-frozen at launch the way Bitcoin's consensus rules are. "Audited" is the claim
-a reader can check today; "frozen at launch" is the commitment. What sits
-inside it versus outside is the honest boundary drawn in
+(`packages/consensus/src/`, CI-locked), intended to be frozen at launch the way
+Bitcoin's consensus rules are. Today it determines owner-key authority and
+replay validation; auction settlement → ownership still lives *outside* it
+(moving inside per Decision #42). "Audited" is the claim a reader can check
+today; "frozen at launch" is the commitment. The honest boundary is drawn in
 [`core/STATUS.md`](./core/STATUS.md).
 
-**₿** — ONT's unit notation: **₿1 = 1 satoshi** (so ₿1,000 = 1,000 sats ≈ $1
-at ~$100k/BTC). The ₿ amount is the protocol truth; any dollar figure beside it
+**₿** — ONT's unit notation: **₿1 = 1 satoshi** (so ₿1,000 ≈ $1 at
+~$100,000/BTC). The ₿ amount is the protocol truth; any dollar figure beside it
 is a casual helper that drifts with the price.
 
 **batched claim path, the** — the cheap, default way a name is acquired: a

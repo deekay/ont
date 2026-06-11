@@ -7,7 +7,7 @@ need a human decision before any of this is wired.
 > **Update note (2026-06-11):** parts of this note predate Decision #37 (bond
 > opens the auction, 2026-06-04). Where the text says a competing in-window
 > claim "escalates" or "forces" an auction, read it per #37: only a
-> **qualifying bond** opens an auction; two or more claims with no bond with no bond
+> **qualifying bond** opens an auction; two or more claims with no bond
 > **nullify** the name (no owner; reopens). Inline notes mark the two affected
 > passages. The normative rule is
 > [`../spec/ONT_ACQUISITION_STATE_MACHINE.md`](../spec/ONT_ACQUISITION_STATE_MACHINE.md).

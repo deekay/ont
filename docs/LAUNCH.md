@@ -83,7 +83,7 @@ recovery and UTXO-less accumulator-name recovery should not be conflated.
 | Claim gate | The fixed sunk bitcoin fee paid to miners for a claim attempt. |
 | Notice window | The public period during which the name can be contested — by posting a bond (→ auction) or nullified by a bare collision. |
 | Accumulator | The Bitcoin-anchored Merkle structure that finalizes uncontested claims compactly. |
-| Contested | A name a qualifying bond is posted against in the notice window (against a claim, or bond-first); the bond — not a second claim alone — escalates it to auction. two claims with no bond nullify the name instead. |
+| Contested | A name a qualifying bond is posted against in the notice window (against a claim, or bond-first); the bond — not a second claim alone — escalates it to auction. Two claims with no bond nullify the name instead. |
 | Bond | Returnable bitcoin capital used in the L1 auction path. |
 | Bond UTXO | The dedicated output backing an immature auction-settled name. |
 | Maturity | The point after which owner-key authority can survive bond release. |

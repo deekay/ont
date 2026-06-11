@@ -71,8 +71,7 @@ very short names (≤4 chars) require a mandatory opening bond — **₿100,000,
 1-char bond), since the principal returns. Honest residual: long-tail names nobody contests *can*
 be squatted at ₿1,000 each. Squatting isn't impossible; it's priced.
 
-**"I'll front-run your claim."** Ordering can't award a name — not even a miner's. two claims with no bond
-with no bond **nullify**: the name resolves to no owner and reopens. So front-running buys denial
+**"I'll front-run your claim."** Ordering can't award a name — not even a miner's. Two claims with no bond **nullify**: the name resolves to no owner and reopens. So front-running buys denial
 (₿1,000 sunk, zero payoff), never the name. *Taking* a contested name requires posting the largest
 bond — identical cost for a miner and for you — and outcomes are deadline-derived (did a qualifying
 bond land by `anchorHeight + W_notice`?), not order-derived. (Decision #37; MEV analysis in

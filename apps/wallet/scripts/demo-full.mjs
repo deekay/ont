@@ -157,7 +157,7 @@ try {
       "Next:",
       "  - the on-chain claim's signed tx is ready to broadcast (--broadcast).",
       "  - the batched-path claim is provisional: it finalizes only if its notice window closes",
-      "    uncontested (a qualifying bond escalates it to the bonded auction; bare competing",
+      "    uncontested (a qualifying bond escalates it to the bonded auction; competing",
       "    claims with no bond nullify it — no owner, and the name reopens). Run `sync`",
       "    after the window to confirm.",
       "  - run `export-proof <name>` to produce a portable ownership proof anyone can verify."

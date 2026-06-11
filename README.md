@@ -98,11 +98,11 @@ flowchart TB
 What the live loop does **not** yet enforce (disclosed in STATUS): the **fail-closed availability
 deadline** — "batch bytes not public by a Bitcoin-height-keyed deadline don't count." The
 `AvailabilityMarker` event is wire-defined and tested but never emitted in production, and the
-the data-availability windows run only in research simulations. Today, missing bytes are simply retried with
+data-availability windows run only in research simulations. Today, missing bytes are simply retried with
 backoff — fine for an honest single publisher on signet, but the withhold-then-reveal defense for
 contested names depends on the deadline rule.
 
-**the contested path** (a bonded bid runs end-to-end on signet):
+**The contested path** (a bonded bid runs end-to-end on signet):
 
 1. **A qualifying bond opens the auction** (Decision #37) — posted against an existing claim
    during its notice window, or *bond-first* with no prior claim (the natural path for a
