@@ -142,9 +142,14 @@ written and reviewed, and closes through its gate:
   zero I/O imports (enforced by a research-quarantine-style test).
   **Required pre-B2 spec decision (named spec PR):** the fail-closed
   data-availability mechanism's form — separate availability marker vs
-  folded into the anchor — is an open first-class question
-  ([OPEN_QUESTIONS.md](../OPEN_QUESTIONS.md) §1.1) and must be ratified
-  before the kernel's deadline verdict implements. B0 does not choose it.
+  folded into the anchor — **decided 2026-06-11: marker-fold (#47), fold**
+  (the separate marker is retired, wire event 0x0d retired-never-reuse;
+  all deadlines key off the anchor's mined height — see
+  [DECISIONS.md](./DECISIONS.md) entry 47 and
+  [research/DA_MARKER_FOLD.md](../research/DA_MARKER_FOLD.md)). B0
+  deliberately did not choose it; the choice was made by named ruling as
+  this section required. The kernel's deadline verdict implements the
+  folded form.
 - **B3 — evidence layer.** Non-deciding construction and verification:
   Bitcoin header/inclusion verification, accumulator membership-proof
   construction, proof-bundle assembly (including the auction transcript the

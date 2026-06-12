@@ -364,7 +364,7 @@ disagree.**
 | Recovery descriptors | **Built + on-chain (signet)** | Owner-armed, owner-vetoable (recovery, not revocation). The on-chain invoke path is partially specified. |
 | Contested auction — on-chain bonded bid | **Built + on-chain (signet)** | Returnable bond output + OP_RETURN bid payload, engine-validated (bond value = bid at `bondVout`); resolver derives auction state from observed `AUCTION_BID` txs; settled winner materializes into an owned name. |
 | Cheap ₿1,000 claim — Lightning rail | **Structure wired, payment stubbed** | `apps/publisher` quote → invoice → pay → verify exists, but invoice creation + payment verification are stub / Lexe-sidecar interfaces. v1 is a **pay-first flow with reputable publishers** (pay, then included; a non-payer is left out); atomic payment-on-inclusion binding is a longer-term research item, not a v1 dependency. The wallet does not pay a real Lightning invoice for a claim today. |
-| Batched claim path → canonical state | **Live (signet) per STATUS.md** | End-to-end since 2026-06-09: claim → publisher anchors on-chain → indexer decodes the anchor, fetches batch leaves, and re-verifies every membership proof against the Bitcoin-anchored root. **Still open:** availability-marker / fail-closed data-availability deadline enforcement is design + simulation only, and aggregate gate-fee enforcement is not implemented — see STATUS.md "Known-incomplete." |
+| Batched claim path → canonical state | **Decommissioned (2026-06-11) per STATUS.md** | Was end-to-end on signet since 2026-06-09: claim → publisher anchors on-chain → indexer decodes the anchor, fetches batch leaves, and re-verifies every membership proof against the Bitcoin-anchored root. **Still open:** fail-closed data-availability deadline enforcement (anchor-keyed per marker-fold (#47); the separate marker event is retired) is design + simulation only, and aggregate gate-fee enforcement is not implemented — see STATUS.md "Known-incomplete." |
 | Publisher | **Single-writer prototype** | The leaderless multi-publisher convergence design is simulated and tested, not deployed. |
 | Mobile wallet | **HD (BIP32), seed-backed** | One seed → a per-name owner key (`m/696969'/0'/i'`) + a funding key (`m/84'/1'/0'/0/0`); seed backup/restore proven on signet; keys in the device keystore. |
 | Desktop / CLI wallet | **Single-key** | One owner key + one funding WIF; not HD, no seed recovery (WIF import only). |
@@ -383,9 +383,9 @@ disagree.**
 
 ### Still Open Before Launch (do not imply otherwise)
 
-- Availability-marker / fail-closed data-availability-deadline enforcement on the live cheap
-  rail, and aggregate miner-fee enforcement for claim batches (designed, not
-  implemented — see STATUS.md).
+- Fail-closed data-availability-deadline enforcement on the cheap rail (anchor-keyed per
+  marker-fold (#47); the separate availability-marker event is retired), and aggregate
+  miner-fee enforcement for claim batches (designed, not implemented — see STATUS.md).
 - A real Lightning payment for the cheap claim (v1 = pay-first with reputable
   publishers; atomic payment-on-inclusion binding is later research, not a v1
   dependency).

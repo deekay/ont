@@ -385,6 +385,10 @@ Rationale:
 
 26. V1 on-chain event set
 
+*Status: amended by #47 — `AVAILABILITY_MARKER` (0x0d) is retired, never to
+be reused; the anchor itself carries the availability deadline
+(marker-fold). The rest of the entry stands as written.*
+
 The v1 on-chain event set is intentionally minimal.
 
 Standardized ownership events:
@@ -478,6 +482,10 @@ Rationale:
 - they should not complicate canonical indexer behavior
 
 32. Retired two-lane and auction-only baselines
+
+*Status: amended by #47 — the "availability markers" footprint line below is
+historical; markers are retired (marker-fold), so footprint work evaluates
+against batched claim anchors and contested auction bids only.*
 
 The old ordinary/reserved two-lane model is retired. The later auction-for-every-
 name baseline is also retired as the ordinary entry path, and survives only as
@@ -654,7 +662,10 @@ Documentation impact:
 39. DA transport: content-addressed, publisher-served v1 (T2) — raised as a core feedback area — 2026-06-08
 
 *Status: working assumption — explicitly flagged for external reviewer
-feedback; the fail-closed deadline enforcement it pairs with is not yet live.*
+feedback; the fail-closed deadline enforcement it pairs with is not yet live.
+Amended by #47: the witnessing half referenced below is now the anchor itself
+(marker-fold) — the separate on-chain availability marker is retired; the
+transport call (T2) is unaffected.*
 
 The cheap rail's data-availability story splits into *witnessing* (is the data
 attested available by a Bitcoin-timed deadline?) and *transport* (how the bytes
