@@ -1,0 +1,58 @@
+{
+  "spec": "docs/spec/WIRE_FORMAT.md",
+  "section": "§5",
+  "vectors": [
+    {
+      "id": "transfer-digest",
+      "kind": "valid",
+      "cite": "§5 transfer digest",
+      "label": "ont-transfer-owner",
+      "fields": {
+        "prevStateTxid": "976f5e06bf3ab27c1bd810e4c851da1f19dd594f842d1c846731d09d17f1ed84",
+        "newOwnerPubkey": "5b864fc13ed497d041f24868ae5a7ddf481724b146bda10bdd5c08ee1a18c026",
+        "flags": 0,
+        "successorBondVout": 1,
+        "signature": "e67a27c416219ffd80e198eeceb2f82698af0caeabb5d05c84096cb41ae6fb50bf27a0206806a64db50cd14a66a46ee53ebba74cda79ed7d213ffac445be7340"
+      },
+      "digest": "94ae7835d955410f736417ec765f9086aa962b4a94091ac2f705421ff4ab3699",
+      "signature": "e67a27c416219ffd80e198eeceb2f82698af0caeabb5d05c84096cb41ae6fb50bf27a0206806a64db50cd14a66a46ee53ebba74cda79ed7d213ffac445be7340",
+      "signerXOnlyPubkey": "7fb0dc13cea75a622e8ba13d1c3abdeba2258649dd3069f2aa98357777eb2dba",
+      "crossCheckedAgainstLegacy": true
+    },
+    {
+      "id": "recover-digest",
+      "kind": "valid",
+      "cite": "§5 recover digest",
+      "label": "ont-recover-owner",
+      "fields": {
+        "prevStateTxid": "7cf2b1832808d612782db10e354dfcdf0aaed7bfcb6db06fe9ae16026323b75f",
+        "newOwnerPubkey": "bb6993ecc9feec6f631e24977e460eb3df2654b103fbeb75a969f17d5a911afe",
+        "flags": 1,
+        "successorBondVout": 0,
+        "challengeWindowBlocks": 144,
+        "recoveryDescriptorHash": "91e5c57e63d9fa220310e492a7c910f31298e54cecb032379fb7e5b87e82c4f2",
+        "signature": "95d052ab7855afe5301f2f91f6d1c4f276249033526422fc452cf63360dd3a3c60ccd0be6bf37d9e6d9f4784bac373c9e8f004fa6c4098b00f3cfca521b486d5"
+      },
+      "digest": "f555a90ab53df58a4be46fc4a67fba8ada88933e3fb1b85dcbe871f0d868f05c",
+      "signature": "95d052ab7855afe5301f2f91f6d1c4f276249033526422fc452cf63360dd3a3c60ccd0be6bf37d9e6d9f4784bac373c9e8f004fa6c4098b00f3cfca521b486d5",
+      "signerXOnlyPubkey": "7fb0dc13cea75a622e8ba13d1c3abdeba2258649dd3069f2aa98357777eb2dba",
+      "crossCheckedAgainstLegacy": true
+    },
+    {
+      "id": "cross-context-transfer-sig-on-recover-digest",
+      "kind": "reject",
+      "cite": "§5 'a signature valid in one context MUST NOT verify in any other'",
+      "signature": "e67a27c416219ffd80e198eeceb2f82698af0caeabb5d05c84096cb41ae6fb50bf27a0206806a64db50cd14a66a46ee53ebba74cda79ed7d213ffac445be7340",
+      "digest": "f555a90ab53df58a4be46fc4a67fba8ada88933e3fb1b85dcbe871f0d868f05c",
+      "signerXOnlyPubkey": "7fb0dc13cea75a622e8ba13d1c3abdeba2258649dd3069f2aa98357777eb2dba"
+    },
+    {
+      "id": "cross-context-recover-sig-on-transfer-digest",
+      "kind": "reject",
+      "cite": "§5 cross-context negative",
+      "signature": "95d052ab7855afe5301f2f91f6d1c4f276249033526422fc452cf63360dd3a3c60ccd0be6bf37d9e6d9f4784bac373c9e8f004fa6c4098b00f3cfca521b486d5",
+      "digest": "94ae7835d955410f736417ec765f9086aa962b4a94091ac2f705421ff4ab3699",
+      "signerXOnlyPubkey": "7fb0dc13cea75a622e8ba13d1c3abdeba2258649dd3069f2aa98357777eb2dba"
+    }
+  ]
+}

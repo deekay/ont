@@ -1,0 +1,1570 @@
+{
+  "spec": "docs/spec/WIRE_FORMAT.md",
+  "section": "§3",
+  "vectors": [
+    {
+      "id": "frame-valid-transfer",
+      "kind": "valid",
+      "cite": "§3 event type registry",
+      "hex": "4f4e540103",
+      "eventType": 3
+    },
+    {
+      "id": "frame-valid-auctionBid",
+      "kind": "valid",
+      "cite": "§3 event type registry",
+      "hex": "4f4e540107",
+      "eventType": 7
+    },
+    {
+      "id": "frame-valid-recoverOwner",
+      "kind": "valid",
+      "cite": "§3 event type registry",
+      "hex": "4f4e540109",
+      "eventType": 9
+    },
+    {
+      "id": "frame-valid-rootAnchor",
+      "kind": "valid",
+      "cite": "§3 event type registry",
+      "hex": "4f4e54010b",
+      "eventType": 11
+    },
+    {
+      "id": "frame-reject-bad-magic",
+      "kind": "reject",
+      "cite": "§3 'MUST reject any payload whose magic is not ONT'",
+      "hex": "474e530103"
+    },
+    {
+      "id": "frame-reject-version-0",
+      "kind": "reject",
+      "cite": "§3 'reject any version other than 0x01'",
+      "hex": "4f4e540003"
+    },
+    {
+      "id": "frame-reject-version-2",
+      "kind": "reject",
+      "cite": "§3 'not 1 => reject' (fail closed)",
+      "hex": "4f4e540203"
+    },
+    {
+      "id": "frame-reject-short",
+      "kind": "reject",
+      "cite": "§4 'reject truncated payloads at any byte offset'",
+      "hex": "4f4e54"
+    },
+    {
+      "id": "frame-reject-unassigned-0x00",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540100"
+    },
+    {
+      "id": "frame-reject-unassigned-0x01",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540101"
+    },
+    {
+      "id": "frame-reject-unassigned-0x02",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540102"
+    },
+    {
+      "id": "frame-reject-unassigned-0x04",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540104"
+    },
+    {
+      "id": "frame-reject-unassigned-0x05",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540105"
+    },
+    {
+      "id": "frame-reject-unassigned-0x06",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540106"
+    },
+    {
+      "id": "frame-reject-unassigned-0x08",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540108"
+    },
+    {
+      "id": "frame-reject-unassigned-0x0a",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e54010a"
+    },
+    {
+      "id": "frame-reject-unassigned-0x0c",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e54010c"
+    },
+    {
+      "id": "frame-reject-unassigned-0x0e",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e54010e"
+    },
+    {
+      "id": "frame-reject-unassigned-0x0f",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e54010f"
+    },
+    {
+      "id": "frame-reject-unassigned-0x10",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540110"
+    },
+    {
+      "id": "frame-reject-unassigned-0x11",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540111"
+    },
+    {
+      "id": "frame-reject-unassigned-0x12",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540112"
+    },
+    {
+      "id": "frame-reject-unassigned-0x13",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540113"
+    },
+    {
+      "id": "frame-reject-unassigned-0x14",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540114"
+    },
+    {
+      "id": "frame-reject-unassigned-0x15",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540115"
+    },
+    {
+      "id": "frame-reject-unassigned-0x16",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540116"
+    },
+    {
+      "id": "frame-reject-unassigned-0x17",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540117"
+    },
+    {
+      "id": "frame-reject-unassigned-0x18",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540118"
+    },
+    {
+      "id": "frame-reject-unassigned-0x19",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540119"
+    },
+    {
+      "id": "frame-reject-unassigned-0x1a",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e54011a"
+    },
+    {
+      "id": "frame-reject-unassigned-0x1b",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e54011b"
+    },
+    {
+      "id": "frame-reject-unassigned-0x1c",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e54011c"
+    },
+    {
+      "id": "frame-reject-unassigned-0x1d",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e54011d"
+    },
+    {
+      "id": "frame-reject-unassigned-0x1e",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e54011e"
+    },
+    {
+      "id": "frame-reject-unassigned-0x1f",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e54011f"
+    },
+    {
+      "id": "frame-reject-unassigned-0x20",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540120"
+    },
+    {
+      "id": "frame-reject-unassigned-0x21",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540121"
+    },
+    {
+      "id": "frame-reject-unassigned-0x22",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540122"
+    },
+    {
+      "id": "frame-reject-unassigned-0x23",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540123"
+    },
+    {
+      "id": "frame-reject-unassigned-0x24",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540124"
+    },
+    {
+      "id": "frame-reject-unassigned-0x25",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540125"
+    },
+    {
+      "id": "frame-reject-unassigned-0x26",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540126"
+    },
+    {
+      "id": "frame-reject-unassigned-0x27",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540127"
+    },
+    {
+      "id": "frame-reject-unassigned-0x28",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540128"
+    },
+    {
+      "id": "frame-reject-unassigned-0x29",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540129"
+    },
+    {
+      "id": "frame-reject-unassigned-0x2a",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e54012a"
+    },
+    {
+      "id": "frame-reject-unassigned-0x2b",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e54012b"
+    },
+    {
+      "id": "frame-reject-unassigned-0x2c",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e54012c"
+    },
+    {
+      "id": "frame-reject-unassigned-0x2d",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e54012d"
+    },
+    {
+      "id": "frame-reject-unassigned-0x2e",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e54012e"
+    },
+    {
+      "id": "frame-reject-unassigned-0x2f",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e54012f"
+    },
+    {
+      "id": "frame-reject-unassigned-0x30",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540130"
+    },
+    {
+      "id": "frame-reject-unassigned-0x31",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540131"
+    },
+    {
+      "id": "frame-reject-unassigned-0x32",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540132"
+    },
+    {
+      "id": "frame-reject-unassigned-0x33",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540133"
+    },
+    {
+      "id": "frame-reject-unassigned-0x34",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540134"
+    },
+    {
+      "id": "frame-reject-unassigned-0x35",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540135"
+    },
+    {
+      "id": "frame-reject-unassigned-0x36",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540136"
+    },
+    {
+      "id": "frame-reject-unassigned-0x37",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540137"
+    },
+    {
+      "id": "frame-reject-unassigned-0x38",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540138"
+    },
+    {
+      "id": "frame-reject-unassigned-0x39",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540139"
+    },
+    {
+      "id": "frame-reject-unassigned-0x3a",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e54013a"
+    },
+    {
+      "id": "frame-reject-unassigned-0x3b",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e54013b"
+    },
+    {
+      "id": "frame-reject-unassigned-0x3c",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e54013c"
+    },
+    {
+      "id": "frame-reject-unassigned-0x3d",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e54013d"
+    },
+    {
+      "id": "frame-reject-unassigned-0x3e",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e54013e"
+    },
+    {
+      "id": "frame-reject-unassigned-0x3f",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e54013f"
+    },
+    {
+      "id": "frame-reject-unassigned-0x40",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540140"
+    },
+    {
+      "id": "frame-reject-unassigned-0x41",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540141"
+    },
+    {
+      "id": "frame-reject-unassigned-0x42",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540142"
+    },
+    {
+      "id": "frame-reject-unassigned-0x43",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540143"
+    },
+    {
+      "id": "frame-reject-unassigned-0x44",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540144"
+    },
+    {
+      "id": "frame-reject-unassigned-0x45",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540145"
+    },
+    {
+      "id": "frame-reject-unassigned-0x46",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540146"
+    },
+    {
+      "id": "frame-reject-unassigned-0x47",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540147"
+    },
+    {
+      "id": "frame-reject-unassigned-0x48",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540148"
+    },
+    {
+      "id": "frame-reject-unassigned-0x49",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540149"
+    },
+    {
+      "id": "frame-reject-unassigned-0x4a",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e54014a"
+    },
+    {
+      "id": "frame-reject-unassigned-0x4b",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e54014b"
+    },
+    {
+      "id": "frame-reject-unassigned-0x4c",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e54014c"
+    },
+    {
+      "id": "frame-reject-unassigned-0x4d",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e54014d"
+    },
+    {
+      "id": "frame-reject-unassigned-0x4e",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e54014e"
+    },
+    {
+      "id": "frame-reject-unassigned-0x4f",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e54014f"
+    },
+    {
+      "id": "frame-reject-unassigned-0x50",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540150"
+    },
+    {
+      "id": "frame-reject-unassigned-0x51",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540151"
+    },
+    {
+      "id": "frame-reject-unassigned-0x52",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540152"
+    },
+    {
+      "id": "frame-reject-unassigned-0x53",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540153"
+    },
+    {
+      "id": "frame-reject-unassigned-0x54",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540154"
+    },
+    {
+      "id": "frame-reject-unassigned-0x55",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540155"
+    },
+    {
+      "id": "frame-reject-unassigned-0x56",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540156"
+    },
+    {
+      "id": "frame-reject-unassigned-0x57",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540157"
+    },
+    {
+      "id": "frame-reject-unassigned-0x58",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540158"
+    },
+    {
+      "id": "frame-reject-unassigned-0x59",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540159"
+    },
+    {
+      "id": "frame-reject-unassigned-0x5a",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e54015a"
+    },
+    {
+      "id": "frame-reject-unassigned-0x5b",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e54015b"
+    },
+    {
+      "id": "frame-reject-unassigned-0x5c",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e54015c"
+    },
+    {
+      "id": "frame-reject-unassigned-0x5d",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e54015d"
+    },
+    {
+      "id": "frame-reject-unassigned-0x5e",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e54015e"
+    },
+    {
+      "id": "frame-reject-unassigned-0x5f",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e54015f"
+    },
+    {
+      "id": "frame-reject-unassigned-0x60",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540160"
+    },
+    {
+      "id": "frame-reject-unassigned-0x61",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540161"
+    },
+    {
+      "id": "frame-reject-unassigned-0x62",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540162"
+    },
+    {
+      "id": "frame-reject-unassigned-0x63",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540163"
+    },
+    {
+      "id": "frame-reject-unassigned-0x64",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540164"
+    },
+    {
+      "id": "frame-reject-unassigned-0x65",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540165"
+    },
+    {
+      "id": "frame-reject-unassigned-0x66",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540166"
+    },
+    {
+      "id": "frame-reject-unassigned-0x67",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540167"
+    },
+    {
+      "id": "frame-reject-unassigned-0x68",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540168"
+    },
+    {
+      "id": "frame-reject-unassigned-0x69",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540169"
+    },
+    {
+      "id": "frame-reject-unassigned-0x6a",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e54016a"
+    },
+    {
+      "id": "frame-reject-unassigned-0x6b",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e54016b"
+    },
+    {
+      "id": "frame-reject-unassigned-0x6c",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e54016c"
+    },
+    {
+      "id": "frame-reject-unassigned-0x6d",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e54016d"
+    },
+    {
+      "id": "frame-reject-unassigned-0x6e",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e54016e"
+    },
+    {
+      "id": "frame-reject-unassigned-0x6f",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e54016f"
+    },
+    {
+      "id": "frame-reject-unassigned-0x70",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540170"
+    },
+    {
+      "id": "frame-reject-unassigned-0x71",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540171"
+    },
+    {
+      "id": "frame-reject-unassigned-0x72",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540172"
+    },
+    {
+      "id": "frame-reject-unassigned-0x73",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540173"
+    },
+    {
+      "id": "frame-reject-unassigned-0x74",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540174"
+    },
+    {
+      "id": "frame-reject-unassigned-0x75",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540175"
+    },
+    {
+      "id": "frame-reject-unassigned-0x76",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540176"
+    },
+    {
+      "id": "frame-reject-unassigned-0x77",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540177"
+    },
+    {
+      "id": "frame-reject-unassigned-0x78",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540178"
+    },
+    {
+      "id": "frame-reject-unassigned-0x79",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540179"
+    },
+    {
+      "id": "frame-reject-unassigned-0x7a",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e54017a"
+    },
+    {
+      "id": "frame-reject-unassigned-0x7b",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e54017b"
+    },
+    {
+      "id": "frame-reject-unassigned-0x7c",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e54017c"
+    },
+    {
+      "id": "frame-reject-unassigned-0x7d",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e54017d"
+    },
+    {
+      "id": "frame-reject-unassigned-0x7e",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e54017e"
+    },
+    {
+      "id": "frame-reject-unassigned-0x7f",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e54017f"
+    },
+    {
+      "id": "frame-reject-unassigned-0x80",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540180"
+    },
+    {
+      "id": "frame-reject-unassigned-0x81",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540181"
+    },
+    {
+      "id": "frame-reject-unassigned-0x82",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540182"
+    },
+    {
+      "id": "frame-reject-unassigned-0x83",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540183"
+    },
+    {
+      "id": "frame-reject-unassigned-0x84",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540184"
+    },
+    {
+      "id": "frame-reject-unassigned-0x85",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540185"
+    },
+    {
+      "id": "frame-reject-unassigned-0x86",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540186"
+    },
+    {
+      "id": "frame-reject-unassigned-0x87",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540187"
+    },
+    {
+      "id": "frame-reject-unassigned-0x88",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540188"
+    },
+    {
+      "id": "frame-reject-unassigned-0x89",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540189"
+    },
+    {
+      "id": "frame-reject-unassigned-0x8a",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e54018a"
+    },
+    {
+      "id": "frame-reject-unassigned-0x8b",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e54018b"
+    },
+    {
+      "id": "frame-reject-unassigned-0x8c",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e54018c"
+    },
+    {
+      "id": "frame-reject-unassigned-0x8d",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e54018d"
+    },
+    {
+      "id": "frame-reject-unassigned-0x8e",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e54018e"
+    },
+    {
+      "id": "frame-reject-unassigned-0x8f",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e54018f"
+    },
+    {
+      "id": "frame-reject-unassigned-0x90",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540190"
+    },
+    {
+      "id": "frame-reject-unassigned-0x91",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540191"
+    },
+    {
+      "id": "frame-reject-unassigned-0x92",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540192"
+    },
+    {
+      "id": "frame-reject-unassigned-0x93",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540193"
+    },
+    {
+      "id": "frame-reject-unassigned-0x94",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540194"
+    },
+    {
+      "id": "frame-reject-unassigned-0x95",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540195"
+    },
+    {
+      "id": "frame-reject-unassigned-0x96",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540196"
+    },
+    {
+      "id": "frame-reject-unassigned-0x97",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540197"
+    },
+    {
+      "id": "frame-reject-unassigned-0x98",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540198"
+    },
+    {
+      "id": "frame-reject-unassigned-0x99",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540199"
+    },
+    {
+      "id": "frame-reject-unassigned-0x9a",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e54019a"
+    },
+    {
+      "id": "frame-reject-unassigned-0x9b",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e54019b"
+    },
+    {
+      "id": "frame-reject-unassigned-0x9c",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e54019c"
+    },
+    {
+      "id": "frame-reject-unassigned-0x9d",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e54019d"
+    },
+    {
+      "id": "frame-reject-unassigned-0x9e",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e54019e"
+    },
+    {
+      "id": "frame-reject-unassigned-0x9f",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e54019f"
+    },
+    {
+      "id": "frame-reject-unassigned-0xa0",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401a0"
+    },
+    {
+      "id": "frame-reject-unassigned-0xa1",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401a1"
+    },
+    {
+      "id": "frame-reject-unassigned-0xa2",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401a2"
+    },
+    {
+      "id": "frame-reject-unassigned-0xa3",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401a3"
+    },
+    {
+      "id": "frame-reject-unassigned-0xa4",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401a4"
+    },
+    {
+      "id": "frame-reject-unassigned-0xa5",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401a5"
+    },
+    {
+      "id": "frame-reject-unassigned-0xa6",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401a6"
+    },
+    {
+      "id": "frame-reject-unassigned-0xa7",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401a7"
+    },
+    {
+      "id": "frame-reject-unassigned-0xa8",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401a8"
+    },
+    {
+      "id": "frame-reject-unassigned-0xa9",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401a9"
+    },
+    {
+      "id": "frame-reject-unassigned-0xaa",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401aa"
+    },
+    {
+      "id": "frame-reject-unassigned-0xab",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401ab"
+    },
+    {
+      "id": "frame-reject-unassigned-0xac",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401ac"
+    },
+    {
+      "id": "frame-reject-unassigned-0xad",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401ad"
+    },
+    {
+      "id": "frame-reject-unassigned-0xae",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401ae"
+    },
+    {
+      "id": "frame-reject-unassigned-0xaf",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401af"
+    },
+    {
+      "id": "frame-reject-unassigned-0xb0",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401b0"
+    },
+    {
+      "id": "frame-reject-unassigned-0xb1",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401b1"
+    },
+    {
+      "id": "frame-reject-unassigned-0xb2",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401b2"
+    },
+    {
+      "id": "frame-reject-unassigned-0xb3",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401b3"
+    },
+    {
+      "id": "frame-reject-unassigned-0xb4",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401b4"
+    },
+    {
+      "id": "frame-reject-unassigned-0xb5",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401b5"
+    },
+    {
+      "id": "frame-reject-unassigned-0xb6",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401b6"
+    },
+    {
+      "id": "frame-reject-unassigned-0xb7",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401b7"
+    },
+    {
+      "id": "frame-reject-unassigned-0xb8",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401b8"
+    },
+    {
+      "id": "frame-reject-unassigned-0xb9",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401b9"
+    },
+    {
+      "id": "frame-reject-unassigned-0xba",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401ba"
+    },
+    {
+      "id": "frame-reject-unassigned-0xbb",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401bb"
+    },
+    {
+      "id": "frame-reject-unassigned-0xbc",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401bc"
+    },
+    {
+      "id": "frame-reject-unassigned-0xbd",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401bd"
+    },
+    {
+      "id": "frame-reject-unassigned-0xbe",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401be"
+    },
+    {
+      "id": "frame-reject-unassigned-0xbf",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401bf"
+    },
+    {
+      "id": "frame-reject-unassigned-0xc0",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401c0"
+    },
+    {
+      "id": "frame-reject-unassigned-0xc1",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401c1"
+    },
+    {
+      "id": "frame-reject-unassigned-0xc2",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401c2"
+    },
+    {
+      "id": "frame-reject-unassigned-0xc3",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401c3"
+    },
+    {
+      "id": "frame-reject-unassigned-0xc4",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401c4"
+    },
+    {
+      "id": "frame-reject-unassigned-0xc5",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401c5"
+    },
+    {
+      "id": "frame-reject-unassigned-0xc6",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401c6"
+    },
+    {
+      "id": "frame-reject-unassigned-0xc7",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401c7"
+    },
+    {
+      "id": "frame-reject-unassigned-0xc8",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401c8"
+    },
+    {
+      "id": "frame-reject-unassigned-0xc9",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401c9"
+    },
+    {
+      "id": "frame-reject-unassigned-0xca",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401ca"
+    },
+    {
+      "id": "frame-reject-unassigned-0xcb",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401cb"
+    },
+    {
+      "id": "frame-reject-unassigned-0xcc",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401cc"
+    },
+    {
+      "id": "frame-reject-unassigned-0xcd",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401cd"
+    },
+    {
+      "id": "frame-reject-unassigned-0xce",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401ce"
+    },
+    {
+      "id": "frame-reject-unassigned-0xcf",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401cf"
+    },
+    {
+      "id": "frame-reject-unassigned-0xd0",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401d0"
+    },
+    {
+      "id": "frame-reject-unassigned-0xd1",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401d1"
+    },
+    {
+      "id": "frame-reject-unassigned-0xd2",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401d2"
+    },
+    {
+      "id": "frame-reject-unassigned-0xd3",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401d3"
+    },
+    {
+      "id": "frame-reject-unassigned-0xd4",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401d4"
+    },
+    {
+      "id": "frame-reject-unassigned-0xd5",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401d5"
+    },
+    {
+      "id": "frame-reject-unassigned-0xd6",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401d6"
+    },
+    {
+      "id": "frame-reject-unassigned-0xd7",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401d7"
+    },
+    {
+      "id": "frame-reject-unassigned-0xd8",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401d8"
+    },
+    {
+      "id": "frame-reject-unassigned-0xd9",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401d9"
+    },
+    {
+      "id": "frame-reject-unassigned-0xda",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401da"
+    },
+    {
+      "id": "frame-reject-unassigned-0xdb",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401db"
+    },
+    {
+      "id": "frame-reject-unassigned-0xdc",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401dc"
+    },
+    {
+      "id": "frame-reject-unassigned-0xdd",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401dd"
+    },
+    {
+      "id": "frame-reject-unassigned-0xde",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401de"
+    },
+    {
+      "id": "frame-reject-unassigned-0xdf",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401df"
+    },
+    {
+      "id": "frame-reject-unassigned-0xe0",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401e0"
+    },
+    {
+      "id": "frame-reject-unassigned-0xe1",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401e1"
+    },
+    {
+      "id": "frame-reject-unassigned-0xe2",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401e2"
+    },
+    {
+      "id": "frame-reject-unassigned-0xe3",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401e3"
+    },
+    {
+      "id": "frame-reject-unassigned-0xe4",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401e4"
+    },
+    {
+      "id": "frame-reject-unassigned-0xe5",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401e5"
+    },
+    {
+      "id": "frame-reject-unassigned-0xe6",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401e6"
+    },
+    {
+      "id": "frame-reject-unassigned-0xe7",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401e7"
+    },
+    {
+      "id": "frame-reject-unassigned-0xe8",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401e8"
+    },
+    {
+      "id": "frame-reject-unassigned-0xe9",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401e9"
+    },
+    {
+      "id": "frame-reject-unassigned-0xea",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401ea"
+    },
+    {
+      "id": "frame-reject-unassigned-0xeb",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401eb"
+    },
+    {
+      "id": "frame-reject-unassigned-0xec",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401ec"
+    },
+    {
+      "id": "frame-reject-unassigned-0xed",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401ed"
+    },
+    {
+      "id": "frame-reject-unassigned-0xee",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401ee"
+    },
+    {
+      "id": "frame-reject-unassigned-0xef",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401ef"
+    },
+    {
+      "id": "frame-reject-unassigned-0xf0",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401f0"
+    },
+    {
+      "id": "frame-reject-unassigned-0xf1",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401f1"
+    },
+    {
+      "id": "frame-reject-unassigned-0xf2",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401f2"
+    },
+    {
+      "id": "frame-reject-unassigned-0xf3",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401f3"
+    },
+    {
+      "id": "frame-reject-unassigned-0xf4",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401f4"
+    },
+    {
+      "id": "frame-reject-unassigned-0xf5",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401f5"
+    },
+    {
+      "id": "frame-reject-unassigned-0xf6",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401f6"
+    },
+    {
+      "id": "frame-reject-unassigned-0xf7",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401f7"
+    },
+    {
+      "id": "frame-reject-unassigned-0xf8",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401f8"
+    },
+    {
+      "id": "frame-reject-unassigned-0xf9",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401f9"
+    },
+    {
+      "id": "frame-reject-unassigned-0xfa",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401fa"
+    },
+    {
+      "id": "frame-reject-unassigned-0xfb",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401fb"
+    },
+    {
+      "id": "frame-reject-unassigned-0xfc",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401fc"
+    },
+    {
+      "id": "frame-reject-unassigned-0xfd",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401fd"
+    },
+    {
+      "id": "frame-reject-unassigned-0xfe",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401fe"
+    },
+    {
+      "id": "frame-reject-unassigned-0xff",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401ff"
+    },
+    {
+      "id": "frame-reject-retired-0x0d",
+      "kind": "reject",
+      "cite": "§3 registry: 0x0d retired, never reuse (marker-fold #47); §4.5",
+      "hex": "4f4e54010d"
+    }
+  ]
+}

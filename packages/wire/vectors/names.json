@@ -1,0 +1,52 @@
+{
+  "spec": "docs/spec/WIRE_FORMAT.md",
+  "section": "§2",
+  "acceptedInput": [
+    {
+      "input": "example",
+      "canonical": "example"
+    },
+    {
+      "input": "EXAMPLE",
+      "canonical": "example",
+      "note": "surface normalization only — never on the wire"
+    },
+    {
+      "input": "Name123",
+      "canonical": "name123"
+    }
+  ],
+  "rejectInput": [
+    {
+      "input": "",
+      "cite": "§2 [a-z0-9]{1,32}"
+    },
+    {
+      "input": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "cite": "§2 [a-z0-9]{1,32}"
+    },
+    {
+      "input": "with space",
+      "cite": "§2 no whitespace"
+    },
+    {
+      "input": "héllo",
+      "cite": "§2 no Unicode"
+    },
+    {
+      "input": "dash-name",
+      "cite": "§2 no punctuation"
+    }
+  ],
+  "canonicalWireBytes": [
+    {
+      "nameHex": "6578616d706c65",
+      "valid": true
+    },
+    {
+      "nameHex": "4578616d706c65",
+      "valid": false,
+      "cite": "§2 'decoder MUST reject a payload whose name bytes are non-canonical — the wire never normalizes' (W3)"
+    }
+  ]
+}

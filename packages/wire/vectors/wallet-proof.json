@@ -1,0 +1,232 @@
+{
+  "spec": "docs/spec/WIRE_FORMAT.md",
+  "section": "§8.3",
+  "signatureNote": "signatureBase64 values are REAL BIP322 signatures by the deterministic recovery-address key (recoveryKey.privateKey below) — verifiable with any BIP322 verifier",
+  "recoveryKey": {
+    "privateKey": "ed4cfee75524eb2992ee710acfd6dfe1cac28d90d4d462e9d86c5fc788bb413a",
+    "wif": "cVXyz8hyVRwLZXonB57nth1Rx5DBd856MHBc47LHSre25aURDFdp",
+    "address": "tb1q28r7kchkssmxzlaan86zcuksgcy9yecnargmak",
+    "note": "deterministic test key (sha256 of a fixed label); P2WPKH testnet encoding"
+  },
+  "vectors": [
+    {
+      "id": "wallet-proof-valid-no-tip",
+      "kind": "valid",
+      "cite": "§8.3 chainTip = 'unspecified' when either tip field absent",
+      "envelope": {
+        "format": "ont-recovery-wallet-proof",
+        "proofVersion": 1,
+        "name": "example",
+        "prevStateTxid": "7cf2b1832808d612782db10e354dfcdf0aaed7bfcb6db06fe9ae16026323b75f",
+        "recoveryDescriptorHash": "e02d0f92325c4f713a46faa9296cb5985c4ca6b70e4322c8a8a36b76712049a8",
+        "newOwnerPubkey": "bb6993ecc9feec6f631e24977e460eb3df2654b103fbeb75a969f17d5a911afe",
+        "successorBondVout": 0,
+        "challengeWindowBlocks": 144,
+        "recoveryAddress": "tb1q28r7kchkssmxzlaan86zcuksgcy9yecnargmak",
+        "signingProfile": "bip322",
+        "message": "Open Name Tags owner recovery proof\nprofile: bip322\nname: example\nprevStateTxid: 7cf2b1832808d612782db10e354dfcdf0aaed7bfcb6db06fe9ae16026323b75f\nrecoveryDescriptorHash: e02d0f92325c4f713a46faa9296cb5985c4ca6b70e4322c8a8a36b76712049a8\nnewOwnerPubkey: bb6993ecc9feec6f631e24977e460eb3df2654b103fbeb75a969f17d5a911afe\nsuccessorBondVout: 0\nchallengeWindowBlocks: 144\nchainTip: unspecified",
+        "signatureBase64": "AkgwRQIhALGg/fg+Vs7lns0ZB4fpPmvjL/jjS5Uh5srHk5yf5KtjAiBfTICB61SOEy1mtG04eHPnCXI1TDp+n5THgPbJHtRuRQEhA5FP/YTQzzGrmt0YSAGYJAJOpdROVvNim47OyL0uiAWk"
+      },
+      "proofHash": "250817cf03ddf16e4f61b24cbda650b9c9c0afb86fb7a8a16158a8ef541176a6",
+      "crossCheckedAgainstLegacy": true,
+      "proofCommitment": "250817cf03ddf16e4f61b24cbda650b9c9c0afb86fb7a8a16158a8ef541176a6",
+      "commitmentCite": "§8.3 [PROPOSAL] commitment = 32-byte proof hash, no reserved bytes (W15a resolved)"
+    },
+    {
+      "id": "wallet-proof-valid-with-tip",
+      "kind": "valid",
+      "cite": "§8.3 chainTip = <blockHash>@<height> only when BOTH present",
+      "envelope": {
+        "format": "ont-recovery-wallet-proof",
+        "proofVersion": 1,
+        "name": "example",
+        "prevStateTxid": "7cf2b1832808d612782db10e354dfcdf0aaed7bfcb6db06fe9ae16026323b75f",
+        "recoveryDescriptorHash": "e02d0f92325c4f713a46faa9296cb5985c4ca6b70e4322c8a8a36b76712049a8",
+        "newOwnerPubkey": "bb6993ecc9feec6f631e24977e460eb3df2654b103fbeb75a969f17d5a911afe",
+        "successorBondVout": 0,
+        "challengeWindowBlocks": 144,
+        "recoveryAddress": "tb1q28r7kchkssmxzlaan86zcuksgcy9yecnargmak",
+        "signingProfile": "bip322",
+        "chainTipBlockHash": "4a80d8b68a4b06e6d6f356650db5bd249b9ea2bd675e672ab0b8552f70ae3bb5",
+        "chainTipHeight": 4321,
+        "message": "Open Name Tags owner recovery proof\nprofile: bip322\nname: example\nprevStateTxid: 7cf2b1832808d612782db10e354dfcdf0aaed7bfcb6db06fe9ae16026323b75f\nrecoveryDescriptorHash: e02d0f92325c4f713a46faa9296cb5985c4ca6b70e4322c8a8a36b76712049a8\nnewOwnerPubkey: bb6993ecc9feec6f631e24977e460eb3df2654b103fbeb75a969f17d5a911afe\nsuccessorBondVout: 0\nchallengeWindowBlocks: 144\nchainTip: 4a80d8b68a4b06e6d6f356650db5bd249b9ea2bd675e672ab0b8552f70ae3bb5@4321",
+        "signatureBase64": "AkcwRAIgXV3CiRo21xMARHkO3a1dEAqjRcyy3uwVBpmQUo461SQCIHD+hnrmBuCjmjipqw8H3Cgu222QrZZhIGhlbIaREegcASEDkU/9hNDPMaua3RhIAZgkAk6l1E5W82Kbjs7IvS6IBaQ="
+      },
+      "proofHash": "380a33e14938f03bfd39c8a66caaa0a7631febe6c6480c3a1d93a2088aa98caa",
+      "crossCheckedAgainstLegacy": true
+    },
+    {
+      "id": "wallet-proof-reject-tampered-message",
+      "kind": "reject",
+      "cite": "§8.3 regenerate-and-compare: stored message must match byte-for-byte before BIP322 verification",
+      "envelope": {
+        "format": "ont-recovery-wallet-proof",
+        "proofVersion": 1,
+        "name": "example",
+        "prevStateTxid": "7cf2b1832808d612782db10e354dfcdf0aaed7bfcb6db06fe9ae16026323b75f",
+        "recoveryDescriptorHash": "e02d0f92325c4f713a46faa9296cb5985c4ca6b70e4322c8a8a36b76712049a8",
+        "newOwnerPubkey": "bb6993ecc9feec6f631e24977e460eb3df2654b103fbeb75a969f17d5a911afe",
+        "successorBondVout": 0,
+        "challengeWindowBlocks": 144,
+        "recoveryAddress": "tb1q28r7kchkssmxzlaan86zcuksgcy9yecnargmak",
+        "signingProfile": "bip322",
+        "message": "Open Name Tags owner recovery proof\nprofile: bip322\nname: exbmple\nprevStateTxid: 7cf2b1832808d612782db10e354dfcdf0aaed7bfcb6db06fe9ae16026323b75f\nrecoveryDescriptorHash: e02d0f92325c4f713a46faa9296cb5985c4ca6b70e4322c8a8a36b76712049a8\nnewOwnerPubkey: bb6993ecc9feec6f631e24977e460eb3df2654b103fbeb75a969f17d5a911afe\nsuccessorBondVout: 0\nchallengeWindowBlocks: 144\nchainTip: unspecified",
+        "signatureBase64": "AkgwRQIhALGg/fg+Vs7lns0ZB4fpPmvjL/jjS5Uh5srHk5yf5KtjAiBfTICB61SOEy1mtG04eHPnCXI1TDp+n5THgPbJHtRuRQEhA5FP/YTQzzGrmt0YSAGYJAJOpdROVvNim47OyL0uiAWk"
+      }
+    },
+    {
+      "id": "wallet-proof-reject-profile",
+      "kind": "reject",
+      "cite": "§8.3 normalized signingProfile must be exactly 'bip322'",
+      "envelope": {
+        "format": "ont-recovery-wallet-proof",
+        "proofVersion": 1,
+        "name": "example",
+        "prevStateTxid": "7cf2b1832808d612782db10e354dfcdf0aaed7bfcb6db06fe9ae16026323b75f",
+        "recoveryDescriptorHash": "e02d0f92325c4f713a46faa9296cb5985c4ca6b70e4322c8a8a36b76712049a8",
+        "newOwnerPubkey": "bb6993ecc9feec6f631e24977e460eb3df2654b103fbeb75a969f17d5a911afe",
+        "successorBondVout": 0,
+        "challengeWindowBlocks": 144,
+        "recoveryAddress": "tb1q28r7kchkssmxzlaan86zcuksgcy9yecnargmak",
+        "signingProfile": "bip340",
+        "message": "Open Name Tags owner recovery proof\nprofile: bip322\nname: example\nprevStateTxid: 7cf2b1832808d612782db10e354dfcdf0aaed7bfcb6db06fe9ae16026323b75f\nrecoveryDescriptorHash: e02d0f92325c4f713a46faa9296cb5985c4ca6b70e4322c8a8a36b76712049a8\nnewOwnerPubkey: bb6993ecc9feec6f631e24977e460eb3df2654b103fbeb75a969f17d5a911afe\nsuccessorBondVout: 0\nchallengeWindowBlocks: 144\nchainTip: unspecified",
+        "signatureBase64": "AkgwRQIhALGg/fg+Vs7lns0ZB4fpPmvjL/jjS5Uh5srHk5yf5KtjAiBfTICB61SOEy1mtG04eHPnCXI1TDp+n5THgPbJHtRuRQEhA5FP/YTQzzGrmt0YSAGYJAJOpdROVvNim47OyL0uiAWk"
+      }
+    },
+    {
+      "id": "wallet-proof-accept-profile-normalization",
+      "kind": "valid",
+      "cite": "§8.3 parser normalizes (trim, lowercase) then compares — ' BIP322 ' normalizes to bip322; hash uses the normalized literal",
+      "envelope": {
+        "format": "ont-recovery-wallet-proof",
+        "proofVersion": 1,
+        "name": "example",
+        "prevStateTxid": "7cf2b1832808d612782db10e354dfcdf0aaed7bfcb6db06fe9ae16026323b75f",
+        "recoveryDescriptorHash": "e02d0f92325c4f713a46faa9296cb5985c4ca6b70e4322c8a8a36b76712049a8",
+        "newOwnerPubkey": "bb6993ecc9feec6f631e24977e460eb3df2654b103fbeb75a969f17d5a911afe",
+        "successorBondVout": 0,
+        "challengeWindowBlocks": 144,
+        "recoveryAddress": "tb1q28r7kchkssmxzlaan86zcuksgcy9yecnargmak",
+        "signingProfile": " BIP322 ",
+        "message": "Open Name Tags owner recovery proof\nprofile: bip322\nname: example\nprevStateTxid: 7cf2b1832808d612782db10e354dfcdf0aaed7bfcb6db06fe9ae16026323b75f\nrecoveryDescriptorHash: e02d0f92325c4f713a46faa9296cb5985c4ca6b70e4322c8a8a36b76712049a8\nnewOwnerPubkey: bb6993ecc9feec6f631e24977e460eb3df2654b103fbeb75a969f17d5a911afe\nsuccessorBondVout: 0\nchallengeWindowBlocks: 144\nchainTip: unspecified",
+        "signatureBase64": "AkgwRQIhALGg/fg+Vs7lns0ZB4fpPmvjL/jjS5Uh5srHk5yf5KtjAiBfTICB61SOEy1mtG04eHPnCXI1TDp+n5THgPbJHtRuRQEhA5FP/YTQzzGrmt0YSAGYJAJOpdROVvNim47OyL0uiAWk"
+      },
+      "normalizedProfile": "bip322",
+      "proofHash": "250817cf03ddf16e4f61b24cbda650b9c9c0afb86fb7a8a16158a8ef541176a6"
+    },
+    {
+      "id": "wallet-proof-reject-trailing-newline",
+      "kind": "reject",
+      "cite": "§8.3 nine lines joined by single LF, no trailing newline",
+      "envelope": {
+        "format": "ont-recovery-wallet-proof",
+        "proofVersion": 1,
+        "name": "example",
+        "prevStateTxid": "7cf2b1832808d612782db10e354dfcdf0aaed7bfcb6db06fe9ae16026323b75f",
+        "recoveryDescriptorHash": "e02d0f92325c4f713a46faa9296cb5985c4ca6b70e4322c8a8a36b76712049a8",
+        "newOwnerPubkey": "bb6993ecc9feec6f631e24977e460eb3df2654b103fbeb75a969f17d5a911afe",
+        "successorBondVout": 0,
+        "challengeWindowBlocks": 144,
+        "recoveryAddress": "tb1q28r7kchkssmxzlaan86zcuksgcy9yecnargmak",
+        "signingProfile": "bip322",
+        "message": "Open Name Tags owner recovery proof\nprofile: bip322\nname: example\nprevStateTxid: 7cf2b1832808d612782db10e354dfcdf0aaed7bfcb6db06fe9ae16026323b75f\nrecoveryDescriptorHash: e02d0f92325c4f713a46faa9296cb5985c4ca6b70e4322c8a8a36b76712049a8\nnewOwnerPubkey: bb6993ecc9feec6f631e24977e460eb3df2654b103fbeb75a969f17d5a911afe\nsuccessorBondVout: 0\nchallengeWindowBlocks: 144\nchainTip: unspecified\n",
+        "signatureBase64": "AkgwRQIhALGg/fg+Vs7lns0ZB4fpPmvjL/jjS5Uh5srHk5yf5KtjAiBfTICB61SOEy1mtG04eHPnCXI1TDp+n5THgPbJHtRuRQEhA5FP/YTQzzGrmt0YSAGYJAJOpdROVvNim47OyL0uiAWk"
+      }
+    },
+    {
+      "id": "wallet-proof-reject-bip322-invalid-signature",
+      "kind": "reject",
+      "cite": "§8.3 'signed BIP322 by the recovery address key... verified by a BIP322 verifier' — message regenerates cleanly, signature does not verify",
+      "envelope": {
+        "format": "ont-recovery-wallet-proof",
+        "proofVersion": 1,
+        "name": "example",
+        "prevStateTxid": "7cf2b1832808d612782db10e354dfcdf0aaed7bfcb6db06fe9ae16026323b75f",
+        "recoveryDescriptorHash": "e02d0f92325c4f713a46faa9296cb5985c4ca6b70e4322c8a8a36b76712049a8",
+        "newOwnerPubkey": "bb6993ecc9feec6f631e24977e460eb3df2654b103fbeb75a969f17d5a911afe",
+        "successorBondVout": 0,
+        "challengeWindowBlocks": 144,
+        "recoveryAddress": "tb1q28r7kchkssmxzlaan86zcuksgcy9yecnargmak",
+        "signingProfile": "bip322",
+        "message": "Open Name Tags owner recovery proof\nprofile: bip322\nname: example\nprevStateTxid: 7cf2b1832808d612782db10e354dfcdf0aaed7bfcb6db06fe9ae16026323b75f\nrecoveryDescriptorHash: e02d0f92325c4f713a46faa9296cb5985c4ca6b70e4322c8a8a36b76712049a8\nnewOwnerPubkey: bb6993ecc9feec6f631e24977e460eb3df2654b103fbeb75a969f17d5a911afe\nsuccessorBondVout: 0\nchallengeWindowBlocks: 144\nchainTip: unspecified",
+        "signatureBase64": "AkgwRQIhALGg/fg+Vs7lns0ZB4fpPmvjL/jjS5Uh5srHk5yf5KtjAiBfTICB61SOEy1mtG04eXPnCXI1TDp+n5THgPbJHtRuRQEhA5FP/YTQzzGrmt0YSAGYJAJOpdROVvNim47OyL0uiAWk"
+      }
+    },
+    {
+      "id": "wallet-proof-reject-bip322-malformed-signature",
+      "kind": "reject",
+      "cite": "§8.3 BIP322 verification — base64-shaped but structurally invalid witness bytes are an INVALID signature (verify false), never a verifier crash",
+      "envelope": {
+        "format": "ont-recovery-wallet-proof",
+        "proofVersion": 1,
+        "name": "example",
+        "prevStateTxid": "7cf2b1832808d612782db10e354dfcdf0aaed7bfcb6db06fe9ae16026323b75f",
+        "recoveryDescriptorHash": "e02d0f92325c4f713a46faa9296cb5985c4ca6b70e4322c8a8a36b76712049a8",
+        "newOwnerPubkey": "bb6993ecc9feec6f631e24977e460eb3df2654b103fbeb75a969f17d5a911afe",
+        "successorBondVout": 0,
+        "challengeWindowBlocks": 144,
+        "recoveryAddress": "tb1q28r7kchkssmxzlaan86zcuksgcy9yecnargmak",
+        "signingProfile": "bip322",
+        "message": "Open Name Tags owner recovery proof\nprofile: bip322\nname: example\nprevStateTxid: 7cf2b1832808d612782db10e354dfcdf0aaed7bfcb6db06fe9ae16026323b75f\nrecoveryDescriptorHash: e02d0f92325c4f713a46faa9296cb5985c4ca6b70e4322c8a8a36b76712049a8\nnewOwnerPubkey: bb6993ecc9feec6f631e24977e460eb3df2654b103fbeb75a969f17d5a911afe\nsuccessorBondVout: 0\nchallengeWindowBlocks: 144\nchainTip: unspecified",
+        "signatureBase64": "AAAA"
+      }
+    },
+    {
+      "id": "wallet-proof-reject-signature-not-base64-string",
+      "kind": "reject",
+      "cite": "§8.3 signatureBase64 — wrong JSON type is off-shape",
+      "envelope": {
+        "format": "ont-recovery-wallet-proof",
+        "proofVersion": 1,
+        "name": "example",
+        "prevStateTxid": "7cf2b1832808d612782db10e354dfcdf0aaed7bfcb6db06fe9ae16026323b75f",
+        "recoveryDescriptorHash": "e02d0f92325c4f713a46faa9296cb5985c4ca6b70e4322c8a8a36b76712049a8",
+        "newOwnerPubkey": "bb6993ecc9feec6f631e24977e460eb3df2654b103fbeb75a969f17d5a911afe",
+        "successorBondVout": 0,
+        "challengeWindowBlocks": 144,
+        "recoveryAddress": "tb1q28r7kchkssmxzlaan86zcuksgcy9yecnargmak",
+        "signingProfile": "bip322",
+        "message": "Open Name Tags owner recovery proof\nprofile: bip322\nname: example\nprevStateTxid: 7cf2b1832808d612782db10e354dfcdf0aaed7bfcb6db06fe9ae16026323b75f\nrecoveryDescriptorHash: e02d0f92325c4f713a46faa9296cb5985c4ca6b70e4322c8a8a36b76712049a8\nnewOwnerPubkey: bb6993ecc9feec6f631e24977e460eb3df2654b103fbeb75a969f17d5a911afe\nsuccessorBondVout: 0\nchallengeWindowBlocks: 144\nchainTip: unspecified",
+        "signatureBase64": 123
+      }
+    },
+    {
+      "id": "wallet-proof-reject-extra-field",
+      "kind": "reject",
+      "cite": "§8 'field sets are closed' — unrecognized extra field",
+      "envelope": {
+        "format": "ont-recovery-wallet-proof",
+        "proofVersion": 1,
+        "name": "example",
+        "prevStateTxid": "7cf2b1832808d612782db10e354dfcdf0aaed7bfcb6db06fe9ae16026323b75f",
+        "recoveryDescriptorHash": "e02d0f92325c4f713a46faa9296cb5985c4ca6b70e4322c8a8a36b76712049a8",
+        "newOwnerPubkey": "bb6993ecc9feec6f631e24977e460eb3df2654b103fbeb75a969f17d5a911afe",
+        "successorBondVout": 0,
+        "challengeWindowBlocks": 144,
+        "recoveryAddress": "tb1q28r7kchkssmxzlaan86zcuksgcy9yecnargmak",
+        "signingProfile": "bip322",
+        "message": "Open Name Tags owner recovery proof\nprofile: bip322\nname: example\nprevStateTxid: 7cf2b1832808d612782db10e354dfcdf0aaed7bfcb6db06fe9ae16026323b75f\nrecoveryDescriptorHash: e02d0f92325c4f713a46faa9296cb5985c4ca6b70e4322c8a8a36b76712049a8\nnewOwnerPubkey: bb6993ecc9feec6f631e24977e460eb3df2654b103fbeb75a969f17d5a911afe\nsuccessorBondVout: 0\nchallengeWindowBlocks: 144\nchainTip: unspecified",
+        "signatureBase64": "AkgwRQIhALGg/fg+Vs7lns0ZB4fpPmvjL/jjS5Uh5srHk5yf5KtjAiBfTICB61SOEy1mtG04eHPnCXI1TDp+n5THgPbJHtRuRQEhA5FP/YTQzzGrmt0YSAGYJAJOpdROVvNim47OyL0uiAWk",
+        "metadata": "unsigned metadata must not ride along"
+      }
+    },
+    {
+      "id": "wallet-proof-reject-missing-field",
+      "kind": "reject",
+      "cite": "§8 closed field set — missing required field",
+      "envelope": {
+        "format": "ont-recovery-wallet-proof",
+        "proofVersion": 1,
+        "name": "example",
+        "prevStateTxid": "7cf2b1832808d612782db10e354dfcdf0aaed7bfcb6db06fe9ae16026323b75f",
+        "recoveryDescriptorHash": "e02d0f92325c4f713a46faa9296cb5985c4ca6b70e4322c8a8a36b76712049a8",
+        "newOwnerPubkey": "bb6993ecc9feec6f631e24977e460eb3df2654b103fbeb75a969f17d5a911afe",
+        "successorBondVout": 0,
+        "challengeWindowBlocks": 144,
+        "signingProfile": "bip322",
+        "message": "Open Name Tags owner recovery proof\nprofile: bip322\nname: example\nprevStateTxid: 7cf2b1832808d612782db10e354dfcdf0aaed7bfcb6db06fe9ae16026323b75f\nrecoveryDescriptorHash: e02d0f92325c4f713a46faa9296cb5985c4ca6b70e4322c8a8a36b76712049a8\nnewOwnerPubkey: bb6993ecc9feec6f631e24977e460eb3df2654b103fbeb75a969f17d5a911afe\nsuccessorBondVout: 0\nchallengeWindowBlocks: 144\nchainTip: unspecified",
+        "signatureBase64": "AkgwRQIhALGg/fg+Vs7lns0ZB4fpPmvjL/jjS5Uh5srHk5yf5KtjAiBfTICB61SOEy1mtG04eHPnCXI1TDp+n5THgPbJHtRuRQEhA5FP/YTQzzGrmt0YSAGYJAJOpdROVvNim47OyL0uiAWk"
+      }
+    }
+  ]
+}

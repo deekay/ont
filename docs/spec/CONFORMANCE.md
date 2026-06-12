@@ -96,7 +96,7 @@ validation — not rule-breaks:
 | **Censor** | 🟡 | Direct-L1 fallback (designed, unprototyped). |
 | **Equivocator** | ✅ (prototyped) | I1 + Bitcoin ordering + insertion-time uniqueness + convergence rule. |
 | **Sybil** | ✅ | Cost scales per *name*, not per identity — identities are free but useless without per-name spend. |
-| **Data-withholder** | 🟡 (prototyped) | Self-harm + fail-closed + on-chain availability marker; convergence vs a withholder passes in code. Residual: window pinning, light-client path. |
+| **Data-withholder** | 🟡 (prototyped) | Self-harm + fail-closed anchor-keyed deadline (marker-fold (#47)); convergence vs a withholder passes in code. Residual: window pinning, light-client path. |
 | **Founder-capture** | 🟡 | §9 test + convenience-not-dependency + no allocation. Live items: DA-server sunset, no-pre-grab (see §9). |
 | *(MEV / ordering — R9)* | 🟡 (analyzed 2026-05-24) | `ONT_MEV_ORDERING_ANALYSIS.md`: can't *steal* a name via ordering (commit-reveal + commutativity + bid-not-order + L1 fallback). Residual bounded. Open: open-auction relay-bid handling (or pick sealed second-price). |
 

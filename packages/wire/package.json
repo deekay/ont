@@ -1,0 +1,30 @@
+{
+  "name": "@ont/wire",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "ONT wire layer — conformance suite + implementation (the suite is the contract)",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "vectors:generate": "node tools/generate-vectors.mjs"
+  },
+  "dependencies": {
+    "@noble/curves": "^1.9.7",
+    "@noble/hashes": "^1.8.0",
+    "@scure/base": "^1.2.6",
+    "@scure/bip32": "^1.7.0",
+    "@scure/bip39": "^1.6.0",
+    "bip322-js": "^3.0.0"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.4"
+  }
+}

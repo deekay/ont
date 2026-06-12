@@ -229,8 +229,8 @@ are **not frozen today**.
 ## What we most want pushed on
 
 1. **The data-availability rule and transport** — is fail-closed-by-height sound against withholding and reorgs?
-   Should the availability marker be folded into the anchor itself? Is publisher-served +
-   voluntary mirrors enough for v1?
+   The availability marker is now folded into the anchor (marker-fold (#47)) — does that miss a
+   consensus role for a second timestamp? Is publisher-served + voluntary mirrors enough for v1?
    ([`design/ONT_DATA_AVAILABILITY_AGREEMENT.md`](./spec/ONT_DATA_AVAILABILITY_AGREEMENT.md) §8b)
 2. **Publisher trust-minimization** — is pay-first + reputable operators the right v1 stance, or
    is there a *deployable-today* way to bind payment to inclusion atomically?
