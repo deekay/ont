@@ -154,7 +154,23 @@ This stays a first-class question for Bitcoin-dev reviewers (DK,
 spec work isn't blocked; the external ask becomes sharper — "we fold the
 availability commitment into the anchor and enforce fail-closed exclusion
 off anchor height; what does this miss?" — which is a better review
-prompt than an open two-option question. Explicit revisit trigger: if
-external review surfaces a consensus role for a second timestamp that §2
-misses, marker-fold reopens by named spec PR before the B2 kernel
-freezes its DA predicate.
+prompt than an open two-option question.
+
+**To be explicit about posture: marker-fold is our working decision, not
+"solved."** It answers one narrow question — whether a *second* on-chain
+timestamp does consensus work (we argue no) — and deliberately leaves the
+hard half open: the served-bytes evidence definition the §6c challenge
+turns on, which is exactly where review pressure should land. Data
+availability as a whole is flagged as the highest-leverage Bitcoin-dev
+review surface in the design (DK, 2026-06-12; consolidated attack list at
+[OPEN_QUESTIONS.md §1](../OPEN_QUESTIONS.md)).
+
+Explicit reopen triggers — marker-fold reopens by named spec PR before
+the B2 kernel freezes its DA predicate if external review surfaces
+either:
+
+1. **a consensus role for a second timestamp** that §2 misses; or
+2. **a flaw in the served-evidence predicate** — i.e., a reason that
+   "bytes demonstrably servable by `h+W`, challenge-settled by `h+W+C`"
+   cannot be made convergent for honest verifiers without a second
+   on-chain event to pin it to.

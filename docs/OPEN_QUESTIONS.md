@@ -14,6 +14,26 @@ Decisions are cited as "Decision #N" against [`core/DECISIONS.md`](./core/DECISI
 
 ## 1. Data availability
 
+> **Review posture (DK, 2026-06-12): this is probably the highest-leverage Bitcoin-dev review
+> area in the design — surface it, don't hide it.** We propose our best thinking and tradeoffs
+> below and in [`spec/ONT_DATA_AVAILABILITY_AGREEMENT.md`](./spec/ONT_DATA_AVAILABILITY_AGREEMENT.md),
+> and we are explicitly soliciting attack on the approaches *and* the parameters that make them
+> workable. The specific things to attack:
+>
+> 1. **The served-bytes witness.** Anchor height is objective; "bytes demonstrably servable by
+>    `h+W`" is the hard evidence question. B3 must define it tightly enough that honest verifiers
+>    converge — this is the core thing to attack.
+> 2. **The `K`/`W`/`C` windows are not tuning trivia.** They encode the tradeoff among reorg
+>    safety, propagation latency, resolver/archive delay, censorship time, and user finality.
+>    What parameter ranges are defensible?
+> 3. **1-of-N archives are the explicit residual assumption.** Is publisher HTTP +
+>    content-addressed voluntary mirrors enough for v1, or must a mirror/gossip convention ship
+>    earlier?
+> 4. **The contested-name full-data L1 fallback** needs vbyte/standardness/mempool-policy review,
+>    including flood cases.
+> 5. **DA sampling stays an upgrade** — but reviewers should say what observable pressure would
+>    justify that complexity.
+
 ### 1.1 Fold the availability marker into the anchor? — [ANSWERED — marker-fold (#47); still a first-class external-review ask]
 
 **Ruled 2026-06-11: fold** — marker-fold (#47), decision paper

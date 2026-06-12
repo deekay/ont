@@ -19,6 +19,22 @@ irreducible part to a small, affordable corner.
 
 Status: design analysis, 2026-05-23. A candidate that meaningfully reduces R1 — not a closed proof.
 
+## Review posture — surface this, don't hide it
+
+**Data availability is probably the most important Bitcoin-dev review surface in this design**
+(DK, 2026-06-12). The current design is: **B for the long tail** (fail-closed window keyed off
+the anchor, §6), **A as the fallback/floor** (full data on Bitcoin for contested names, §7),
+**C as an optional upgrade** (DA sampling, if light-client availability at scale demands it) —
+with the evidence rules and the parameters explicitly open for review. Marker-fold (#47)
+answered one narrow question (no second availability-marker transaction; the anchor's height is
+the clock) — it did **not** close the DA problem. What we are asking reviewers to attack, in
+order of leverage: the served-bytes evidence definition (can honest verifiers converge on
+"servable by `h+W`"?); the `K`/`W`/`C` window values and their reorg/latency/censorship/finality
+tradeoffs; whether 1-of-N publisher-HTTP + voluntary mirrors is enough transport for v1; the
+contested-name L1 fallback's vbyte/standardness/flood reality; and where the line sits that
+would justify DA sampling. The consolidated attack list lives at
+[OPEN_QUESTIONS.md §1](../OPEN_QUESTIONS.md).
+
 ---
 
 ## Plain-language summary
@@ -249,14 +265,16 @@ clock start instead of two. The convergence argument is unchanged.)*
 `packages/core/src/da-convergence-sim.ts` (+ `da-convergence-sim.test.ts`) makes the rule
 falsifiable. It runs the same anchored batches through two inclusion rules — `naive` ("include if
 *I* received the bytes by the deadline", keyed on per-node local time) and `proposed` (keyed only
-on the Bitcoin-witnessed marker height + the fail-closed challenge) — across multiple honest nodes
+on the Bitcoin-witnessed publication height — under marker-fold (#47), the anchor's mined height;
+the sim code's identifier for it is historical — + the fail-closed challenge) — across multiple honest nodes
 with deliberately *different* local views. The tests assert, in code:
 
 - **The fork is real, and the rule fixes it.** Same batches, nodes whose local receipt straddles
   the deadline: `naive` produces **two** roots (fork); `proposed` produces **one** (converge).
-- **Withholding is self-harm** — a batch with no marker is dropped by everyone; other publishers
-  still register. **Mark-but-don't-serve** is also excluded by all (a marker without retrievable
-  bytes fails the challenge half).
+- **Withholding is self-harm** — a batch whose bytes never surface is dropped by everyone; other
+  publishers still register. **Anchor-but-don't-serve** is also excluded by all (an anchored
+  commitment without retrievable bytes fails the challenge half; the sim models this as its
+  marked-but-unserved case, which maps to anchored-but-unserved under marker-fold (#47)).
 - **Withhold-then-reveal name theft is defeated** — an attacker who commits *earlier* on `coffee`
   but withholds is filtered out before it can use its priority, so the in-time honest claimant
   wins. Under `naive`, the same selective reveal both forks *and* lets the thief win on a node that
