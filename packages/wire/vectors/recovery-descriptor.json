@@ -14,13 +14,13 @@
         "ownershipRef": "6e44ded5de059bb2917a073ec1ceb50eb9e3d430436d913e177b96d31d45f804",
         "sequence": 1,
         "previousDescriptorHash": null,
-        "recoveryAddress": "tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx",
+        "recoveryAddress": "tb1q28r7kchkssmxzlaan86zcuksgcy9yecnargmak",
         "signingProfile": "bip322",
         "challengeWindowBlocks": 144,
         "issuedAt": "2026-06-12T00:00:00.000Z",
-        "signature": "a1e5a76dece625edf7b05088193b02862c691b9b79c9358ef6074d6c9cb12e320a7448109cb8263b40150d51d10b42d3aa568542be2f74e146b4ffa344374c76"
+        "signature": "68201e98f9fcafe43c436edf0cef8212c015c24f4aad0f4b2e99d05dde2fd708fd82eb225436800550562c9e0fc804f9c11baf56d8b8b3d1e666998e60c9805c"
       },
-      "digest": "04598087c243944322783580384aa4b2e2d0d8f2100d54017b55b55ea6b41c17",
+      "digest": "e02d0f92325c4f713a46faa9296cb5985c4ca6b70e4322c8a8a36b76712049a8",
       "signerXOnlyPubkey": "7fb0dc13cea75a622e8ba13d1c3abdeba2258649dd3069f2aa98357777eb2dba",
       "note": "digest = the descriptor hash the on-chain RecoverOwner event references"
     },
@@ -36,13 +36,13 @@
         "ownershipRef": "6e44ded5de059bb2917a073ec1ceb50eb9e3d430436d913e177b96d31d45f804",
         "sequence": 1,
         "previousDescriptorHash": null,
-        "recoveryAddress": "tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx",
+        "recoveryAddress": "tb1q28r7kchkssmxzlaan86zcuksgcy9yecnargmak",
         "signingProfile": "frost.v1",
         "challengeWindowBlocks": 144,
         "issuedAt": "2026-06-12T00:00:00.000Z",
-        "signature": "c30efe9dee5178ee9198dd7be6cef6e421ac74f5ecd6ad091c12ced3d4c9fc5d0c59d7cde4a4c0e042b1523f2c4f5e6e10c851370d1d8397a1415be0a3f88921"
+        "signature": "99e356f6d7f06b950deed11b9da32ff327f473c9e08fceeb7c5e4620baaa6612d5b82fff69d9d195002fecd9095e3214e255c4328c280ca7d8d3904fde8f26b5"
       },
-      "digest": "6a832ed30b19062ec496a3558dffb6cb1341fe8a644806d868d116b0b11e2c8f"
+      "digest": "1509894045015a55c3d51812bbeba2b02a43127c8fee1ffa23b92e4584aba0fa"
     },
     {
       "id": "descriptor-reject-profile-grammar",
@@ -56,11 +56,11 @@
         "ownershipRef": "6e44ded5de059bb2917a073ec1ceb50eb9e3d430436d913e177b96d31d45f804",
         "sequence": 1,
         "previousDescriptorHash": null,
-        "recoveryAddress": "tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx",
+        "recoveryAddress": "tb1q28r7kchkssmxzlaan86zcuksgcy9yecnargmak",
         "signingProfile": "bip322!",
         "challengeWindowBlocks": 144,
         "issuedAt": "2026-06-12T00:00:00.000Z",
-        "signature": "a1e5a76dece625edf7b05088193b02862c691b9b79c9358ef6074d6c9cb12e320a7448109cb8263b40150d51d10b42d3aa568542be2f74e146b4ffa344374c76"
+        "signature": "68201e98f9fcafe43c436edf0cef8212c015c24f4aad0f4b2e99d05dde2fd708fd82eb225436800550562c9e0fc804f9c11baf56d8b8b3d1e666998e60c9805c"
       }
     },
     {
@@ -75,11 +75,11 @@
         "ownershipRef": "6e44ded5de059bb2917a073ec1ceb50eb9e3d430436d913e177b96d31d45f804",
         "sequence": 1,
         "previousDescriptorHash": null,
-        "recoveryAddress": "tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx",
+        "recoveryAddress": "tb1q28r7kchkssmxzlaan86zcuksgcy9yecnargmak",
         "signingProfile": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         "challengeWindowBlocks": 144,
         "issuedAt": "2026-06-12T00:00:00.000Z",
-        "signature": "a1e5a76dece625edf7b05088193b02862c691b9b79c9358ef6074d6c9cb12e320a7448109cb8263b40150d51d10b42d3aa568542be2f74e146b4ffa344374c76"
+        "signature": "68201e98f9fcafe43c436edf0cef8212c015c24f4aad0f4b2e99d05dde2fd708fd82eb225436800550562c9e0fc804f9c11baf56d8b8b3d1e666998e60c9805c"
       }
     },
     {
@@ -94,11 +94,49 @@
         "ownershipRef": "6e44ded5de059bb2917a073ec1ceb50eb9e3d430436d913e177b96d31d45f804",
         "sequence": 1,
         "previousDescriptorHash": null,
-        "recoveryAddress": "tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx",
+        "recoveryAddress": "tb1q28r7kchkssmxzlaan86zcuksgcy9yecnargmak",
         "signingProfile": "bip322",
         "challengeWindowBlocks": 144,
         "issuedAt": "2026-06-12T00:00:00.000Z",
-        "signature": "a1e5a76dece625edf7b05088193b02862c691b9b79c9358ef6074d6c9cb12e320a7448109cb8263b40150d51d10b42d3aa568542be2f74e146b4ffa344374c76"
+        "signature": "68201e98f9fcafe43c436edf0cef8212c015c24f4aad0f4b2e99d05dde2fd708fd82eb225436800550562c9e0fc804f9c11baf56d8b8b3d1e666998e60c9805c"
+      }
+    },
+    {
+      "id": "descriptor-reject-extra-field",
+      "kind": "reject",
+      "cite": "§8 'field sets are closed' — unrecognized extra field",
+      "envelope": {
+        "format": "ont-recovery-descriptor",
+        "descriptorVersion": 1,
+        "name": "example",
+        "ownerPubkey": "7fb0dc13cea75a622e8ba13d1c3abdeba2258649dd3069f2aa98357777eb2dba",
+        "ownershipRef": "6e44ded5de059bb2917a073ec1ceb50eb9e3d430436d913e177b96d31d45f804",
+        "sequence": 1,
+        "previousDescriptorHash": null,
+        "recoveryAddress": "tb1q28r7kchkssmxzlaan86zcuksgcy9yecnargmak",
+        "signingProfile": "bip322",
+        "challengeWindowBlocks": 144,
+        "issuedAt": "2026-06-12T00:00:00.000Z",
+        "signature": "68201e98f9fcafe43c436edf0cef8212c015c24f4aad0f4b2e99d05dde2fd708fd82eb225436800550562c9e0fc804f9c11baf56d8b8b3d1e666998e60c9805c",
+        "memo": "unsigned metadata must not ride along"
+      }
+    },
+    {
+      "id": "descriptor-reject-missing-field",
+      "kind": "reject",
+      "cite": "§8 closed field set — missing required field",
+      "envelope": {
+        "format": "ont-recovery-descriptor",
+        "descriptorVersion": 1,
+        "name": "example",
+        "ownerPubkey": "7fb0dc13cea75a622e8ba13d1c3abdeba2258649dd3069f2aa98357777eb2dba",
+        "ownershipRef": "6e44ded5de059bb2917a073ec1ceb50eb9e3d430436d913e177b96d31d45f804",
+        "sequence": 1,
+        "previousDescriptorHash": null,
+        "recoveryAddress": "tb1q28r7kchkssmxzlaan86zcuksgcy9yecnargmak",
+        "signingProfile": "bip322",
+        "challengeWindowBlocks": 144,
+        "signature": "68201e98f9fcafe43c436edf0cef8212c015c24f4aad0f4b2e99d05dde2fd708fd82eb225436800550562c9e0fc804f9c11baf56d8b8b3d1e666998e60c9805c"
       }
     }
   ]

@@ -36,15 +36,22 @@ has no authority over it.
   commitments, messages, sizes) from the spec constructions and checks the
   vectors match; verifies vector signatures; carries the cross-context
   negative checks (§5) and the "every event ≤ 184 bytes" property (§4.6).
-- Where a construction is carried forward from legacy unchanged (transfer /
-  recover digests, key derivation, proof message), the generator cross-checks
-  fresh computation against the legacy implementation and records
-  `crossCheckedAgainstLegacy: true` — golden-vector mining per B0.
+- Where a construction is carried forward from legacy unchanged, fresh
+  computation is cross-checked against the legacy implementation — golden-vector
+  mining per B0. Precisely: transfer/recover digests and the wallet-proof
+  message are cross-checked in the **generator** (against
+  `packages/protocol/dist`, which throws on mismatch, recorded as
+  `crossCheckedAgainstLegacy: true`); key derivation is cross-checked in the
+  **test suite** (against `apps/claim/src/keys.ts` `deriveOwnerKey`, the
+  legacy claim-site implementation).
 
 Key material in vectors is the public BIP-39 test mnemonic (`abandon … about`)
 — conformance vectors carry no secret material. The decommissioned signet's
-conformance-locked 12 words are NOT used here.
+conformance-locked 12 words are NOT used here. The §8.3 recovery-address key
+is likewise deterministic test material (sha256 of a fixed label, published in
+`wallet-proof.json`).
 
-Known gap (flagged for review): `signatureBase64` in wallet-proof vectors is a
-placeholder — B1 owns shape/message/hash, and real BIP322 signature vectors
-land with the implementation (legacy used `bip322-js`).
+Wallet-proof `signatureBase64` values are **real BIP322 signatures** (signed
+and verified via `bip322-js`, which is deterministic, so regeneration stays
+byte-identical); the suite carries a BIP322-invalid negative vector whose
+message regenerates cleanly and fails only at signature verification.

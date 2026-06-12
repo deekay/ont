@@ -88,13 +88,34 @@ describe("§5 keys", () => {
       expect(hex(schnorr.getPublicKey(node.privateKey!))).toBe(o.xOnlyPubkey);
     }
   });
+  it("cross-checks key derivation against the legacy claim-site implementation", async () => {
+    // Golden-vector mining per B0: the legacy deriveOwnerKey must produce the
+    // same keys from the same 12 words, or the carried-forward derivation
+    // (§5: 'byte-identical keys in every implementation') is misstated.
+    const legacy = await import("../../../apps/claim/src/keys");
+    for (const o of keys.owners) {
+      const k = legacy.deriveOwnerKey(keys.mnemonic, o.index);
+      expect(k.ownerPubkey, `owner ${o.index}`).toBe(o.xOnlyPubkey);
+      expect(k.ownerPrivateKeyHex).toBe(o.privateKey);
+    }
+  });
 });
 
 describe("§3 frame", () => {
   const frame = VEC("frame.json");
-  it("accepts exactly the registry, rejects everything else", () => {
+  it("accepts exactly the registry, rejects everything else (exhaustive vectors)", () => {
     for (const v of frame.vectors) {
       expect(frameOk(fromHex(v.hex)), `${v.id} (${v.cite})`).toBe(v.kind === "valid");
+    }
+  });
+  it("property: vectors cover every type byte 0x00-0xff, and only the registry passes", () => {
+    const covered = new Set(
+      frame.vectors.map((v: any) => fromHex(v.hex)).filter((b: Uint8Array) => b.length === 5)
+        .map((b: Uint8Array) => b[4]));
+    for (let t = 0; t <= 0xff; t++) {
+      expect(covered.has(t), `type byte 0x${t.toString(16)} missing from vectors`).toBe(true);
+      const bytes = cat(utf8("ONT"), Uint8Array.of(0x01, t));
+      expect(frameOk(bytes)).toBe(LIVE_TYPE_BYTES.has(t));
     }
   });
 });
@@ -258,19 +279,71 @@ describe("§8.1 value record (recordVersion 1)", () => {
     }
   });
 
-  it("closed field set: reject vectors are each off-shape in exactly the cited way", () => {
-    const REQUIRED = ["format", "recordVersion", "name", "ownerPubkey", "ownershipRef", "sequence",
-      "previousRecordHash", "valueType", "payloadHex", "issuedAt", "signature"];
-    const shapeOk = (e: any) =>
-      e.format === "ont-value-record" && e.recordVersion === 1 &&
-      REQUIRED.every((k) => k in e) && Object.keys(e).every((k) => REQUIRED.includes(k));
-    for (const v of vr.vectors) {
-      expect(shapeOk(v.envelope), v.id).toBe(v.kind === "valid");
-    }
-  });
-
   it("u16 payload bound is 65,535 — a wire constant", () => {
     expect(vr.encodablePayloadBound).toBe(0xffff);
+  });
+});
+
+describe("§8 closed field sets (all three envelopes)", () => {
+  // Reference shape validator: every listed required field present, optionals
+  // allowed, nothing else — per §8 "field sets are closed".
+  const SHAPES: Record<string, { version: [string, number]; required: string[]; optional: string[] }> = {
+    "ont-value-record": {
+      version: ["recordVersion", 1],
+      required: ["format", "recordVersion", "name", "ownerPubkey", "ownershipRef", "sequence",
+        "previousRecordHash", "valueType", "payloadHex", "issuedAt", "signature"],
+      optional: [],
+    },
+    "ont-recovery-descriptor": {
+      version: ["descriptorVersion", 1],
+      required: ["format", "descriptorVersion", "name", "ownerPubkey", "ownershipRef", "sequence",
+        "previousDescriptorHash", "recoveryAddress", "signingProfile", "challengeWindowBlocks",
+        "issuedAt", "signature"],
+      optional: [],
+    },
+    "ont-recovery-wallet-proof": {
+      version: ["proofVersion", 1],
+      required: ["format", "proofVersion", "name", "prevStateTxid", "recoveryDescriptorHash",
+        "newOwnerPubkey", "successorBondVout", "challengeWindowBlocks", "recoveryAddress",
+        "signingProfile", "message", "signatureBase64"],
+      optional: ["chainTipBlockHash", "chainTipHeight"],
+    },
+  };
+  const shapeOk = (e: any, format: string) => {
+    const s = SHAPES[format];
+    const allowed = [...s.required, ...s.optional];
+    return e.format === format && e[s.version[0]] === s.version[1] &&
+      s.required.every((k) => k in e) && Object.keys(e).every((k) => allowed.includes(k));
+  };
+
+  const cases: Array<[string, string]> = [
+    ["value-record.json", "ont-value-record"],
+    ["recovery-descriptor.json", "ont-recovery-descriptor"],
+    ["wallet-proof.json", "ont-recovery-wallet-proof"],
+  ];
+  for (const [file, format] of cases) {
+    it(`${format}: every reject vector is off-shape or off-rule; valids are exactly on-shape`, () => {
+      for (const v of VEC(file).vectors) {
+        if (!v.envelope) continue; // raw-JSON fixtures handled below
+        if (v.kind === "valid") {
+          expect(shapeOk(v.envelope, format), v.id).toBe(true);
+        } else if (v.id.includes("extra-field") || v.id.includes("missing-field") ||
+                   v.id.includes("version") || v.id.includes("wrong-format")) {
+          expect(shapeOk(v.envelope, format), v.id).toBe(false);
+        }
+      }
+    });
+  }
+
+  it("duplicate JSON keys are detectable in the raw fixture (flat envelopes)", () => {
+    const dup = VEC("value-record.json").vectors
+      .find((v: any) => v.id === "value-record-reject-duplicate-json-key");
+    const keys = [...dup.rawJson.matchAll(/"([^"]+)":/g)].map((m) => m[1]);
+    expect(new Set(keys).size).toBeLessThan(keys.length); // duplicate present
+    expect(keys.filter((k) => k === "sequence")).toHaveLength(2);
+    // JSON.parse silently keeps the last duplicate — exactly why the spec
+    // requires detection at the JSON layer where possible.
+    expect(JSON.parse(dup.rawJson).sequence).toBe(2);
   });
 });
 
@@ -339,6 +412,18 @@ describe("§8.3 recovery wallet proof", () => {
     expect(byId["wallet-proof-reject-profile"].envelope.signingProfile.trim().toLowerCase())
       .not.toBe("bip322");
   });
+  it("BIP322: valid signatures verify, the tampered signature does not", async () => {
+    const { Verifier } = (await import("bip322-js")).default;
+    for (const id of ["wallet-proof-valid-no-tip", "wallet-proof-valid-with-tip"]) {
+      const e = byId[id].envelope;
+      expect(Verifier.verifySignature(e.recoveryAddress, e.message, e.signatureBase64), id).toBe(true);
+    }
+    const bad = byId["wallet-proof-reject-bip322-invalid-signature"].envelope;
+    // message regenerates cleanly — this vector fails ONLY at BIP322 verification
+    expect(message(bad)).toBe(bad.message);
+    expect(Verifier.verifySignature(bad.recoveryAddress, bad.message, bad.signatureBase64)).toBe(false);
+  });
+
   it("[PROPOSAL ratified] proof commitment = the 32-byte hash, no reserved zero bytes", () => {
     const v = byId["wallet-proof-valid-no-tip"];
     expect(v.proofCommitment).toBe(v.proofHash);

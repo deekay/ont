@@ -10,9 +10,12 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { sha256 } from "@noble/hashes/sha2.js";
-import { schnorr } from "@noble/curves/secp256k1.js";
+import { ripemd160 } from "@noble/hashes/ripemd160.js";
+import { schnorr, secp256k1 } from "@noble/curves/secp256k1.js";
 import { mnemonicToSeedSync } from "@scure/bip39";
 import { HDKey } from "@scure/bip32";
+import { bech32, base58check } from "@scure/base";
+import bip322 from "bip322-js";
 
 import * as legacyEvents from "../../protocol/dist/events.js";
 import * as legacyWire from "../../protocol/dist/wire.js";
@@ -57,11 +60,22 @@ const ownerKey = (i) => {
 };
 const owners = [ownerKey(0), ownerKey(1), ownerKey(2)];
 
+// §8.3 recovery-address key — deterministic, NOT from the owner tree (the
+// recovery address is an ordinary wallet address). WIF testnet/compressed,
+// P2WPKH "tb1..." per the legacy claim-site encoding.
+const { Signer: Bip322Signer, Verifier: Bip322Verifier } = bip322;
+const recoveryPriv = material32("wp.recoveryAddressKey");
+const recoveryWif = base58check(sha256).encode(Uint8Array.from([0xef, ...recoveryPriv, 0x01]));
+const recoveryH160 = ripemd160(sha256(secp256k1.getPublicKey(recoveryPriv, true)));
+const recoveryAddress = bech32.encode("tb", [0, ...bech32.toWords(recoveryH160)]);
+
 // ---- §3 frame ---------------------------------------------------------------
 const FRAME = (type) => cat(utf8("ONT"), Uint8Array.of(0x01, type));
 const LIVE_TYPES = { transfer: 0x03, auctionBid: 0x07, recoverOwner: 0x09, rootAnchor: 0x0b };
 const RETIRED_TYPES = [0x0d];
-const SAMPLE_UNASSIGNED = [0x00, 0x01, 0x02, 0x04, 0x05, 0x06, 0x08, 0x0a, 0x0c, 0x0e, 0x7f, 0xff];
+// §3: exhaustive — every byte not in the live registry rejects (251 unassigned + 1 retired)
+const UNASSIGNED_TYPES = Array.from({ length: 256 }, (_, t) => t)
+  .filter((t) => !Object.values(LIVE_TYPES).includes(t) && !RETIRED_TYPES.includes(t));
 
 // ---- §5 digests --------------------------------------------------------------
 const transferDigest = (f) =>
@@ -148,7 +162,7 @@ const frameFile = {
       hex: hex(cat(utf8("ONT"), Uint8Array.of(0x02, 0x03))) },
     { id: "frame-reject-short", kind: "reject", cite: "§4 'reject truncated payloads at any byte offset'",
       hex: hex(utf8("ONT")) },
-    ...SAMPLE_UNASSIGNED.map((t) => ({
+    ...UNASSIGNED_TYPES.map((t) => ({
       id: `frame-reject-unassigned-0x${t.toString(16).padStart(2, "0")}`, kind: "reject",
       cite: "§3 'Unassigned values are reserved' / MUST reject", hex: hex(FRAME(t)) })),
     ...RETIRED_TYPES.map((t) => ({
@@ -377,6 +391,11 @@ const valueRecordFile = {
     { id: "value-record-reject-wrong-format", kind: "reject",
       cite: "§8.1 format must match exactly (gns-era label is a different domain)",
       envelope: { ...vr, format: "gns-value-record", signature: hex(vrSig) } },
+    { id: "value-record-reject-duplicate-json-key", kind: "reject",
+      cite: "§8 'MUST reject duplicate JSON keys where its JSON layer can detect them'",
+      note: "raw JSON text — JS objects cannot carry duplicates, so this fixture is a string; 'sequence' appears twice",
+      rawJson: JSON.stringify({ ...vr, signature: hex(vrSig) }, null, 0)
+        .replace('"sequence":1,', '"sequence":1,"sequence":2,') },
   ],
   encodablePayloadBound: 65535,
   boundCite: "§8.1 u16 length prefix fixes the encodable payload bound — wire constant, not policy",
@@ -387,7 +406,7 @@ const rd = {
   format: "ont-recovery-descriptor", descriptorVersion: 1, name: "example",
   ownerPubkey: hex(owners[0].pub), ownershipRef: hex(material32("rd.ownershipRef")),
   sequence: 1, previousDescriptorHash: null,
-  recoveryAddress: "tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx",
+  recoveryAddress,
   signingProfile: "bip322", challengeWindowBlocks: 144, issuedAt: "2026-06-12T00:00:00.000Z",
 };
 const rdDigest = descriptorDigest(rd);
@@ -413,6 +432,12 @@ const descriptorFile = {
     { id: "descriptor-reject-version-2", kind: "reject",
       cite: "§8.2 descriptorVersion must equal 1",
       envelope: { ...rd, descriptorVersion: 2, signature: hex(rdSig) } },
+    { id: "descriptor-reject-extra-field", kind: "reject",
+      cite: "§8 'field sets are closed' — unrecognized extra field",
+      envelope: { ...rd, signature: hex(rdSig), memo: "unsigned metadata must not ride along" } },
+    { id: "descriptor-reject-missing-field", kind: "reject",
+      cite: "§8 closed field set — missing required field",
+      envelope: (() => { const e = { ...rd, signature: hex(rdSig) }; delete e.issuedAt; return e; })() },
   ],
 };
 
@@ -421,8 +446,7 @@ const wpBase = {
   format: "ont-recovery-wallet-proof", proofVersion: 1, name: "example",
   prevStateTxid: hex(rc.prevStateTxid), recoveryDescriptorHash: hex(rdDigest),
   newOwnerPubkey: hex(owners[2].pub), successorBondVout: 0,
-  challengeWindowBlocks: 144, recoveryAddress: rd.recoveryAddress, signingProfile: "bip322",
-  signatureBase64: "UExBQ0VIT0xERVItc2VlLVBVUlBPU0UubWQ=",
+  challengeWindowBlocks: 144, recoveryAddress, signingProfile: "bip322",
 };
 const wpTip = { ...wpBase,
   chainTipBlockHash: hex(material32("wp.chainTipBlockHash")), chainTipHeight: 4321 };
@@ -434,14 +458,25 @@ const finishProof = (p) => {
     challengeWindowBlocks: p.challengeWindowBlocks,
     chainTipBlockHash: p.chainTipBlockHash ?? undefined, chainTipHeight: p.chainTipHeight ?? undefined,
   }), "proof message vs legacy");
-  const full = { ...p, message };
+  // Real BIP322 signature by the recovery-address key (deterministic in bip322-js).
+  const signatureBase64 = Bip322Signer.sign(recoveryWif, recoveryAddress, message);
+  assert(Bip322Verifier.verifySignature(recoveryAddress, message, signatureBase64),
+    "BIP322 self-verify");
+  const full = { ...p, message, signatureBase64 };
   return { envelope: full, hash: hex(proofHash(full)) };
 };
 const wpNoTip = finishProof(wpBase);
 const wpWithTip = finishProof(wpTip);
+const tamperedSig = (() => {
+  const raw = Buffer.from(wpNoTip.envelope.signatureBase64, "base64");
+  raw[Math.floor(raw.length / 2)] ^= 0x01;
+  return raw.toString("base64");
+})();
 const walletProofFile = {
   spec: SPEC, section: "§8.3",
-  signatureNote: "signatureBase64 is a placeholder (base64 of 'PLACEHOLDER-see-PURPOSE.md'); B1 owns shape/message/hash — real BIP322 vectors land with the implementation",
+  signatureNote: "signatureBase64 values are REAL BIP322 signatures by the deterministic recovery-address key (recoveryKey.privateKey below) — verifiable with any BIP322 verifier",
+  recoveryKey: { privateKey: hex(recoveryPriv), wif: recoveryWif, address: recoveryAddress,
+    note: "deterministic test key (sha256 of a fixed label); P2WPKH testnet encoding" },
   vectors: [
     { id: "wallet-proof-valid-no-tip", kind: "valid",
       cite: "§8.3 chainTip = 'unspecified' when either tip field absent",
@@ -464,6 +499,15 @@ const walletProofFile = {
     { id: "wallet-proof-reject-trailing-newline", kind: "reject",
       cite: "§8.3 nine lines joined by single LF, no trailing newline",
       envelope: { ...wpNoTip.envelope, message: wpNoTip.envelope.message + "\n" } },
+    { id: "wallet-proof-reject-bip322-invalid-signature", kind: "reject",
+      cite: "§8.3 'signed BIP322 by the recovery address key... verified by a BIP322 verifier' — message regenerates cleanly, signature does not verify",
+      envelope: { ...wpNoTip.envelope, signatureBase64: tamperedSig } },
+    { id: "wallet-proof-reject-extra-field", kind: "reject",
+      cite: "§8 'field sets are closed' — unrecognized extra field",
+      envelope: { ...wpNoTip.envelope, metadata: "unsigned metadata must not ride along" } },
+    { id: "wallet-proof-reject-missing-field", kind: "reject",
+      cite: "§8 closed field set — missing required field",
+      envelope: (() => { const e = { ...wpNoTip.envelope }; delete e.recoveryAddress; return e; })() },
   ],
 };
 
