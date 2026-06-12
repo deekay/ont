@@ -249,6 +249,10 @@ null, `0x01` Bitcoin payment target, `0x02` HTTPS target, `0xff`
 raw/app-defined), `payloadHex`, `issuedAt` (ISO timestamp),
 `signature`(64, owner Schnorr).
 
+A parser MUST reject a `valueType` outside this registry — unassigned
+values are reserved, fail closed (`0xff` already covers app-defined
+payloads, so there is no legitimate unknown).
+
 Digest: `sha256( lenPrefix("ont-value-record") ‖ version(1) ‖
 lenPrefix(name) ‖ ownerPubkey(32) ‖ ownershipRef(32) ‖ sequence(u64) ‖
 nullFlag(previousRecordHash(32)) ‖ valueType(1) ‖
@@ -292,6 +296,12 @@ lenPrefix(name) ‖ ownerPubkey(32) ‖ ownershipRef(32) ‖ sequence(u64) ‖
 nullFlag(previousDescriptorHash(32)) ‖ lenPrefix(recoveryAddress) ‖
 lenPrefix(signingProfile) ‖ challengeWindowBlocks(u32) ‖
 lenPrefix(issuedAt) )`
+
+`signingProfile` enters the digest in **normalized form** (trim,
+lowercase), the same never-diverge rule as §8.3: two JSON renderings of one
+profile MUST NOT produce two descriptor hashes — the hash is referenced
+on-chain, and representation malleability there is avoidable. Parsed
+envelopes carry the normalized value.
 
 ### 8.3 Recovery wallet proof (`ont-recovery-wallet-proof`, proofVersion 1)
 

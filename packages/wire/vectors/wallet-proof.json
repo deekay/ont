@@ -153,6 +153,25 @@
       }
     },
     {
+      "id": "wallet-proof-reject-signature-not-base64-string",
+      "kind": "reject",
+      "cite": "§8.3 signatureBase64 — wrong JSON type is off-shape",
+      "envelope": {
+        "format": "ont-recovery-wallet-proof",
+        "proofVersion": 1,
+        "name": "example",
+        "prevStateTxid": "7cf2b1832808d612782db10e354dfcdf0aaed7bfcb6db06fe9ae16026323b75f",
+        "recoveryDescriptorHash": "e02d0f92325c4f713a46faa9296cb5985c4ca6b70e4322c8a8a36b76712049a8",
+        "newOwnerPubkey": "bb6993ecc9feec6f631e24977e460eb3df2654b103fbeb75a969f17d5a911afe",
+        "successorBondVout": 0,
+        "challengeWindowBlocks": 144,
+        "recoveryAddress": "tb1q28r7kchkssmxzlaan86zcuksgcy9yecnargmak",
+        "signingProfile": "bip322",
+        "message": "Open Name Tags owner recovery proof\nprofile: bip322\nname: example\nprevStateTxid: 7cf2b1832808d612782db10e354dfcdf0aaed7bfcb6db06fe9ae16026323b75f\nrecoveryDescriptorHash: e02d0f92325c4f713a46faa9296cb5985c4ca6b70e4322c8a8a36b76712049a8\nnewOwnerPubkey: bb6993ecc9feec6f631e24977e460eb3df2654b103fbeb75a969f17d5a911afe\nsuccessorBondVout: 0\nchallengeWindowBlocks: 144\nchainTip: unspecified",
+        "signatureBase64": 123
+      }
+    },
+    {
       "id": "wallet-proof-reject-extra-field",
       "kind": "reject",
       "cite": "§8 'field sets are closed' — unrecognized extra field",

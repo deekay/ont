@@ -65,6 +65,14 @@ const checkU32 = (n: unknown, what: string): number =>
   typeof n === "number" && Number.isInteger(n) && n >= 0 && n <= 0xffff_ffff ? n : reject(`${what} must be u32`);
 const checkHex32 = (s: unknown, what: string): string =>
   typeof s === "string" && /^[0-9a-f]{64}$/.test(s) ? s : reject(`${what} must be 32-byte lowercase hex`);
+const checkHex64 = (s: unknown, what: string): string =>
+  typeof s === "string" && /^[0-9a-f]{128}$/.test(s) ? s : reject(`${what} must be 64-byte lowercase hex`);
+// ISO timestamp rule mirrors the legacy assertIsoTimestamp: a string Date.parse accepts.
+const checkIsoTimestamp = (s: unknown, what: string): string =>
+  typeof s === "string" && !Number.isNaN(Date.parse(s)) ? s : reject(`${what} must be an ISO timestamp`);
+const checkBase64 = (s: unknown, what: string): string =>
+  typeof s === "string" && s.length > 0 && s.length % 4 === 0 && /^[A-Za-z0-9+/]+={0,2}$/.test(s)
+    ? s : reject(`${what} must be base64`);
 
 // ---------- §2 names ----------
 const NAME_RE = /^[a-z0-9]{1,32}$/;
@@ -333,12 +341,17 @@ export function valueRecordDigest(e: Record<string, unknown>): Uint8Array {
     Uint8Array.of(checkByte(e.valueType, "valueType")), u16(payload.length), payload,
     lenPrefix(str(e, "issuedAt"))));
 }
+export const VALUE_TYPE_REGISTRY = new Set<number>([0x00, 0x01, 0x02, 0xff]);
 export function parseValueRecord(json: string): Record<string, unknown> {
   const e = parseClosedEnvelope(json, VR_REQUIRED, []);
   if (e.format !== VALUE_RECORD_FORMAT) reject("format must match exactly (§8.1)");
   if (e.recordVersion !== VALUE_RECORD_VERSION) reject("recordVersion must be exactly 1 (§8.1)");
   if (!isCanonicalName(str(e, "name"))) reject("non-canonical name");
-  valueRecordDigest(e); // field-level validation
+  if (!VALUE_TYPE_REGISTRY.has(checkByte(e.valueType, "valueType")))
+    reject("valueType outside the registry (§8.1: reserved, fail closed)");
+  checkIsoTimestamp(e.issuedAt, "issuedAt");
+  checkHex64(e.signature, "signature");
+  valueRecordDigest(e); // remaining field-level validation
   return e;
 }
 export const verifyValueRecord = (e: Record<string, unknown>): boolean =>
@@ -356,7 +369,10 @@ export function recoveryDescriptorDigest(e: Record<string, unknown>): Uint8Array
     lenPrefix(str(e, "name")), hexToBytes(checkHex32(e.ownerPubkey, "ownerPubkey")),
     hexToBytes(checkHex32(e.ownershipRef, "ownershipRef")), u64(BigInt(safeInt(e, "sequence"))),
     nullFlag(e.previousDescriptorHash == null ? null : hexToBytes(checkHex32(e.previousDescriptorHash, "previousDescriptorHash"))),
-    lenPrefix(str(e, "recoveryAddress")), lenPrefix(str(e, "signingProfile")),
+    lenPrefix(str(e, "recoveryAddress")),
+    // §8.2 never-diverge: the profile enters the digest NORMALIZED — the hash
+    // is referenced on-chain and must not vary with JSON rendering.
+    lenPrefix(normalizeSigningProfile(str(e, "signingProfile"))),
     u32(checkU32(e.challengeWindowBlocks, "challengeWindowBlocks")), lenPrefix(str(e, "issuedAt"))));
 }
 export function parseRecoveryDescriptor(json: string): Record<string, unknown> {
@@ -364,10 +380,12 @@ export function parseRecoveryDescriptor(json: string): Record<string, unknown> {
   if (e.format !== RECOVERY_DESCRIPTOR_FORMAT) reject("format must match exactly (§8.2)");
   if (e.descriptorVersion !== RECOVERY_DESCRIPTOR_VERSION) reject("descriptorVersion must be exactly 1 (§8.2)");
   if (!isCanonicalName(str(e, "name"))) reject("non-canonical name");
-  if (!PROFILE_GRAMMAR.test(normalizeSigningProfile(str(e, "signingProfile"))))
-    reject("signingProfile fails grammar [a-z0-9._-]{1,32} (§8.2)");
+  const profile = normalizeSigningProfile(str(e, "signingProfile"));
+  if (!PROFILE_GRAMMAR.test(profile)) reject("signingProfile fails grammar [a-z0-9._-]{1,32} (§8.2)");
+  checkIsoTimestamp(e.issuedAt, "issuedAt");
+  checkHex64(e.signature, "signature");
   recoveryDescriptorDigest(e);
-  return e;
+  return { ...e, signingProfile: profile }; // parsed envelopes carry the normalized value (§8.2)
 }
 export const verifyRecoveryDescriptor = (e: Record<string, unknown>): boolean =>
   verifySchnorr(str(e, "signature"), recoveryDescriptorDigest(e), str(e, "ownerPubkey"));
@@ -414,6 +432,7 @@ export function parseWalletProof(json: string): Record<string, unknown> {
   if (!isCanonicalName(str(e, "name"))) reject("non-canonical name");
   if (normalizeSigningProfile(str(e, "signingProfile")) !== WALLET_PROOF_PROFILE)
     reject("signingProfile must normalize to exactly 'bip322' (§8.3)");
+  checkBase64(e.signatureBase64, "signatureBase64");
   // Regenerate-and-compare BEFORE any BIP322 verification (§8.3).
   if (walletProofMessage(e) !== str(e, "message")) reject("stored message differs from regenerated message (§8.3)");
   return e;

@@ -353,7 +353,8 @@ describe("§8.2 recovery descriptor", () => {
     sha256(cat(lenPrefix("ont-recovery-descriptor"), Uint8Array.of(e.descriptorVersion),
       lenPrefix(e.name), fromHex(e.ownerPubkey), fromHex(e.ownershipRef), u64(e.sequence),
       nullFlag(e.previousDescriptorHash == null ? null : fromHex(e.previousDescriptorHash)),
-      lenPrefix(e.recoveryAddress), lenPrefix(e.signingProfile),
+      // §8.2 never-diverge: profile enters the digest normalized
+      lenPrefix(e.recoveryAddress), lenPrefix(e.signingProfile.trim().toLowerCase()),
       u32(e.challengeWindowBlocks), lenPrefix(e.issuedAt)));
   const PROFILE_RE = /^[a-z0-9._-]{1,32}$/;
 

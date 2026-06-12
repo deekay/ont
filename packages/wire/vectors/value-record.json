@@ -115,6 +115,60 @@
       }
     },
     {
+      "id": "value-record-reject-signature-not-hex64",
+      "kind": "reject",
+      "cite": "§8.1 signature(64, owner Schnorr) — wrong JSON type is off-shape",
+      "envelope": {
+        "format": "ont-value-record",
+        "recordVersion": 1,
+        "name": "example",
+        "ownerPubkey": "7fb0dc13cea75a622e8ba13d1c3abdeba2258649dd3069f2aa98357777eb2dba",
+        "ownershipRef": "aac992fd8c766f13f4d8c87928e9ae794253d8fa2c00f95037efce80c41fd75b",
+        "sequence": 1,
+        "previousRecordHash": null,
+        "valueType": 1,
+        "payloadHex": "626331716578616d706c657061796d656e74746172676574",
+        "issuedAt": "2026-06-12T00:00:00.000Z",
+        "signature": 123
+      }
+    },
+    {
+      "id": "value-record-reject-issuedat-not-iso",
+      "kind": "reject",
+      "cite": "§8.1 issuedAt (ISO timestamp)",
+      "envelope": {
+        "format": "ont-value-record",
+        "recordVersion": 1,
+        "name": "example",
+        "ownerPubkey": "7fb0dc13cea75a622e8ba13d1c3abdeba2258649dd3069f2aa98357777eb2dba",
+        "ownershipRef": "aac992fd8c766f13f4d8c87928e9ae794253d8fa2c00f95037efce80c41fd75b",
+        "sequence": 1,
+        "previousRecordHash": null,
+        "valueType": 1,
+        "payloadHex": "626331716578616d706c657061796d656e74746172676574",
+        "issuedAt": "not-a-timestamp",
+        "signature": "cb85286a7bf8806d144750e9f520da649e5ddac95bcf77e9ffd32431db2f7a7c8f41547c43d2f23eb034594c85d9617f73dc1841938a1a962d443ca811f20284"
+      }
+    },
+    {
+      "id": "value-record-reject-unassigned-valuetype",
+      "kind": "reject",
+      "cite": "§8.1 valueType outside the registry MUST be rejected (reserved, fail closed)",
+      "envelope": {
+        "format": "ont-value-record",
+        "recordVersion": 1,
+        "name": "example",
+        "ownerPubkey": "7fb0dc13cea75a622e8ba13d1c3abdeba2258649dd3069f2aa98357777eb2dba",
+        "ownershipRef": "aac992fd8c766f13f4d8c87928e9ae794253d8fa2c00f95037efce80c41fd75b",
+        "sequence": 1,
+        "previousRecordHash": null,
+        "valueType": 3,
+        "payloadHex": "626331716578616d706c657061796d656e74746172676574",
+        "issuedAt": "2026-06-12T00:00:00.000Z",
+        "signature": "cb85286a7bf8806d144750e9f520da649e5ddac95bcf77e9ffd32431db2f7a7c8f41547c43d2f23eb034594c85d9617f73dc1841938a1a962d443ca811f20284"
+      }
+    },
+    {
       "id": "value-record-reject-duplicate-json-key",
       "kind": "reject",
       "cite": "§8 'MUST reject duplicate JSON keys where its JSON layer can detect them'",
