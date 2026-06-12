@@ -192,13 +192,17 @@ the residual assumption (1-of-N honest parties *serve* the bytes). What they do 
 **transport**: by what concrete mechanism the bytes get from a publisher to the nodes that recompute the
 root. This is the live decision, and we want Bitcoin-dev feedback on it.
 
-**The clarifying point — transport is not consensus-critical.** The anchor commits the batch
-(root + `batchSize`); every node verifies fetched bytes against that on-chain commitment before using
-them. So a byte source can't lie (wrong bytes fail the commitment), and "did it surface in time?" is
-decided against the *anchor's* Bitcoin height, not by who delivered the bytes. That means the transport choice doesn't
-affect **correctness or convergence at all** — it only affects **availability robustness** (how hard it
-is to censor/withhold) and **who you depend on for liveness**. That also makes it cheaply reversible:
-because integrity is digest-anchored, the storage/delivery backend can change without touching consensus.
+**The clarifying point — transport is not consensus-critical for byte integrity.** The anchor
+commits the batch (root + `batchSize`); every node verifies fetched bytes against that on-chain
+commitment before using them. So a byte source can't lie: wrong bytes fail the commitment no matter
+who delivered them, and the transport choice cannot corrupt *content*. What transport does NOT
+settle is the *timing* half of convergence: "were these bytes servable by `anchorHeight + W`?" is
+decided by the served-bytes evidence rules (B3 — the hard open question flagged in the review
+posture above), not by the transport. So the precise claim is: transport affects **availability
+robustness** (how hard it is to censor/withhold) and **who you depend on for liveness**, never byte
+integrity; the convergence burden sits on the evidence rules. That also makes transport cheaply
+reversible: because integrity is digest-anchored, the storage/delivery backend can change without
+touching consensus.
 
 | Transport | What it is | Censorship/liveness | Complexity | v1 fit |
 | --- | --- | --- | --- | --- |

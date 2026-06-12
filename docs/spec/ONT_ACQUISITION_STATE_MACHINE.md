@@ -237,7 +237,7 @@ Working today:
 
 Not yet canonical end to end:
 
-- fail-closed DA deadline (availability marker, `W`/`C`/`K` windows) — designed
+- fail-closed DA deadline (anchor-keyed per marker-fold (#47), `W`/`C`/`K` windows) — designed
   and simulated, not enforced in the live path
 - multi-publisher delta consumption in live resolver state
 - enforcement that batched anchors paid the aggregate miner-fee gate (designed;
