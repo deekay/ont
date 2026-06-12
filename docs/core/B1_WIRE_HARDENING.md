@@ -162,7 +162,10 @@ unratified docs; needs the named spec PR listed in Gaps before promotion.
 - **W13a — label inventory.** The protocol's full domain-label set, which
   the wire spec must enumerate so no two contexts share a label:
   `ont-transfer-owner`, `ont-recover-owner` (on-chain auth, length-prefixed
-  convention); `ont-value-record` v2, `ont-recovery-descriptor` v1,
+  convention); `ont-value-record` v2 (legacy code value — a GNS→ONT
+  rebrand artifact, bumped from `gns-value-record` v1; the spec resets to
+  recordVersion 1, legacy digests evidence-only — WIRE_FORMAT §8.1),
+  `ont-recovery-descriptor` v1,
   `ont-recovery-wallet-proof` v1, `ont-transfer-package` v1,
   `ont-auction-bid-package` v3 (off-chain envelopes, format+version
   fields); `ont-auction-bidder-v1`, `ont-auction-lot-v1`,
@@ -176,7 +179,9 @@ unratified docs; needs the named spec PR listed in Gaps before promotion.
 
 ### W-OFFCHAIN — owner-signed off-chain shapes
 
-- **W14.** A signed value record (`ont-value-record`, recordVersion 2) is
+- **W14.** A signed value record (`ont-value-record`, recordVersion 2 in
+  the legacy source cited here; the spec restates the construction with
+  recordVersion 1 — WIRE_FORMAT §8.1) is
   the full field set: `format`, `recordVersion`, `name`, `ownerPubkey`
   (32-byte x-only hex), `ownershipRef` (32-byte hex), `sequence`,
   `previousRecordHash` (32-byte hex or null), `valueType` (1 byte),

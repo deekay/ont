@@ -231,11 +231,18 @@ duplicate JSON keys where its JSON layer can detect them. Rationale:
 nothing may ride alongside the digest-covered fields as unsigned metadata
 — an envelope either is exactly its specified shape or it is rejected.
 
-### 8.1 Value record (`ont-value-record`, recordVersion 2)
+### 8.1 Value record (`ont-value-record`, recordVersion 1)
+
+This is the first specified version of the value record. (Legacy code
+carried `recordVersion = 2` — an artifact of the GNS→ONT rebrand bumping
+`gns-value-record` v1, not of protocol evolution. Both legacy encodings
+are evidence-only and never valid here: the GNS-era digests used a
+different label, and the legacy `2` digests a different version byte, so
+neither can verify under this spec.)
 
 Fields (the complete JSON envelope; a parser MUST reject an envelope whose
 `format` or `recordVersion` does not match exactly):
-`format` = `"ont-value-record"`, `recordVersion` = `2`, `name`,
+`format` = `"ont-value-record"`, `recordVersion` = `1`, `name`,
 `ownerPubkey`(32-hex), `ownershipRef`(32-hex), `sequence`,
 `previousRecordHash`(32-hex or null), `valueType`(1 byte; registry: `0x00`
 null, `0x01` Bitcoin payment target, `0x02` HTTPS target, `0xff`
@@ -246,6 +253,8 @@ Digest: `sha256( lenPrefix("ont-value-record") ‖ version(1) ‖
 lenPrefix(name) ‖ ownerPubkey(32) ‖ ownershipRef(32) ‖ sequence(u64) ‖
 nullFlag(previousRecordHash(32)) ‖ valueType(1) ‖
 u16(payloadByteLen) ‖ payloadBytes ‖ lenPrefix(issuedAt) )`
+
+`version(1)` is the `recordVersion` as a single byte: `0x01`.
 
 The `u16` length prefix fixes the **encodable payload bound at 65,535
 bytes** — a wire constant. A lower *accepted-payload* cap is launch policy
