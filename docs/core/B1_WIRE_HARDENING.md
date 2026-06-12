@@ -1,17 +1,18 @@
 # B1 wire-layer hardening — rule extraction and source check
 
-> **Status: STEPS 1–4 COMPLETE — step 5 (promotion) pending** (clean-build
-> (#46), normative-hardening amendment). Steps 1–2: invariant extraction +
+> **Status: COMPLETE — all five steps; promotions ratified
+> (wire-normative (#48), DK 2026-06-12)** (clean-build (#46),
+> normative-hardening amendment). Steps 1–2: invariant extraction +
 > source check (the body of this document). Step 3: ChatLunatique's
 > adversarial passes — three hardening rounds, two spec-review rounds, two
 > suite-review rounds, two implementation-review rounds, all findings
 > fixed. Step 4: the flagged attack surfaces are covered by the B1
-> conformance suite (evidence map at the end of this document).
-> `@ont/wire` is merged to main as the **candidate-backed implementation**
-> (DK's merge order, event f6bf18d4) — the spec it implements is ratified
-> but its sections remain `candidate` in the
-> [SOFTWARE_INVENTORY.md](./SOFTWARE_INVENTORY.md) ledger until DK's
-> per-section promotion ratifications (step 5) complete.
+> conformance suite (evidence map at the end of this document). Step 5:
+> DK ratified the promotion walk 2026-06-12 — WIRE_FORMAT.md §1–§8 are
+> `normative` in the [SOFTWARE_INVENTORY.md](./SOFTWARE_INVENTORY.md)
+> ledger; `@ont/wire` (merged at event f6bf18d4) is now the
+> **normative-backed implementation**. Outcome recorded under Step-5
+> standing below.
 
 ## Scope
 
@@ -397,3 +398,14 @@ The promotion walk (DK ratifies per section) proposes:
   stated or closed. (3) base64 gate is shape-only by design; structural
   BIP322 validity belongs to the verifier (malformed ⇒ verify false).
 - **§9: analysis tier** — a routing table, not a rule set.
+
+**Outcome (2026-06-12): RATIFIED — wire-normative (#48).** DK approved
+the walk as posted ("1–3 approved", event 5b53497f): §1–§7 promoted in
+one batch with the §7 non-flag stated; the three §8 flags ruled per
+recommendation — **timestamp-form** (literal RFC 3339 UTC profile,
+negative vectors added), **sequence-bound** (2^53−1 written into §8 as
+the valid range), **shape-only-gate** (accepted as designed, both sides
+pinned by the suite) — and §8.1–8.3 promoted with those rulings applied.
+§9 stays analysis tier. Spec text, `@ont/wire`, and the conformance
+vectors were updated in the same change; the ledger row flipped. The B1
+hardening cycle is closed end-to-end (steps 1–5).

@@ -67,9 +67,23 @@ const checkHex32 = (s: unknown, what: string): string =>
   typeof s === "string" && /^[0-9a-f]{64}$/.test(s) ? s : reject(`${what} must be 32-byte lowercase hex`);
 const checkHex64 = (s: unknown, what: string): string =>
   typeof s === "string" && /^[0-9a-f]{128}$/.test(s) ? s : reject(`${what} must be 64-byte lowercase hex`);
-// ISO timestamp rule mirrors the legacy assertIsoTimestamp: a string Date.parse accepts.
-const checkIsoTimestamp = (s: unknown, what: string): string =>
-  typeof s === "string" && !Number.isNaN(Date.parse(s)) ? s : reject(`${what} must be an ISO timestamp`);
+// timestamp-form ruling (wire-normative #48): literal RFC 3339 UTC profile — uppercase
+// T/Z, UTC only, seconds required, fraction absent or exactly 3 digits, and the
+// components must denote a real calendar instant. The legacy rule (any string
+// Date.parse accepts) is retired.
+const RFC3339_UTC_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$/;
+// Real-instant check is a round-trip: Date.parse alone rolls impossible calendar
+// dates over (2026-02-30 parses as Mar 2) instead of failing, so the parsed
+// instant must re-render to the input byte-for-byte (modulo the optional .mmm).
+const checkRfc3339Timestamp = (s: unknown, what: string): string => {
+  if (typeof s !== "string" || !RFC3339_UTC_RE.test(s))
+    return reject(`${what} must be an RFC 3339 UTC timestamp`);
+  const ms = Date.parse(s);
+  const canonical = Number.isNaN(ms) ? "" : new Date(ms).toISOString();
+  const expected = s.includes(".") ? s : `${s.slice(0, -1)}.000Z`;
+  return canonical === expected
+    ? s : reject(`${what} must denote a real calendar instant (RFC 3339 UTC)`);
+};
 const checkBase64 = (s: unknown, what: string): string =>
   typeof s === "string" && s.length > 0 && s.length % 4 === 0 && /^[A-Za-z0-9+/]+={0,2}$/.test(s)
     ? s : reject(`${what} must be base64`);
@@ -321,9 +335,12 @@ const parseClosedEnvelope = (json: string, required: string[], optional: string[
 };
 const str = (e: Record<string, unknown>, k: string): string =>
   typeof e[k] === "string" ? (e[k] as string) : reject(`${k} must be a string`);
+// sequence-bound ruling (wire-normative #48): every v1 envelope `sequence` is bounded at
+// 2^53−1 — the u64 digest field can encode more, but values above the bound are invalid.
+export const SEQUENCE_BOUND = Number.MAX_SAFE_INTEGER;
 const safeInt = (e: Record<string, unknown>, k: string): number =>
   typeof e[k] === "number" && Number.isSafeInteger(e[k] as number) && (e[k] as number) >= 0
-    ? (e[k] as number) : reject(`${k} must be a non-negative integer`);
+    ? (e[k] as number) : reject(`${k} must be a non-negative integer ≤ 2^53−1`);
 
 // §8.1 value record
 export const VALUE_RECORD_FORMAT = "ont-value-record";
@@ -349,7 +366,7 @@ export function parseValueRecord(json: string): Record<string, unknown> {
   if (!isCanonicalName(str(e, "name"))) reject("non-canonical name");
   if (!VALUE_TYPE_REGISTRY.has(checkByte(e.valueType, "valueType")))
     reject("valueType outside the registry (§8.1: reserved, fail closed)");
-  checkIsoTimestamp(e.issuedAt, "issuedAt");
+  checkRfc3339Timestamp(e.issuedAt, "issuedAt");
   checkHex64(e.signature, "signature");
   valueRecordDigest(e); // remaining field-level validation
   return e;
@@ -382,7 +399,7 @@ export function parseRecoveryDescriptor(json: string): Record<string, unknown> {
   if (!isCanonicalName(str(e, "name"))) reject("non-canonical name");
   const profile = normalizeSigningProfile(str(e, "signingProfile"));
   if (!PROFILE_GRAMMAR.test(profile)) reject("signingProfile fails grammar [a-z0-9._-]{1,32} (§8.2)");
-  checkIsoTimestamp(e.issuedAt, "issuedAt");
+  checkRfc3339Timestamp(e.issuedAt, "issuedAt");
   checkHex64(e.signature, "signature");
   recoveryDescriptorDigest(e);
   return { ...e, signingProfile: profile }; // parsed envelopes carry the normalized value (§8.2)

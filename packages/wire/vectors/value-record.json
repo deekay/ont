@@ -135,7 +135,7 @@
     {
       "id": "value-record-reject-issuedat-not-iso",
       "kind": "reject",
-      "cite": "§8.1 issuedAt (ISO timestamp)",
+      "cite": "§8 timestamps (RFC 3339 UTC; timestamp-form, wire-normative #48)",
       "envelope": {
         "format": "ont-value-record",
         "recordVersion": 1,
@@ -147,6 +147,114 @@
         "valueType": 1,
         "payloadHex": "626331716578616d706c657061796d656e74746172676574",
         "issuedAt": "not-a-timestamp",
+        "signature": "cb85286a7bf8806d144750e9f520da649e5ddac95bcf77e9ffd32431db2f7a7c8f41547c43d2f23eb034594c85d9617f73dc1841938a1a962d443ca811f20284"
+      }
+    },
+    {
+      "id": "value-record-reject-issuedat-dateparse-legacy",
+      "kind": "reject",
+      "cite": "§8 timestamps (timestamp-form, wire-normative #48) — legacy Date.parse rule retired; free-text date rejects",
+      "envelope": {
+        "format": "ont-value-record",
+        "recordVersion": 1,
+        "name": "example",
+        "ownerPubkey": "7fb0dc13cea75a622e8ba13d1c3abdeba2258649dd3069f2aa98357777eb2dba",
+        "ownershipRef": "aac992fd8c766f13f4d8c87928e9ae794253d8fa2c00f95037efce80c41fd75b",
+        "sequence": 1,
+        "previousRecordHash": null,
+        "valueType": 1,
+        "payloadHex": "626331716578616d706c657061796d656e74746172676574",
+        "issuedAt": "June 12, 2026",
+        "signature": "cb85286a7bf8806d144750e9f520da649e5ddac95bcf77e9ffd32431db2f7a7c8f41547c43d2f23eb034594c85d9617f73dc1841938a1a962d443ca811f20284"
+      }
+    },
+    {
+      "id": "value-record-reject-issuedat-offset-form",
+      "kind": "reject",
+      "cite": "§8 timestamps — UTC Z only, numeric offsets reject",
+      "envelope": {
+        "format": "ont-value-record",
+        "recordVersion": 1,
+        "name": "example",
+        "ownerPubkey": "7fb0dc13cea75a622e8ba13d1c3abdeba2258649dd3069f2aa98357777eb2dba",
+        "ownershipRef": "aac992fd8c766f13f4d8c87928e9ae794253d8fa2c00f95037efce80c41fd75b",
+        "sequence": 1,
+        "previousRecordHash": null,
+        "valueType": 1,
+        "payloadHex": "626331716578616d706c657061796d656e74746172676574",
+        "issuedAt": "2026-06-12T00:00:00+00:00",
+        "signature": "cb85286a7bf8806d144750e9f520da649e5ddac95bcf77e9ffd32431db2f7a7c8f41547c43d2f23eb034594c85d9617f73dc1841938a1a962d443ca811f20284"
+      }
+    },
+    {
+      "id": "value-record-reject-issuedat-lowercase",
+      "kind": "reject",
+      "cite": "§8 timestamps — uppercase T and Z are literal",
+      "envelope": {
+        "format": "ont-value-record",
+        "recordVersion": 1,
+        "name": "example",
+        "ownerPubkey": "7fb0dc13cea75a622e8ba13d1c3abdeba2258649dd3069f2aa98357777eb2dba",
+        "ownershipRef": "aac992fd8c766f13f4d8c87928e9ae794253d8fa2c00f95037efce80c41fd75b",
+        "sequence": 1,
+        "previousRecordHash": null,
+        "valueType": 1,
+        "payloadHex": "626331716578616d706c657061796d656e74746172676574",
+        "issuedAt": "2026-06-12t00:00:00.000z",
+        "signature": "cb85286a7bf8806d144750e9f520da649e5ddac95bcf77e9ffd32431db2f7a7c8f41547c43d2f23eb034594c85d9617f73dc1841938a1a962d443ca811f20284"
+      }
+    },
+    {
+      "id": "value-record-reject-issuedat-short-fraction",
+      "kind": "reject",
+      "cite": "§8 timestamps — fraction absent or exactly three digits",
+      "envelope": {
+        "format": "ont-value-record",
+        "recordVersion": 1,
+        "name": "example",
+        "ownerPubkey": "7fb0dc13cea75a622e8ba13d1c3abdeba2258649dd3069f2aa98357777eb2dba",
+        "ownershipRef": "aac992fd8c766f13f4d8c87928e9ae794253d8fa2c00f95037efce80c41fd75b",
+        "sequence": 1,
+        "previousRecordHash": null,
+        "valueType": 1,
+        "payloadHex": "626331716578616d706c657061796d656e74746172676574",
+        "issuedAt": "2026-06-12T00:00:00.12Z",
+        "signature": "cb85286a7bf8806d144750e9f520da649e5ddac95bcf77e9ffd32431db2f7a7c8f41547c43d2f23eb034594c85d9617f73dc1841938a1a962d443ca811f20284"
+      }
+    },
+    {
+      "id": "value-record-reject-issuedat-impossible-date",
+      "kind": "reject",
+      "cite": "§8 timestamps — real calendar instant: Date.parse rolls 2026-02-30 to Mar 2, the round-trip must not",
+      "envelope": {
+        "format": "ont-value-record",
+        "recordVersion": 1,
+        "name": "example",
+        "ownerPubkey": "7fb0dc13cea75a622e8ba13d1c3abdeba2258649dd3069f2aa98357777eb2dba",
+        "ownershipRef": "aac992fd8c766f13f4d8c87928e9ae794253d8fa2c00f95037efce80c41fd75b",
+        "sequence": 1,
+        "previousRecordHash": null,
+        "valueType": 1,
+        "payloadHex": "626331716578616d706c657061796d656e74746172676574",
+        "issuedAt": "2026-02-30T00:00:00Z",
+        "signature": "cb85286a7bf8806d144750e9f520da649e5ddac95bcf77e9ffd32431db2f7a7c8f41547c43d2f23eb034594c85d9617f73dc1841938a1a962d443ca811f20284"
+      }
+    },
+    {
+      "id": "value-record-reject-sequence-above-bound",
+      "kind": "reject",
+      "cite": "§8 sequence bound (sequence-bound, wire-normative #48) — 2^53 rejects, 2^53−1 is the ceiling",
+      "envelope": {
+        "format": "ont-value-record",
+        "recordVersion": 1,
+        "name": "example",
+        "ownerPubkey": "7fb0dc13cea75a622e8ba13d1c3abdeba2258649dd3069f2aa98357777eb2dba",
+        "ownershipRef": "aac992fd8c766f13f4d8c87928e9ae794253d8fa2c00f95037efce80c41fd75b",
+        "sequence": 9007199254740992,
+        "previousRecordHash": null,
+        "valueType": 1,
+        "payloadHex": "626331716578616d706c657061796d656e74746172676574",
+        "issuedAt": "2026-06-12T00:00:00.000Z",
         "signature": "cb85286a7bf8806d144750e9f520da649e5ddac95bcf77e9ffd32431db2f7a7c8f41547c43d2f23eb034594c85d9617f73dc1841938a1a962d443ca811f20284"
       }
     },

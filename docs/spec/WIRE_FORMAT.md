@@ -1,18 +1,24 @@
 # ONT wire format
 
-> **Normativity: `candidate`** — per the clean-build (#46) ledger
-> ([SOFTWARE_INVENTORY.md](../core/SOFTWARE_INVENTORY.md)). This is the G1+G2
-> named spec PR required by
+> **Normativity: `normative` (§1–§8), `analysis` (§9)** — per the
+> clean-build (#46) ledger
+> ([SOFTWARE_INVENTORY.md](../core/SOFTWARE_INVENTORY.md)). Promoted
+> candidate → normative by DK 2026-06-12, **wire-normative (#48)**: §1–§7
+> in one batch, §8 with the three named rulings applied (timestamp-form,
+> sequence-bound, shape-only-gate — see
+> [DECISIONS.md](../core/DECISIONS.md) entry 48). Changing a normative
+> section now takes a new named decision; code must match this text.
+>
+> History: this is the G1+G2 named spec PR required by
 > [B1_WIRE_HARDENING.md](../core/B1_WIRE_HARDENING.md): the byte-level rules
 > previously stated only in `packages/protocol` source and tests, restated as
 > spec text with the hardening rulings applied (W16 full-width commitments,
-> W17 envelope routing — DK, 2026-06-11). **Ratified by DK 2026-06-12**
+> W17 envelope routing — DK, 2026-06-11). Spec text ratified by DK 2026-06-12
 > (event 2297bc36, with the bare-label and recordVersion-1 amendments;
 > merge ordered event f6bf18d4) — including all three writer proposals
 > (lenPrefix commitment convention §6, restated state-commitment field
 > order §6, proof commitment drops the reserved 32 bytes §8.3); their
-> former [PROPOSAL] markers were cleared at B1 close-out. Sections remain
-> `candidate` pending DK's per-section promotion walk; the B1 conformance
+> former [PROPOSAL] markers were cleared at B1 close-out. The B1 conformance
 > suite cites this file.
 
 ## 1. Conventions
@@ -236,6 +242,24 @@ duplicate JSON keys where its JSON layer can detect them. Rationale:
 nothing may ride alongside the digest-covered fields as unsigned metadata
 — an envelope either is exactly its specified shape or it is rejected.
 
+**Timestamps — RFC 3339 UTC profile** *(timestamp-form ruling,
+wire-normative (#48))*. Every `issuedAt` is the literal form
+`YYYY-MM-DDTHH:MM:SS[.mmm]Z`: uppercase `T` and `Z`, UTC only (no numeric
+offsets), seconds required, fractional seconds either absent or exactly
+three digits, and the components MUST denote a real calendar instant (a
+shape-valid `2026-02-30…` rejects). A parser MUST reject anything else.
+The legacy rule — any string a JS `Date.parse` accepts — is retired: it
+admitted free-text dates, offset forms, and case variants, i.e.
+representation malleability inside a digested field.
+
+**`sequence` bound** *(sequence-bound ruling, wire-normative (#48))*.
+`sequence` is a non-negative integer whose valid range is bounded at
+**2^53−1** (9,007,199,254,740,991). The digest encodes `sequence` as
+`u64` — the encoding can carry more, but values above the bound are
+invalid and a parser MUST reject them. This writes the JS-safe-integer
+ceiling into the spec, closing the u64-vs-implementation divergence
+rather than leaving it lurking.
+
 ### 8.1 Value record (`ont-value-record`, recordVersion 1)
 
 This is the first specified version of the value record. (Legacy code
@@ -251,7 +275,7 @@ Fields (the complete JSON envelope; a parser MUST reject an envelope whose
 `ownerPubkey`(32-hex), `ownershipRef`(32-hex), `sequence`,
 `previousRecordHash`(32-hex or null), `valueType`(1 byte; registry: `0x00`
 null, `0x01` Bitcoin payment target, `0x02` HTTPS target, `0xff`
-raw/app-defined), `payloadHex`, `issuedAt` (ISO timestamp),
+raw/app-defined), `payloadHex`, `issuedAt` (RFC 3339 UTC, §8 preamble),
 `signature`(64, owner Schnorr).
 
 A parser MUST reject a `valueType` outside this registry — unassigned
@@ -279,8 +303,8 @@ Fields (the complete JSON envelope; a parser MUST reject an envelope whose
 `format` = `"ont-recovery-descriptor"`, `descriptorVersion` = `1`, `name`,
 `ownerPubkey`(32-hex), `ownershipRef`(32-hex), `sequence`,
 `previousDescriptorHash`(32-hex or null), `recoveryAddress`,
-`signingProfile`, `challengeWindowBlocks`, `issuedAt` (ISO timestamp),
-`signature`(64, owner Schnorr).
+`signingProfile`, `challengeWindowBlocks`, `issuedAt` (RFC 3339 UTC, §8
+preamble), `signature`(64, owner Schnorr).
 
 The descriptor's `signingProfile` is deliberately looser than the proof's
 (§8.3): after trim+lowercase normalization it must match
@@ -353,6 +377,14 @@ optional `chainTipBlockHash`(32-hex) and `chainTipHeight`,
 - **Verification rule:** a parser MUST regenerate the message from the
   envelope's normalized fields and reject the proof if the stored
   `message` differs byte-for-byte, before any BIP322 verification.
+- **`signatureBase64` gate is shape-only by design** *(shape-only-gate
+  ruling, wire-normative (#48))*: the parser checks canonical base64
+  shape — non-empty, length ≡ 0 mod 4, base64 charset, at most two `=`
+  of padding — and nothing more. Structural BIP322 validity belongs to
+  the verifier: malformed bytes make verification return **false**,
+  never throw. Both sides are pinned by the suite (shape rejects at
+  parse; `wallet-proof-reject-bip322-malformed-signature` fails only at
+  verification).
 - **Proof hash:** `sha256( lenPrefix("ont-recovery-wallet-proof") ‖
   version(1) ‖ lenPrefix(name) ‖ prevStateTxid(32) ‖
   recoveryDescriptorHash(32) ‖ newOwnerPubkey(32) ‖ successorBondVout(1) ‖
