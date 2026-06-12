@@ -150,9 +150,12 @@ legacy 171-byte envelope already did.
 ## 6. Auction commitments *(full-width per the W16 ruling)*
 
 The on-chain bid carries three 32-byte commitments. **[PROPOSAL]** — new
-constructions standardized on the length-prefixed convention (the legacy
-NUL-separated text convention is retired for new material), labels bumped
-to `-v2` accordingly:
+constructions standardized on the length-prefixed convention. The legacy
+NUL-separated text convention and its `-v1`-suffixed labels are retired
+together (registry, §7); the labels below are plain names — these are the
+only auction-commitment constructions this protocol has ever specified.
+The retired strings never collide with them byte-for-byte, so no version
+suffix is needed for domain separation:
 
 **Input renderings**, used by all three commitments — defined here so this
 section stands without any source file:
@@ -168,12 +171,12 @@ section stands without any source file:
 
 The commitments:
 
-- `bidderCommitment = sha256( lenPrefix("ont-auction-bidder-v2") ‖
+- `bidderCommitment = sha256( lenPrefix("ont-auction-bidder") ‖
   lenPrefix(text(bidderId)) )`
-- `auctionLotCommitment = sha256( lenPrefix("ont-auction-lot-v2") ‖
+- `auctionLotCommitment = sha256( lenPrefix("ont-auction-lot") ‖
   lenPrefix(text(auctionId)) ‖ lenPrefix(name) ‖
   lenPrefix(decimal(unlockBlock)) )` — `name` in canonical bytes (§2).
-- `auctionStateCommitment = sha256( lenPrefix("ont-auction-state-v2") ‖
+- `auctionStateCommitment = sha256( lenPrefix("ont-auction-state") ‖
   lenPrefix(f₁) ‖ … ‖ lenPrefix(f₁₁) )` over exactly these eleven fields,
   in this order:
 
@@ -209,9 +212,9 @@ One concept, one label; no two contexts may share one.
 | `ont-value-record` | value record digest (§8.1) | lenPrefix |
 | `ont-recovery-descriptor` | recovery descriptor digest (§8.2) | lenPrefix |
 | `ont-recovery-wallet-proof` | wallet proof hash (§8.3) | lenPrefix |
-| `ont-auction-bidder-v2` | bid commitment (§6) **[PROPOSAL]** | lenPrefix |
-| `ont-auction-lot-v2` | lot commitment (§6) **[PROPOSAL]** | lenPrefix |
-| `ont-auction-state-v2` | state commitment (§6) **[PROPOSAL]** | lenPrefix |
+| `ont-auction-bidder` | bid commitment (§6) **[PROPOSAL]** | lenPrefix |
+| `ont-auction-lot` | lot commitment (§6) **[PROPOSAL]** | lenPrefix |
+| `ont-auction-state` | state commitment (§6) **[PROPOSAL]** | lenPrefix |
 | `ont-transfer-package` | B5 wallet-handoff envelope (W17 ruling) | reserved here, specified at B5 |
 | `ont-auction-bid-package` | B5 wallet-handoff envelope (W17 ruling) | reserved here, specified at B5 |
 | `ont-auction-bidder-v1` / `-lot-v1` / `-state-v1` | legacy commitments | retired; never reused |
