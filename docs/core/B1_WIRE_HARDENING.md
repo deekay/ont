@@ -1,14 +1,17 @@
 # B1 wire-layer hardening — rule extraction and source check
 
-> **Status: PROPOSED — steps 1–2 of the five-step normative hardening**
-> (clean-build (#46), Item 1 amendment). This document extracts the wire
-> layer's binding rules into crisp invariants (step 1) and records each
-> rule's source authority (step 2). It is the attack surface for
-> ChatLunatique's adversarial content pass (step 3); accepted attacks become
-> the negative tests of the B1 conformance suite (step 4); DK's sign-off
-> (step 5) promotes the corresponding spec sections to `normative` in the
-> [SOFTWARE_INVENTORY.md](./SOFTWARE_INVENTORY.md) ledger.
-> Nothing here is implementable until step 5 completes.
+> **Status: STEPS 1–4 COMPLETE — step 5 (promotion) pending** (clean-build
+> (#46), normative-hardening amendment). Steps 1–2: invariant extraction +
+> source check (the body of this document). Step 3: ChatLunatique's
+> adversarial passes — three hardening rounds, two spec-review rounds, two
+> suite-review rounds, two implementation-review rounds, all findings
+> fixed. Step 4: the flagged attack surfaces are covered by the B1
+> conformance suite (evidence map at the end of this document).
+> `@ont/wire` is merged to main as the **candidate-backed implementation**
+> (DK's merge order, event f6bf18d4) — the spec it implements is ratified
+> but its sections remain `candidate` in the
+> [SOFTWARE_INVENTORY.md](./SOFTWARE_INVENTORY.md) ledger until DK's
+> per-section promotion ratifications (step 5) complete.
 
 ## Scope
 
@@ -340,3 +343,57 @@ Per Item 1: gap ⇒ stop ⇒ named spec PR ⇒ then code.
   (W12).
 - `packages/protocol/src/names.ts` test corpus — grammar/normalization
   vectors (W1, W2).
+
+## Steps 4–5 — attacks became negative tests; sign-off evidence
+
+*(Added at B1 close, 2026-06-12, after the implementation review completed
+with no findings — ChatLunatique confirm on `8b82703`. Steps 1–2 are the
+invariant extraction + source check above; step 3 was the adversarial
+content passes across the spec, suite, and implementation review rounds,
+all findings fixed. This section records step 4 — every attack surface
+flagged above is covered by recorded suite evidence; where the attack is
+byte-encodable that evidence is a named negative vector, and where it is
+not (an ambiguity or divergence attack), it is a property sweep,
+recomputation pin, or legacy cross-check, typed explicitly below — and
+the evidence DK's per-section promotion ratifications (step 5) rest on.)*
+
+### Step-4 evidence map: spec section → suite evidence (typed)
+
+Evidence types: **NEG** named negative vector · **PROP** property test ·
+**PIN** positive recomputation pin · **XCHK** legacy cross-check.
+Vectors live in `packages/wire/vectors/`; named tests in
+`packages/wire/test/conformance.test.ts` (suite) and
+`test/implementation.test.ts` (driver).
+
+| WIRE_FORMAT § | Attack surfaces flagged in B1 | Suite evidence |
+| --- | --- | --- |
+| §1 conventions | endianness/framing ambiguity (W1) | PIN: every digest/commitment vector is recomputed byte-identically from §1's constructions, independently in suite and driver — an endianness or framing disagreement fails every one |
+| §2 names | normalization malleability (W3 flag) | NEG: names.json reject sets; events.json `bid-reject-noncanonical-name` |
+| §3 frame | unassigned/retired type acceptance, version creep | NEG: frame.json exhaustive type sweep (251 unassigned + retired `0x0d`), bad magic, version `0x00`/`0x02`, short frame · PROP: "vectors cover every type byte 0x00-0xff" sweeps all 256 independently of the vectors |
+| §4 layouts | truncation/extension, flag bypass, length mismatch | NEG: events.json truncations at multiple offsets per type, trailing byte, `bid-reject-no-includes-name-flag`, `bid-reject-name-length-mismatch` · PROP: every valid event ≤ 184 (§4.6) |
+| §5 keys/digests | cross-context signature replay (W13); derivation drift | NEG: digests.json `cross-context-transfer-sig-on-recover-digest` + converse · XCHK: transfer/recover digests vs `packages/protocol/dist` (generator, throws on mismatch); derivation vs `apps/claim/src/keys.ts` `deriveOwnerKey` (suite test "cross-checks key derivation against the legacy claim-site implementation") |
+| §6 commitments | truncated commitments (W16 — ruled full-width), phase/rendering confusion | NEG: commitments.json `state-reject-unknown-phase`, `bidder-reject-empty-after-trim`, `decimal-reject-leading-zeros`, `hex32-reject-uppercase` · PIN: `state-commitment-absents` pins the absent-field = empty-lenPrefix rendering |
+| §7 label registry | label reuse/collision (W13a two-conventions flag) | NEG: suite test "retired legacy labels never collide with the live registry" (conformance.test.ts) · the one-concept-one-label rule itself is enforced editorially by the §7 table — no dedicated uniqueness test exists; reviews are the check (stated, not claimed as a test) · lenPrefix standardization ratified (former PROPOSAL 1) |
+| §8.1 value record | unsigned-metadata smuggling, version confusion, registry creep | NEG: value-record.json closed-field rejects, duplicate-JSON-key raw fixture, `recordVersion 2` MUST-REJECT, gns-format reject, valueType-outside-registry, non-ISO issuedAt, non-hex64 signature |
+| §8.2 descriptor | profile-rendering hash malleability (on-chain-referenced hash) | NEG: recovery-descriptor.json grammar rejects, closed-field rejects, version reject · PIN: `descriptor-valid-noncanonical-profile-input` pins `" BIP322 "` ≡ `"bip322"` to one hash (the never-diverge rule) |
+| §8.3 wallet proof | reserved-bytes extension slot (W15a — ruled dropped), message/hash divergence, verifier crash | NEG: wallet-proof.json real-BIP322 invalid + malformed-witness (verify false, never throw), tampered message, trailing LF, profile rejects, closed-field rejects · PIN: proof commitment = bare 32-byte hash |
+
+### Step-5 standing
+
+Every section above is `candidate` per the normative-hardening amendment.
+The promotion walk (DK ratifies per section) proposes:
+
+- **§1–§7: promote in one batch** — no open flags. (The three writer
+  PROPOSALs were ratified by DK 2026-06-12 — events 2297bc36/f6bf18d4 —
+  and their markers cleared from WIRE_FORMAT.md at close-out, so none
+  remain inside the batch. One stated non-flag: §7's one-concept-one-label
+  rule has no dedicated uniqueness test — the registry table is small and
+  review-checked; promote with that stated.)
+- **§8.1–8.3: promote after three flags are ruled** (stated, not buried):
+  (1) "ISO timestamp" is loose — legacy `Date.parse` rule admits non-ISO
+  strings; recommend tightening to a literal RFC3339 form with vectors
+  before promotion. (2) spec `sequence` is u64; implementation accepts JS
+  safe integers (≤ 2^53−1) — unreachable in practice, divergence must be
+  stated or closed. (3) base64 gate is shape-only by design; structural
+  BIP322 validity belongs to the verifier (malformed ⇒ verify false).
+- **§9: analysis tier** — a routing table, not a rule set.

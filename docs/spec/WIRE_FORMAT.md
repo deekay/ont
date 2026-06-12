@@ -6,9 +6,14 @@
 > [B1_WIRE_HARDENING.md](../core/B1_WIRE_HARDENING.md): the byte-level rules
 > previously stated only in `packages/protocol` source and tests, restated as
 > spec text with the hardening rulings applied (W16 full-width commitments,
-> W17 envelope routing — DK, 2026-06-11). Sections promote to `normative` at
-> DK's sign-off of this PR; the B1 conformance suite cites this file.
-> Writer proposals not yet ratified are marked **[PROPOSAL]**.
+> W17 envelope routing — DK, 2026-06-11). **Ratified by DK 2026-06-12**
+> (event 2297bc36, with the bare-label and recordVersion-1 amendments;
+> merge ordered event f6bf18d4) — including all three writer proposals
+> (lenPrefix commitment convention §6, restated state-commitment field
+> order §6, proof commitment drops the reserved 32 bytes §8.3); their
+> former [PROPOSAL] markers were cleared at B1 close-out. Sections remain
+> `candidate` pending DK's per-section promotion walk; the B1 conformance
+> suite cites this file.
 
 ## 1. Conventions
 
@@ -149,8 +154,8 @@ legacy 171-byte envelope already did.
 
 ## 6. Auction commitments *(full-width per the W16 ruling)*
 
-The on-chain bid carries three 32-byte commitments. **[PROPOSAL]** — new
-constructions standardized on the length-prefixed convention. The legacy
+The on-chain bid carries three 32-byte commitments — new constructions
+standardized on the length-prefixed convention (ratified, see banner). The legacy
 NUL-separated text convention and its `-v1`-suffixed labels are retired
 together (registry, §7); the labels below are plain names — these are the
 only auction-commitment constructions this protocol has ever specified.
@@ -212,9 +217,9 @@ One concept, one label; no two contexts may share one.
 | `ont-value-record` | value record digest (§8.1) | lenPrefix |
 | `ont-recovery-descriptor` | recovery descriptor digest (§8.2) | lenPrefix |
 | `ont-recovery-wallet-proof` | wallet proof hash (§8.3) | lenPrefix |
-| `ont-auction-bidder` | bid commitment (§6) **[PROPOSAL]** | lenPrefix |
-| `ont-auction-lot` | lot commitment (§6) **[PROPOSAL]** | lenPrefix |
-| `ont-auction-state` | state commitment (§6) **[PROPOSAL]** | lenPrefix |
+| `ont-auction-bidder` | bid commitment (§6) | lenPrefix |
+| `ont-auction-lot` | lot commitment (§6) | lenPrefix |
+| `ont-auction-state` | state commitment (§6) | lenPrefix |
 | `ont-transfer-package` | B5 wallet-handoff envelope (W17 ruling) | reserved here, specified at B5 |
 | `ont-auction-bid-package` | B5 wallet-handoff envelope (W17 ruling) | reserved here, specified at B5 |
 | `ont-auction-bidder-v1` / `-lot-v1` / `-state-v1` | legacy commitments | retired; never reused |
@@ -355,8 +360,8 @@ optional `chainTipBlockHash`(32-hex) and `chainTipHeight`,
   nullFlag(chainTipHeight(u32)) ‖ lenPrefix(recoveryAddress) ‖
   lenPrefix(signingProfile) ‖ lenPrefix(message) ‖
   lenPrefix(signatureBase64) )`
-- **Proof commitment.** **[PROPOSAL]** The commitment is the 32-byte proof
-  hash, full stop. The legacy construction appended 32 reserved zero bytes
+- **Proof commitment.** The commitment is the 32-byte proof hash, full
+  stop (ratified, see banner). The legacy construction appended 32 reserved zero bytes
   with no documented purpose (the W15a attack flag); the rewrite drops the
   reserved half. If a future profile needs an extension slot, that is a
   spec change with its own label/version, not silent reserved bytes.
