@@ -1,0 +1,37 @@
+{
+  "spec": "docs/spec/WIRE_FORMAT.md",
+  "section": "§3/§4.5/§6/§7 legacy rows",
+  "note": "Mined from packages/protocol (quarantine-bound). Evidence of the old codec only — every entry MUST be rejected by a v1 decoder or is dead by retired label.",
+  "vectors": [
+    {
+      "id": "legacy-bid-152-truncated-commitments",
+      "kind": "legacy-evidence",
+      "cite": "§4.3 'legacy layout used 16-byte truncated lot/bidder commitments' — not a conformance target; ALSO rejects under v1 (length mismatch with new layout)",
+      "hex": "4f4e540107010100000120000000000000c7387fb0dc13cea75a622e8ba13d1c3abdeba2258649dd3069f2aa98357777eb2dba3b12501f698ca3564785ac65dbeb6ba44b1318310baff67802be68dd787d4394e61ea59e770e1d7c87fd9f36e4cd6a698f5d563b53fa6d3ceea6bc604093f73e000004b0206161616161616161616161616161616161616161616161616161616161616161"
+    },
+    {
+      "id": "legacy-availability-marker-41",
+      "kind": "legacy-evidence",
+      "cite": "§4.5 retired layout, never emitted in production; v1 decoder MUST reject 0x0d",
+      "hex": "4f4e54010d59d07c63f1e86cb5e73b9dee418cc33073c0612a0e13f5d6a4e2517f355042fb00000007"
+    },
+    {
+      "id": "legacy-commitment-labels",
+      "kind": "legacy-evidence",
+      "cite": "§7 'ont-auction-bidder-v1 / -lot-v1 / -state-v1: retired; never reused'",
+      "labels": [
+        "ont-auction-bidder-v1",
+        "ont-auction-lot-v1",
+        "ont-auction-state-v1"
+      ],
+      "legacyBidderCommitment": "b5cc813298773b3299196726d691b83f",
+      "note": "NUL-separated text convention, retired with the labels"
+    },
+    {
+      "id": "legacy-value-record-version-2",
+      "kind": "legacy-evidence",
+      "cite": "§8.1 legacy recordVersion 2 = GNS→ONT rebrand artifact; digests differ by version byte, never valid under v1",
+      "digestUnderLegacyVersionByte": "e1dcb4c3d0bafd8c77e1b3d9423f09a3465844ffce95def3116ff10f970ccae7"
+    }
+  ]
+}

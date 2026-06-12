@@ -1,0 +1,25 @@
+{
+  "spec": "docs/spec/WIRE_FORMAT.md",
+  "section": "§5",
+  "mnemonic": "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
+  "masterSeed": "5eb00bbddcf069084889a8ab9155568165f5c453ccb85e70811aaed6f6da5fc1",
+  "note": "public BIP-39 test phrase; masterSeed = first 32 bytes of the BIP-39 seed",
+  "derivationPath": "m/696969'/0'/i'",
+  "owners": [
+    {
+      "index": 0,
+      "privateKey": "a4711cdd2c0e159b58098da37369ae84c2e626a25f7f641a75741c1e225c3d50",
+      "xOnlyPubkey": "7fb0dc13cea75a622e8ba13d1c3abdeba2258649dd3069f2aa98357777eb2dba"
+    },
+    {
+      "index": 1,
+      "privateKey": "17113ae7ecf53be6b1600dcf8a363adede705d104ed4a2ebc46cd0eabccfb0ca",
+      "xOnlyPubkey": "5b864fc13ed497d041f24868ae5a7ddf481724b146bda10bdd5c08ee1a18c026"
+    },
+    {
+      "index": 2,
+      "privateKey": "c2bd70ff6bb0a3d77b95f7b4f8fbba27d99609c773fbb27d2d15f2cb37c7a520",
+      "xOnlyPubkey": "bb6993ecc9feec6f631e24977e460eb3df2654b103fbeb75a969f17d5a911afe"
+    }
+  ]
+}

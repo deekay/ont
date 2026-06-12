@@ -1,0 +1,136 @@
+{
+  "spec": "docs/spec/WIRE_FORMAT.md",
+  "section": "§3",
+  "vectors": [
+    {
+      "id": "frame-valid-transfer",
+      "kind": "valid",
+      "cite": "§3 event type registry",
+      "hex": "4f4e540103",
+      "eventType": 3
+    },
+    {
+      "id": "frame-valid-auctionBid",
+      "kind": "valid",
+      "cite": "§3 event type registry",
+      "hex": "4f4e540107",
+      "eventType": 7
+    },
+    {
+      "id": "frame-valid-recoverOwner",
+      "kind": "valid",
+      "cite": "§3 event type registry",
+      "hex": "4f4e540109",
+      "eventType": 9
+    },
+    {
+      "id": "frame-valid-rootAnchor",
+      "kind": "valid",
+      "cite": "§3 event type registry",
+      "hex": "4f4e54010b",
+      "eventType": 11
+    },
+    {
+      "id": "frame-reject-bad-magic",
+      "kind": "reject",
+      "cite": "§3 'MUST reject any payload whose magic is not ONT'",
+      "hex": "474e530103"
+    },
+    {
+      "id": "frame-reject-version-0",
+      "kind": "reject",
+      "cite": "§3 'reject any version other than 0x01'",
+      "hex": "4f4e540003"
+    },
+    {
+      "id": "frame-reject-version-2",
+      "kind": "reject",
+      "cite": "§3 'not 1 => reject' (fail closed)",
+      "hex": "4f4e540203"
+    },
+    {
+      "id": "frame-reject-short",
+      "kind": "reject",
+      "cite": "§4 'reject truncated payloads at any byte offset'",
+      "hex": "4f4e54"
+    },
+    {
+      "id": "frame-reject-unassigned-0x00",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540100"
+    },
+    {
+      "id": "frame-reject-unassigned-0x01",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540101"
+    },
+    {
+      "id": "frame-reject-unassigned-0x02",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540102"
+    },
+    {
+      "id": "frame-reject-unassigned-0x04",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540104"
+    },
+    {
+      "id": "frame-reject-unassigned-0x05",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540105"
+    },
+    {
+      "id": "frame-reject-unassigned-0x06",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540106"
+    },
+    {
+      "id": "frame-reject-unassigned-0x08",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e540108"
+    },
+    {
+      "id": "frame-reject-unassigned-0x0a",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e54010a"
+    },
+    {
+      "id": "frame-reject-unassigned-0x0c",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e54010c"
+    },
+    {
+      "id": "frame-reject-unassigned-0x0e",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e54010e"
+    },
+    {
+      "id": "frame-reject-unassigned-0x7f",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e54017f"
+    },
+    {
+      "id": "frame-reject-unassigned-0xff",
+      "kind": "reject",
+      "cite": "§3 'Unassigned values are reserved' / MUST reject",
+      "hex": "4f4e5401ff"
+    },
+    {
+      "id": "frame-reject-retired-0x0d",
+      "kind": "reject",
+      "cite": "§3 registry: 0x0d retired, never reuse (marker-fold #47); §4.5",
+      "hex": "4f4e54010d"
+    }
+  ]
+}

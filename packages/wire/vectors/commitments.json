@@ -1,0 +1,96 @@
+{
+  "spec": "docs/spec/WIRE_FORMAT.md",
+  "section": "§6",
+  "vectors": [
+    {
+      "id": "bidder-commitment",
+      "kind": "valid",
+      "cite": "§6 bidderCommitment",
+      "bidderId": "bidder-beta",
+      "commitment": "51b2be828cc5e8a879af23beb328df188c88643f7b815270a1a90f9d78b6fd35"
+    },
+    {
+      "id": "lot-commitment",
+      "kind": "valid",
+      "cite": "§6 auctionLotCommitment",
+      "auctionId": "auction-0001",
+      "name": "example",
+      "unlockBlock": 1200,
+      "commitment": "fe45401a6f557897171823305baad475aacc5d374c7436ee2af94316131c9273"
+    },
+    {
+      "id": "state-commitment-full",
+      "kind": "valid",
+      "cite": "§6 11-field state commitment, all present",
+      "state": {
+        "auctionId": "auction-0001",
+        "name": "example",
+        "currentBlockHeight": 1000,
+        "phase": "live_bidding",
+        "unlockBlock": 1200,
+        "auctionCloseBlockAfter": 1300,
+        "openingMinimumBidSats": 10000,
+        "currentLeaderBidderCommitment": "544bf32b00d5864debba055bfc2ccad4c3ff5756ef3cb72e916132be4f683367",
+        "currentHighestBidSats": 50000,
+        "currentRequiredMinimumBidSats": 51000,
+        "settlementLockBlocks": 288
+      },
+      "commitment": "de639da2cde4be1506948f6991e22f8418d7e46915b0153bb176db6e1de9e47f"
+    },
+    {
+      "id": "state-commitment-absents",
+      "kind": "valid",
+      "cite": "§6 absent optional field = empty string (zero-length lenPrefix)",
+      "state": {
+        "auctionId": "auction-0001",
+        "name": "example",
+        "currentBlockHeight": 900,
+        "phase": "awaiting_opening_bid",
+        "unlockBlock": 1200,
+        "auctionCloseBlockAfter": null,
+        "openingMinimumBidSats": 10000,
+        "currentLeaderBidderCommitment": null,
+        "currentHighestBidSats": null,
+        "currentRequiredMinimumBidSats": null,
+        "settlementLockBlocks": 288
+      },
+      "commitment": "5439139be71befcf727b0592fc4928ce7ef9a70ca9ec86774c17a35121a378d0"
+    },
+    {
+      "id": "state-reject-unknown-phase",
+      "kind": "reject",
+      "cite": "§6 phase 'anything else MUST be rejected'",
+      "state": {
+        "auctionId": "auction-0001",
+        "name": "example",
+        "currentBlockHeight": 1000,
+        "phase": "finished",
+        "unlockBlock": 1200,
+        "auctionCloseBlockAfter": 1300,
+        "openingMinimumBidSats": 10000,
+        "currentLeaderBidderCommitment": "544bf32b00d5864debba055bfc2ccad4c3ff5756ef3cb72e916132be4f683367",
+        "currentHighestBidSats": 50000,
+        "currentRequiredMinimumBidSats": 51000,
+        "settlementLockBlocks": 288
+      }
+    },
+    {
+      "id": "bidder-reject-empty-after-trim",
+      "kind": "reject",
+      "cite": "§6 text 'MUST be non-empty after trimming'",
+      "bidderId": "   "
+    },
+    {
+      "id": "decimal-reject-leading-zeros",
+      "kind": "reject",
+      "cite": "§6 decimal: no leading zeros",
+      "rendering": "007"
+    },
+    {
+      "id": "hex32-reject-uppercase",
+      "kind": "reject",
+      "cite": "§6 hex32: exactly 64 lowercase hex characters",
+      "rendering": "544BF32B00D5864DEBBA055BFC2CCAD4C3FF5756EF3CB72E916132BE4F683367"
+    }
+  ]
+}
