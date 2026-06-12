@@ -59,11 +59,13 @@ Every ONT OP_RETURN payload begins with the 5-byte frame:
 | `0x07` | AuctionBid |
 | `0x09` | RecoverOwner |
 | `0x0b` | RootAnchor |
-| `0x0d` | AvailabilityMarker |
+| `0x0d` | **Retired — never reuse** (was AvailabilityMarker; marker-fold (#47)) |
 
 Values are carried forward from the legacy stack so mined vectors remain
 byte-comparable where layouts are unchanged. All other byte values are
-reserved and MUST be rejected.
+reserved and MUST be rejected. A **retired** value is rejected by a v1
+decoder exactly like an unassigned one; the difference is permanence — a
+retired value MUST never be reassigned to a new event type.
 
 ## 4. Event layouts
 
@@ -104,13 +106,14 @@ frame ‖ `flags`(1) ‖ `bondVout`(1) ‖ `settlementLockBlocks`(u32) ‖
 
 frame ‖ `prevRoot`(32) ‖ `newRoot`(32) ‖ `batchSize`(u32).
 
-### 4.5 AvailabilityMarker — 41 bytes
+### 4.5 AvailabilityMarker (`0x0d`) — RETIRED, legacy evidence only
 
-frame ‖ `dataDigest`(32) ‖ `batchSize`(u32).
-
-Defined at the wire level regardless of the pending marker-vs-folded-anchor
-spec decision ([OPEN_QUESTIONS.md](../OPEN_QUESTIONS.md) §1.1); whether and
-when it is *emitted/required* is that decision's to make.
+Retired by marker-fold (#47): availability deadlines key off the anchor's
+mined height, so no second on-chain event exists. The legacy layout —
+frame ‖ `dataDigest`(32) ‖ `batchSize`(u32), 41 bytes — is preserved here
+solely as legacy-codec evidence (the event was wire-defined and tested but
+never emitted in production). A v1 decoder MUST reject `0x0d` (see the
+registry); the conformance suite carries a negative vector for it.
 
 ### 4.6 Maximum event size
 
@@ -218,6 +221,13 @@ One concept, one label; no two contexts may share one.
 JSON envelopes whose signatures cover a domain-separated binary digest —
 the JSON is transport, the digest is the contract.
 
+**Field sets are closed.** For every envelope in this section, the listed
+fields are the complete set: a parser MUST reject an envelope with a
+missing required field or an unrecognized extra field, and MUST reject
+duplicate JSON keys where its JSON layer can detect them. Rationale:
+nothing may ride alongside the digest-covered fields as unsigned metadata
+— an envelope either is exactly its specified shape or it is rejected.
+
 ### 8.1 Value record (`ont-value-record`, recordVersion 2)
 
 Fields (the complete JSON envelope; a parser MUST reject an envelope whose
@@ -255,9 +265,14 @@ The descriptor's `signingProfile` is deliberately looser than the proof's
 (§8.3): after trim+lowercase normalization it must match
 `[a-z0-9._-]{1,32}` (default `bip322`) — the grammar leaves room for
 future profiles. But descriptorVersion 1 *defines* only `bip322`: a
-descriptor naming any other profile is well-formed yet cannot be invoked,
-because invocation requires the §8.3 proof, which rejects every profile
-except `bip322`.
+descriptor naming any other profile is well-formed yet cannot be invoked.
+That guarantee rests on **two** checks: (a) the §8.3 proof rejects every
+profile except `bip322` (wire shape, B1); and (b) at recovery invocation
+the verifier MUST also check that the proof's normalized `signingProfile`
+equals the descriptor's normalized `signingProfile` (the legacy source
+enforces this). Check (b) is a cross-object rule — recovery-authority
+semantics, B2 scope (routed out of B1 with the rest of recovery auth) —
+B1 validates only each envelope's own shape.
 
 Digest (= the descriptor hash the on-chain RecoverOwner event references):
 `sha256( lenPrefix("ont-recovery-descriptor") ‖ version(1) ‖

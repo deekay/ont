@@ -68,9 +68,10 @@ unratified docs; needs the named spec PR listed in Gaps before promotion.
   *Source:* code behavior. **Candidate-stays — needs G1** (the reject rule
   becomes spec text; upgrade policy recorded as explicitly deferred).
 - **W6.** Event types are single bytes, enumerated exhaustively in the spec
-  (RootAnchor, AvailabilityMarker, Transfer, AuctionBid, RecoverOwner, plus
-  any others the spec PR surfaces from `constants.ts`). Unknown event type ⇒
-  reject the payload.
+  (RootAnchor, Transfer, AuctionBid, RecoverOwner; AvailabilityMarker=0x0d
+  is **retired — never reuse** per marker-fold (#47), plus
+  any others the spec PR surfaces from `constants.ts`). Unknown or retired
+  event type ⇒ reject the payload.
   *Source:* code; only AvailabilityMarker=0x0d appears in any doc
   (spec/ONT_DATA_AVAILABILITY_AGREEMENT.md §8). **Candidate-stays — needs
   G1.**
@@ -79,7 +80,8 @@ unratified docs; needs the named spec PR listed in Gaps before promotion.
 
 - **W7.** Pinned framed sizes: RootAnchor **73** bytes (frame + prevRoot 32
   + newRoot 32 + batchSize u32 BE); AvailabilityMarker **41** (frame +
-  dataDigest 32 + batchSize u32); Transfer **135** (frame + body 130 =
+  dataDigest 32 + batchSize u32; retired per marker-fold (#47) — the 41-byte
+  layout survives as legacy-codec evidence only); Transfer **135** (frame + body 130 =
   prevStateTxid 32 + newOwnerPubkey 32 + flags 1 + successorBondVout 1 +
   signature 64); RecoverOwner **171** (frame + body 166 = transfer-style
   fields + challengeWindowBlocks u32 + recoveryDescriptorHash 32 +
