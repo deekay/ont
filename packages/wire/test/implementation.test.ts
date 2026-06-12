@@ -125,7 +125,8 @@ const CASES: EnvelopeCase[] = [
     verificationRejects: [] },
   { file: "wallet-proof.json", parse: wire.parseWalletProof, digest: wire.walletProofHash,
     digestKey: "proofHash", verify: wire.verifyWalletProofSignature,
-    verificationRejects: ["wallet-proof-reject-bip322-invalid-signature"] },
+    verificationRejects: ["wallet-proof-reject-bip322-invalid-signature",
+      "wallet-proof-reject-bip322-malformed-signature"] },
 ];
 
 describe("impl §8 envelopes", () => {

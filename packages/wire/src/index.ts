@@ -437,5 +437,14 @@ export function parseWalletProof(json: string): Record<string, unknown> {
   if (walletProofMessage(e) !== str(e, "message")) reject("stored message differs from regenerated message (§8.3)");
   return e;
 }
-export const verifyWalletProofSignature = (e: Record<string, unknown>): boolean =>
-  bip322.Verifier.verifySignature(str(e, "recoveryAddress"), str(e, "message"), str(e, "signatureBase64"));
+export const verifyWalletProofSignature = (e: Record<string, unknown>): boolean => {
+  // The base64 shape gate in parseWalletProof admits strings that are not
+  // structurally valid BIP322 witnesses (e.g. "AAAA"); the verifier throws on
+  // those. A malformed signature is an invalid signature, not a crash.
+  try {
+    return bip322.Verifier.verifySignature(
+      str(e, "recoveryAddress"), str(e, "message"), str(e, "signatureBase64"));
+  } catch {
+    return false;
+  }
+};
