@@ -340,3 +340,44 @@ Per Item 1: gap ⇒ stop ⇒ named spec PR ⇒ then code.
   (W12).
 - `packages/protocol/src/names.ts` test corpus — grammar/normalization
   vectors (W1, W2).
+
+## Steps 4–5 — attacks became negative tests; sign-off evidence
+
+*(Added at B1 close, 2026-06-12, after the implementation review completed
+with no findings — ChatLunatique confirm on `8b82703`. Steps 1–2 are the
+invariant extraction + source check above; step 3 was the adversarial
+content passes across the spec, suite, and implementation review rounds,
+all findings fixed. This section records step 4 — every attack surface
+flagged above now has a named negative vector in
+`packages/wire/vectors/` — and the evidence DK's per-section promotion
+ratifications (step 5) rest on.)*
+
+### Step-4 evidence map: spec section → negative coverage
+
+| WIRE_FORMAT § | Attack surfaces flagged in B1 | Negative vectors (packages/wire/vectors/) |
+| --- | --- | --- |
+| §1 conventions | endianness/framing ambiguity (W1) | exercised by every digest/commitment vector recomputation |
+| §2 names | normalization malleability (W3 flag) | names.json rejects; events.json `bid-reject-noncanonical-name` |
+| §3 frame | unassigned/retired type acceptance, version creep | frame.json: exhaustive 256-byte type sweep (251 unassigned + retired `0x0d`), bad magic, version `0x00`/`0x02`, short frame |
+| §4 layouts | truncation/extension, flag bypass, length mismatch | events.json: truncations at multiple offsets per type, trailing byte, `bid-reject-no-includes-name-flag`, `bid-reject-name-length-mismatch`; ≤184 property |
+| §5 keys/digests | cross-context signature replay (W13) | digests.json: both cross-context negatives; legacy byte-identical cross-checks (digests in generator, derivation vs `apps/claim/src/keys.ts` in suite) |
+| §6 commitments | truncated commitments (W16 — ruled full-width), phase/rendering confusion | commitments.json: unknown-phase, empty-after-trim, leading-zero decimal, uppercase hex32; absent-field rendering pinned |
+| §7 label registry | label reuse/collision (W13a two-conventions flag) | one-concept-one-label test; retired-labels collision test; lenPrefix standardization (PROPOSAL 1, ratified) |
+| §8.1 value record | unsigned-metadata smuggling, version confusion, registry creep | value-record.json: closed-field rejects, duplicate-JSON-key raw fixture, `recordVersion 2` MUST-REJECT, gns-format reject, valueType-outside-registry, non-ISO issuedAt, non-hex64 signature |
+| §8.2 descriptor | profile-rendering hash malleability (on-chain-referenced hash) | recovery-descriptor.json: never-diverge vector (`" BIP322 "` ≡ `"bip322"` hash), grammar rejects, closed-field rejects, version reject |
+| §8.3 wallet proof | reserved-bytes extension slot (W15a — ruled dropped), message/hash divergence, verifier crash | wallet-proof.json: real-BIP322 invalid + malformed-witness (verify false, never throw), tampered message, trailing LF, profile rejects, closed-field rejects |
+
+### Step-5 standing
+
+Every section above is `candidate` per the normative-hardening amendment.
+The promotion walk (DK ratifies per section) proposes:
+
+- **§1–§7: promote in one batch** — no open flags.
+- **§8.1–8.3: promote after three flags are ruled** (stated, not buried):
+  (1) "ISO timestamp" is loose — legacy `Date.parse` rule admits non-ISO
+  strings; recommend tightening to a literal RFC3339 form with vectors
+  before promotion. (2) spec `sequence` is u64; implementation accepts JS
+  safe integers (≤ 2^53−1) — unreachable in practice, divergence must be
+  stated or closed. (3) base64 gate is shape-only by design; structural
+  BIP322 validity belongs to the verifier (malformed ⇒ verify false).
+- **§9: analysis tier** — a routing table, not a rule set.
