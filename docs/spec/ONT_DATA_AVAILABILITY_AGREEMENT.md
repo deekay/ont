@@ -4,7 +4,10 @@
 > ([SOFTWARE_INVENTORY.md](../core/SOFTWARE_INVENTORY.md)). No section of
 > this file is `normative` yet: rules here become law only by surviving the
 > five-step normative hardening for the phase that implements them
-> (hardens for B2/B3 — blocked on the pre-B2 marker-vs-folded-anchor named spec decision (OPEN_QUESTIONS §1.1)). Statements of status elsewhere in this file are
+> (hardens for B2/B3; the marker-vs-folded-anchor question is **decided — marker-fold (#47), fold**:
+> the separate availability marker is retired and all deadline windows key off the anchor's mined
+> height. §6b and the marker references throughout were rewritten 2026-06-11 accordingly; see
+> [research/DA_MARKER_FOLD.md](../research/DA_MARKER_FOLD.md)). Statements of status elsewhere in this file are
 > historical; the ledger wins.
 
 
@@ -26,9 +29,9 @@ Status: design analysis, 2026-05-23. A candidate that meaningfully reduces R1 �
 - **Why it's hard:** Bitcoin orders the *commitments* to data, but it doesn't carry the *data*.
   And you fundamentally **can't prove data was never published** (you can't prove a negative). So
   "was this batch available in time?" has no perfectly objective answer.
-- **The move:** you can't make off-chain availability *perfectly* objective — but you can (1) push
-  the *timing* decision onto Bitcoin (a small on-chain "it's available" marker with a block-height
-  deadline), (2) fail closed so a no-show is uniformly dropped, and (3) notice that the genuinely
+- **The move:** you can't make off-chain availability *perfectly* objective — but you can (1) key
+  the *timing* decision off Bitcoin (the anchor's mined height starts a block-height deadline the
+  whole network reads identically), (2) fail closed so a no-show is uniformly dropped, and (3) notice that the genuinely
   hard case only matters for **contested** names — which are few, and can fall back to putting
   full data on Bitcoin. The huge uncontested long tail self-heals.
 - **What's left:** the residual shrinks to one clean assumption — *at least one honest archive
@@ -112,19 +115,25 @@ availability window `W ≤ K`. Honest publishers release data at anchor time, so
 K-block lag (≈ hours) of slack — propagation variance of seconds/minutes never reaches the
 boundary. Convergence on *confirmed* roots holds for every honestly-published delta.
 
-### 6b. Move the *timing* decision onto Bitcoin (the boundary case)
-To make "available by the deadline" objective rather than receipt-time-relative, require an
-**on-chain availability marker**: by height `h+W`, the publisher posts a small Bitcoin transaction
-referencing `D`'s data digest. "In time" then means *that marker is mined by `h+W`* — a fact
-Bitcoin witnesses, identical for everyone. The bulk data stays off-chain (fetched from archives);
-only the timing fact is on-chain.
+### 6b. Key the *timing* decision off the anchor (the boundary case)
+*(Rewritten 2026-06-11 per marker-fold (#47); the original §6b proposed a separate on-chain
+availability marker — retired, see [research/DA_MARKER_FOLD.md](../research/DA_MARKER_FOLD.md).)*
+
+To make "available by the deadline" objective rather than receipt-time-relative, the **anchor
+itself is the availability commitment**: a batch anchored at height `h` commits its leaves via the
+anchored root (and `batchSize`), and its bytes must be demonstrably servable by height `h+W`. The
+clock starts at the anchor's mined height — a fact Bitcoin witnesses, identical for everyone. The
+bulk data stays off-chain (fetched from archives); only the timing fact is on-chain, and it rides
+on the transaction the publisher was posting anyway. No second event exists, so the
+anchor-now-publish-later flow — anchoring while withholding bytes for later reveal — is impossible
+to *signal* and pointless to attempt: bytes that miss `h+W` forfeit per §6c/§6d.
 
 ### 6c. Fail closed, with an attributable challenge
-If a delta is anchored and marked but its **bytes can't be produced by anyone** within a second
+If a delta is anchored but its **bytes can't be produced by anyone** within a second
 challenge window, it is **uniformly excluded** — every honest node drops it. This flips the
 unprovable question: we no longer ask "prove `D` was never published," we ask "by the deadline, has
-*anyone* served bytes matching the attested digest?" That has an objective, eventually-consistent
-answer. A marked-but-unservable delta is a **detectable, attributable fault** (someone anchored a
+*anyone* served bytes matching the anchored commitment?" That has an objective, eventually-consistent
+answer. An anchored-but-unservable delta is a **detectable, attributable fault** (someone anchored a
 commitment nobody can back), not a silent ambiguity.
 
 ### 6d. Contested leaves: hard window, escalate to L1
@@ -140,7 +149,7 @@ names are few (~110 vB each, ~4.78M/yr ceiling at 1% blockspace).
 | Approach | What it is | Trust added | Where it fits |
 | --- | --- | --- | --- |
 | **A. Full data on Bitcoin** | Put the bytes on-chain | None (pure Bitcoin) | The **censorship-resistant floor** + contested-name fallback. Too expensive for the long tail |
-| **B. Fail-closed window + on-chain availability marker** | §6a–6c | 1-of-N honest archive | The **default long-tail path** |
+| **B. Fail-closed window keyed off the anchor** | §6a–6c | 1-of-N honest archive | The **default long-tail path** |
 | **C. DA sampling (erasure-coded, Celestia-style)** | Light clients sample chunks to gain availability confidence cheaply | Honest-minority DA network | Optional upgrade *if* trust-minimized light-client availability at scale is required |
 | D. Bonded attestation + slashing | Publishers bond "it's available," slashed on fault | — | **Rejected**: non-availability isn't objectively provable, so slashing can't trigger cleanly. Adds friction, not convergence |
 
@@ -167,10 +176,10 @@ the residual assumption (1-of-N honest parties *serve* the bytes). What they do 
 **transport**: by what concrete mechanism the bytes get from a publisher to the nodes that recompute the
 root. This is the live decision, and we want Bitcoin-dev feedback on it.
 
-**The clarifying point — transport is not consensus-critical.** The availability marker commits a
-`dataDigest`; every node verifies fetched bytes against that on-chain digest before using them. So a
-byte source can't lie (wrong bytes fail the digest), and "did it surface in time?" is decided by the
-*marker's* Bitcoin height, not by who delivered the bytes. That means the transport choice doesn't
+**The clarifying point — transport is not consensus-critical.** The anchor commits the batch
+(root + `batchSize`); every node verifies fetched bytes against that on-chain commitment before using
+them. So a byte source can't lie (wrong bytes fail the commitment), and "did it surface in time?" is
+decided against the *anchor's* Bitcoin height, not by who delivered the bytes. That means the transport choice doesn't
 affect **correctness or convergence at all** — it only affects **availability robustness** (how hard it
 is to censor/withhold) and **who you depend on for liveness**. That also makes it cheaply reversible:
 because integrity is digest-anchored, the storage/delivery backend can change without touching consensus.
@@ -178,11 +187,11 @@ because integrity is digest-anchored, the storage/delivery backend can change wi
 | Transport | What it is | Censorship/liveness | Complexity | v1 fit |
 | --- | --- | --- | --- | --- |
 | **T1. Publisher-served HTTP** | The publisher exposes the batch bytes by digest at an endpoint; indexers pull | Depends on that operator being up (but fail-closed: a no-show just drops the batch — never forks) | Lowest (operators already run HTTP) | Simplest delivery |
-| **T2. Content-addressed + mirrorable** *(recommended)* | Same bytes, addressed by their `dataDigest`, so the publisher is just the first mirror; anyone (aligned institutions, other publishers, a hobbyist) can re-serve the exact bytes | 1-of-N: any mirror holding the digest-matching bytes satisfies availability — no single operator is load-bearing | Low (it's T1 + a "fetch by digest from any of N sources" convention) | **Recommended** |
+| **T2. Content-addressed + mirrorable** *(recommended)* | Same bytes, addressed by the anchored commitment, so the publisher is just the first mirror; anyone (aligned institutions, other publishers, a hobbyist) can re-serve the exact bytes | 1-of-N: any mirror holding the commitment-matching bytes satisfies availability — no single operator is load-bearing | Low (it's T1 + a "fetch by digest from any of N sources" convention) | **Recommended** |
 | **T3. P2P gossip / DA-sampling overlay** | A dedicated overlay floods or samples chunks (ties to §7 option C) | Strongest | Highest (a new network to build + maintain) | Post-v1 upgrade |
 
 **Recommended approach (working direction, open for challenge): T2.** Treat batch bytes as
-content-addressed by the marker's `dataDigest`, served by the publisher over plain HTTP in v1 (so T1 is
+content-addressed by the anchored commitment, served by the publisher over plain HTTP in v1 (so T1 is
 just T2's first mirror), and let anyone mirror the exact bytes. This:
 
 - **Subsumes the simple case** — publisher-HTTP works on day one, no new infrastructure — while keeping
@@ -205,7 +214,7 @@ there a transport that tightens the 1-of-N residual further without a new truste
   merges everyone else's. No global halt.
 - **Withhold-then-reveal to steal a contested name** → defeated by §6d: a late reveal forfeits
   priority, so it can't evict an earlier available claimant.
-- **Mark-but-don't-serve** → fail-closed (§6c): excluded after the challenge window, attributable.
+- **Anchor-but-don't-serve** → fail-closed (§6c): excluded after the challenge window, attributable.
 - **Boundary divergence on an honest delta** → absorbed by the K-block lag (§6a); honest
   publishers are nowhere near the boundary.
 - **Flood contested claims with withheld data** → each is self-harming and costs the gate/commit;
@@ -218,19 +227,24 @@ commutativity + confirmation lag); the **withhold-then-reveal** theft vector; th
 turns unprovable non-availability into an attributable, fail-closed, on-chain-timed decision.
 
 **Still open:**
-1. **Pin the windows.** Choose `K` (confirmation depth), `W ≤ K` (availability marker deadline),
-   and the challenge window — with explicit latency/safety tradeoffs.
-2. **Specify the availability marker.** *Payload format now defined* in `@ont/protocol`
-   (`AvailabilityMarker` event: `dataDigest` + `batchSize`, same magic+version+type framing as the
-   anchor). Still open: the full Bitcoin tx form (funding/output structure), cost, and how the
-   validator composes the marker's block height with the anchor's to enforce the `h+W` deadline.
+1. **Pin the windows.** Choose `K` (confirmation depth), `W ≤ K` (availability deadline, measured
+   from the anchor's mined height), and the challenge window — with explicit latency/safety tradeoffs.
+2. **Specify the availability marker.** *Superseded by marker-fold (#47):* the separate marker is
+   retired (wire event `0x0d` is retired-never-reuse); the deadline keys off the anchor's mined
+   height, so there is no second tx form, cost, or cross-event height composition to specify. The
+   successor work items are the B2 kernel predicate `eligible(anchor, servedEvidence, W, C)` and
+   the B3 served-bytes witness format it consumes.
 3. **Decide if/when DA sampling (C) is needed.** Pure 1-of-N archives may suffice at launch;
    sampling is the upgrade path if light clients must not trust archives at billions-scale.
-4. **Pin the transport (§8b).** Working direction is **T2** (content-addressed, marker-committed bytes;
+4. **Pin the transport (§8b).** Working direction is **T2** (content-addressed, anchor-committed bytes;
    publisher-served + anyone-mirrorable; not consensus-critical since verified against the on-chain
-   digest). Raised as a **core area for external feedback** — the witnessing is settled; the transport's
+   commitment). Raised as a **core area for external feedback** — the witnessing is settled; the transport's
    decentralization-vs-simplicity tradeoff is the open call.
 ## 11. Prototype (2026-05-23)
+
+*(The prototype predates marker-fold (#47): where it says "marker height," that timestamp plays
+exactly the role the anchor's mined height plays in the folded design — one Bitcoin-witnessed
+clock start instead of two. The convergence argument is unchanged.)*
 
 `packages/core/src/da-convergence-sim.ts` (+ `da-convergence-sim.test.ts`) makes the rule
 falsifiable. It runs the same anchored batches through two inclusion rules — `naive` ("include if
@@ -256,7 +270,8 @@ with deliberately *different* local views. The tests assert, in code:
 R1 moves from **"open existential / agreement rule unbuilt"** to **"approach identified *and*
 convergence prototyped: confine objective-DA to contested leaves; isolate the residual to a
 fail-closed 1-of-N archive assumption; escalate contested names to L1."** It is *not* closed —
-items 1–3 above (pin windows, specify the marker tx, decide on DA sampling) remain, and the
+items 1 and 3 above (pin windows, decide on DA sampling) remain alongside the post-fold successor
+work (B2 predicate, B3 served-bytes witness), and the
 prototype is an abstract model, not the real Bitcoin-tx-level mechanism. But the core convergence
 claim now holds in code, and the hard residue is small and named.
 
