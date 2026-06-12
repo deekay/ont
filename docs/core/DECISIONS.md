@@ -996,6 +996,47 @@ Implications:
   second timestamp, marker-fold reopens by named spec PR before the B2
   kernel freezes its DA predicate.
 
+48. wire-normative: WIRE_FORMAT.md promoted candidate → normative —
+2026-06-12
+
+*Short name: **wire-normative**. Named sub-rulings: **timestamp-form**,
+**sequence-bound**, **shape-only-gate**.*
+
+Ruled by DK in ONT - dev on 2026-06-12 ("1–3 approved", event 5b53497f),
+ratifying the B1 step-5 promotion walk as posted (event c79d3042). First
+exercise of the normative-hardening amendment's promotion path.
+
+**The rule.** WIRE_FORMAT.md §1–§7 are promoted to `normative` in one
+batch (stated non-flag: §7's one-concept-one-label rule is review-checked,
+no dedicated uniqueness test). §8.1–8.3 are promoted with three named
+rulings applied in the same change:
+
+- **timestamp-form** — `issuedAt` is pinned to a literal RFC 3339 UTC
+  profile: uppercase `T`/`Z`, UTC only, seconds required, fraction absent
+  or exactly three digits, real calendar instant. The legacy rule (any
+  string a JS `Date.parse` accepts) is retired as representation
+  malleability inside a digested field.
+- **sequence-bound** — `sequence`'s valid range is bounded at 2^53−1; the
+  u64 digest encoding can carry more, but larger values are invalid. The
+  u64-vs-JS-safe-integer divergence is closed in the spec rather than
+  left as an implementation accident.
+- **shape-only-gate** — the `signatureBase64` parse gate checks base64
+  shape only, by design; structural BIP322 validity belongs to the
+  verifier (malformed bytes ⇒ verification returns false, never throws).
+
+§9 remains `analysis` tier (a routing table, not a rule set).
+
+Implications:
+- Changing any §1–§8 rule now requires a new named decision; code must
+  match the spec — docs-are-the-spec has teeth at the wire layer.
+- `@ont/wire` and the conformance vectors updated in the promoting
+  change: RFC 3339 gate, exported `SEQUENCE_BOUND`, negative vectors for
+  both new rules; the shape-only gate's two sides were already pinned.
+- The SOFTWARE_INVENTORY.md ledger row flips — the first `normative`
+  entries in the clean-build ledger.
+- B2 may treat wire shapes as law (closed field sets, full-width
+  commitments collision-resistant per the W16 ruling).
+
 ## Fairness Principles To Carry Into The Launch Rewrite
 
 The rewritten launch draft should explicitly state:

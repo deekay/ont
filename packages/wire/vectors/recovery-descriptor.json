@@ -146,7 +146,7 @@
     {
       "id": "descriptor-reject-issuedat-not-iso",
       "kind": "reject",
-      "cite": "§8.2 issuedAt (ISO timestamp)",
+      "cite": "§8 timestamps (RFC 3339 UTC; timestamp-form, wire-normative #48)",
       "envelope": {
         "format": "ont-recovery-descriptor",
         "descriptorVersion": 1,
@@ -159,6 +159,44 @@
         "signingProfile": "bip322",
         "challengeWindowBlocks": 144,
         "issuedAt": "not-a-timestamp",
+        "signature": "68201e98f9fcafe43c436edf0cef8212c015c24f4aad0f4b2e99d05dde2fd708fd82eb225436800550562c9e0fc804f9c11baf56d8b8b3d1e666998e60c9805c"
+      }
+    },
+    {
+      "id": "descriptor-reject-issuedat-offset-form",
+      "kind": "reject",
+      "cite": "§8 timestamps (timestamp-form, wire-normative #48) — shared preamble rule, §8.2 envelope",
+      "envelope": {
+        "format": "ont-recovery-descriptor",
+        "descriptorVersion": 1,
+        "name": "example",
+        "ownerPubkey": "7fb0dc13cea75a622e8ba13d1c3abdeba2258649dd3069f2aa98357777eb2dba",
+        "ownershipRef": "6e44ded5de059bb2917a073ec1ceb50eb9e3d430436d913e177b96d31d45f804",
+        "sequence": 1,
+        "previousDescriptorHash": null,
+        "recoveryAddress": "tb1q28r7kchkssmxzlaan86zcuksgcy9yecnargmak",
+        "signingProfile": "bip322",
+        "challengeWindowBlocks": 144,
+        "issuedAt": "2026-06-12T00:00:00+00:00",
+        "signature": "68201e98f9fcafe43c436edf0cef8212c015c24f4aad0f4b2e99d05dde2fd708fd82eb225436800550562c9e0fc804f9c11baf56d8b8b3d1e666998e60c9805c"
+      }
+    },
+    {
+      "id": "descriptor-reject-sequence-above-bound",
+      "kind": "reject",
+      "cite": "§8 sequence bound (sequence-bound, wire-normative #48) — §8.2 envelope",
+      "envelope": {
+        "format": "ont-recovery-descriptor",
+        "descriptorVersion": 1,
+        "name": "example",
+        "ownerPubkey": "7fb0dc13cea75a622e8ba13d1c3abdeba2258649dd3069f2aa98357777eb2dba",
+        "ownershipRef": "6e44ded5de059bb2917a073ec1ceb50eb9e3d430436d913e177b96d31d45f804",
+        "sequence": 9007199254740992,
+        "previousDescriptorHash": null,
+        "recoveryAddress": "tb1q28r7kchkssmxzlaan86zcuksgcy9yecnargmak",
+        "signingProfile": "bip322",
+        "challengeWindowBlocks": 144,
+        "issuedAt": "2026-06-12T00:00:00.000Z",
         "signature": "68201e98f9fcafe43c436edf0cef8212c015c24f4aad0f4b2e99d05dde2fd708fd82eb225436800550562c9e0fc804f9c11baf56d8b8b3d1e666998e60c9805c"
       }
     },
