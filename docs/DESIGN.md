@@ -273,10 +273,12 @@ Billions of names cannot each be a Bitcoin transaction, so cheap uncontested cla
   only if its bytes surface by a Bitcoin-height-keyed deadline (`anchorHeight + W + C`).
   Bytes that never surface are **excluded, not fatal** — honest nodes converge by dropping
   them. Contested leaves rely on the hard deadline so a withheld claim cannot reappear
-  later and steal priority. The *witnessing* (an on-chain availability marker, Bitcoin-timed) is
-  settled; the **transport** — how the bytes are served and mirrored — is the live open call,
-  with content-addressed/marker-committed bytes (publisher-served + anyone-mirrorable, not
-  consensus-critical) as the working direction and a **core area flagged for feedback**. See
+  later and steal priority. The *witnessing* is settled and folded into the anchor itself
+  (marker-fold (#47): the separate on-chain marker is retired; the anchor's mined height,
+  Bitcoin-timed, starts the deadline); the **transport** — how the bytes are served and mirrored —
+  is the live open call, with content-addressed/anchor-committed bytes (publisher-served +
+  anyone-mirrorable, not consensus-critical for byte integrity) as the working direction and a
+  **core area flagged for feedback**. See
   [`spec/ONT_DATA_AVAILABILITY_AGREEMENT.md`](./spec/ONT_DATA_AVAILABILITY_AGREEMENT.md) (§8b transport).
 - **Leaderless multi-publisher.** Distinct-name inserts commute; genuine conflicts resolve
   by deterministic priority (block height, then tx index, then txid). No single publisher
@@ -296,8 +298,8 @@ Billions of names cannot each be a Bitcoin transaction, so cheap uncontested cla
 membership proof against the Bitcoin-anchored root before a name resolves —
 verify-don't-trust at every hop, with `runBatchRail` simulations additionally asserting
 delta commutativity and convergence against a data-withholding adversary. What is **not**
-live is the adversarial half: the fail-closed data-availability deadline (the availability marker and the
-data-availability windows) is enforced only in design and simulation, transport is
+live is the adversarial half: the fail-closed data-availability deadline (anchor-keyed per
+marker-fold (#47), with the data-availability windows) is enforced only in design and simulation, transport is
 publisher-served v1 (content-addressed mirroring is the working direction), multi-publisher
 convergence is simulated but not deployed, and the windows themselves are unpinned.
 Enforcing the deadline rule in the live path is the sharpest remaining architecture step.
@@ -437,8 +439,9 @@ the whole-system threat model in [`RISKS.md`](./RISKS.md) and
 ## 9. What we'd most value your feedback on
 
 1. **Data availability + convergence soundness.** Is the fail-closed height-keyed data-availability rule correct against
-   reorgs and withholding? Are the data-availability windows the right shape (on-chain availability marker vs.
-   pure timing)?
+   reorgs and withholding? We folded the old separate availability marker into the anchor
+   (marker-fold (#47)) — does that miss a consensus role for a second timestamp? And can the
+   served-bytes evidence rule be made convergent, with defensible `K`/`W`/`C` window values?
 2. **On-chain footprint + relay.** Are ~171-byte OP_RETURN ONT events acceptable as a
    prototype baseline, or is the standardness/relay/datacarrier story a real obstacle on
    mainnet — and is a script/covenant carrier worth the soft-fork dependency?

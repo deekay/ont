@@ -154,7 +154,8 @@ the app's defaults) hands you endpoints.
 ### Option B — on-chain announcement event (the "use Bitcoin to discover" answer)
 
 Add a new `OntEventType` (the enum already cleanly supports more — current
-values are sparse: `0x03, 0x07, 0x09, 0x0b, 0x0d`) for a **service
+assigned values are sparse: `0x03, 0x07, 0x09, 0x0b`; `0x0d` is retired —
+never reuse, per marker-fold (#47)) for a **service
 announcement**: a publisher or resolver posts a small OP_RETURN under the `ONT`
 magic declaring an endpoint (host/onion + a pubkey + maybe a capability flag),
 optionally signed by a key it also uses to sign its served data.

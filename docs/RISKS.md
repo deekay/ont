@@ -72,7 +72,7 @@ Severity: **fatal** (could kill the design), **high**, **medium**, **low**.
 
 | ID | Risk | Kind | Severity | Status / next step |
 | --- | --- | --- | --- | --- |
-| R1 | **Data availability / convergence** — honest nodes must agree on one root from Bitcoin alone; withholding can't halt others (self-harm) but a timing disagreement on a *contested* leaf forks the chain | Bet → approach prototyped | Fatal (liveness) | **Decomposed + prototyped ([`spec/ONT_DATA_AVAILABILITY_AGREEMENT.md`](./spec/ONT_DATA_AVAILABILITY_AGREEMENT.md), `da-convergence-sim.ts`):** uncontested leaves self-heal (commutativity + K-block lag); contested leaves use a Bitcoin-timed availability marker + fail-closed challenge, escalating to direct-L1. Convergence vs. a withholding adversary passes in code (naive rule forks, proposed converges) — **now over the production accumulator** (`batch-rail.ts`), with the resulting ownership provable via C1 proofs. Residual = isolated 1-of-N archive assumption. Open: pin windows, spec the marker tx, decide on data-availability sampling |
+| R1 | **Data availability / convergence** — honest nodes must agree on one root from Bitcoin alone; withholding can't halt others (self-harm) but a timing disagreement on a *contested* leaf forks the chain | Bet → approach prototyped | Fatal (liveness) | **Decomposed + prototyped ([`spec/ONT_DATA_AVAILABILITY_AGREEMENT.md`](./spec/ONT_DATA_AVAILABILITY_AGREEMENT.md), `da-convergence-sim.ts`):** uncontested leaves self-heal (commutativity + K-block lag); contested leaves use a Bitcoin-timed, anchor-keyed deadline + fail-closed challenge (marker-fold (#47) retired the separate marker event), escalating to direct-L1. Convergence vs. a withholding adversary passes in code (naive rule forks, proposed converges) — **now over the production accumulator** (`batch-rail.ts`), with the resulting ownership provable via C1 proofs. Residual = isolated 1-of-N archive assumption. Open: pin windows, spec the served-bytes witness, decide on data-availability sampling |
 | R2 | **Leaderless chaining / throughput** — many anchors/block need to chain with no privileged sequencer; naive racing collapses to ~1 batch/block or re-centralizes | Unsolved → mechanism prototyped | Fatal (scale) | **Candidate prototyped: per-block delta-merge** (`packages/core/src/delta-merge-sim.ts`) — commutativity, conflict determinism, data-availability exclusion, compact proofs all pass — **now wired into the production batched claim path** (`batch-rail.ts`): deltas merged into the real C1 accumulator with derived roots anchored in the C2 root chain. Remaining work is live scale numbers (→ R11), not mechanism. See [`OPEN_QUESTIONS.md`](./OPEN_QUESTIONS.md) |
 | R3 | **Contest rate** — capacity swings ~100× on a number unknowable until launch. *Assumed time-varying:* high but low-volume early (everyone piles onto `bitcoin`/`google`/dictionary words), falling as the namespace matures and the marginal claim is a long-tail handle (`sallysmith2165`) nobody contests | Bet | High | Design must degrade safely toward L1 economics. Note the heavy-contest regime coincides with low volume (absorbable on L1); premium set is bounded and depletes. Monitor post-launch; expect a low contested floor (speculative racing), not zero |
 | R4 | **Off-chain auction binding + ordering** — making escalating bids visible, binding, and cheap at once | Resolved by removal 2026-05-24 | (was High) | **Decided: no off-chain auction.** the batched claim path is *uncontested-only*; a contested long-tail name escalates to the proven **L1 bonded auction**. This deletes the visible+binding+cheap problem from the rail (`batch-rail.ts` now escalates contests). See [`OPEN_QUESTIONS.md`](./OPEN_QUESTIONS.md) |
@@ -677,15 +677,16 @@ against the accumulator. So the publisher cannot forge ownership. What it *can* 
 Anchor a claim on-chain but withhold the batch bytes, then reveal them later to
 retroactively "win" a name against a competitor who could not see the claim in time.
 
-- **Defense today:** the data-availability filter, fail-closed. `da-convergence-sim.ts` requires an
-  availability marker mined by `anchorHeight + W` and the bytes surfacing by `+ W + C`; a
+- **Defense today:** the data-availability filter, fail-closed. `da-convergence-sim.ts` requires the
+  batch to be attested available by `anchorHeight + W` and the bytes surfacing by `+ W + C` (the
+  sim's separate marker event plays the role the anchor itself plays under marker-fold (#47)); a
   delta that was not actually available is *excluded*, not treated as canonical.
   `runBatchRail` only counts data-availability-valid deltas. A documenting test ("a withheld competing
   claim cannot force a contest") confirms a withheld claim cannot even trigger an
   escalation. This is the defense the convergence note calls out as "what defeats
   withhold-then-reveal name theft."
 - **Residual gap:** the data-availability windows (defined in the spec) are parameters; if set too short an
-  attacker with marginal network control could still race the availability marker. They
+  attacker with marginal network control could still race the availability deadline. They
   must be chosen conservatively and decoupled from the notice window (see the philosophy
   note, "do not couple the contest window to the data-availability confirm-depth").
 
@@ -1157,7 +1158,7 @@ Attack shapes:
 
 Current posture:
 
-- Fail-closed data-availability and availability-marker design are documented and prototyped.
+- Fail-closed, anchor-keyed data-availability design (marker-fold (#47)) is documented and prototyped.
 - Multi-publisher convergence logic exists in research/prototype code.
 - The live resolver still does not consume the full batched-path derivation end to end.
 

@@ -60,8 +60,9 @@ the winners into one root. Distinct-leaf inserts commute, so the merged root
 is independent of delta order; the simulator's tests assert exactly this
 (commutativity, miner-reordering immunity, conflict determinism). Layered on
 top, `da-convergence-sim.ts` decides *which* deltas count using only
-Bitcoin-witnessed facts (an availability marker mined by `anchorHeight + W`,
-plus the bytes surfacing to the network by `+ W + C`), fail-closed, so a
+Bitcoin-witnessed facts (availability attested by `anchorHeight + W`, plus the
+bytes surfacing to the network by `+ W + C`; the sim's separate marker event
+plays the role the anchor itself plays under marker-fold (#47)), fail-closed, so a
 withheld or late-revealed delta is excluded rather than fatal — which is what
 defeats withhold-then-reveal name theft.
 

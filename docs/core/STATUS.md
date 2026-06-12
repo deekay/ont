@@ -35,7 +35,7 @@ as the record.
 | Owner-key model (transfer / value record / recovery) | **Decommissioned (2026-06-11)** | Enforced at replay; byte-identical across the engine + mobile crypto. |
 | Contested-auction bonded bid | **Decommissioned (2026-06-11)** | Bid → resolver-accepted on signet. Proof bundle now enforces **highest-bid-wins** + **distinct-bid** well-formedness (was a gap). Set-*completeness* vs L1 still needs the light-client path — see Known-incomplete. |
 | Bitcoin-inclusion verifier (Merkle + PoW) | **Prototype** | The verifier exists and is tested vs a real mainnet block, but **producers don't emit the `bitcoinInclusion` section**, so the light-client path is **not closed end-to-end**. |
-| Batched claim path (batch claims) | **Decommissioned (2026-06-11)** | **End-to-end since 2026-06-09**: claim → publisher anchors on-chain → indexer decodes the anchor → fetches the batch leaves from the publisher (`/da/{root}`) → re-verifies every membership proof against the Bitcoin-anchored root → name resolves and shows in the public explorer. A lying data source can't mint ownership (verify-don't-trust), and a loop integration test pins the publisher-bytes→indexer-decode boundary. **Still open:** availability-marker / fail-closed deadline enforcement is design+simulation only (see Known-incomplete); transport is publisher-served v1 (content-addressed mirroring is the design direction). |
+| Batched claim path (batch claims) | **Decommissioned (2026-06-11)** | **End-to-end since 2026-06-09**: claim → publisher anchors on-chain → indexer decodes the anchor → fetches the batch leaves from the publisher (`/da/{root}`) → re-verifies every membership proof against the Bitcoin-anchored root → name resolves and shows in the public explorer. A lying data source can't mint ownership (verify-don't-trust), and a loop integration test pins the publisher-bytes→indexer-decode boundary. **Still open:** fail-closed availability-deadline enforcement (keyed off the anchor's mined height per marker-fold (#47) — the separate marker event is retired) is design+simulation only (see Known-incomplete); transport is publisher-served v1 (content-addressed mirroring is the design direction). |
 | Publisher (batched-path batch anchor) | **Decommissioned (2026-06-11)** | Pay-first; real signet anchor broadcast; data-availability bundles survive restart (rebuilt on snapshot replay). Lightning stubbed on signet (Lexe is mainnet-only); leaderless multi-publisher is simulated, not deployed. |
 | Discovery (resolver/publisher) | **Designed** | Config-seeded today; registry-free on-chain scan designed, not built. |
 | Mobile iOS app | **Prototype (signet demo)** | Feature-complete walkable demo; demo-mode default-on; mainnet host placeholder. Not release-ready. |
@@ -102,13 +102,16 @@ determine **owner-key authority and replay validation** (transfers, value record
   boundary alongside the Decision #42 settlement move; the overclaiming comments in
   `apps/publisher` are corrected as of this date.
 - **data-availability enforcement gap (the sharpest open item):** the batched claim path's *fail-closed availability
-  deadline* is not live. The `AvailabilityMarker` event (0x0d) is wire-defined and tested but never
-  emitted or checked in production, and the data-availability windows are enforced only in the research
-  simulations. Today's live loop is: anchors verified on-chain, batch bytes fetched and re-verified
-  against the anchored root, missing bytes simply retried (with backoff) — fine for an honest
-  single publisher on signet, but the *withhold-then-reveal* defense for contested names depends on
-  the deadline rule, which must be implemented (or the marker folded into the anchor — open design
-  question) before the batched claim path's adversarial story is operational.
+  deadline* is not live. The marker-vs-folded-anchor question is **decided — marker-fold (#47),
+  2026-06-11**: the separate `AvailabilityMarker` event (0x0d) is retired (it was wire-defined and
+  tested but never emitted or checked in production; it survives only as legacy-codec evidence), and
+  all availability deadlines key off the anchor's mined height. The data-availability windows are
+  enforced only in the research simulations. The historical live loop was: anchors verified on-chain,
+  batch bytes fetched and re-verified against the anchored root, missing bytes simply retried (with
+  backoff) — fine for an honest single publisher on signet, but the *withhold-then-reveal* defense
+  for contested names depends on the anchor-keyed deadline rule, which must be implemented (B2
+  predicate + B3 served-bytes witness) before the batched claim path's adversarial story is
+  operational.
 - Light-client inclusion proofs not emitted end-to-end → "verify against Bitcoin" is the verifier's
   capability, not yet the live app/resolver path.
 - **Auction-transcript completeness is not self-certified by the proof bundle.** The bundle now
