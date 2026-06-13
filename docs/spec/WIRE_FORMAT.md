@@ -405,7 +405,7 @@ optional `chainTipBlockHash`(32-hex) and `chainTipHeight`,
 | Whether an event changes name state (authorization, ordering, finality) | kernel spec material, B2 |
 | Gate-fee validation (fee ≥ Σ gates) | B2 (spec/ONT_ISSUANCE_FEE_MECHANICS.md) |
 | Data-availability deadlines; marker-vs-folded-anchor | pre-B2 named spec decision + B2/B3 |
-| RecoverOwner authorization semantics (open question a/b/c) | B2 recovery-authority hardening |
+| RecoverOwner authorization semantics | decided — recovery-auth (#50, provisional pending DK): fresh recovery-key BIP340 under a v2 descriptor; the §8.2/§8.3 amendments land at ratification |
 | Economic parameter values | launch-parameter freeze |
 | Proof-bundle construction and sizes | B3 evidence layer |
 | Wallet-handoff envelope formats | B5 (W17 ruling); labels reserved in §7 |

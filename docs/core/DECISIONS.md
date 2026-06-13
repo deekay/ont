@@ -1078,6 +1078,70 @@ negatives (bytes first served in `(h+W, h+W+C]`); S6-violation rejects;
 and vectors at two distinct parameterizations so a baked-in constant
 cannot pass.
 
+50. recovery-auth: the on-chain RecoverOwner invoke is authorized by a fresh
+BIP340 recovery-key signature under a v2 descriptor — 2026-06-13
+
+*Status: **PROVISIONAL — pending DK ratification.** Adopted under the
+autonomous-session protocol (DK grant, event 9c1e1ba7): writer
+ClaudeleLunatique, reviewer ChatLunatique — round 1 COUNTER (wallet-proof
+role misstated; the BIP322-evidence path engaged as the strongest
+counter-design), round 2 CONCUR on audited-kernel/minimal-surface
+grounds. **The values call is DK's on return: smallest audited kernel
+(b1) vs cold-hardware recovery custody (b2h). b2h stays the standing
+counter-design** — paper §4 is its complete spec skeleton. DK ratifies
+or flips.*
+
+*Short name: **recovery-auth**. Pre-B2 named decision (B1 routed item;
+WIRE_FORMAT §9 routing row; invoke-spec "What's missing" item 2). Paper:
+[research/RECOVERY_AUTH.md](../research/RECOVERY_AUTH.md).*
+
+**The rule.** Option (b1), on-chain self-authorization:
+
+- **Descriptor v2** commits a required 32-byte x-only `recoveryPubkey`
+  (`descriptorVersion` 2; digest extended under the established
+  lenPrefix/-v2 conventions). v1 descriptors stay parse-valid but are
+  not invokable (re-arm to v2; with signet decommissioned and
+  nothing-is-precious ratified, v1 descriptors are conformance fossils).
+- The `RecoverOwner` event's 64-byte `signature` field carries a
+  **fresh BIP340 signature by that key over the unchanged W13
+  `ont-recover-owner` digest**. The 0x09 wire layout is byte-for-byte
+  unchanged — the decision defines the meaning of an existing normative
+  field, the work WIRE_FORMAT §5 routed to B2.
+- **Kernel acceptance** is a pure predicate over (event, descriptor
+  evidence, name state): invoke signature verifies against the
+  descriptor's `recoveryPubkey`; descriptor hash equals the event's
+  `recoveryDescriptorHash`; the arming signature verifies against the
+  owner key; the descriptor is the current armed head of the name's
+  descriptor chain; `prevStateTxid` equals the state head.
+- **Replay:** the digest binds `prevStateTxid` (a captured signature
+  dies when the state head moves) and W13 domain separation kills
+  cross-domain reuse. The owner-key veto path (cancel digest) is
+  unchanged.
+
+**Framing (round-2 reviewer precision):** neither option is
+off-chain-free — b1 also consumes descriptor evidence. The decided
+distinction is **descriptor-only evidence + one fixed BIP340 digest**
+(b1) versus **descriptor + wallet-proof evidence + BIP322/script/text
+verification inside the audited kernel** (b2h).
+
+**Deferred ripples (await DK ratification — normative text):** the
+WIRE_FORMAT §8.2 descriptor-v2 amendment and the §8.3 wallet-proof
+narrowing (invoke-authorization object → evidence-layer corroboration)
+are named amendments to normative §8 and land only when DK ratifies.
+Until then, B2 hardening drafts against this decision citing it as
+provisional; the invoke-spec item-2 note and the §9 routing row
+(candidate/analysis tier) carry provisional notes now.
+
+**Negative tests B2 must carry:** replayed-arming-sig-as-invoke,
+descriptor-hash mismatch, non-head descriptor, stale `prevStateTxid`,
+cancel-digest-as-invoke, v1-descriptor invoke, wrong-pubkey signature.
+
+**Reopen triggers:** expert custody feedback (the standing "raise with
+Max" item) showing BIP340 recovery custody is impractical for the
+wallets that matter — reopens toward b2h, whose full skeleton is paper
+§4; the abort-only watcher credential (OPEN_QUESTIONS §4.1) landing with
+invoke-side field needs — touches the predicate by named amendment.
+
 ## Fairness Principles To Carry Into The Launch Rewrite
 
 The rewritten launch draft should explicitly state:
