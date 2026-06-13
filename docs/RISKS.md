@@ -1,5 +1,10 @@
 # ONT — Risks
 
+> **Normativity: `analysis`** — per the clean-build (#46) ledger
+> ([SOFTWARE_INVENTORY.md](./core/SOFTWARE_INVENTORY.md)). Risk register, not
+> rule text: nothing here is implementable authority, and kernel rules
+> leaning on this file alone stay `candidate-stays`.
+
 > On 2026-06-11, per doc-canon (#45) in [`core/DECISIONS.md`](./core/DECISIONS.md), this
 > document absorbed the five risk/adversarial docs: the risk register
 > (`design/ONT_RISK_REGISTER.md`), the plain-language companion

@@ -1,6 +1,8 @@
 # B2 Kernel Hardening — steps 1–2: rule extraction and source check
 
-> **Status: DRAFT — awaiting step-3 adversarial content pass (ChatLunatique).**
+> **Status: DRAFT — step-3 round-1 findings applied; awaiting reviewer re-check
+> (ChatLunatique).** Round-1 verdict was not-merge-ready with four blockers,
+> all addressed: see §8 (step-3 review record).
 > Branch `clean-build-b2`. Produced 2026-06-13 during the autonomous session (DK
 > grant, event `9c1e1ba7`). Per the normative-hardening amendment, B2 hardening
 > runs the 5 steps (rule extraction → source check → adversarial content pass →
@@ -22,17 +24,19 @@
 > it was re-run identically from the journaled extraction+merge results — the
 > combined critique below is that re-run's output.
 >
-> **Decision dependencies.** Both pre-B2 named decisions are now RULED
-> PROVISIONAL pending DK under the autonomous-session protocol:
-> **da-windows (#49)** — window algebra pinned in the DA agreement §6e (merged);
-> **recovery-auth (#50)** — fresh recovery-key BIP340 under a v2 descriptor
-> (branch `spec-recovery-auth`, not yet in main). Rules marked
-> `blockedOnDecision` read against the provisional rulings and FINALIZE only at
-> DK ratification; if DK flips either decision, the flagged rules re-derive.
+> **Decision dependencies.** Both pre-B2 named decisions are RULED PROVISIONAL
+> pending DK under the autonomous-session protocol, and both are merged to
+> local main (and into this branch):
+> **da-windows (#49)** — window algebra pinned in the DA agreement §6e;
+> **recovery-auth (#50)** — fresh recovery-key BIP340 under a v2 descriptor,
+> wallet proof narrowed to non-authorizing corroboration (normative §8.2/§8.3
+> amendments deferred to DK ratification). Rules marked `blockedOnDecision`
+> read against the provisional rulings and FINALIZE only at DK ratification;
+> if DK flips either decision, the flagged rules re-derive (b2h's full
+> skeleton is preserved in the recovery-auth paper §4).
 > Papers (analysis tier, never authority here):
-> [`../research/DA_WINDOWS.md`](../research/DA_WINDOWS.md) (merged), and the
-> recovery-auth paper on branch `spec-recovery-auth` (Decision #50's entry
-> carries the link; it resolves when that branch merges).
+> [`../research/DA_WINDOWS.md`](../research/DA_WINDOWS.md),
+> [`../research/RECOVERY_AUTH.md`](../research/RECOVERY_AUTH.md).
 
 ## How to read this document
 
@@ -462,8 +466,8 @@ Tranche 1 — the five canon-named areas:
 
 - **F6.** The kernel MUST compute Sigma g_i deterministically from the anchored batch's committed contents (the leaves behind the anchored root), via a protocol-defined g(name) schedule, and MUST NOT trust any self-declared per-batch total; an anchor whose declared batchSize is inconsistent with the committed leaf set MUST NOT have its gate evaluated against the smaller count.
   *Sources:* `docs/spec/ONT_ISSUANCE_FEE_MECHANICS.md` 8. Known properties and residuals (honest) — "must be encoded so the `F ≥ Σ gᵢ` check is mechanical from the batch contents"; `docs/spec/ONT_ISSUANCE_FEE_MECHANICS.md` 4. Recommended mechanics — the gate *is* the anchor's miner fee — "A batch anchor committing to `N` names with gate amounts `g₁…g_N`".
-  *Verdict:* candidate-stays — **challenge held open**, see below.
-  *Step-2 correction:* Reverse challenge: critic argues partial doc authority exists (ONT_ISSUANCE_FEE_MECHANICS.md §8 g(name) schedule language), so candidate-stays may be too weak. HELD for step-3 review — reviewer to confirm upgrade or keep.
+  *Verdict:* **split** — see step-2 correction below; cited half stands, the named clause is candidate-stays.
+  *Step-2 correction:* Step-3 ruling (reviewer, round 1): split-upgrade. The compute-from-committed-contents / never-trust-self-declared-totals core is CITED from ONT_ISSUANCE_FEE_MECHANICS.md §4/§8. The concrete g(name) schedule, the authoritative N source, and the batchSize-mismatch verdict remain candidate-stays/spec-work.
   *Needed spec work:* Named spec PR defining the g(name) schedule encoding and the authoritative N source (batchSize field vs committed leaf count, with the mismatch verdict) so the F >= Sigma g_i check is mechanical — flagged by the spec itself as residual work, no rule text exists today.
   *Legacy evidence (never authority):* `apps/publisher/src/publisher.ts:8`.
   *Proposed tests:*
@@ -505,6 +509,7 @@ Tranche 1 — the five canon-named areas:
 - **F10.** A bond qualifies if and only if its amount (integer satoshis) is >= the opening floor for the name, defined as the higher of the length-price curve and the long-name minimum; a bond below the floor MUST NOT open an auction, contest a claim, or count as a qualifying bid.
   *Sources:* `docs/spec/AUCTION.md` Opening Bond Floors — "The opening bid must meet the higher of two floors"; `docs/GLOSSARY.md` bond — "A **qualifying bond** (at or above the bond floor) is the only thing that opens an auction (Decision #37)"; `docs/core/DECISIONS.md` 37. Bond opens the auction — "The ₿50,000 escalation floor becomes load-bearing (the cost to open/contest an auction) and graduates from placeholder to a launch decision.".
   *Verdict:* **cited**.
+  *Step-3 restatement (round 1):* Floor definition is the #11-clamped parameterized floor(name) (see Q2 restated): the higher-of-curve-and-minimum phrasing applies within the ≤4 structurally scarce set; names of length ≥ 5 take the flat long-name minimum. At-or-above qualification semantics unchanged (step-3 blocker 3, conflict C8).
   *Needed spec work:* All floor values are STATUS placeholders (launch-parameter freeze); and the AUCTION.md-table vs DECISIONS-#11-clamp contradiction must be reconciled by the hardening pass before this rule's parameters can promote.
   *Legacy evidence (never authority):* `packages/protocol/src/bond.ts:8`.
   *Proposed tests:*
@@ -1410,16 +1415,18 @@ Tranche 2 — the critic-commissioned areas:
     - (−) A value-record or recovery rule that rejects/accepts a payload by comparing issuedAt to 'now' must fail conformance; issuedAt influences only digest bytes.
   *Attack flag:* issuedAt is normative wire content but semantically untethered: any future rule that gives it meaning (freshness, expiry) re-imports wall-clock into the audited boundary — the V* and R* extractors must keep ordering on sequence/predecessor links, with issuedAt as display metadata only.
 
-- **Z13.** The frozen DA window parameters MUST satisfy the structural constraint W ≤ K (availability deadline inside the confirmation lag), and the kernel MUST treat K, W, and C as frozen consensus constants, not runtime inputs; the strictly stronger K ≥ W + C invariant currently enforced by the prototype MUST be either ratified into the rule text or rejected by the da-windows decision.
+- **Z13.** The kernel MUST validate its explicit (K, W, C) window-parameter inputs per DA agreement §6e (da-windows #49): reject any parameterization with K < W + C, K < 1, W < 1, or C < 1; the kernel MUST NOT bake any window constant (§6e S5 — (K, W, C) are per-network consensus parameters passed as inputs), and conformance MUST carry vectors at two distinct valid parameterizations plus the S6-violation rejects.
   *Sources:* `docs/spec/ONT_DATA_AVAILABILITY_AGREEMENT.md` §6a Confirmation lag absorbs honest propagation (candidate) — "Set the availability window `W ≤ K`."; `docs/spec/ONT_DATA_AVAILABILITY_AGREEMENT.md` §11 Prototype (candidate file, prototype-description section) — "The `K ≥ W + C` window invariant is enforced.".
   *Verdict:* **cited (restated)** — see step-2 correction below.
   *Step-2 correction:* Superseded by da-windows (#49, provisional pending DK, MERGED): DA agreement §6e S6 pins the strong form K ≥ W + C (the weaker W ≤ K is 'implied by, and superseded by, the strong form'), and S5 makes (K, W, C) per-network consensus parameters passed to the kernel as inputs — no frozen constants. Rule restated per §6e; its closing condition is resolved. Step-3 carry: Z4/Z5/Z8 gain §6e citations in the same spec PR.
+  *Step-3 restatement (round 1):* Rewritten per da-windows (#49) — original pinned the superseded weak form W ≤ K and demanded frozen constants, contradicting §6e S5/S6; the frozen-constant test is dropped (step-3 blocker 2).
   *Needed spec work:* K/W/C values are unset (STATUS placeholders; DESIGN calls them 'Unpinned — reorg-safety + data-availability deadlines'); the K ≥ W + C form lives only in the §11 prototype narrative and must be promoted into §6 rule text (or explicitly weakened to W ≤ K) by the da-windows named spec PR before freeze.
   *Blocked on decision:* `da-windows`.
   *Legacy evidence (never authority):* `packages/core/src/research/da-convergence-sim.ts:85-86`.
   *Proposed tests:*
-    - (−) Kernel construction with W > K (or, if ratified, K < W + C) is rejected at parameter-validation time — frozen-constant constraint test (mirrors the sim's constructor guard).
-    - (+) Property with conforming parameters: every includable/holdsPriority deadline (h+W, h+W+C) resolves at or before the anchor becomes K-deep, so confirmed-root inclusion never precedes the DA verdict.
+    - (−) Construction with K = W + C − 1: rejected at parameter validation.
+    - (−) W = 0, C = 0, and K = 0 parameterizations: each rejected (S6 lower bounds).
+    - (+) Two distinct valid parameterizations both accepted and produce boundary-consistent includable/holdsPriority/eligibleAt verdicts (no baked constant can pass both).
   *Attack flag:* If only W ≤ K is ratified (without K ≥ W + C), the challenge window C can extend past K-depth: a batch becomes confirmed-root-eligible while its fail-closed challenge is still open — the verdict and the confirmation boundary cross, exactly the ordering bug the prototype's stronger invariant prevents.
 
 **Gaps — Reorg re-derivation and replay determinism duties with no spec text at all:**
@@ -1680,49 +1687,57 @@ Tranche 2 — the critic-commissioned areas:
     - (+) Invoke committing to hash(current head) passes the descriptor-binding check.
   *Attack flag:* Legacy behavior is the attack: any historical descriptor remains invocable by hash, so rotating away from a compromised recovery wallet does not disarm it. The spec must close this or explicitly own it.
 
-- **R7.** At recovery invocation the kernel MUST check that the wallet proof's normalized signingProfile equals the armed descriptor's normalized signingProfile, and MUST NOT enter pendingRecovery for a descriptor whose profile is anything other than a proof-supported profile (descriptorVersion 1 / proofVersion 1: only bip322).
+- **R7.** At recovery invocation the kernel MUST NOT enter pendingRecovery for a descriptor whose normalized signingProfile is anything other than a kernel-supported invoke profile; under recovery-auth (#50, provisional) the supported set is descriptor v2's BIP340 recovery-key path (v1 descriptors stay parse-valid but are not invokable). The §8.2 proof↔descriptor profile-equality check is narrowed by #50's deferred §8.3 amendment to evidence-layer corroboration hygiene — it is NOT a kernel acceptance input.
   *Sources:* `docs/spec/WIRE_FORMAT.md` 8.2 Recovery descriptor (ont-recovery-descriptor, descriptorVersion 1) — "at recovery invocation the verifier MUST also check that the proof's normalized `signingProfile` equals the descriptor's normalized `signingProfile`"; `docs/spec/WIRE_FORMAT.md` 8.2 Recovery descriptor (ont-recovery-descriptor, descriptorVersion 1) — "a descriptor naming any other profile is well-formed yet cannot be invoked".
   *Verdict:* **cited**.
+  *Step-3 restatement (round 1):* Restated per recovery-auth (#50) — original encoded the pre-#50 wallet-proof profile gate as a kernel acceptance rule (step-3 blocker 1).
+  *Blocked on decision:* `recovery-auth`.
   *Legacy evidence (never authority):* `packages/protocol/src/recovery-wallet-proof.ts:122-128 (profile match + unsupported_recovery_signing_profile)`.
   *Proposed tests:*
-    - (−) Descriptor armed with profile 'future-musig' (grammar-valid): any invoke against it MUST never reach pendingRecovery.
-    - (−) Proof whose normalized profile differs from the descriptor's MUST be rejected at the cross-object stage even when each envelope is shape-valid.
-    - (+) Descriptor and proof both normalizing to bip322 pass the profile check.
+    - (−) Descriptor armed with an unsupported profile (grammar-valid 'future-musig'): any invoke against it never reaches pendingRecovery.
+    - (−) v1 descriptor (no recoveryPubkey) invoke: rejected at the profile/version gate — parse-valid, not invokable.
+    - (+) v2 descriptor naming the BIP340 path passes the profile gate (acceptance then proceeds to R9's signature predicate).
   *Attack flag:* This is the rare normative §8 sentence explicitly routed to B2 — losing it during kernel implementation would let a shape-valid future-profile descriptor be invoked under a bip322 proof.
 
-- **R8.** Cross-object field-equality battery: the kernel MUST require (proof ↔ descriptor) name, recoveryAddress, challengeWindowBlocks, and recoveryDescriptorHash = digest(descriptor) to match, and (proof ↔ on-chain event) prevStateTxid, newOwnerPubkey, successorBondVout, challengeWindowBlocks, and recoveryDescriptorHash to be byte-equal; any mismatch MUST reject the invocation.
+- **R8.** Cross-object field-equality battery (restated per #50): the kernel MUST require descriptor↔event consistency — digest(descriptorEvidence) byte-equal to the event's recoveryDescriptorHash, and the descriptor-committed challengeWindowBlocks equal to the event's — and MUST reject the invocation on any mismatch. The proof↔descriptor and proof↔event field batteries (name, recoveryAddress, prevStateTxid, newOwnerPubkey, successorBondVout) become evidence-layer corroboration checks under #50's deferred §8.3 amendment; they are not kernel acceptance inputs.
   *Sources:* `docs/spec/WIRE_FORMAT.md` 8.3 Recovery wallet proof (ont-recovery-wallet-proof, proofVersion 1) — "`prevStateTxid`(32-hex), `recoveryDescriptorHash`(32-hex), `newOwnerPubkey`(32-hex), `successorBondVout`, `challengeWindowBlocks`"; `docs/spec/ONT_RECOVERY_INVOKE_SPEC.md` What exists today — "Posted off-chain to the resolver via `/recovery-proofs`, not embedded in the on-chain payload.".
   *Verdict:* **candidate-stays**.
+  *Step-3 restatement (round 1):* Restated per recovery-auth (#50) — the kernel battery narrows to descriptor↔event; the wallet-proof batteries move to corroboration (step-3 blocker 1).
   *Needed spec work:* Only the profile-equality leg (R7) is normative; the full equality battery exists solely in code. The recovery-invoke B2 section must enumerate the exact field-equality set between event, proof, and descriptor.
+  *Blocked on decision:* `recovery-auth`.
   *Legacy evidence (never authority):* `packages/protocol/src/recovery-wallet-proof.ts:107-156 (verifyRecoveryWalletProof) + apps/resolver/src/index.ts:1657-1671 (expected-fields wiring from the on-chain event)`.
   *Proposed tests:*
-    - (−) One test per field: proof matching the descriptor but with newOwnerPubkey (resp. prevStateTxid, successorBondVout, challengeWindowBlocks, recoveryDescriptorHash) differing from the mined event MUST reject.
-    - (−) Proof bound to descriptor A presented against an event committing to descriptor B (both valid) MUST reject.
-    - (+) Fully-matching event/proof/descriptor triple passes the battery.
+    - (−) Per-field: event whose recoveryDescriptorHash does not equal digest(presented descriptor) — rejected.
+    - (−) Descriptor-committed challengeWindowBlocks differing from the event's — rejected.
+    - (−) Descriptor evidence from name A presented against name B's event (both internally valid) — rejected on the digest check.
+    - (+) Matching event/descriptor pair passes the battery (proof objects absent — not consulted).
   *Attack flag:* The proof's optional chainTip fields are signed but no rule checks them against chain facts — they are an unverified freshness hint; spec must either give them a kernel meaning or state they are advisory (else they imply false replay protection).
 
-- **R9.** Shape (final form blocked): the kernel MUST NOT enter pendingRecovery unless a recovery wallet proof for the invocation verifies as a BIP322 signature by the armed descriptor's recoveryAddress key over the regenerated §8.3 message, taken as witnessed evidence; whether this proof is the invoke authorization itself or supplementary to an on-chain signature is the open recovery-auth question.
+- **R9.** Restated per recovery-auth (#50, provisional): the kernel MUST NOT enter pendingRecovery unless the non-cancel RecoverOwner event's 64-byte signature verifies as a fresh BIP340 signature by the armed descriptor's committed recoveryPubkey (descriptor v2) over the W13 ont-recover-owner digest, with the descriptor evidence passing R8's battery and the owner arming-signature check. The BIP322 wallet proof is non-authorizing corroboration (deferred §8.3 amendment): its absence or failure MUST NOT block kernel acceptance, and its presence MUST NOT substitute for the on-chain signature.
   *Sources:* `docs/spec/WIRE_FORMAT.md` 8.3 Recovery wallet proof (ont-recovery-wallet-proof, proofVersion 1) — "signed **BIP322 by the recovery address key** over a normalized *text message*, and verified by a BIP322 verifier"; `docs/spec/ONT_RECOVERY_INVOKE_SPEC.md` What exists today — "BIP322 signature proving the recovery wallet controls the recovery address.".
   *Verdict:* **candidate-stays**.
+  *Step-3 restatement (round 1):* Restated per recovery-auth (#50) — original required a verifying BIP322 wallet proof for pendingRecovery, the pre-#50 path; b2h (descriptor + wallet-proof evidence + BIP322/script/text verification) remains the standing counter-design and these vectors flip if DK rules b2h (step-3 blocker 1).
   *Needed spec work:* The ratified recovery-auth decision must state the proof's required role in the invoke predicate (sole authorizer vs corroborating evidence) before this rule can finalize; then a named spec PR lands it in the recovery spec's B2 section.
   *Blocked on decision:* `recovery-auth`.
   *Legacy evidence (never authority):* `packages/consensus/src/engine.ts:526-545 (proofAvailable gate, fail-closed) + apps/resolver/src/index.ts:1642-1671`.
   *Proposed tests:*
-    - (−) Invoke with no witnessed proof for the committed proof identity MUST be ignored (fail closed).
-    - (−) Proof whose BIP322 verification returns false (including structurally malformed signature bytes — verify false, never throw, per §8.3) MUST NOT create pendingRecovery.
-    - (+) Verified proof from the descriptor's recoveryAddress, matching R8's battery, satisfies the wallet-control leg.
+    - (−) Event signature failing BIP340 against the descriptor's recoveryPubkey: no pendingRecovery.
+    - (−) VALID wallet proof + invalid event signature: still rejected — corroboration cannot substitute for the on-chain signature.
+    - (−) Replayed arming signature in the event's signature field: fails the W13-digest BIP340 check.
+    - (+) v2 descriptor + fresh BIP340 over the W13 digest by recoveryPubkey + R8 battery green: pendingRecovery entered (no proof object consulted).
   *Attack flag:* BIP322 verification embeds Bitcoin script semantics — the B2 purity gate must treat the verifier as a deterministic pure function over (address, message, signature) with no network/UTXO lookups, or recovery verdicts stop being replayable.
 
-- **R10.** Shape (blocked): the kernel MUST validate the non-cancel RecoverOwner event's 64-byte signature field under the recovery-auth-ruled semantics (descriptor-embedded owner signature (a), fresh recovery-wallet signature (b), or another ruled form); until recovery-auth is ratified the kernel MUST fail closed and accept no non-cancel RecoverOwner event.
+- **R10.** The kernel MUST validate the non-cancel RecoverOwner event's 64-byte signature field under recovery-auth (#50, provisional): a fresh BIP340 signature by the descriptor-v2-committed recoveryPubkey over the unchanged W13 ont-recover-owner digest. Cross-context vectors (transfer↔recover, invoke↔cancel) reject per W13 domain separation. Until DK ratifies #50 this rule is provisional: vectors are drafted against b1 with an explicit flip marker should DK rule b2h.
   *Sources:* `docs/spec/ONT_RECOVERY_INVOKE_SPEC.md` What's missing in code (item 2) — "The invoke-path signer isn't yet defined. **This is the open protocol question.**"; `docs/core/B1_WIRE_HARDENING.md` Explicitly routed out of B1 — "RecoverOwner authorization semantics (open question a/b/c) | B2 recovery-authority hardening".
   *Verdict:* **candidate-stays**.
+  *Step-3 restatement (round 1):* Restated per recovery-auth (#50) — the open a/b/c question this rule fail-closed against is now provisionally ruled; the fail-closed posture is replaced by the b1 predicate with a ratification flip marker (step-3 blocker 1).
   *Needed spec work:* The recovery-auth named decision, ratified into ONT_RECOVERY_INVOKE_SPEC.md §2; it must also reconcile WIRE_FORMAT §4.2's normative `signature`(64, Schnorr) field name with whatever occupies it (the ratified §8.3 proof commitment is now 32 bytes, so the legacy commitment-in-slot packing no longer fits the 64-byte field).
   *Blocked on decision:* `recovery-auth`.
   *Legacy evidence (never authority):* `packages/consensus/src/engine.ts:515-524 + packages/protocol/src/recovery-wallet-proof.ts:209-217 (legacy filled the slot with proofHash ‖ 32 reserved zero bytes — a commitment, not a signature)`.
   *Proposed tests:*
-    - (−) Until ruled: every non-cancel RecoverOwner event is rejected by the kernel (fail-closed pin that flips only with the ratified rule).
-    - (−) Post-ruling: signature/commitment valid under the wrong key/context (cross-context vectors per §5) MUST reject.
-    - (+) Post-ruling: the ruled signer's well-formed authorization is accepted (vector to be defined with the ruling).
+    - (−) Cancel-digest signature presented on the invoke path: rejected (W13 domain separation).
+    - (−) Signature valid under the wrong key (owner key, third-party key): rejected.
+    - (+) The ruled signer's well-formed authorization (recoveryPubkey over W13 digest) accepted; vector carries the #50-provisional flip marker.
   *Attack flag:* Option (a) would make the slot a static, publicly-known value (the arming signature) replayable by anyone who has seen the descriptor — the ruling must address replay; flagged, not decided.
   *Attack flag:* Normative wire text labels the field `signature`(64, Schnorr) while the only deployed behavior put a non-signature commitment there — divergence between normative naming and legacy evidence.
 
@@ -2025,15 +2040,16 @@ Tranche 3 — gap-closure areas (commissioned by the combined critic; cross-area
     - (−) With zero accepted opening bids by the relevant deadline, winner selection (Q9) is undefined for the lot — no path awards the name through the auction machinery.
   *Attack flag:* AUCTION.md's floor sentence read alone suggests floor satisfaction suffices; the acceptance predicate is a conjunction (floor AND bond binding AND lot binding AND timing AND rebid mechanics) and must be stated as one predicate in one place, or an implementer will accept a floor-meeting bid with a phantom bond output
 
-- **Q2.** The opening floor for a name MUST be computed as max(lengthPrice(L), longNameMinimum), where L is the byte length of the canonical name (WIRE_FORMAT §2), lengthPrice starts at the 1-character price and halves for each additional character, and both the 1-character price and longNameMinimum are launch-freeze consensus parameters passed to the kernel (placeholders today: ₿100,000,000 at 1 character; ₿50,000 long-name minimum).
+- **Q2.** The opening floor for a name MUST be computed as the parameterized function floor(name) per Decision #11: for structurally scarce names (canonical byte length ≤ 4) floor = max(lengthPrice(L), longNameMinimum), with lengthPrice halving per character from the 1-character price; for names of length ≥ 5 the floor is the flat long-name minimum (gate + contention pricing — the length curve does NOT extend past 4). The AUCTION.md 5–11 halving table is superseded by #11 and MUST NOT be vectorized. Both the 1-character price and longNameMinimum are launch-freeze consensus parameters.
   *Sources:* `docs/spec/AUCTION.md` Opening Bond Floors — "Length price: starts at ₿100,000,000 (≈1 BTC) for a 1-character name and halves for each additional character."; `docs/spec/AUCTION.md` Opening Bond Floors — "Long-name minimum: ₿50,000. Once the length price falls below this, the minimum applies."; `docs/core/STATUS.md` Launch parameters (auction + notice mechanics) — "Opening-bid floor | higher of the length price (₿100,000,000 at 1 char, halving per char) and the ₿50,000 long-name minimum (lengths 12–32) | placeholder".
   *Verdict:* **cited**.
-  *Needed spec work:* Launch-freeze: exact floor values are STATUS placeholders and cannot pass candidate (inventory rule) — the rule is parameterized over (openingPriceAt1Char, longNameMinimum). A named spec PR must also pin the halving rounding direction (AUCTION.md's ₿195,312 at length 10 matches floor division only) and resolve the open review question whether reopened auctions reset to the length floor (STATUS's reauction row says floor resets; AUCTION.md lists it as open).
+  *Step-3 restatement (round 1):* Restated per Decision #11 (curve clamped to the ≤4 structurally scarce set; 5+ = gate + contention / flat floor — STATUS key-numbers row agrees) — original vectorized the stale AUCTION.md 5–11 curve (step-3 blocker 3, conflict C8).
+  *Needed spec work:* AUCTION.md floor section restated per #11 (floor-reconciliation spec PR); until then its table text is superseded — ledger-wins header covers it.
   *Legacy evidence (never authority):* `packages/protocol/src/bond.ts:8 (getBondSats curve); packages/core/src/auction-policy.ts:60-76 (max of curve and openingFloorSats)`.
   *Proposed tests:*
-    - (+) Floors for lengths 1, 10, 11, 12, and 32 equal AUCTION.md's table values under the placeholder parameters (pins rounding at length 10).
-    - (−) For a length-12 name, a bid meeting the length price but below the long-name minimum is not accepted as an opening bid.
-    - (+) Property: under two distinct (openingPriceAt1Char, longNameMinimum) parameterizations, the kernel's floor function follows max(halving curve, minimum) with no baked constant.
+    - (+) Floors for lengths 1–4 follow max(lengthPrice(L), longNameMinimum) under placeholder parameters.
+    - (−) Length-5 name: a floor computed from a continued halving curve (the stale table value) is WRONG; the kernel floor equals the flat long-name minimum.
+    - (+) Property: under two distinct (openingPriceAt1Char, longNameMinimum) parameterizations the ≤4 clamp boundary is invariant — length 4 takes the curve, length 5 takes the flat floor.
   *Attack flag:* Unpinned rounding of the halving curve (floor vs ceiling at length 10: ₿195,312 vs ₿195,313) is a consensus split between independent implementations
   *Attack flag:* The floor must key off canonical name byte length; this is only unambiguous because WIRE_FORMAT §2 rejects non-canonical name bytes — cite, do not re-derive
 
@@ -2273,17 +2289,18 @@ Tranche 3 — gap-closure areas (commissioned by the combined critic; cross-area
     - (−) An implementation whose derived root for disjoint-name batches depends on arrival order (e.g., list-fold sensitive accumulator) fails the permutation sweep.
   *Attack flag:* The commutativity claim's proof lives in a research simulation (analysis-tier evidence, packages/core/src/research/delta-merge-sim.ts); the B2 property test is what turns the claim into law — if any conflicting-leaf edge falsifies it, the spec text must change by named PR, not the test soften.
 
-- **G6.** A non-cancel RecoverOwner anchored at height h_r MUST be evaluable only against a witnessed-evidence verdict over its referenced evidence objects — the recovery descriptor whose digest equals the event's recoveryDescriptorHash (WIRE_FORMAT §8.2) and the recovery wallet proof (WIRE_FORMAT §8.3) — and that evidence MUST be demonstrably witnessed/served at a height <= h_r + W_r for a consensus parameter W_r, measured on the §6e clock (h_r is the mined height of the RecoverOwner's containing block on the evaluator's current best chain, re-derived on reorg) with inclusive boundaries; evidence first witnessed after the deadline MUST NOT make the event evaluable retroactively, and absence at the deadline MUST yield the same fail-closed verdict for every honest evaluator.
+- **G6.** A non-cancel RecoverOwner anchored at height h_r MUST be evaluable only against a witnessed-evidence verdict over its kernel evidence — the recovery descriptor chain whose head digest equals the event's recoveryDescriptorHash (WIRE_FORMAT §8.2) — and that evidence MUST be demonstrably witnessed/served at a height ≤ h_r + W_r for a consensus parameter W_r, measured on the §6e clock (h_r re-derived on reorg) with inclusive boundaries; evidence first witnessed after the deadline MUST NOT make the event evaluable retroactively, and absence at the deadline MUST yield the same fail-closed verdict for every honest evaluator. Per recovery-auth (#50, provisional) the wallet proof is non-authorizing corroboration and carries NO kernel witnessing deadline.
   *Sources:* `docs/spec/ONT_DATA_AVAILABILITY_AGREEMENT.md` §6e Window algebra — S1/S2/S4 [tier: candidate; da-windows (#49) provisional pending DK — the machinery this rule parameterizes on] — "All windows are measured in Bitcoin block heights from h, the mined height of the anchor's containing block in the evaluator's current best chain. On reorg, h re-derives from the new containing block; every deadline moves with it."; `docs/core/SOFTWARE_CANON.md` The boundary rule, stated once [tier: ratified B0 plan] — "if a rule can change who owns a name — whether an anchor counts, whether a batch's bytes surfaced in time, whether the fees covered the batch, whether a transcript is complete enough to award — it lives in the kernel, as a pure predicate over witnessed inputs"; `docs/spec/WIRE_FORMAT.md` §8.2 Recovery descriptor [tier: normative — defines the evidence object, not the deadline] — "Digest (= the descriptor hash the on-chain RecoverOwner event references)"; `docs/spec/WIRE_FORMAT.md` §8.3 Recovery wallet proof [tier: normative — defines the evidence object, not the deadline] — "it is signed BIP322 by the recovery address key over a normalized text message".
   *Verdict:* **candidate-stays**.
+  *Step-3 restatement (round 1):* Restated per recovery-auth (#50) — kernel evidence set narrowed to the descriptor chain; the wallet proof drops out of the witnessing-deadline requirement (step-3 blocker 1).
   *Needed spec work:* Named spec PR instantiating the §6e algebra for recovery evidence: define the clock (the RecoverOwner's mined height h_r), the witnessing window W_r (reuse W, or a new CONSENSUS_PARAMS member — either way it enters the G10 surface), whether a challenge analogue C_r exists, and the relation to challengeWindowBlocks (is witnessed-by-deadline a precondition of creating pendingRecovery, or of finalization). The evidence-object set depends on recovery-auth (#50, provisional, branch spec-recovery-auth, NOT in main): the provisional direction (fresh recovery-key BIP340 signature under a v2 descriptor) would make the descriptor the load-bearing witnessed object and could fold the wallet proof's role into the on-chain signature — the deadline rule must stay parameterized over the object set until DK rules.
   *Blocked on decision:* `recovery-auth`.
   *Legacy evidence (never authority):* `packages/consensus/src/engine.ts — applyRecoverOwnerRequest (~lines 526-545) decides proof availability by calling an injected recoveryWalletProofAvailable callback (OntEventApplicationOptions, ~lines 114-118) at evaluation time, with no height deadline: receipt-relative, I/O-shaped, non-convergent.`.
   *Proposed tests:*
-    - (+) Evidence witnessed at exactly h_r + W_r (inclusive boundary): the RecoverOwner is evaluable and creates pendingRecovery (parameterized vector — instantiated once the spec PR pins W_r).
-    - (−) Evidence first witnessed at h_r + W_r + 1: the event is uniformly not evaluable; an implementation that admits late-revealed evidence (or evaluates against node-local receipt) fails.
-    - (−) Witnessed descriptor whose digest does not equal the event's recoveryDescriptorHash: fail-closed, no pendingRecovery.
-    - (+) Replay determinism: same canonical chain + same witnessed-evidence set, presented to two evaluators with different receipt histories, yields byte-identical recovery state.
+    - (+) Descriptor evidence witnessed at exactly h_r + W_r (inclusive boundary): evaluable.
+    - (−) Descriptor evidence first witnessed at h_r + W_r + 1: uniformly not evaluable, not retroactively fixable.
+    - (−) Witnessed descriptor whose digest does not equal the event's recoveryDescriptorHash: fail-closed.
+    - (+) Replay determinism: same chain + same witnessed-evidence set on two evaluators → identical verdicts; wallet-proof presence/absence does not change them.
   *Attack flag:* Withhold-then-reveal recovery evidence: invoke recovery while keeping the descriptor/proof unservable, surface it only after the owner's challenge window has passed — the exact theft shape §6d kills for claims is currently unkilled for recovery, because no witnessing deadline exists.
   *Attack flag:* Evaluation-time availability (the legacy callback) makes two honest replayers disagree about whether a RecoverOwner ever created pendingRecovery — a per-name ownership fork, the §3 hazard at the recovery layer.
   *Attack flag:* If W_r is allowed to exceed challengeWindowBlocks, a recovery could finalize before its own evidence deadline closes — the spec PR must add a validity constraint (the recovery analogue of K >= W + C).
@@ -2376,7 +2393,7 @@ From the merge passes. Each carries the merge's proposed resolution direction; n
 
 - **C3** [A3, D9] Window-invariant strength conflict, verified in repo text: DA agreement §6a and §10 state only W ≤ K, but §11's prototype enforces K ≥ W + C. A3 asserts both as the rule; D9 flags that with C > 0 and W = K the weak form lets the challenge window resolve AFTER finalization, permitting include-then-retract — exactly what D9's no-retract test forbids.
   *Proposed resolution:* Hardening text should adopt the strong form (K ≥ W + C) as the construction invariant, with §6a's W ≤ K noted as implied by it. The W/C/K values themselves remain the open da-windows decision; only the inequality's form needs ratifying.
-  Writer note: resolved by da-windows (#49, provisional pending DK, merged): DA agreement §6e S6 pins K ≥ W + C with W ≥ 1, C ≥ 1.
+  Writer note: resolved by da-windows (#49, provisional pending DK, merged): DA agreement §6e S6 pins K ≥ W + C with W ≥ 1, C ≥ 1. Z13 rewritten accordingly (step 3, round 1).
 
 - **C4** [B4, D10, B11] Nullification claim-counting definition conflict, verified in repo text: ONT_ACQUISITION_STATE_MACHINE.md L85 nullifies on 'two or more cheap claims' (raw count) while CONTESTED_AUCTION_REFERENCE.md L38 requires 'two or more DA-valid claims'. Under the raw-count reading, an anchored-withheld claim nullifies an honest claim for free — directly contradicting D10 (a DA-failing claim cannot collide/nullify) and B11 (forfeit priority).
   *Proposed resolution:* Pin the DA-valid form everywhere (D10/CONTESTED_AUCTION_REFERENCE reading) and amend the state-machine sentence by named spec PR. This forces the ordering constraint that collision counting cannot run before the colliding claims' DA verdicts are decidable (see orderingNotes).
@@ -2392,6 +2409,7 @@ From the merge passes. Each carries the merge's proposed resolution direction; n
 
 - **C8** [F10, T8, B12, B21] Opening-floor source conflict (live spec inconsistency, flagged by both F and T areas): AUCTION.md's Opening Bond Floors table prices 5–11 char names above ₿50,000, contradicting DECISIONS #11's resolved clamp (length-scaled curve applies only to the ≤4-char set; 5+ char names use gate + contention) and STATUS's key-numbers row. Every floor-consuming rule (F10 qualifying bond, T8 first-bid minimum, B12 auction creation, B21 short-name bond-first) inherits the contradiction.
   *Proposed resolution:* Reconcile by named PR before any floor-dependent rule promotes; the ratified decision log (#11) outranks the candidate AUCTION.md table, so the table is presumptively stale — but the values themselves are launch-freeze placeholders either way and the rules ship parameterized on floor(nameLength).
+  Step-3 ruling (round 1): countered → Decision #11 applied now. Q2 and F10 restated around the #11-clamped floor(name) (curve confined to the ≤4 structurally scarce set; 5+ = gate + contention / flat floor); the AUCTION.md 5–11 table is superseded pending the floor-reconciliation spec PR. No vectors against the old halving table.
 
 - **C9** [D13, A13, B2, F12, T6, T18, B20] Window-boundary convention conflict: D13 proposes inclusive (≤) deadline comparisons for h+W and h+W+C (sim-only grounding, candidate-stays); A13 documents that legacy simultaneously uses height ≥ closeHeight for finality AND blockHeight ≤ closeHeight for in-window collision (boundary-block events are both in-window and window-closed); F12/B2 note the bond-side comparison at h+W_notice is stated nowhere; T6's legacy uses strictly-after-close for settled; B20 has the same off-by-one at maturity. The areas are each about to pin a boundary independently.
   *Proposed resolution:* Define ONE half-open-interval convention in the hardening doc's shared-definitions section and apply it to every window (notice close, availability deadline h+W, challenge deadline h+W+C, auction close, soft-close, maturity), with boundary-block vectors at edge−1/edge/edge+1 for each. D13's inclusive proposal becomes one instance of the convention via its named spec PR rather than a DA-local rule.
@@ -2399,6 +2417,7 @@ From the merge passes. Each carries the merge's proposed resolution direction; n
 
 - **C10** [B13, T16, B17, F9, D9] Settlement stability conflict: B13 specifies 'settled' as a purely height-derived, non-latched phase whose reorg fixture deterministically un-settles an auction, while T16/B17 materialize ownership (owner key, live bond, required bond) at settled — with no stated confirmation depth. F9/D9 apply K-deep discipline to fee and root eligibility but nothing applies it to settlement, so a reorg can re-decide an owner after materialization.
   *Proposed resolution:* State that the settlement/ownership-materialization verdict is evaluated at the same K-deep confirmation discipline as the other finality verdicts (direction only — the K value and full reorg-handling rule are the open da-windows/reorg spec work both areas already flag).
+  Step-3 ruling (round 1): da-windows (#49) pins DA windows ONLY — settlement finality MUST NOT inherit K by analogy. If settlement materialization is K-deep, that requires an explicit finality rule/parameter in the B2 spec; routed to the settlement-finality spec item.
 
 - **C11** [A11, B4, B24] Insertion-uniqueness state-basis conflict: A11 enforces uniqueness at insertion against kernel state, but kernel state depends on the DA verdicts of earlier batches — a name 'already inserted' by a later-forfeited batch must not block honest re-claiming (A11's flag), and B24 requires nullified names to reopen while the legacy code B24 cites refuses post-nullification claims. The uniqueness check and the reopen rule assume different definitions of 'name already taken'.
   *Proposed resolution:* Define the uniqueness/occupancy check over the post-DA-verdict, post-lifecycle state: only names held by a finalized (or live provisional from an eligible batch) claim block insertion; excluded-batch insertions and nullified names do not occupy. One shared 'occupied name' definition serves A11, B4, and B24.
@@ -2432,6 +2451,7 @@ From the merge passes. Each carries the merge's proposed resolution direction; n
 
 - **C21 (tranche 2)** [Z13] Conflict against tranche-1 D* scope: the DA agreement's §6a rule text says W ≤ K while the §11 prototype enforces the strictly stronger K ≥ W + C. If only W ≤ K is ratified, a batch can become confirmed-root-eligible (K-deep, Z4) while its fail-closed challenge window (h+W+C) is still open — the DA verdict and the confirmation boundary cross, which is exactly the ordering bug the stronger invariant prevents. Tranche-1 D* owns the eligible(anchor, servedEvidence, W, C) predicate this constrains.
   *Proposed resolution:* The da-windows named decision must either promote K ≥ W + C into §6 rule text or explicitly accept and spec the crossing. D* should adopt Z13's promotion question (Z's own crossAreaNotes agree); Z retains only the frozen-constants and reorg-invariance facets.
+  Step-3 ruling (round 1): resolved by da-windows (#49, §6e); Z13 rewritten accordingly — see the rule and its step-3 restatement.
 
 - **C22 (tranche 2)** [Z11, Z1, Z12] Internal purity tension: Z11 admits an adaptive_extension(...) term in window computation with no defined input set, while Z1/Z12 forbid any kernel input beyond canonical-chain facts. If adaptive_extension consumes anything off-chain it breaks Z1's determinism; if it consumes manipulable chain-visible signals, the spec's own unsafe-shrink list is the attack catalogue (extend-only bounds direction, not grief).
   *Proposed resolution:* Spec PR must either restrict adaptive_extension's inputs to enumerated deterministic canonical-chain facts (making it a pure height-keyed function) or delete it and keep only the frozen monotonic floor. No kernel hosting before that ruling.
@@ -2441,6 +2461,7 @@ From the merge passes. Each carries the merge's proposed resolution direction; n
 
 - **C24 (tranche 2)** [S1, S6, S8, S9, S15, S16] Normativity-ledger conflict (process-blocking, flagged by S* itself): docs/LAUNCH.md — the primary rule-bearing text for live-bond binding, continuity consequences, release height, reopened auctions, and settlement-materialization — has no row in the SOFTWARE_INVENTORY.md ledger and no status header. Under canon Item 1 (code implements only normative; candidate becomes law only via named spec PR), these S rules currently cite text with no classification at all, an assumption incompatible with every other area's sourcing discipline.
   *Proposed resolution:* Before any S rule promotes: classify LAUNCH.md's settlement sections in the ledger (entering as candidate per the hardening amendment) or move the rules into spec/AUCTION.md by named spec PR. Orchestrator-level fix; no rule content needs to change.
+  Step-3 ruling (round 1): ledger rows alone were insufficient — SOFTWARE_INVENTORY promises status headers in the files. LAUNCH.md (candidate) and RISKS.md (analysis) status headers added in this branch; C24 treated as closed only with those headers in place.
 
 
 ## 3. Overlap rulings (applied)
@@ -2539,7 +2560,7 @@ From the merge passes. Each carries the merge's proposed resolution direction; n
   *Disposition:* Sole source is the adapter-tier publisher protocol spec restating consensus behavior secondhand. Downgraded; neededSpecWork: restate in ONT_ISSUANCE_FEE_MECHANICS.md (consensus tier).
 
 - **F6** — Reverse direction — candidate-stays where doc text partially exists: ONT_ISSUANCE_FEE_MECHANICS.md §8 states the g(name) schedule 'must be encoded so the F ≥ Σ gᵢ check is mechanical from the batch contents', and §4 ties N to the anchor's commitment. The derive-from-committed-contents requirement (the rule's core) is stated; only the concrete g(name) encoding is the admitted residual. The verdict could be split: cited for from-contents-never-self-declared, candidate-stays for the schedule encoding and the batchSize-mismatch verdict.
-  *Disposition:* Reverse challenge: critic argues partial doc authority exists (ONT_ISSUANCE_FEE_MECHANICS.md §8 g(name) schedule language), so candidate-stays may be too weak. HELD for step-3 review — reviewer to confirm upgrade or keep.
+  *Disposition:* Step-3 ruling (reviewer, round 1): split-upgrade. The compute-from-committed-contents / never-trust-self-declared-totals core is CITED from ONT_ISSUANCE_FEE_MECHANICS.md §4/§8. The concrete g(name) schedule, the authoritative N source, and the batchSize-mismatch verdict remain candidate-stays/spec-work.
 
 ### Combined critic: verdict challenges on tranche 2 and dispositions
 
@@ -2600,10 +2621,9 @@ Tranche-1 critic found the following canon-L2 scope missing; tranche 2 was commi
 
 ## 7. Next steps (3–5)
 
-1. **Step 3 — adversarial content pass:** ChatLunatique attacks rule statements,
-   verdicts, conflict resolutions, dispositions, and the attack flags; held
-   items (F6, plus any disposition counters) get rulings; conflicts C1–C24 get
-   resolutions or named-decision routings.
+1. **Step 3 — adversarial content pass (round 1 DONE, fixes applied — §8):**
+   reviewer re-check of the narrowed set: recovery R/G restatements, Z13/G9
+   consistency, Q2/C8 floor consistency, mechanical gates.
 2. **Step 4 — attacks become negative tests:** every surviving attack flag lands
    in the B2 conformance suite as a vector (negative tests first-class).
 3. **Step 5 — sign-off and promotion walk:** per-section, DK ratifies; queued to
@@ -2611,3 +2631,33 @@ Tranche-1 critic found the following canon-L2 scope missing; tranche 2 was commi
    suite is written against this document BEFORE `@ont/consensus` implementation
    begins (tests-first, B0 law).
 
+## 8. Step-3 review record (round 1)
+
+Reviewer: ChatLunatique, hostile content pass on `4bd154e` (event `c9dc08d0`).
+Verdict: **not-merge-ready**, four blockers — all applied in this revision:
+
+1. **Recovery rules vs recovery-auth (#50):** R7–R10 and G6 still encoded the
+   pre-#50 BIP322 wallet-proof path as kernel acceptance. Fixed: #50 merged
+   into the branch; R7–R10/G6 restated around b1 (descriptor evidence +
+   `recoveryPubkey` + event signature over the W13 digest; wallet proof =
+   non-authorizing corroboration under the deferred §8.3 amendment; b2h kept
+   as the standing counter-design). Originals preserved in the extraction
+   raws; each rule carries its *step-3 restatement* note.
+2. **Z13 vs da-windows (#49):** rule text still demanded frozen constants and
+   the weak `W ≤ K` form. Fixed: Z13 rewritten as parameter validation over
+   explicit `(K, W, C)` inputs per §6e (reject `K < W + C`, `K/W/C < 1`, no
+   baked constants, dual-parameterization vectors); the frozen-constant test
+   dropped.
+3. **Q2 vs Decision #11 (conflict C8):** Q2 vectorized the stale AUCTION.md
+   5–11 halving table. Fixed: Q2 (and F10's floor reference) restated around
+   the #11-clamped `floor(name)` — curve confined to the ≤4 structurally
+   scarce set, 5+ takes the flat long-name minimum; AUCTION.md table
+   superseded pending the floor-reconciliation spec PR.
+4. **Mechanical:** trailing blank line at EOF removed (`git diff --check`
+   clean).
+
+Held/routed rulings also applied: F6 split-upgrade (core cited from
+ONT_ISSUANCE_FEE_MECHANICS §4/§8; schedule/N-source/batchSize verdict stay
+candidate); C10 — settlement finality must NOT inherit DA `K` by analogy
+(explicit B2 finality rule/parameter required); C24 — LAUNCH.md and RISKS.md
+status headers added in this branch alongside their ledger rows.
