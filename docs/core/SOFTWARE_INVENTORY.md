@@ -81,11 +81,13 @@ files are historical and the ledger wins.
 | `spec/CONFORMANCE.md` | candidate | B1 | vector definitions; B1 gate consumes it first |
 | `spec/CONTESTED_AUCTION_REFERENCE.md` | candidate | B2 | reference flow; check old-model leakage against bond-opens |
 | `spec/ONT_ACQUISITION_STATE_MACHINE.md` | candidate | B2 | the kernel's backbone; first hardening target |
-| `spec/ONT_DATA_AVAILABILITY_AGREEMENT.md` | candidate | B2/B3 | fail-closed deadline verdict; **blocked on the pre-B2 marker-vs-folded-anchor named spec decision (OPEN_QUESTIONS §1.1)** |
+| `spec/ONT_DATA_AVAILABILITY_AGREEMENT.md` | candidate | B2/B3 | fail-closed deadline verdict; marker-vs-folded-anchor resolved by marker-fold (#47); window algebra pinned in §6e by da-windows (#49, provisional pending DK) — values stay launch-freeze |
 | `spec/ONT_ISSUANCE_FEE_MECHANICS.md` | candidate | B2 | aggregate gate-fee validation |
 | `spec/ONT_PUBLISHER_PROTOCOL_SPEC.md` | candidate | B3/B4 | wire shapes harden earlier (B1) if cited there |
 | `spec/ONT_RECOVERY_INVOKE_SPEC.md` | candidate | B2 (authority rules) / B5 (flows) | split by section at hardening |
 | `GLOSSARY.md` | candidate | B1 onward | vocabulary law; terms cited by tests harden with their sections |
+| `LAUNCH.md` | candidate | B2 (settlement/bond-consequence sections) / launch-freeze (parameters) | added 2026-06-13: the B2 extraction's settlement rules cite it and it had no row — unclassified text cannot ground a promotion; its parameter values are placeholders (cannot harden past candidate) |
+| `RISKS.md` | analysis | — | added 2026-06-13: risk register, not rule text — rules leaning on it alone are `candidate-stays` |
 | `core/STATUS.md` parameter table | candidate | per parameter | several values are explicit placeholders (notice window, min bond, service fee) — placeholders cannot harden past candidate |
 | `research/*` (live six) | analysis | — | inputs, never implementable |
 | `research/archive/*` | analysis | — | superseded; mining context only |

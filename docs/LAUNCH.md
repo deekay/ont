@@ -1,5 +1,12 @@
 # ONT Launch
 
+> **Normativity: `candidate`** — per the clean-build (#46) ledger
+> ([SOFTWARE_INVENTORY.md](./core/SOFTWARE_INVENTORY.md)). Rule-bearing
+> sections (settlement and bond-consequence material) harden for B2 via the
+> five-step normative hardening; parameter values are launch-freeze
+> placeholders and cannot harden past candidate. Statements of status
+> elsewhere in this file are historical; the ledger wins.
+
 > Consolidated 2026-06-11 per doc-canon (#45) from `launch/ONT_LAUNCH_V1_BRIEF.md`, `launch/PRELAUNCH_SCALING_CONFIDENCE_PLAN.md`, `launch/AUCTION_SETTLEMENT_AND_OWNERSHIP.md`, and `launch/ONT_IMPLEMENTATION_AND_VALIDATION.md` (now archived).
 
 This is the review target for ONT v1: what v1 is, what it commits to, what is

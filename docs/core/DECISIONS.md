@@ -1078,6 +1078,11 @@ negatives (bytes first served in `(h+W, h+W+C]`); S6-violation rejects;
 and vectors at two distinct parameterizations so a baked-in constant
 cannot pass.
 
+Corroboration: the B2 extraction merge independently surfaced the same
+issue ([B2_KERNEL_HARDENING.md](./B2_KERNEL_HARDENING.md) §2, conflict
+C3): the weaker `W ≤ K` form permits include-then-retract at `W = K`,
+`C > 0` — the strong form forecloses it.
+
 50. recovery-auth: the on-chain RecoverOwner invoke is authorized by a fresh
 BIP340 recovery-key signature under a v2 descriptor — 2026-06-13
 
