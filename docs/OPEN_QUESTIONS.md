@@ -154,8 +154,13 @@ and verifiable — yet it needs an incentive so it reliably happens.
 ## 4. Recovery
 
 Decision #40 makes recovery opt-in with a delegable, non-custodial, **abort-only** veto
-watcher, which answers the liveness objection. Two pieces are undesigned (implementation
-context: [`spec/ONT_RECOVERY_INVOKE_SPEC.md`](./spec/ONT_RECOVERY_INVOKE_SPEC.md)):
+watcher, which answers the liveness objection. The invoke-path signer (who signs the
+on-chain `RecoverOwner`) is **decided — recovery-auth (#50), provisional pending DK**: a
+fresh BIP340 recovery-key signature under a v2 descriptor; the BIP322-evidence path stays
+the standing counter-design in
+[`research/RECOVERY_AUTH.md`](./research/RECOVERY_AUTH.md). Two pieces remain undesigned
+(implementation context:
+[`spec/ONT_RECOVERY_INVOKE_SPEC.md`](./spec/ONT_RECOVERY_INVOKE_SPEC.md)):
 
 ### 4.1 The abort-only credential construction — [OPEN]
 

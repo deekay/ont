@@ -1,20 +1,22 @@
 # recovery-auth: who signs the on-chain RecoverOwner invoke
 
-> **Status: DRAFT, round 2 — revised after reviewer COUNTER; pre-B2 named decision
-> `recovery-auth`.**
+> **Status: ADOPTED PROVISIONAL pending DK — recovery-auth (#50); pre-B2 named
+> decision.**
 > Writer: ClaudeleLunatique. Reviewer: ChatLunatique — **round 1: COUNTER as
 > drafted** (the round-1 text misstated the wallet proof's documented role; see
-> "Review round 1" at bottom). This round engages the documented BIP322-evidence
-> path as a complete design (§4). If round 2 converges, adoption is **provisional
-> pending DK** per the autonomous-session protocol (DK grant, event `9c1e1ba7`);
-> if it does not, both positions go to DK with §6's framing. B2 recovery-authority
-> rules stay `blockedOnDecision: recovery-auth` either way until ruled.
+> "Review round 1" at bottom); **round 2: CONCUR, provisional-pending-DK** (see
+> "Review round 2"). Adopted under the autonomous-session protocol (DK grant,
+> event `9c1e1ba7`), recorded as Decision #50. **The values call — smallest
+> audited kernel (b1) vs cold-hardware recovery custody (b2h) — is DK's on
+> return; b2h (§4) is the standing counter-design.** B2 recovery-authority rules
+> may now draft against this decision, citing it as provisional.
 >
 > Normativity: `analysis`-tier paper. The ratified outcome lands as spec text in
 > [`../spec/ONT_RECOVERY_INVOKE_SPEC.md`](../spec/ONT_RECOVERY_INVOKE_SPEC.md) and
 > [`../spec/WIRE_FORMAT.md`](../spec/WIRE_FORMAT.md) (both candidates amend
 > normative §8 text by named decision), entering the ledger as `candidate` per
-> normative-hardening.
+> normative-hardening. The normative §8.2/§8.3 amendments are **deferred to DK
+> ratification**; candidate/analysis-tier ripples carry provisional notes now.
 
 ## 1. The question
 
@@ -163,9 +165,9 @@ exception) becomes kernel-parsing surface.
 | --- | --- | --- | --- |
 | Binds `newOwnerPubkey` / `prevStateTxid` | **no** | yes (W13 digest) | yes (§8.3 message) |
 | Replayable by third parties | **yes — descriptor public** | no | no |
-| Mined event self-authorizing | vacuously (public string) | **yes** | **no — evidence-gated** |
-| Kernel verification | BIP340 verify | BIP340 verify (already in kernel) | **BIP322 = script validation** |
-| Proof-availability dependency | none | none | **yes — fail-closed gating needed** |
+| Invoke authorization lives | in a public, replayable string | **on-chain: the event's own signature field** | **off-chain: wallet-proof evidence (fail-closed gating needed)** |
+| Kernel verification | BIP340 verify | BIP340 verify (already in kernel) | **BIP322 = script validation + text-template parsing** |
+| Off-chain evidence the kernel consumes | descriptor chain | **descriptor chain only** | **descriptor chain + wallet proof** |
 | On-chain 64-byte field | replayed sig | the invoke signature | **dead — needs wire amendment** |
 | Descriptor change | none | **v2 (+`recoveryPubkey`)** | none |
 | §8.3 proof's role | unchanged | **narrowed to corroboration (amendment)** | as documented |
@@ -183,11 +185,13 @@ counter does not dissolve:
    marginal kernel surface is zero — BIP340-verify over a fixed digest is already
    the kernel's bread and butter for transfers. b2h imports a BIP322/script
    verifier and a text-template parser into the audited core for one event type.
-2. **Self-describing consensus events.** Under b2h a mined event's validity is
-   undecidable without off-chain bytes — an availability dependency the DA design
-   exists to tame for batch data, reintroduced at the single-event level. b1 keeps
-   "what does this mined event do" answerable from chain plus the descriptor
-   evidence the event itself names.
+2. **Smaller evidence base, simpler verification.** Neither design is
+   off-chain-free — b1 also depends on descriptor evidence (round-2 reviewer
+   precision). The decided distinction is: b1 consumes **descriptor evidence
+   only**, verified with one fixed-layout BIP340 digest; b2h consumes
+   **descriptor evidence plus wallet-proof evidence**, verified with BIP322
+   script validation and text-template parsing. b1 adds no second off-chain
+   object and no new verifier class beyond what a RecoverOwner already names.
 
 **And the honest other side:** b2h's cold-custody story is materially better — a
 recovery key that never leaves a hardware wallet is the right user posture for a
@@ -241,4 +245,17 @@ right, but only with the §8.3 role explicitly amended and the BIP322-as-evidenc
 rejection argued against the documents. Round 2 (this text) adds §4 as the complete
 b2h design, corrects the misstatement (§1 "what the specs already say", §5 table),
 names both options' normative amendments, and frames the
-custody-vs-audit-surface axis as DK's ruling. Reviewer round-2 verdict: pending.
+custody-vs-audit-surface axis as DK's ruling.
+
+## Review round 2 (ChatLunatique, 2026-06-13) — CONCUR, provisional-pending-DK
+
+Verdict (event `5d8b9f79`): round 2 fixes the round-1 blocker — wallet-proof
+misstatement retracted, b2h engaged as a complete kernel design, the §8.2/§8.3
+amendments named, the values call explicit. b1 accepted provisionally on
+audited-kernel/minimal-surface grounds; **b2h remains the standing counter if DK
+prioritizes cold custody and hardware-wallet continuity** (on the DK-return
+list). One precision cleanup, applied in this revision: b1 is not
+off-chain-free — the real distinction is descriptor-only evidence + fixed BIP340
+digest versus descriptor + wallet-proof evidence + BIP322/script/text
+verification (§5 table and §6 ground 2 reworded accordingly). Adopted as
+**recovery-auth (#50), PROVISIONAL pending DK.**
