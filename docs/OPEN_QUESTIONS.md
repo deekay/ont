@@ -25,7 +25,10 @@ Decisions are cited as "Decision #N" against [`core/DECISIONS.md`](./core/DECISI
 >    converge — this is the core thing to attack.
 > 2. **The `K`/`W`/`C` windows are not tuning trivia.** They encode the tradeoff among reorg
 >    safety, propagation latency, resolver/archive delay, censorship time, and user finality.
->    What parameter ranges are defensible?
+>    The window *algebra* (clock, inclusive boundaries, includable-vs-priority split,
+>    `K ≥ W + C`) is pinned by da-windows (#49, provisional pending DK) in the DA agreement
+>    §6e; the narrowed ask: **what parameter ranges are defensible?** The provisional
+>    `(6, 2, 3)` is a vectors-and-testnets placeholder, not a proposal.
 > 3. **1-of-N archives are the explicit residual assumption.** Is publisher HTTP +
 >    content-addressed voluntary mirrors enough for v1, or must a mirror/gossip convention ship
 >    earlier?

@@ -1,10 +1,11 @@
 # da-windows: what the K/W/C windows must fix before B2 — and what stays open
 
-> **Status: DRAFT decision paper — pre-B2 named decision `da-windows`.**
-> Writer: ClaudeleLunatique. Reviewer: ChatLunatique (adversarial pass required).
-> Ruling: DK. Drafted 2026-06-12 during the autonomous session (DK grant, event
-> `9c1e1ba7`); if writer and reviewer agree, adoption is **provisional pending DK**
-> per the session protocol, and DK can flip it on return.
+> **Status: PROVISIONALLY ADOPTED — pending DK ratification.**
+> Writer: ClaudeleLunatique. Reviewer: ChatLunatique — **CONCUR, round 1**
+> (2026-06-13, adversarial pass: O2/O3 counter-cases argued and found weak; four
+> conformance demands folded in, see "Review round 1" below). Adopted provisional
+> per the autonomous-session protocol (DK grant, event `9c1e1ba7`); DK ratifies
+> or flips on return. Decision entry: da-windows (#49), DECISIONS.md.
 >
 > Normativity: this is an `analysis`-tier paper. Whatever is ratified lands as
 > spec text in [`../spec/ONT_DATA_AVAILABILITY_AGREEMENT.md`](../spec/ONT_DATA_AVAILABILITY_AGREEMENT.md)
@@ -65,9 +66,15 @@ Seven semantic pins, S1–S7. These become the spec text B2's D-rules cite.
   exist if unconfirmed); every deadline moves with it. There is no wall-clock or
   receipt-time input anywhere in the algebra — that is the entire point of the §6
   design, and it is what makes the predicate pure and chain-view-deterministic.
-- **S2 — inclusive deadlines.** "By `h+X`" means "at a height `≤ h+X`". A served-bytes
-  witness whose height equals the deadline exactly is in-window. (One convention,
-  stated once; every off-by-one negative test keys off this line.)
+- **S2 — inclusive deadlines, explicit eligibility boundary.** "By `h+X`" means "at a
+  height `≤ h+X`". A served-bytes witness whose height equals the deadline exactly is
+  in-window. The K-depth boundary is pinned with the same explicitness:
+  `eligibleAt(anchor, H, K) := H ≥ h+K` — an anchor first becomes eligible at the
+  evaluation height with K further blocks on top of its containing block, matching
+  the prototype's convention (`da-convergence-sim.ts:146`). (One convention, stated
+  once; every off-by-one negative test keys off this line — including the
+  `h+K−1` reject / `h+K` accept pair. Review round 1 demanded this pin so "K-deep"
+  cannot hide a one-block convention mismatch.)
 - **S3 — two deadlines, two duties.** `h+W` is the **priority deadline**: a *contested*
   claim whose bytes are not demonstrably available by `h+W` forfeits priority (§6d,
   the withhold-then-reveal kill). `h+W+C` is the **inclusion deadline**: a batch whose
@@ -160,3 +167,24 @@ requirement from day one.
   ranges are infeasible — that reopens *values* at the freeze, not this paper.
 - Any consensus role found for a second clock — that reopens **marker-fold (#47)** by
   its own trigger, and this paper inherits the outcome.
+
+## Review round 1 (ChatLunatique, 2026-06-13) — CONCUR, demands folded
+
+Adversarial pass result: the strongest cases for O2 and O3 were argued and found
+weak (O2 violates the standing external-review ask on ranges; O3 blocks the B2 DA
+predicate). CONCUR with four demands, all accepted by the writer:
+
+1. **K-depth boundary pinned explicitly** — folded into S2 as
+   `eligibleAt(anchor, H, K) := H ≥ h+K`, with the `h+K−1`/`h+K` test pair.
+2. **Mixed-batch negatives** for the S3 split: a batch whose bytes are first served
+   in `(h+W, h+W+C]` — uncontested leaves includable, a contested leaf in the same
+   batch does NOT hold priority. This is the priority/inclusion gap attack surface;
+   it is a mandatory B2 conformance vector family.
+3. **Boundary vectors** exactly at `h+W` and `h+W+C`, plus one block after each.
+4. **S6 invalid-window negatives**: kernel construction rejects for `K < W+C`,
+   `W = 0`, `C = 0` — alongside the second valid parameterization S7 demands.
+
+Independent corroboration from the B2 rule extraction (tranche-1 merge pass,
+conflict C3): under the weak `W ≤ K` form with `W = K`, `C > 0`, the challenge
+window resolves *after* finalization, permitting include-then-retract — exactly
+what S6's strong form (`K ≥ W + C`) forecloses.

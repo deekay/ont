@@ -1037,6 +1037,51 @@ Implications:
 - B2 may treat wire shapes as law (closed field sets, full-width
   commitments collision-resistant per the W16 ruling).
 
+49. da-windows: the K/W/C window algebra is pinned pre-B2; the values stay
+launch-freeze work — 2026-06-13
+
+*Status: **PROVISIONAL — pending DK ratification.** Adopted under the
+autonomous-session protocol (DK grant, event 9c1e1ba7): writer
+ClaudeleLunatique, reviewer ChatLunatique CONCUR round 1 (adversarial
+pass; O2/O3 counter-cases argued and found weak). DK ratifies or flips on
+return.*
+
+*Short name: **da-windows**. Pre-B2 named decision (OPEN_QUESTIONS §1
+item 2; DA agreement §10 item 1). Paper:
+[research/DA_WINDOWS.md](../research/DA_WINDOWS.md).*
+
+**The rule.** The window *algebra* is fixed now; the *integers* are not.
+Semantics S1–S6 become candidate spec text in
+ONT_DATA_AVAILABILITY_AGREEMENT.md §6e:
+
+- **S1** one clock — all deadlines in block heights from the anchor's
+  mined height `h`; reorgs re-derive `h`; no wall-clock or receipt-time
+  input exists in the algebra.
+- **S2** inclusive deadlines ("by `h+X`" = height ≤ `h+X`) and an explicit
+  eligibility boundary: `eligibleAt(anchor, H, K) := H ≥ h+K`.
+- **S3** two deadlines, two duties — `includable(anchor, evidence, W, C)`
+  keyed to `h+W+C` (fail-closed inclusion) vs
+  `holdsPriority(claim, evidence, W)` keyed to `h+W` (contested priority).
+- **S4** evidence in, verdict out — the kernel consumes a served-bytes
+  witness (B3 format) and never does I/O.
+- **S5** `(K, W, C)` are per-network consensus parameters; kernel code is
+  parametric.
+- **S6** constraints: `K ≥ W + C`, `K ≥ 1`, `W ≥ 1`, `C ≥ 1` (W/C lower
+  bounds tightened from the prototype's `≥ 0`).
+
+**S7** provisional values `(6, 2, 3)` exist for conformance vectors and
+test deployments only; final values freeze at the launch-parameter freeze
+after the external review OPEN_QUESTIONS §1 solicits. B2 conformance MUST
+carry: boundary vectors exactly at `h+W` and `h+W+C` plus one block after
+each; the `h+K−1`/`h+K` eligibility pair; mixed-batch priority/inclusion
+negatives (bytes first served in `(h+W, h+W+C]`); S6-violation rejects;
+and vectors at two distinct parameterizations so a baked-in constant
+cannot pass.
+
+Corroboration: the B2 extraction merge (conflict C3) independently found
+that the weaker `W ≤ K` form permits include-then-retract at `W = K`,
+`C > 0` — the strong form forecloses it.
+
 ## Fairness Principles To Carry Into The Launch Rewrite
 
 The rewritten launch draft should explicitly state:

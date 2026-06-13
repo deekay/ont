@@ -160,6 +160,50 @@ high-value marquee names, the fallback is **direct-L1 settlement with full data 
 Approach A below — which has *no* DA problem at all and is affordable precisely because contested
 names are few (~110 vB each, ~4.78M/yr ceiling at 1% blockspace).
 
+### 6e. Window algebra — da-windows (#49) *(provisional pending DK; candidate tier)*
+
+*(Added 2026-06-13 per da-windows (#49), decision paper
+[research/DA_WINDOWS.md](../research/DA_WINDOWS.md); reviewer-concurred, awaiting DK
+ratification. This pins the §6a–6d deadline* algebra *for the B2 kernel; the parameter*
+values *remain open — see the parameters block below.)*
+
+- **One clock (S1).** All windows are measured in Bitcoin block heights from `h`, the
+  mined height of the anchor's containing block in the evaluator's current best chain.
+  On reorg, `h` re-derives from the new containing block; every deadline moves with it.
+  No wall-clock or receipt-time input exists anywhere in the algebra.
+- **Inclusive deadlines, explicit eligibility boundary (S2).** "By `h+X`" means "at a
+  height `≤ h+X`"; a witness at the deadline height exactly is in-window. Eligibility:
+  `eligibleAt(anchor, H, K) := H ≥ h+K`.
+- **Two deadlines, two duties (S3).** `includable(anchor, evidence, W, C)` — bytes
+  demonstrably served at a height `≤ h+W+C` (the §6c fail-closed inclusion verdict) —
+  is distinct from `holdsPriority(claim, evidence, W)` — bytes demonstrably served at a
+  height `≤ h+W` (the §6d contested-priority verdict). A batch first served inside
+  `(h+W, h+W+C]` is includable while its contested leaves forfeit priority.
+- **Evidence in, verdict out (S4).** The kernel consumes a served-bytes witness (format
+  = B3 deliverable) and returns a verdict; it never does I/O and never asks "did *I*
+  receive the bytes."
+- **Validity constraints (S6).** `K ≥ W + C`, `K ≥ 1`, `W ≥ 1`, `C ≥ 1`. The first is
+  load-bearing: the availability verdict settles at or before eligibility depth, so an
+  eligible anchor's DA status is final and the canonical root is never revised for an
+  availability reason (the weaker `W ≤ K` form read alone permits include-then-retract
+  at `W = K`; it is implied by, and superseded by, the strong form).
+
+**Window parameters (S5/S7).** `(K, W, C)` are per-network consensus parameters,
+passed to the kernel as inputs (no constant in `@ont/consensus`):
+
+| Parameter | Provisional value | Status |
+| --- | --- | --- |
+| `K` (confirmation/eligibility depth) | 6 (≈ 60 min) | placeholder — freezes at launch-parameter freeze |
+| `W` (availability deadline) | 2 (≈ 20 min) | placeholder — freezes at launch-parameter freeze |
+| `C` (challenge window) | 3 (≈ 30 min) | placeholder — freezes at launch-parameter freeze |
+
+Provisional values exist so conformance vectors and test deployments have behavior;
+the defensible-ranges question stays a first-class external-review ask
+([OPEN_QUESTIONS.md](../OPEN_QUESTIONS.md) §1). B2 conformance MUST include: boundary
+vectors exactly at `h+W` and `h+W+C` plus one block after each; the `h+K−1`/`h+K`
+eligibility pair; mixed-batch priority/inclusion negatives; S6-violation rejects; and
+vectors at **two distinct parameterizations** so a baked-in constant cannot pass.
+
 ## 7. The candidate mechanisms, ranked by trust cost
 
 | Approach | What it is | Trust added | Where it fits |
@@ -247,8 +291,11 @@ commutativity + confirmation lag); the **withhold-then-reveal** theft vector; th
 turns unprovable non-availability into an attributable, fail-closed, on-chain-timed decision.
 
 **Still open:**
-1. **Pin the windows.** Choose `K` (confirmation depth), `W ≤ K` (availability deadline, measured
-   from the anchor's mined height), and the challenge window — with explicit latency/safety tradeoffs.
+1. **Pin the windows.** *Split by da-windows (#49, provisional pending DK):* the window
+   *algebra* — clock, inclusive boundaries, the includable/holdsPriority split, the
+   `K ≥ W + C` construction invariant, per-network parameterization — is pinned in §6e.
+   What remains open is the *values*: defensible `(K, W, C)` ranges, with explicit
+   latency/safety tradeoffs, frozen at the launch-parameter freeze after external review.
 2. **Specify the availability marker.** *Superseded by marker-fold (#47):* the separate marker is
    retired (wire event `0x0d` is retired-never-reuse); the deadline keys off the anchor's mined
    height, so there is no second tx form, cost, or cross-event height composition to specify. The
