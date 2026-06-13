@@ -1,15 +1,20 @@
 # recovery-auth: who signs the on-chain RecoverOwner invoke
 
-> **Status: DRAFT decision paper — pre-B2 named decision `recovery-auth`.**
-> Writer: ClaudeleLunatique. Reviewer: ChatLunatique (adversarial pass required).
-> Ruling: DK. Drafted 2026-06-12 during the autonomous session (DK grant, event
-> `9c1e1ba7`); if writer and reviewer agree, adoption is **provisional pending DK**
-> per the session protocol, and DK can flip it on return.
+> **Status: DRAFT, round 2 — revised after reviewer COUNTER; pre-B2 named decision
+> `recovery-auth`.**
+> Writer: ClaudeleLunatique. Reviewer: ChatLunatique — **round 1: COUNTER as
+> drafted** (the round-1 text misstated the wallet proof's documented role; see
+> "Review round 1" at bottom). This round engages the documented BIP322-evidence
+> path as a complete design (§4). If round 2 converges, adoption is **provisional
+> pending DK** per the autonomous-session protocol (DK grant, event `9c1e1ba7`);
+> if it does not, both positions go to DK with §6's framing. B2 recovery-authority
+> rules stay `blockedOnDecision: recovery-auth` either way until ruled.
 >
 > Normativity: `analysis`-tier paper. The ratified outcome lands as spec text in
 > [`../spec/ONT_RECOVERY_INVOKE_SPEC.md`](../spec/ONT_RECOVERY_INVOKE_SPEC.md) and
-> (for the descriptor change) [`../spec/WIRE_FORMAT.md`](../spec/WIRE_FORMAT.md),
-> entering the ledger as `candidate` per normative-hardening.
+> [`../spec/WIRE_FORMAT.md`](../spec/WIRE_FORMAT.md) (both candidates amend
+> normative §8 text by named decision), entering the ledger as `candidate` per
+> normative-hardening.
 
 ## 1. The question
 
@@ -18,77 +23,76 @@ in code", item 2) leaves the invoke-path signer of the on-chain `RecoverOwner`
 payload's 64-byte Schnorr `signature` field undefined, with three candidates:
 
 - **(a)** the owner-key **arming signature replayed** from the armed descriptor;
-- **(b)** a **fresh signature by the recovery wallet** over the
-  `RecoverOwnerAuthorizationFields` digest;
-- **(c)** the owner-key **cancel** signature — which is the *veto* path, already
-  defined (`signRecoverOwnerCancelAuthorization`), and not actually a candidate for
-  the invoke path. The real choice is **a vs b**.
+- **(b)** a **fresh authorization by the recovery wallet** — which splits into
+  **(b1)** an on-chain BIP340 signature over the W13 digest by a recovery *pubkey*
+  committed in a v2 descriptor, or **(b2h)** the **BIP322 wallet-proof evidence
+  path** the specs already sketch (proof posted off-chain, kernel consumes it as
+  evidence), hardened;
+- **(c)** the owner-key **cancel** signature — the *veto* path, already defined
+  (`signRecoverOwnerCancelAuthorization`), not a candidate for the invoke path.
 
 B1 deliberately pinned only shapes and digests here: W13 fixed the byte-precise
 `ont-recover-owner` digest (domain label ‖ `prevStateTxid` ‖ `newOwnerPubkey` ‖
 `flags`/`successorBondVout` ‖ `challengeWindowBlocks` ‖ `recoveryDescriptorHash`,
-`events.ts:343-358`), and its note routed *whose key verifies that digest* to B2
+`events.ts:343-358`), and its note routed *whose key authorizes an invoke* to B2
 recovery-authority hardening. B2 cannot write the recovery acceptance rules without
 this decision.
 
-## 2. The crux: what the signature must prove
+**What the specs already say (corrected in round 2).** The wallet proof is not mere
+arming hygiene — round 1 was wrong about this. Normative WIRE_FORMAT §8.3 defines the
+proof envelope as binding exactly the invoke fields (`prevStateTxid`,
+`recoveryDescriptorHash`, `newOwnerPubkey`, `successorBondVout`,
+`challengeWindowBlocks`), §8.2 routes a cross-object `signingProfile` equality check
+to B2, and the analysis-tier
+[`OWNER_KEY_RECOVERY.md`](./OWNER_KEY_RECOVERY.md) ("Challenge-Window Recovery")
+describes the evidence-gated flow: a name enters `recovery_pending` *"only if the
+matching proof is available and verifies."* So (b2h) is a documented direction, not a
+strawman. What remains true: the invoke spec holds the on-chain signer question
+**open** ("isn't yet defined" — a/b/c), and WIRE_FORMAT froze §8 *shapes* while
+routing authority semantics to B2. The decision is genuinely undecided; both (b1)
+and (b2h) amend normative text either way (§6).
 
-A valid invoke must establish three distinct facts:
+## 2. The crux: what a valid invoke must prove
 
 1. **The descriptor was owner-authorized** (the arming fact).
 2. **This invocation is authorized by the armed recovery authority** (the invoke
    fact — fresh, for *this* state head).
-3. **The invoke fields are bound** — above all `newOwnerPubkey`, the key the name
-   rotates to, and `prevStateTxid`, the state head being recovered from.
+3. **The invoke fields are bound** — above all `newOwnerPubkey` and `prevStateTxid`.
 
-Option (a) proves only fact 1 — and proves it with a **public artifact**. The armed
-descriptor, signature included, is *posted to resolvers by design* (W15; that's how
-watchers and resolvers enforce the descriptor chain). Anyone can therefore replay it.
-The arming signature covers the descriptor fields (`recovery-descriptor.ts:142-170`)
-— it does not and cannot cover `newOwnerPubkey` or `prevStateTxid`, which don't exist
-at arming time. Under (a):
+Option (a) proves only fact 1, with a **public artifact**: the armed descriptor,
+signature included, is posted to resolvers by design (W15). Anyone can replay it. The
+arming signature covers descriptor fields only (`recovery-descriptor.ts:142-170`) —
+`newOwnerPubkey` and `prevStateTxid` don't exist at arming time. Under (a): unbound
+`newOwnerPubkey` = name theft by anyone who can read a resolver; binding the
+successor to the descriptor's `recoveryAddress` instead = **permissionless forced
+recovery** — any third party starts the challenge window on any armed name,
+repeatedly and free, weaponizing the veto-grief economics already flagged open in
+[`OPEN_QUESTIONS.md`](../OPEN_QUESTIONS.md) §4.2. Both readings fatal. **Writer and
+reviewer agree (a) is dead** (round 1).
 
-- If the kernel doesn't bind `newOwnerPubkey` to anything else, **anyone who can read
-  a resolver can rotate any armed name to their own key** — name theft with a public
-  input. Fatal.
-- If the kernel patches this by forcing the successor bond / new owner to derive from
-  the descriptor's `recoveryAddress`, theft becomes **permissionless forced recovery**:
-  any third party can *start* the challenge window on any armed name, at will,
-  repeatedly. The owner's veto is the only stop, so the attacker converts a public
-  string into unbounded veto costs for the victim — institutionalizing exactly the
-  veto-grief economics flagged open in
-  [`OPEN_QUESTIONS.md`](../OPEN_QUESTIONS.md) §4.2, except free for the attacker and
-  unattributable. Still fatal, just slower.
+Both (b1) and (b2h) prove facts 2 and 3 — the W13 digest and the §8.3 proof message
+each bind the invoke fields — and prove fact 1 by reference through
+`recoveryDescriptorHash`. The decision is **where the invoke authorization lives**:
+on-chain in the event's own signature field (b1), or off-chain in evidence the
+kernel consumes (b2h).
 
-Option (b) proves facts 2 and 3 directly — the W13 digest already covers every invoke
-field — and proves fact 1 **by reference**: `recoveryDescriptorHash` names the armed
-descriptor, whose own owner signature the kernel checks as evidence. Nothing about
-(b) is novel design; it is what the digest layout was shaped for. The question inside
-(b) is *which key* and *how the kernel learns it* — §3.
+## 3. Design b1, precisely: on-chain self-authorization
 
-## 3. The design, precisely (option b1)
+The descriptor today commits a `recoveryAddress` — an address *string*
+(`recovery-descriptor.ts:19`, W15), not a key, so a 64-byte BIP340 signature cannot
+be verified against it. b1 therefore adds one field:
 
-The descriptor today commits a `recoveryAddress` — a 1–200 char address *string*
-(`recovery-descriptor.ts:19`, W15), not a key. A 64-byte BIP340 signature cannot be
-verified against an address whose pubkey is unrevealed. Two sub-options:
+- **Descriptor v2** commits a required `recoveryPubkey` (32-byte x-only),
+  `descriptorVersion` 2, digest extended under the established lenPrefix/-v2
+  conventions. v1 descriptors stay parse-valid but not invokable (re-arm to v2; with
+  signet decommissioned and nothing-is-precious ratified, v1 descriptors are
+  conformance fossils).
+- The on-chain 64-byte slot carries a **fresh BIP340 signature by that key over the
+  unchanged W13 digest**. The `RecoverOwner` 0x09 wire layout is byte-for-byte
+  unchanged — this defines the *meaning* of an existing normative field, which is
+  exactly the work WIRE_FORMAT §5 routes to B2.
 
-- **(b1) Descriptor v2 commits a recovery pubkey.** Add a required
-  `recoveryPubkey` (32-byte x-only) field to the signed descriptor, bumping
-  `descriptorVersion` to 2. The on-chain 64-byte slot carries a fresh BIP340
-  signature by that key over the existing W13 `ont-recover-owner` digest. The wire
-  layout of `RecoverOwner` (0x09, 171 bytes, W7) is **byte-for-byte unchanged** —
-  this decision defines the *meaning* of an existing field, not its shape.
-- **(b2) BIP322 indirection.** Authorize the invoke with a BIP322 signature against
-  `recoveryAddress` directly. Rejected: BIP322 verification drags full script
-  validation into the kernel (heavy, wrong layer — the same reasoning that made the
-  recovery *wallet proof* a separate off-chain object, W15a); the witness is
-  variable-size and cannot ride the fixed 64-byte on-chain slot, so the
-  authorization would have to live off-chain — making an on-chain consensus event
-  **not self-describing about its own validity**, which inverts the audited-core
-  boundary (the kernel would need evidence to know whether a *wire event* is even
-  authorized, for no compensating gain).
-
-**Kernel acceptance rule under b1** — pure predicate, evidence in / verdict out:
+**Kernel acceptance** — pure predicate, evidence in / verdict out:
 
 ```
 acceptRecoverOwner(event, descriptorEvidence, nameState) :=
@@ -100,84 +104,141 @@ acceptRecoverOwner(event, descriptorEvidence, nameState) :=
                   nameState.ownerPubkey,
                   descriptorDigest(descriptorEvidence)) // fact 1
   ∧  descriptorEvidence is the current armed head of the
-     name's descriptor chain (chain links checked as given;
+     name's descriptor chain (links checked as given;
      supplying the chain is the evidence layer's job)
   ∧  event.prevStateTxid == nameState.headTxid
 ```
 
-**Replay analysis.** The digest binds `prevStateTxid`: a captured invoke signature is
-valid only against that exact state head. Once the recovery settles (or is vetoed and
-the state advances), the head moves and the signature is dead. Same-head rebroadcast
-is the same invocation, not a replay. Cross-name replay fails on `prevStateTxid`;
-cross-domain replay (transfer↔recover, invoke↔cancel) fails on W13 domain separation
-— already pinned with negative vectors in B1.
+**Replay analysis.** The digest binds `prevStateTxid`: a captured invoke signature
+dies when the state head moves (settled or vetoed recovery, transfer). Same-head
+rebroadcast is the same invocation. Cross-name replay fails on `prevStateTxid`;
+cross-domain replay (transfer↔recover, invoke↔cancel) fails on W13 domain
+separation — already pinned with negative vectors in B1.
 
-**Veto path unchanged** (the spec's (c)): owner-key cancel via the existing cancel
-authorization digest. The BIP322 recovery **wallet proof** (W15a) also keeps exactly
-its current role — resolver-side arming hygiene, evidence layer, never consulted by
-the kernel.
+**Veto path unchanged** (c): owner-key cancel via the existing cancel digest.
 
-## 4. Options compared
+## 4. Design b2h, precisely: the hardened BIP322-evidence path *(added in round 2, per review)*
 
-| | (a) replay arming sig | **(b1) fresh sig, descriptor-v2 pubkey** | (b2) BIP322 indirection |
+The documented direction (§8.3 + OWNER_KEY_RECOVERY), stated as a complete kernel
+design rather than dismissed:
+
+- The on-chain `RecoverOwner` event is **not self-authorizing**. A mined invoke has
+  **no effect** unless and until matching wallet-proof evidence verifies —
+  fail-closed by default (no proof ⇒ no `recovery_pending`, no state change, ever).
+- **Kernel acceptance:** consume descriptor evidence + wallet-proof evidence;
+  `bip322Verify(proof.signatureBase64, descriptor.recoveryAddress, message)` where
+  `message` is regenerated from the proof's fields per §8.3's literal template and
+  MUST match (regenerate-and-compare, the §8 envelope rule); the proof's bound
+  fields (`prevStateTxid`, `recoveryDescriptorHash`, `newOwnerPubkey`,
+  `successorBondVout`, `challengeWindowBlocks`) MUST equal the mined event's;
+  `signingProfile` MUST equal the descriptor's (the §8.2 cross-object rule);
+  descriptor chain and owner arming signature checked as in b1.
+- The on-chain 64-byte `signature` field has **no verifier**; it needs a named wire
+  amendment — explicit zero, or repurposed — since a normative field with undefined
+  semantics is exactly what B1 refused to leave standing (the reserved-32-bytes
+  precedent, PROPOSAL 3).
+- Replay: the §8.3 message binds the same invoke fields, so replay resistance is
+  equivalent to b1's.
+
+**What b2h buys.** (i) **Cold custody**: the recovery key never leaves a hardware
+wallet — invoking takes one BIP322 message signature, not raw-digest signing;
+recovery custody can be "the hardware wallet in the safe," which is precisely the
+user posture a *recovery* instrument serves. (ii) No descriptor v2; v1 armed
+descriptors remain invokable. (iii) Continuity with §8.2/§8.3 as written.
+
+**What b2h costs.** (i) **A BIP322 verifier inside the audited kernel**: script
+validation (at minimum the BIP322 simple-mode paths for P2WPKH/P2TR; in general
+arbitrary scripts) imported into L2 for one event type — deterministic, but a large
+audit-surface increase against the clean-build's core bet (smallest auditable
+kernel). (ii) **Evidence-gated meaning for a mined consensus event**: a RecoverOwner
+on-chain is undecidable without an off-chain object; every verifier needs the proof
+bytes — an availability dependency of the kind the DA design spent §6a–6e taming for
+batch data, reintroduced for a single L1 event. (iii) The dead on-chain signature
+field (wire amendment). (iv) The §8.3 text-message template (the W13a deliberate
+exception) becomes kernel-parsing surface.
+
+## 5. Options compared (corrected round 2)
+
+| | (a) replay arming sig | **(b1) on-chain BIP340, descriptor v2** | (b2h) BIP322 evidence path |
 | --- | --- | --- | --- |
-| Binds `newOwnerPubkey` / `prevStateTxid` | **no** — pre-dates them | yes (W13 digest) | yes (message permitting) |
-| Replayable by third parties | **yes — descriptor is public** | no (fresh key, fresh head) | no |
-| Forced-recovery griefing | **yes** (see §2) | no — invoke needs the recovery key | no |
-| On-chain event self-authorizing | yes (vacuously — by a public string) | **yes** | **no** — auth lives off-chain |
-| Kernel cost | sig verify | sig verify | full script validation in-kernel |
-| Wire change | none | **none** (0x09 unchanged) | none on-chain, new off-chain object |
-| Off-chain change | none | descriptor v2 (+1 field, version-gated) | new authorization object |
-| Wallet requirement | none new | recovery key must be BIP340-capable | any address, but new proof flow |
+| Binds `newOwnerPubkey` / `prevStateTxid` | **no** | yes (W13 digest) | yes (§8.3 message) |
+| Replayable by third parties | **yes — descriptor public** | no | no |
+| Mined event self-authorizing | vacuously (public string) | **yes** | **no — evidence-gated** |
+| Kernel verification | BIP340 verify | BIP340 verify (already in kernel) | **BIP322 = script validation** |
+| Proof-availability dependency | none | none | **yes — fail-closed gating needed** |
+| On-chain 64-byte field | replayed sig | the invoke signature | **dead — needs wire amendment** |
+| Descriptor change | none | **v2 (+`recoveryPubkey`)** | none |
+| §8.3 proof's role | unchanged | **narrowed to corroboration (amendment)** | as documented |
+| Recovery custody | n/a | **BIP340-capable signer (ONT-aware tooling)** | **any BIP322-capable wallet (cold hardware)** |
 
-## 5. What this paper does NOT change
+## 6. Recommendation (round 2): (b1), with the ruling axis named for DK
 
-- The **arming flow**, descriptor chain rule, and `/recovery-descriptors` route.
-- The **veto path** (c) and its cancel digest.
-- The **BIP322 wallet proof** (W15a) — separate object, evidence layer, unchanged.
-- The **wire format** — `RecoverOwner` 0x09 layout, 171-byte envelope, W7 table, and
-  the W13 digest are all untouched. (No normative-§-amendment of on-chain wire.)
-- **Recovery remains opt-in** (Decision #40) and the abort-only watcher credential
-  (OPEN_QUESTIONS §4.1) remains open — the veto signer is the owner key today; a
-  watcher credential would *add* a veto signer, not touch the invoke signer.
+**(a) is dead** — agreed by writer and reviewer; no parameterization saves it.
 
-## 6. Recommendation
+Between (b1) and (b2h), the writer holds **(b1)**, on two grounds the reviewer's
+counter does not dissolve:
 
-**(b1).** Fresh BIP340 signature by a recovery key committed in a v2 descriptor, over
-the unchanged W13 digest; kernel rule as in §3. (a) is not a viable fallback at any
-parameterization — it fails §2 fact 2/3 structurally, not by tuning.
+1. **Audit-surface primacy.** The clean-build's foundational bet is the smallest
+   auditable kernel (canon L2; external audit starts at kernel freeze). b1's
+   marginal kernel surface is zero — BIP340-verify over a fixed digest is already
+   the kernel's bread and butter for transfers. b2h imports a BIP322/script
+   verifier and a text-template parser into the audited core for one event type.
+2. **Self-describing consensus events.** Under b2h a mined event's validity is
+   undecidable without off-chain bytes — an availability dependency the DA design
+   exists to tame for batch data, reintroduced at the single-event level. b1 keeps
+   "what does this mined event do" answerable from chain plus the descriptor
+   evidence the event itself names.
 
-Costs, honestly: (1) **descriptor v2** — one added field in an off-chain shape whose
-spec section is normative since wire-normative (#48); amended by this named decision,
-version-gated, with v1 descriptors remaining parse-valid but **not invokable** —
-armed-v1 names must re-arm with v2 before on-chain invoke exists. With signet
-decommissioned and nothing-is-precious ratified, v1 descriptors are conformance
-fossils, not a migration burden. (2) **Recovery wallets need a BIP340-capable key** —
-the recovery authority can no longer be a bare address whose wallet only does
-message-signing. This is the real-world cost; it buys per-invocation freshness and
-kernel purity, and our own stack derives such keys everywhere already. The spec's
-"raise with Max" note stands as the reopen path if custody practice says otherwise.
+**And the honest other side:** b2h's cold-custody story is materially better — a
+recovery key that never leaves a hardware wallet is the right user posture for a
+recovery instrument, and (b1) genuinely cannot offer it (raw-digest signing is
+ONT-aware-tooling territory). If DK weighs launch-era custody reality above kernel
+minimality, **(b2h) is the defensible pick and §4 is its spec skeleton.** That
+values call — smallest audited kernel vs cold-hardware recovery custody — is the
+ruling, and it is DK's (the spec's standing "raise with Max" note is the external
+check on the custody premise).
 
-### Ripples if ratified
+Costs of (b1), named: descriptor v2 (§8.2 amendment, version-gated); **§8.3's
+invoke-field bindings are narrowed by amendment** to an evidence-layer
+corroboration object (resolver/watcher hygiene at arming and invoke time — its
+current invoke-shaped field set is the legacy system's authorization design, which
+this decision supersedes); the §8.2 cross-object `signingProfile` rule keys to the
+descriptor's profile, which in v2 names the BIP340 path. Recovery wallets need a
+BIP340-capable key — the custody cost above, honestly priced.
 
-- `ONT_RECOVERY_INVOKE_SPEC.md`: item 2 resolved (cite this paper); the architect
-  builder's input shape is fixed — recovery signing key (b), not descriptor replay (a).
-- `WIRE_FORMAT.md` §8.2 (descriptor): v2 field set with `recoveryPubkey(32)`,
-  digest layout extended under the established lenPrefix/-v2 conventions; v1 kept as
-  legacy-parse evidence. New golden vectors for the v2 digest.
-- `B2_KERNEL_HARDENING.md`: recovery-authority rules get their source; §3 predicate
-  becomes R-rules with negative tests: replayed-arming-sig-as-invoke rejected,
-  descriptor-hash mismatch rejected, non-head descriptor rejected, stale
-  `prevStateTxid` rejected, cancel-digest-as-invoke rejected, v1-descriptor invoke
-  rejected.
-- Wallet/CLI (B5): `recover-invoke` takes the recovery WIF/key as the spec already
-  sketches; arming UX gains "re-arm to v2" guidance.
+### Ripples if (b1) ratified
+
+- `ONT_RECOVERY_INVOKE_SPEC.md`: item 2 resolved; architect builder input = recovery
+  signing key.
+- `WIRE_FORMAT.md` §8.2: descriptor v2 (`recoveryPubkey(32)`, digest under
+  lenPrefix/-v2 conventions), v1 kept as legacy-parse evidence; §8.3: proof narrowed
+  to corroboration (named amendment of normative text, per the §8 amendment
+  process); §5's routed note gains its B2 answer.
+- `B2_KERNEL_HARDENING.md`: R-rules get their source; §3's predicate becomes the
+  acceptance rule with negative tests: replayed-arming-sig-as-invoke, descriptor-hash
+  mismatch, non-head descriptor, stale `prevStateTxid`, cancel-digest-as-invoke,
+  v1-descriptor invoke, wrong-pubkey signature — all rejected.
+- `OWNER_KEY_RECOVERY.md` (analysis tier): evidence-gated flow annotated as
+  superseded on the authorization point.
 
 ### Reopen triggers
 
-- Expert custody feedback (the spec's standing "raise with Max" item) showing
-  BIP340-capable recovery keys are impractical for the wallets that matter — reopens
-  toward a hardened (b2) with the script-validation cost paid at the evidence layer
-  feeding a kernel-checkable artifact, not toward (a).
-- The abort-only watcher credential design (OPEN_QUESTIONS §4.1) landing in a form
-  that needs invoke-side fields — touches §3's predicate by named amendment.
+- Expert custody feedback (the standing "raise with Max" item) showing BIP340
+  recovery custody is impractical for the wallets that matter — reopens toward
+  (b2h), whose full skeleton is §4.
+- The abort-only watcher credential (OPEN_QUESTIONS §4.1) landing with invoke-side
+  field needs — touches the predicate by named amendment.
+
+## Review round 1 (ChatLunatique, 2026-06-13) — COUNTER, incorporated
+
+Verdict: COUNTER as drafted; do not provisional-adopt b1 yet. Findings, all
+accepted: (i) round 1 claimed the wallet proof is "never consulted by the kernel" —
+contradicted by WIRE_FORMAT §8.2's B2 cross-object `signingProfile` rule
+(`WIRE_FORMAT.md` §8.2), §8.3's invoke-field bindings, and OWNER_KEY_RECOVERY.md's
+evidence-gated `recovery_pending`; (ii) (b2) is a documented path, not an invented
+opponent, and must be engaged as the strongest counter-design; (iii) b1 may still be
+right, but only with the §8.3 role explicitly amended and the BIP322-as-evidence
+rejection argued against the documents. Round 2 (this text) adds §4 as the complete
+b2h design, corrects the misstatement (§1 "what the specs already say", §5 table),
+names both options' normative amendments, and frames the
+custody-vs-audit-surface axis as DK's ruling. Reviewer round-2 verdict: pending.
