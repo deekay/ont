@@ -1078,10 +1078,6 @@ negatives (bytes first served in `(h+W, h+W+C]`); S6-violation rejects;
 and vectors at two distinct parameterizations so a baked-in constant
 cannot pass.
 
-Corroboration: the B2 extraction merge (conflict C3) independently found
-that the weaker `W ≤ K` form permits include-then-retract at `W = K`,
-`C > 0` — the strong form forecloses it.
-
 ## Fairness Principles To Carry Into The Launch Rewrite
 
 The rewritten launch draft should explicitly state:
