@@ -987,7 +987,7 @@
     "flagSnippet": "Same-block composition: bond and competing claim (or two bonds) in one block",
     "category": "spec-blocked",
     "legallyDerivable": false,
-    "rationale": "[review-reclassified vector-now->spec-blocked, ChatLunatique blocker] The same-block tie-break is the RATIFIED decision #25: two competing bids/events in the same block, otherwise tied, are ordered by earlier position in the block's transaction order. The flag says it must be 'composed in' to the bond-window evaluation — but the tie-break rule itself is ratified and derivable, so a vector pinning that a same-block bond+claim (or two same-block bonds) resolves by tx-order is authorable now. This is a restatement/composition note over a ratified rule, not a missing-rule case.",
+    "rationale": "Reclassified vector-now→spec-blocked (review round 1). Same-block bond/claim composition is NOT legally derivable today: DECISIONS #25 (DECISIONS.md:374-378) is scoped to two competing AuctionBids only and does not cover bond-vs-bond or bond-vs-claim composition or min-increment reset — that needs the kernel evaluation-order PR (PR-16). Only the pure two-identical-AuctionBid #25 tie is derivable, and it lives in the Q/winner-selection area.",
     "sources": [
       "docs/core/DECISIONS.md #25 Same-block auction tie-break ('the bid appearing earlier in the block's transaction order wins') [ratified]",
       "docs/core/B2_KERNEL_HARDENING.md F12 attack flag ('need the #25 same-block tie-break composed in')"
@@ -3662,7 +3662,7 @@
     "flagSnippet": "The event carries no name field, so the touched name is",
     "category": "spec-blocked",
     "legallyDerivable": false,
-    "rationale": "[review-reclassified vector-now->spec-blocked, ChatLunatique blocker] This flag is the well-specified core of X4: the Transfer carries no name field (normative §4.1 shape) and the target is selected purely by prevStateTxid == current state head. The positive (prevStateTxid == head applies to exactly that name) and negatives (unknown head, stale head -> no state change) are derivable from §4.1 shape plus DESIGN §4 rule 2 ('a Schnorr signature ... over the exact transfer (prevStateTxid, ...)'). Only the two-names-share-a-head collision (separate flag above) is underivable; the single-name selection verdicts are not.",
+    "rationale": "Reclassified vector-now→spec-blocked (review round 1). prevStateTxid==current-state-head as the transfer-target selector is NOT derivable: X4 is candidate-stays in the hardening doc (B2_KERNEL_HARDENING.md:1887-1901), which states 'No doc currently states the linkage semantics'. Needs the state-head linkage PR (PR-17).",
     "sources": [
       "docs/spec/WIRE_FORMAT.md §4.1 Transfer — 135 bytes (normative; shape only — carries no name field)",
       "docs/DESIGN.md §4 Trust surface — The rules, plainly (rule 2)",
@@ -3682,7 +3682,7 @@
     "flagSnippet": "Replay immunity rests entirely on head advance: any future state-changing",
     "category": "spec-blocked",
     "legallyDerivable": false,
-    "rationale": "[review-reclassified vector-now->spec-blocked, ChatLunatique blocker] Rule X5 is candidate-stays; under the schema candidate text is acceptable authority where the verdict is candidate-stays. The replay-immunity and first-wins verdicts are derivable from the candidate state-machine Design Rule ('Ownership is the deterministic result of Bitcoin ordering ...') plus DESIGN §4 rule 3 (everyone replays in Bitcoin order). The flag's concern (head-advance must be universal) is a spec-wording note, not a missing verdict — for the transfer cases (byte-identical replay rejects; first-in-canonical-order wins) the verdicts are determinable today.",
+    "rationale": "Reclassified vector-now→spec-blocked (review round 1). Replay immunity / first-among-same-head rests on the head-advance mechanism, which is candidate-stays and 'stated in no doc' (B2_KERNEL_HARDENING.md X5); the Bitcoin-ordering authority is cited but the head-advance rule is not. Needs the state-head linkage PR (PR-17/PR-16).",
     "sources": [
       "docs/spec/ONT_ACQUISITION_STATE_MACHINE.md Design Rule (candidate) — deterministic result of Bitcoin ordering",
       "docs/DESIGN.md §4 Trust surface — rule 3 (replay in Bitcoin's order)",
@@ -3837,7 +3837,7 @@
     "flagSnippet": "'should not depend' is soft language for a kernel invariant",
     "category": "spec-blocked",
     "legallyDerivable": false,
-    "rationale": "[review-reclassified vector-now->spec-blocked, ChatLunatique blocker] The flag observes the source is the soft candidate 'should not depend on acquisition origin' sentence. X12 was step-2-corrected to candidate-stays, and candidate text is acceptable authority for a candidate-stays verdict. The invariant under test — identical (event, owner key, head) bytes yield identical verdicts regardless of accumulator vs auction origin, with bond conjuncts gated only by maturity/bond state — is derivable from the candidate Owner-Key Control sentence plus the X6/X8 maturity carve-out. The 'restate as MUST at promotion' is a wording note. NOTE: this vector must use an auction-derived or already-headed name so it does not depend on the separate accumulator-head gap (next flag).",
+    "rationale": "Reclassified vector-now→spec-blocked (review round 1). The origin/order-independence (deterministic-verdict) invariant quantifies over (owner key + state head); the state-head input is unspecified (X4/X5 candidate-stays), so the property is not legally derivable until the state-head linkage PR lands (PR-17).",
     "sources": [
       "docs/spec/ONT_ACQUISITION_STATE_MACHINE.md Owner-Key Control (candidate) — 'should not depend on whether the name came from an uncontested accumulator claim or a contested L1 auction'",
       "docs/core/B2_KERNEL_HARDENING.md X12 (candidate-stays, step-2 correction)"
