@@ -1468,7 +1468,10 @@ entry), `b2-boundary.test.ts` (zero-I/O purity), and the T1/T2/T21 bindings in
 **The rule.** `transcriptCompleteness(transcript, completenessWitness)` is a pure
 deterministic verdict over witnessed inputs only — it carries NO actor / source / endpoint
 / producer / evidence-layer parameter, so no out-of-kernel layer can override it (T1; the
-SOFTWARE_CANON L2 boundary rule). It fails closed when completeness is not witnessed by a
+SOFTWARE_CANON L2 boundary rule). The no-source-identity guarantee is enforced at runtime by
+closed-shape field checks — each B2 object admits only its closed key set (`transcript`:
+`bids`; counted bid: `txid`; placeholder witness: `kind`), so a producer/source/endpoint/actor
+field on any object is rejected, not silently ignored — not only in the TypeScript type. It fails closed when completeness is not witnessed by a
 verifier-checkable B3 witness — absent, producer-asserted, or otherwise not
 verifier-checkable ⇒ incomplete, never certified (T2; canon Item 4) — and rejects a counted
 bid set that is not distinct and well-formed (32-byte lowercase-hex L1 txids; duplicate or

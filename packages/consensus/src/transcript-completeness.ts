@@ -58,6 +58,18 @@ const accept = (): TranscriptCompletenessVerdict => ({ complete: true, reason: "
 /** A well-formed L1 txid is 32-byte lowercase hex (T21). */
 const isWellFormedTxid = (txid: string): boolean => /^[0-9a-f]{64}$/.test(txid);
 
+// T1 field-level no-source/identity guarantee, enforced at RUNTIME (not only in the type):
+// each B2 object admits exactly its closed key set, so no producer / source / endpoint /
+// actor field — nor any auction-resolution field (bidder, amount, …) — can ride the exported
+// boundary; an object carrying an extra field is rejected, never silently ignored. (B3 may
+// extend the witness shape deliberately when it defines the real verifier-checkable witness;
+// this closes only the current B2 placeholder shapes.)
+const TRANSCRIPT_KEYS = ["bids"] as const;
+const COUNTED_BID_KEYS = ["txid"] as const;
+const WITNESS_KEYS = ["kind"] as const;
+const isClosedShape = (obj: object, allowed: readonly string[]): boolean =>
+  Object.keys(obj).every((key) => allowed.includes(key));
+
 /**
  * Decide whether `transcript` is a complete, well-formed counted bid set, given a
  * `completenessWitness` (null = absent).
@@ -74,12 +86,25 @@ export function transcriptCompleteness(
   transcript: AuctionTranscript,
   completenessWitness: CompletenessWitness | null
 ): TranscriptCompletenessVerdict {
+  // T1 (field-level) — the transcript object admits ONLY `bids`. A transcript carrying a
+  // producer / source / endpoint / actor (or any other) field is rejected at the boundary,
+  // closing the no-source-identity channel at runtime, not only in the type.
+  if (!isClosedShape(transcript, TRANSCRIPT_KEYS)) {
+    return reject("t1-transcript-extra-field-rejected");
+  }
+
   // T2 — completeness must be witnessed by a verifier-checkable B3 witness. An absent or
   // producer-asserted (self-asserted) witness fails closed; completeness is never trusted
   // from the producer. (B2 consumes the witness opaquely — it does not decide the witness
   // format or the lot's block range / soft-close window; those are B3.)
   if (completenessWitness === null) {
     return reject("t2-absent-completeness-witness");
+  }
+  // T1 (field-level) — the witness admits ONLY `kind` for the current B2 placeholder
+  // variants: no producer / source / actor field rides it. (B3 may extend this shape when it
+  // defines the real verifier-checkable witness.)
+  if (!isClosedShape(completenessWitness, WITNESS_KEYS)) {
+    return reject("t1-witness-extra-field-rejected");
   }
   if (completenessWitness.kind !== "b3-verified-completeness-witness") {
     return reject("t2-completeness-not-verifier-checkable");
@@ -90,6 +115,11 @@ export function transcriptCompleteness(
   // is examined — auction resolution is out of this slice.)
   const seen = new Set<string>();
   for (const bid of transcript.bids) {
+    // T1 (field-level) — each counted bid admits ONLY `txid`: a bidder / amount / source
+    // field (auction-resolution or identity leakage) is rejected, not silently ignored.
+    if (!isClosedShape(bid, COUNTED_BID_KEYS)) {
+      return reject("t1-bid-extra-field-rejected");
+    }
     if (!isWellFormedTxid(bid.txid)) {
       return reject("t21-malformed-bid-txid");
     }

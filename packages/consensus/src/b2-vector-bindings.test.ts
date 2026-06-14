@@ -347,6 +347,18 @@ describe("B2 vector bindings — transcript-completeness family (transcriptCompl
     // Primary -> expected.verdict (negative): with no witness the verdict is incomplete, and there is
     // no out-of-kernel input that could flip it to complete — a hostile stub cannot override it.
     expect(transcriptCompleteness(cleanTranscript, null).complete).toBe(accepts(vector)); // false === reject
+    // The no-source/identity guarantee is enforced at RUNTIME (closed shape), not just in the type:
+    // a transcript / bid / witness carrying a source / identity / auction-resolution field is rejected,
+    // never silently ignored — the exported B2 boundary admits no such field.
+    expect(
+      transcriptCompleteness({ bids: [{ txid: "ab".repeat(32) }], source: "publisher-x" } as unknown as AuctionTranscript, b3Verified).complete
+    ).toBe(false); // `source` on the transcript -> rejected
+    expect(
+      transcriptCompleteness({ bids: [{ txid: "ab".repeat(32), bidder: "alice", amount: 1000 } as unknown as { txid: string }] }, b3Verified).complete
+    ).toBe(false); // `bidder`/`amount` on a bid -> rejected
+    expect(
+      transcriptCompleteness(cleanTranscript, { kind: "b3-verified-completeness-witness", producer: "publisher-x" } as unknown as CompletenessWitness).complete
+    ).toBe(false); // `producer` on the witness -> rejected
   });
 
   it("T2-neg-01: completeness must be witnessed — an absent or producer-asserted witness fails closed", () => {
