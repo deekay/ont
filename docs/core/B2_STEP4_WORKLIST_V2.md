@@ -2,7 +2,7 @@
 
 > **Normativity: `analysis`.** Triage of all 266 attack flags from [`B2_STEP4_WORKLIST.md`](./B2_STEP4_WORKLIST.md) into vector-now / provisional-vector / spec-blocked / retired-with-reason, BEFORE any vector authoring ("legally derivable from docs?" gate). Each row carries a stable `Flag ID` (= the source worklist row; full flag text in [`B2_STEP4_CLASSIFIED.json`](./B2_STEP4_CLASSIFIED.json)); spec-blocked rows carry the `specPrIds` that unblock them ([`B2_SPEC_PR_REGISTRY.md`](./B2_SPEC_PR_REGISTRY.md)).
 
-**Totals:** vector-now 68 · provisional-vector 29 · spec-blocked 137 · retired 32 (= 266).
+**Totals:** vector-now 68 · provisional-vector 26 · spec-blocked 140 · retired 32 (= 266). *(2026-06-14: V2-01/V5-01/X13-01 reclassified provisional-vector→spec-blocked after recovery-auth (#50) ratified b1 — their interval-opening / transfer-vs-recovery-precedence axes are not ruled by b1; routed to PR-17 / PR-34.)*
 
 | Flag ID | Rule | Flag (snippet) | Category | Derivable? | Detail | Sources |
 |---|---|---|---|---|---|---|

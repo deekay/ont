@@ -1142,9 +1142,15 @@ verification inside the audited kernel** (b2h).
 descriptor-v2 amendment and the §8.3 wallet-proof narrowing
 (invoke-authorization object → evidence-layer corroboration) are named
 amendments to normative §8 and land in this ratification pass; the
-invoke-spec item-2 note and the §9 routing row resolve to b1. The 10
-#50-keyed provisional vectors flip provisional→ratified (b2h flipMarkers
-retire).
+invoke-spec item-2 note and the §9 routing row resolve to b1. b1 rules the
+**signer/evidence shape only** — so the #50-keyed *signer/evidence-shape*
+provisional vectors (R7, R9, R10×2, T19, and the #50 half of G6) flip
+provisional→ratified (b2h flipMarkers retire). The **interval-opening**
+(V2/V5: does the recovery interval open at invocation vs at challenge-window
+close) and **transfer-vs-recovery-precedence** (X13) facets are explicitly
+**NOT** ruled by b1 — those vectors' own scopeNotes name them as distinct
+axes — so they are reclassified `spec-blocked` (PR-17 / PR-34) pending their
+own DK decisions, not ratified here.
 
 **Negative tests B2 must carry:** replayed-arming-sig-as-invoke,
 descriptor-hash mismatch, non-head descriptor, stale `prevStateTxid`,

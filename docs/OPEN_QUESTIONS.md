@@ -33,8 +33,8 @@ Decisions are cited as "Decision #N" against [`core/DECISIONS.md`](./core/DECISI
 > 2. **The `K`/`W`/`C` windows are not tuning trivia.** They encode the tradeoff among reorg
 >    safety, propagation latency, resolver/archive delay, censorship time, and user finality.
 >    The window *algebra* (clock, inclusive boundaries, includable-vs-priority split,
->    `K ≥ W + C`) is pinned by da-windows (#49, provisional pending DK) in the DA agreement
->    §6e; the narrowed ask: **what parameter ranges are defensible?** The provisional
+>    `K ≥ W + C`) is pinned by da-windows (#49, **RATIFIED O1 2026-06-14**) in the DA agreement
+>    §6e; the narrowed ask (still open): **what parameter ranges are defensible?** The provisional
 >    `(6, 2, 3)` is a vectors-and-testnets placeholder, not a proposal.
 > 3. **1-of-N archives are the explicit residual assumption.** Is publisher HTTP +
 >    content-addressed voluntary mirrors enough for v1, or must a mirror/gossip convention ship
@@ -162,7 +162,7 @@ and verifiable — yet it needs an incentive so it reliably happens.
 
 Decision #40 makes recovery opt-in with a delegable, non-custodial, **abort-only** veto
 watcher, which answers the liveness objection. The invoke-path signer (who signs the
-on-chain `RecoverOwner`) is **decided — recovery-auth (#50), provisional pending DK**: a
+on-chain `RecoverOwner`) is **decided — recovery-auth (#50), RATIFIED b1 2026-06-14**: a
 fresh BIP340 recovery-key signature under a v2 descriptor; the BIP322-evidence path stays
 the standing counter-design in
 [`research/RECOVERY_AUTH.md`](./research/RECOVERY_AUTH.md). Two pieces remain undesigned

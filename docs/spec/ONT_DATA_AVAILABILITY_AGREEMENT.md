@@ -292,7 +292,7 @@ commutativity + confirmation lag); the **withhold-then-reveal** theft vector; th
 turns unprovable non-availability into an attributable, fail-closed, on-chain-timed decision.
 
 **Still open:**
-1. **Pin the windows.** *Split by da-windows (#49, provisional pending DK):* the window
+1. **Pin the windows.** *Split by da-windows (#49, RATIFIED O1 2026-06-14):* the window
    *algebra* — clock, inclusive boundaries, the includable/holdsPriority split, the
    `K ≥ W + C` construction invariant, per-network parameterization — is pinned in §6e.
    What remains open is the *values*: defensible `(K, W, C)` ranges, with explicit

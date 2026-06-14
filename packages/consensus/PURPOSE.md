@@ -64,9 +64,9 @@ code is only mining material.
   regenerates and checks. `--check` proves the seed covers all 68 `vector-now`
   rows once; `--check-authored[-complete]` validates the per-area authored
   files against the hardened schema + coverage; `--check-provisional[-partial]`
-  validates `docs/core/vectors/provisional/` (the 29 `provisional-vector` rows,
+  validates `docs/core/vectors/provisional/` (the 26 `provisional-vector` rows,
   `authorityTier: "provisional"` + `decisionDeps` + `flipMarker`);
-  `--check-ratified-provisional[-partial]` validates the same 29
+  `--check-ratified-provisional[-partial]` validates the same 26
   provisional-origin rows after DK ratifies their dependencies, requiring
   `authorityTier: "ratified"` and `status: "locked"`.
 - `src/b2-boundary.test.ts` is the first executable B2 gate: production

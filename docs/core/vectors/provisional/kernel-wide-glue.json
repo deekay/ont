@@ -6,7 +6,7 @@
     "authorityTier": "ratified",
     "sources": [
       "docs/spec/ONT_DATA_AVAILABILITY_AGREEMENT.md §6e Window parameters S5/S7 (lines 191-205)",
-      "docs/core/DECISIONS.md entry 49 da-windows S5 (lines 1067-1068, provisional pending DK lines 1043-1047)",
+      "docs/core/DECISIONS.md entry 49 da-windows S5 (lines 1067-1068, ratified 2026-06-14 lines 1043-1047)",
       "docs/core/SOFTWARE_CANON.md Item 5 B2 gate (line 141, ChatLunatique signs CONSENSUS_PARAMS surface)",
       "docs/core/B2_KERNEL_HARDENING.md G9 (lines 2332-2339)"
     ],
@@ -21,14 +21,14 @@
         "caseTrueParametricPasses": "a true parametric kernel passes at both (6,2,3) and (10,3,4) — the companion that the requirement is satisfiable",
         "params": "#49 S5/S7: (K,W,C) are per-network inputs, no constant in @ont/consensus; the mechanical detector is the two-parameterization vector (G11)"
       },
-      "scopeNote": "PROVISIONAL on da-windows (#49): the verdict (a kernel validating (K,W,C) against compile-time defaults, or falling back to defaults, is a baked constant wearing a parameter signature and must fail) is derivable from #49 §6e S5 ('(K,W,C) are per-network consensus parameters, passed to the kernel as inputs, no constant in @ont/consensus') plus the ratified B2 CONSENSUS_PARAMS gate (SOFTWARE_CANON Item 5), but §6e/#49 is PROVISIONAL pending DK. This is the G-area parametric-kernel / no-baked-constant instance of the D12/Z13 S5/S7 family; the mechanical detector (two-parameterization vectors) is G11. Depends on #49 ⇒ provisional-vector.",
+      "scopeNote": "Originated provisional on da-windows (#49, RATIFIED 2026-06-14): the verdict (a kernel validating (K,W,C) against compile-time defaults, or falling back to defaults, is a baked constant wearing a parameter signature and must fail) is derivable from #49 §6e S5 ('(K,W,C) are per-network consensus parameters, passed to the kernel as inputs, no constant in @ont/consensus') plus the ratified B2 CONSENSUS_PARAMS gate (SOFTWARE_CANON Item 5), but §6e/#49 is RATIFIED 2026-06-14. This is the G-area parametric-kernel / no-baked-constant instance of the D12/Z13 S5/S7 family; the mechanical detector (two-parameterization vectors) is G11. Originated as a provisional-vector under #49 (now ratified).",
       "authoringStatus": "authored from a provisional vector (decisionDeps + flipMarker shed on ratification); status locked (per-area adversarial review passed; authorityTier RATIFIED 2026-06-14 (DK ratified da-windows #49 O1 / recovery-auth #50 b1); lineage in DECISIONS #49/#50, registry Part B, decision papers, git); re-targets on DK's #49 parameter-set ruling."
     },
     "expected": {
       "verdict": "reject",
       "reason": "g9-01-baked-constant-fails-second-parameterization",
       "invariant": "(K,W,C) are kernel inputs with no constant in @ont/consensus (#49 S5); a kernel that validates them against compile-time defaults or falls back to defaults is a baked constant and is rejected — proven by failing at a second valid parameterization while passing the first; identical on deterministic replay",
-      "rationale": "The verdict — a kernel that accepts (K,W,C) but validates against compile-time defaults or falls back to defaults is a baked constant wearing a parameter signature, and must fail — is derivable from da-windows §6e S5 ('(K,W,C) are per-network consensus parameters, passed to the kernel as inputs, no constant in @ont/consensus') and the ratified B2 gate ('ChatLunatique signs the CONSENSUS_PARAMS surface'). But §6e/#49 is PROVISIONAL pending DK ratification, so the parametric-kernel requirement rests on a provisional decision. The detector itself (two-parameterization vectors) is G11."
+      "rationale": "The verdict — a kernel that accepts (K,W,C) but validates against compile-time defaults or falls back to defaults is a baked constant wearing a parameter signature, and must fail — is derivable from da-windows §6e S5 ('(K,W,C) are per-network consensus parameters, passed to the kernel as inputs, no constant in @ont/consensus') and the ratified B2 gate ('ChatLunatique signs the CONSENSUS_PARAMS surface'). But §6e/#49 is RATIFIED 2026-06-14, so the parametric-kernel requirement rests on a provisional decision. The detector itself (two-parameterization vectors) is G11."
     },
     "status": "locked",
     "attackFlagRef": "G9-01",
@@ -42,7 +42,7 @@
     "sources": [
       "docs/core/SOFTWARE_CANON.md L2 ownership-kernel row (line 29, 'No DB, no network, no clock') and boundary rule (lines 34-42)",
       "docs/core/B2_KERNEL_HARDENING.md G6 (line 2305, step-3 restatement line 2295, blocked-on recovery-auth line 2297)",
-      "docs/core/DECISIONS.md entry 50 recovery-auth (provisional), entry 49 da-windows (provisional)"
+      "docs/core/DECISIONS.md entry 50 recovery-auth (candidate), entry 49 da-windows (candidate)"
     ],
     "kind": "negative",
     "inputs": {
@@ -54,7 +54,7 @@
         "casePureConvergence": "the conformant kernel ranges only over the witnessed descriptor-chain evidence (no I/O, no clock) so both evaluators converge on the same pendingRecovery verdict — the companion accept",
         "priorState": "an armed descriptor; a RecoverOwner invoke whose pendingRecovery creation an availability callback would make receipt-relative"
       },
-      "scopeNote": "PROVISIONAL on BOTH recovery-auth (#50) AND da-windows (#49) — dual-dep. The CORE verdict (an evaluation-time availability callback making pendingRecovery creation receipt-relative is a conformance failure; the kernel must be a pure deterministic predicate — no I/O, no clock — fail-closed on the I/O hole) is derivable NOW from ratified SOFTWARE_CANON ('No DB, no network, no clock' + the L2 boundary rule). But applying it to RecoverOwner pendingRecovery depends on #50 (provisional) to fix WHICH evidence the kernel evaluates (descriptor chain only under b1) and on #49 for the §6e clock the predicate reads. The purity verdict STANDS under both flips; only the evidence object (#50) and the h_r clock (#49) re-instantiate. Depends on #49+#50 ⇒ provisional-vector. Authored as one vector (not split) because the verdict is invariant under both rulings — only its input fixtures shift.",
+      "scopeNote": "Originated provisional on BOTH recovery-auth (#50) AND da-windows (#49) — dual-dep, both RATIFIED 2026-06-14. The CORE verdict (an evaluation-time availability callback making pendingRecovery creation receipt-relative is a conformance failure; the kernel must be a pure deterministic predicate — no I/O, no clock — fail-closed on the I/O hole) is derivable NOW from ratified SOFTWARE_CANON ('No DB, no network, no clock' + the L2 boundary rule). But applying it to RecoverOwner pendingRecovery depends on #50 (ratified b1) to fix WHICH evidence the kernel evaluates (descriptor chain only under b1) and on #49 for the §6e clock the predicate reads. The purity verdict STANDS under both flips; only the evidence object (#50) and the h_r clock (#49) re-instantiate. Depends on #49+#50 (provisional-origin, now ratified). Authored as one vector (not split) because the verdict is invariant under both rulings — only its input fixtures shift.",
       "authoringStatus": "authored: provisional vector with decisionDeps (dual: #50 + #49) + flipMarker; status locked (per-area adversarial review passed; authorityTier RATIFIED 2026-06-14 (DK ratified da-windows #49 O1 / recovery-auth #50 b1); lineage in DECISIONS #49/#50, registry Part B, decision papers, git); the purity verdict holds under any #49/#50 combination, only the evidence-object/clock fixtures re-instantiate."
     },
     "expected": {

@@ -4,7 +4,7 @@
 If the README, one-pager, design brief, or the website disagree with this file, **this file
 wins** — fix the others. (It exists because those numbers drifted apart once; don't let them again.)
 
-Last updated: 2026-06-11.
+Last updated: 2026-06-14.
 
 ## DECOMMISSION NOTICE — 2026-06-11
 
