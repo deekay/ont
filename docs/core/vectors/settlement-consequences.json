@@ -109,7 +109,7 @@
     "id": "S9-neg-01",
     "ruleId": "S9",
     "area": "Settlement consequences (bond release)",
-    "authorityTier": "normative",
+    "authorityTier": "candidate",
     "sources": [
       "docs/LAUNCH.md Released-Name Reauction Path",
       "docs/spec/WIRE_FORMAT.md 6. Auction commitments auctionLotCommitment [normative]",
@@ -128,14 +128,14 @@
         "positiveControl": "unlockBlock == the latest recorded release height -> opens the new generation, lot identity reopen-{name}-after-{release_height}; a genuine first-generation auction carries anchor 0 with identity opening-{name}",
         "priorState": "a name with a recorded bond-break release height"
       },
-      "scopeNote": "Cited-now (LAUNCH Released-Name Reauction Path + normative WIRE_FORMAT §6 auctionLotCommitment + AUCTION lot-identity note): a reopened auction is recognized ONLY if its lot anchor unlockBlock equals the latest recorded release height. The flag is only about restating adapter voice ('the indexer recognizes') as a pure kernel predicate over (bid bytes, recorded release facts) — the verdict is unchanged; the predicate restatement is the standard promotion this vector exercises (removes indexer-as-decider).",
+      "scopeNote": "Verdict authority is CANDIDATE (LAUNCH Released-Name Reauction Path + AUCTION lot-identity note): a reopened auction is recognized ONLY if its lot anchor unlockBlock equals the latest recorded release height. WIRE_FORMAT §6 (normative) is the COMMITMENT ENCODING source only — it defines the auctionLotCommitment / unlockBlock preimage field, NOT the reauction verdict, so the tier is candidate (the verdict's authority), not normative. The flag is about restating adapter voice ('the indexer recognizes') as a pure kernel predicate over (bid bytes, recorded release facts) — verdict unchanged; the predicate restatement is the standard promotion this vector exercises (removes indexer-as-decider).",
       "authoringStatus": "authored: predicate-input shape proposed; status stays proposed pending reviewer sign-off."
     },
     "expected": {
       "verdict": "reject",
       "reason": "s9-01-reauction-anchor-must-equal-latest-release-height",
       "invariant": "a bid whose lot commitment binds any anchor other than the latest recorded release height (stale, fabricated-future, or unlockBlock=0 after a release) does not open or join the live generation; only unlockBlock == release height opens reopen-{name}-after-{release_height}",
-      "rationale": "The reopen-anchor verdict (a reopened auction is recognized only if its lot anchor unlockBlock equals the latest recorded release height, lot identity reopen-{name}-after-{release_height}; first-gen anchor 0) is cited from LAUNCH Released-Name Reauction Path + the normative WIRE_FORMAT auctionLotCommitment. The flag is only about restating adapter voice ('the indexer recognizes') as a pure kernel predicate over (bid bytes, recorded release facts) — the verdict itself is unchanged and derivable; the predicate restatement is the standard promotion the vector already exercises."
+      "rationale": "The reopen-anchor verdict (a reopened auction is recognized only if its lot anchor unlockBlock equals the latest recorded release height, lot identity reopen-{name}-after-{release_height}; first-gen anchor 0) is derived from CANDIDATE LAUNCH Released-Name Reauction Path + AUCTION lot-identity note — hence authorityTier candidate. WIRE_FORMAT §6 (normative) supplies only the auctionLotCommitment/unlockBlock ENCODING, not the verdict authority (tier corrected from an initially overstated normative — reviewer catch event 4c87b9ae). The flag is only about restating adapter voice ('the indexer recognizes') as a pure kernel predicate over (bid bytes, recorded release facts) — the verdict itself is unchanged and derivable; the predicate restatement is the standard promotion the vector already exercises."
     },
     "status": "proposed",
     "attackFlagRef": "S9-01",
