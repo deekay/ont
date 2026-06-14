@@ -1293,6 +1293,44 @@ is listed separately from CORE_DECIDERS rather than expanding that set. Spec:
 #44's "boundary may change only with a DECISIONS entry + conformance coverage"; the
 boundary freezes permanently at launch.
 
+58. b2-consensus-params-boundary: the consensus-parameter surface enters
+@ont/consensus as a third audited tier (CONSENSUS_PARAMS) — pure, state-deciding
+nothing, the parametric input the audited rules are evaluated against — 2026-06-14
+
+*Status: **Proposed** (writer ClaudeleLunatique, reviewer ChatLunatique; lands on
+branch clean-build-b2-kernel, DK merges). A boundary-manifest change under #44 —
+the new tier is covered by conformance: `trust-surface.test.ts` (third-tier split
++ per-tier import allowlist) and `params.test.ts`. Authored under DK's
+keep-building / ask-later grant (event 83243101, 2026-06-14).*
+
+**The rule.** @ont/consensus now has three audited tiers. **CORE_DECIDERS**
+(`engine.ts`, `state.ts`, `proof-bundle.ts`) and **CONSENSUS_SUPPORT**
+(`scanner.ts`) are unchanged (#57). The new **CONSENSUS_PARAMS** tier
+(`params.ts`) is the pure consensus-parameter surface canon Item 5 names
+("ChatLunatique signs the CONSENSUS_PARAMS surface"): it validates and carries
+the parameterization the deciders + support are evaluated against. It mutates no
+name state and decides nothing on its own, so it is not a decider; but it is
+consensus-bearing — two implementations that validated parameters differently
+would diverge — so it is audited. It depends on **no external package** (values
+enter as caller inputs; no `@ont/*`, no host I/O), which is why it gets its own
+empty-allowlist tier rather than joining the deciders' or the scanner's. This
+first increment populates only the required-tier DA-window slice — the `(K, W, C)`
+triple that rules D9 / D12 / G9 govern: integer block counts, `K ≥ 1`, `W ≥ 1`,
+`C ≥ 1`, and the D9 window-fit invariant `K ≥ W + C`, with the parametric
+DA-deadline derivations (`confirmedRootEligible`, availability/challenge deadline
+heights). The values themselves are never baked — `createDaWindowParams` has no
+default — so no S7 placeholder value can fossilize: da-windows (#49) S6 ratifies
+the structural validity constraints the constructor enforces (`K ≥ W + C`, the
+K/W/C lower bounds), while the concrete `(K, W, C)` values remain caller-supplied
+launch-freeze parameters (S7). The broader closed
+CONSENSUS_PARAMS set (G10: notice/auction/soft-close windows, gate schedule,
+opening floors, qualifying-bond minimum, maturity, accepted-payload cap,
+challenge-window bounds) is candidate-stays / launch-parameter-freeze work and is
+deliberately not modeled yet; it joins this surface as those rulings land. Spec:
+[B2_KERNEL_HARDENING.md](./B2_KERNEL_HARDENING.md) D9/D12/G9. This satisfies #44's
+"boundary may change only with a DECISIONS entry + conformance coverage"; the
+boundary freezes permanently at launch.
+
 ## Fairness Principles To Carry Into The Launch Rewrite
 
 The rewritten launch draft should explicitly state:

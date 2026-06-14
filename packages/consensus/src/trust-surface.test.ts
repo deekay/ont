@@ -24,8 +24,8 @@ const srcDir = dirname(fileURLToPath(import.meta.url));
 // at public/mainnet launch (a launch-gate checklist item). If you are editing
 // this list, write the decision entry first.
 //
-// The audited B2 package splits into two tiers (DECISIONS b2-scanner-boundary
-// (#57)):
+// The audited B2 package splits into three tiers (DECISIONS b2-scanner-boundary
+// (#57), b2-consensus-params-boundary (#58)):
 //   - CORE_DECIDERS: owner-key authority + replay/state deciders. A name moves
 //     only if these say so.
 //   - CONSENSUS_SUPPORT: non-mutating but consensus-bearing input normalization
@@ -34,15 +34,24 @@ const srcDir = dirname(fileURLToPath(import.meta.url));
 //     so two implementations that scan differently fork before the core sees
 //     anything — it must be audited, but it has zero authority to mutate name
 //     state, so it is not a decider).
+//   - CONSENSUS_PARAMS: the pure consensus-parameter surface (the validated
+//     (K, W, C) DA-window triple per canon Item 5). It mutates nothing and
+//     decides nothing on its own — it is the parametric input the audited rules
+//     are evaluated against, so the deciders depend on it, not the reverse. It
+//     takes values as caller inputs and depends on nothing outside the audited
+//     modules (no external package, no host I/O).
 const CORE_DECIDERS = ["engine.ts", "state.ts", "proof-bundle.ts"] as const;
 const CONSENSUS_SUPPORT = ["scanner.ts"] as const;
+const CONSENSUS_PARAMS = ["params.ts"] as const;
 
 // Deciders ride the legacy protocol/bitcoin primitives; consensus-support rides
 // the B1 normative wire grammar (@ont/wire) — B1 → B2 means @ont/consensus
-// consumes @ont/wire for what the active codec understands.
+// consumes @ont/wire for what the active codec understands; the parameter
+// surface rides nothing external (values enter as inputs).
 const DECIDER_ALLOWED_PACKAGES = new Set(["@ont/protocol", "@ont/bitcoin"]);
 const SUPPORT_ALLOWED_PACKAGES = new Set(["@ont/wire", "@ont/bitcoin"]);
-const ALL_MANIFEST = [...CORE_DECIDERS, ...CONSENSUS_SUPPORT];
+const PARAMS_ALLOWED_PACKAGES = new Set<string>([]);
+const ALL_MANIFEST = [...CORE_DECIDERS, ...CONSENSUS_SUPPORT, ...CONSENSUS_PARAMS];
 const ALLOWED_RELATIVE = new Set(ALL_MANIFEST.map((file) => `./${file.replace(/\.ts$/, ".js")}`));
 
 function importSpecifiers(file: string): readonly string[] {
@@ -90,6 +99,12 @@ describe("sovereignty trust surface (docs/DESIGN.md (trust surface / sovereignty
   for (const file of CONSENSUS_SUPPORT) {
     it(`${file} (consensus support) depends only on @ont/wire grammar, @ont/bitcoin, and audited modules`, () => {
       assertImportsAllowed(file, SUPPORT_ALLOWED_PACKAGES, "consensus support");
+    });
+  }
+
+  for (const file of CONSENSUS_PARAMS) {
+    it(`${file} (consensus params) depends on no external package — only audited modules`, () => {
+      assertImportsAllowed(file, PARAMS_ALLOWED_PACKAGES, "consensus params");
     });
   }
 

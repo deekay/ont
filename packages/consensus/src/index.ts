@@ -15,3 +15,6 @@ export * from "./state.js";
 export * from "./proof-bundle.js";
 // Consensus-support (non state-deciding) — see DECISIONS b2-scanner-boundary (#57).
 export * from "./scanner.js";
+// Consensus-parameter surface (pure, non state-deciding) — the validated
+// (K, W, C) DA-window triple; see DECISIONS b2-consensus-params-boundary (#58).
+export * from "./params.js";
