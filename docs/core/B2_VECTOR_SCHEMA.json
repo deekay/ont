@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "B2 conformance vector (canonical, all areas)",
+  "description": "One schema across every B2 area, per the step-4 protocol agreement (writer proposal event 4665fea7, reviewer CONCUR event c79b0591). Per-area vector files are arrays of these. Lives in docs/core during step 4; moves into the B2 suite package when it opens (path pending the legacy/ quarantine move).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "ruleId", "area", "authorityTier", "sources", "kind", "inputs", "expected", "status", "attackFlagRef"],
+  "properties": {
+    "id": { "type": "string", "description": "e.g. Q3-neg-01 — ruleId, kind, ordinal", "pattern": "^[A-Z]+[0-9]+[a-z]?-(neg|pos)-[0-9]{2}$" },
+    "ruleId": { "type": "string", "description": "B2_KERNEL_HARDENING.md rule id (A1..G11)", "pattern": "^(A|D|F|T|B|V|Z|S|R|X|Q|G)[0-9]+[a-z]?$" },
+    "area": {
+      "type": "string",
+      "enum": [
+        "Anchor acceptance",
+        "DA verdict",
+        "Gate-fee validation",
+        "Transcript completeness",
+        "Batched-path transitions",
+        "Value-record authority",
+        "Reorg re-derivation and replay determinism",
+        "Settlement consequences (bond release)",
+        "Recovery authority (arming + cross-object)",
+        "Transfer authority",
+        "Winner selection and bid acceptance",
+        "Kernel-wide glue (ordering, evidence deadlines, parameter surface)"
+      ],
+      "description": "Exact area heading from B2_KERNEL_HARDENING.md"
+    },
+    "authorityTier": { "type": "string", "enum": ["normative", "candidate", "ratified", "provisional"], "description": "tier of the authority the expected verdict derives from; ratified = DECISIONS/SOFTWARE_CANON authority; provisional = depends on a provisional decision" },
+    "sources": { "type": "array", "items": { "type": "string", "minLength": 1 }, "minItems": 1, "description": "doc path + section per citation, matching the rule's sources" },
+    "decisionDeps": { "type": "array", "items": { "type": "string", "minLength": 1 }, "minItems": 1, "description": "named decisions the expected verdict depends on, e.g. da-windows (#49)" },
+    "params": { "type": "object", "description": "consensus parameters this vector instantiates (e.g. K/W/C); placeholders flagged as launch-freeze" },
+    "inputs": { "type": "object", "description": "the pure-predicate inputs: event bytes / prior state / chain facts / witnessed evidence, per the kernel signature in the hardening doc" },
+    "expected": {
+      "type": "object",
+      "required": ["verdict", "reason"],
+      "properties": {
+        "verdict": { "type": "string", "enum": ["accept", "reject"] },
+        "reason": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": true,
+      "description": "expected verdict object (accept/reject + reason code)"
+    },
+    "kind": { "type": "string", "enum": ["negative", "positive"] },
+    "flipMarker": {
+      "type": ["object", "null"],
+      "description": "present iff authorityTier=provisional: { decision, flipsTo } — what this vector becomes if DK rules the other way",
+      "required": ["decision", "flipsTo"],
+      "properties": {
+        "decision": { "type": "string", "minLength": 1 },
+        "flipsTo": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "status": { "type": "string", "enum": ["proposed", "locked", "flipped", "retired"], "description": "locked = survived the per-area review gate" },
+    "attackFlagRef": { "type": ["string", "null"], "description": "worklist row this vector discharges, if any; negative vectors must point to a B2_STEP4_WORKLIST row unless a future schema adds an explicit auxiliary marker" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "authorityTier": { "const": "provisional" } }, "required": ["authorityTier"] },
+      "then": {
+        "required": ["decisionDeps", "flipMarker"],
+        "properties": {
+          "decisionDeps": { "minItems": 1 },
+          "flipMarker": { "type": "object" }
+        }
+      },
+      "else": {
+        "properties": {
+          "flipMarker": { "type": "null" }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "kind": { "const": "negative" } }, "required": ["kind"] },
+      "then": {
+        "properties": {
+          "attackFlagRef": { "type": "string", "minLength": 1 },
+          "expected": { "properties": { "verdict": { "const": "reject" } } }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "kind": { "const": "positive" } }, "required": ["kind"] },
+      "then": {
+        "properties": {
+          "expected": { "properties": { "verdict": { "const": "accept" } } }
+        }
+      }
+    },
+    { "if": { "properties": { "ruleId": { "pattern": "^A" } }, "required": ["ruleId"] }, "then": { "properties": { "area": { "const": "Anchor acceptance" } } } },
+    { "if": { "properties": { "ruleId": { "pattern": "^D" } }, "required": ["ruleId"] }, "then": { "properties": { "area": { "const": "DA verdict" } } } },
+    { "if": { "properties": { "ruleId": { "pattern": "^F" } }, "required": ["ruleId"] }, "then": { "properties": { "area": { "const": "Gate-fee validation" } } } },
+    { "if": { "properties": { "ruleId": { "pattern": "^T" } }, "required": ["ruleId"] }, "then": { "properties": { "area": { "const": "Transcript completeness" } } } },
+    { "if": { "properties": { "ruleId": { "pattern": "^B" } }, "required": ["ruleId"] }, "then": { "properties": { "area": { "const": "Batched-path transitions" } } } },
+    { "if": { "properties": { "ruleId": { "pattern": "^V" } }, "required": ["ruleId"] }, "then": { "properties": { "area": { "const": "Value-record authority" } } } },
+    { "if": { "properties": { "ruleId": { "pattern": "^Z" } }, "required": ["ruleId"] }, "then": { "properties": { "area": { "const": "Reorg re-derivation and replay determinism" } } } },
+    { "if": { "properties": { "ruleId": { "pattern": "^S" } }, "required": ["ruleId"] }, "then": { "properties": { "area": { "const": "Settlement consequences (bond release)" } } } },
+    { "if": { "properties": { "ruleId": { "pattern": "^R" } }, "required": ["ruleId"] }, "then": { "properties": { "area": { "const": "Recovery authority (arming + cross-object)" } } } },
+    { "if": { "properties": { "ruleId": { "pattern": "^X" } }, "required": ["ruleId"] }, "then": { "properties": { "area": { "const": "Transfer authority" } } } },
+    { "if": { "properties": { "ruleId": { "pattern": "^Q" } }, "required": ["ruleId"] }, "then": { "properties": { "area": { "const": "Winner selection and bid acceptance" } } } },
+    { "if": { "properties": { "ruleId": { "pattern": "^G" } }, "required": ["ruleId"] }, "then": { "properties": { "area": { "const": "Kernel-wide glue (ordering, evidence deadlines, parameter surface)" } } } }
+  ]
+}
