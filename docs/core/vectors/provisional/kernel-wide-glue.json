@@ -1,0 +1,78 @@
+[
+  {
+    "id": "G9-neg-01",
+    "ruleId": "G9",
+    "area": "Kernel-wide glue (ordering, evidence deadlines, parameter surface)",
+    "authorityTier": "provisional",
+    "sources": [
+      "docs/spec/ONT_DATA_AVAILABILITY_AGREEMENT.md §6e Window parameters S5/S7 (lines 191-205)",
+      "docs/core/DECISIONS.md entry 49 da-windows S5 (lines 1067-1068, provisional pending DK lines 1043-1047)",
+      "docs/core/SOFTWARE_CANON.md Item 5 B2 gate (line 141, ChatLunatique signs CONSENSUS_PARAMS surface)",
+      "docs/core/B2_KERNEL_HARDENING.md G9 (lines 2332-2339)"
+    ],
+    "kind": "negative",
+    "decisionDeps": ["da-windows (#49)"],
+    "inputs": {
+      "sourceCategory": "provisional-vector",
+      "attackFlagText": "A kernel API that accepts (K, W, C) but validates them against compile-time defaults (or falls back to defaults when absent) is a baked constant wearing a parameter signature — the two-parameterization vectors (G11) are the only mechanical detector.",
+      "predicateSignature": "daKernelConstruct(K, W, C) -> {verdict}; daVerdict parameterized by (K,W,C) inputs with no constant in @ont/consensus",
+      "fixture": {
+        "caseHardcodedDefaultsFailsSecondParameterization": "a reference kernel with K/W/C hardcoded (or defaulting when a param is absent) passes the (6,2,3) DA suite but FAILS at a second valid parameterization (e.g. (10,3,4)) -> the baked-default kernel is non-conformant -> REJECT",
+        "caseNoDefaultConstructionRejects": "a construction that falls back to a default when a parameter is absent must instead reject (no silent fallback)",
+        "caseTrueParametricPasses": "a true parametric kernel passes at both (6,2,3) and (10,3,4) — the companion that the requirement is satisfiable",
+        "params": "#49 S5/S7: (K,W,C) are per-network inputs, no constant in @ont/consensus; the mechanical detector is the two-parameterization vector (G11)"
+      },
+      "scopeNote": "PROVISIONAL on da-windows (#49): the verdict (a kernel validating (K,W,C) against compile-time defaults, or falling back to defaults, is a baked constant wearing a parameter signature and must fail) is derivable from #49 §6e S5 ('(K,W,C) are per-network consensus parameters, passed to the kernel as inputs, no constant in @ont/consensus') plus the ratified B2 CONSENSUS_PARAMS gate (SOFTWARE_CANON Item 5), but §6e/#49 is PROVISIONAL pending DK. This is the G-area parametric-kernel / no-baked-constant instance of the D12/Z13 S5/S7 family; the mechanical detector (two-parameterization vectors) is G11. Depends on #49 ⇒ provisional-vector.",
+      "authoringStatus": "authored: provisional vector with decisionDeps + flipMarker; status proposed pending reviewer sign-off; re-targets on DK's #49 parameter-set ruling."
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "g9-01-baked-constant-fails-second-parameterization",
+      "invariant": "(K,W,C) are kernel inputs with no constant in @ont/consensus (#49 S5); a kernel that validates them against compile-time defaults or falls back to defaults is a baked constant and is rejected — proven by failing at a second valid parameterization while passing the first; identical on deterministic replay",
+      "rationale": "The verdict — a kernel that accepts (K,W,C) but validates against compile-time defaults or falls back to defaults is a baked constant wearing a parameter signature, and must fail — is derivable from da-windows §6e S5 ('(K,W,C) are per-network consensus parameters, passed to the kernel as inputs, no constant in @ont/consensus') and the ratified B2 gate ('ChatLunatique signs the CONSENSUS_PARAMS surface'). But §6e/#49 is PROVISIONAL pending DK ratification, so the parametric-kernel requirement rests on a provisional decision. The detector itself (two-parameterization vectors) is G11."
+    },
+    "status": "proposed",
+    "attackFlagRef": "G9-01",
+    "flipMarker": {
+      "decision": "da-windows (#49)",
+      "flipsTo": "rederive: if DK flips the #49 algebra or parameter set, the specific parameters that must be inputs (and thus the second parameterization) change; the no-baked-constant principle persists but its enumerated targets and S6 validity bounds (K>=W+C) follow #49's final form."
+    }
+  },
+  {
+    "id": "G6-neg-01",
+    "ruleId": "G6",
+    "area": "Kernel-wide glue (ordering, evidence deadlines, parameter surface)",
+    "authorityTier": "provisional",
+    "sources": [
+      "docs/core/SOFTWARE_CANON.md L2 ownership-kernel row (line 29, 'No DB, no network, no clock') and boundary rule (lines 34-42)",
+      "docs/core/B2_KERNEL_HARDENING.md G6 (line 2305, step-3 restatement line 2295, blocked-on recovery-auth line 2297)",
+      "docs/core/DECISIONS.md entry 50 recovery-auth (provisional), entry 49 da-windows (provisional)"
+    ],
+    "kind": "negative",
+    "decisionDeps": ["recovery-auth (#50)", "da-windows (#49)"],
+    "inputs": {
+      "sourceCategory": "provisional-vector",
+      "attackFlagText": "Evaluation-time availability (the legacy callback) makes two honest replayers disagree about whether a RecoverOwner ever created pendingRecovery — a per-name ownership fork, the §3 hazard at the recovery layer.",
+      "predicateSignature": "recoveryPendingCreate(witnessedDescriptorChainEvidence, witnessedChainFacts, priorState) -> {verdict}  // pure, no evaluation-time availability callback",
+      "fixture": {
+        "caseEvalTimeCallbackForks": "two evaluators with identical chain + identical witnessed descriptor-chain evidence but DIFFERENT local receipt timelines; an implementation whose pendingRecovery-creation verdict differs because it consulted an evaluation-time availability callback is non-conformant -> REJECT (pins kernel I/O-purity for recovery; fail-closed on the I/O hole)",
+        "casePureConvergence": "the conformant kernel ranges only over the witnessed descriptor-chain evidence (no I/O, no clock) so both evaluators converge on the same pendingRecovery verdict — the companion accept",
+        "priorState": "an armed descriptor; a RecoverOwner invoke whose pendingRecovery creation an availability callback would make receipt-relative"
+      },
+      "scopeNote": "PROVISIONAL on BOTH recovery-auth (#50) AND da-windows (#49) — dual-dep. The CORE verdict (an evaluation-time availability callback making pendingRecovery creation receipt-relative is a conformance failure; the kernel must be a pure deterministic predicate — no I/O, no clock — fail-closed on the I/O hole) is derivable NOW from ratified SOFTWARE_CANON ('No DB, no network, no clock' + the L2 boundary rule). But applying it to RecoverOwner pendingRecovery depends on #50 (provisional) to fix WHICH evidence the kernel evaluates (descriptor chain only under b1) and on #49 for the §6e clock the predicate reads. The purity verdict STANDS under both flips; only the evidence object (#50) and the h_r clock (#49) re-instantiate. Depends on #49+#50 ⇒ provisional-vector. Authored as one vector (not split) because the verdict is invariant under both rulings — only its input fixtures shift.",
+      "authoringStatus": "authored: provisional vector with decisionDeps (dual: #50 + #49) + flipMarker; status proposed pending reviewer sign-off; the purity verdict holds under any #49/#50 combination, only the evidence-object/clock fixtures re-instantiate."
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "g6-02-evaluation-time-availability-callback-rejected",
+      "invariant": "RecoverOwner pendingRecovery creation is a pure deterministic predicate over witnessed descriptor-chain evidence and witnessed chain facts — no I/O, no clock, no evaluation-time availability callback (ratified SOFTWARE_CANON L2); an implementation that consults a receipt-relative availability callback can fork two honest replayers and is rejected; both pure evaluators converge; identical on deterministic replay",
+      "rationale": "The core verdict — an evaluation-time availability callback that makes pendingRecovery creation receipt-relative is a conformance failure (the kernel must be a pure deterministic predicate, no I/O/clock, fail-closed) — is derivable from ratified SOFTWARE_CANON ('No DB, no network, no clock' and the boundary rule). This is fail-closed posture on the I/O hole, which is derivable now. But applying it to RecoverOwner pendingRecovery depends on recovery-auth (#50, provisional) to fix WHICH evidence the kernel evaluates (descriptor chain only), and on da-windows (#49) for the §6e clock the predicate reads. So the verdict is derivable but rests on provisional decisions."
+    },
+    "status": "proposed",
+    "attackFlagRef": "G6-02",
+    "flipMarker": {
+      "decision": "da-windows (#49) + recovery-auth (#50)",
+      "flipsTo": "rederive: the kernel-I/O-purity verdict STANDS under both flips (it rests on ratified SOFTWARE_CANON), only the inputs shift. Under #50-b2h (cold-hardware counter-design) the witnessed-evidence set the predicate ranges over expands to descriptor + wallet-proof + BIP322 verification (still zero-I/O, still convergent) — the convergence verdict stands, but the evidence object the vector feeds changes. Under a #49 clock flip, h_r re-derivation changes but the purity verdict is unchanged. The vector stays testable under any #49/#50 combination; only its evidence-object and clock fixtures re-instantiate."
+    }
+  }
+]
