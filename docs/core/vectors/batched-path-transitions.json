@@ -1,0 +1,301 @@
+[
+  {
+    "id": "B1-neg-01",
+    "ruleId": "B1",
+    "area": "Batched-path transitions",
+    "authorityTier": "candidate",
+    "sources": [
+      "docs/spec/ONT_ACQUISITION_STATE_MACHINE.md Implementation Status [candidate] — 'the notice-window lifecycle (provisional -> final | nullified)'",
+      "docs/spec/AUCTION.md Provisional Utility [candidate] — 'quiet | no contest after an early sub-window'",
+      "docs/core/B2_KERNEL_HARDENING.md B1 lines 848-857"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "AUCTION.md's Provisional Utility table is explicitly 'product posture'; if the kernel imports 'quiet' it creates a state the chain does not witness",
+      "predicateSignature": "batchedPathTransition(event, witnessedChainFacts, priorState{lifecycle}) -> {verdict, newState in {provisional,collided,contested,final,nullified}}",
+      "fixture": {
+        "caseQuietHasNoKernelEffect": "elapsing the product 'quiet' threshold produces byte-identical kernel state -> 'quiet' is a product label with zero kernel effect",
+        "caseStateSetClosed": "no input combination yields a kernel state outside {provisional, collided, contested, final, nullified}",
+        "priorState": "a provisional name in its notice window"
+      },
+      "scopeNote": "Verdict authority is CANDIDATE: the candidate state-machine pins the five-element kernel state set with no 'quiet' state; the canon pure-predicate posture (ratified) corroborates that a product-tier 'quiet' label has zero kernel effect, but the state-set definition is candidate. Tier candidate.",
+      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; status stays proposed pending reviewer sign-off."
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "b1-01-no-quiet-state-zero-kernel-effect",
+      "invariant": "the kernel lifecycle state is always one of {provisional, collided, contested, final, nullified}; the product 'quiet' threshold has zero kernel effect (byte-identical state)",
+      "rationale": "The rule's verdict is candidate-stays (B1 was downgraded), but the candidate state machine pins the five-element kernel state set with no 'quiet' state, and the canon's pure-predicate posture means a product-tier 'quiet' label has zero kernel effect. A negative vector pinning that elapsing the product 'quiet' threshold produces byte-identical kernel state is derivable from existing candidate authority; it depends on no provisional decision. Candidate-stays authority is acceptable here."
+    },
+    "status": "proposed",
+    "attackFlagRef": "B1-01",
+    "flipMarker": null
+  },
+  {
+    "id": "B6-neg-01",
+    "ruleId": "B6",
+    "area": "Batched-path transitions",
+    "authorityTier": "ratified",
+    "sources": [
+      "docs/core/DECISIONS.md §37 bond-opens [ratified] — 'a bond — not a bare claim — opens the auction'; a qualifying bond (at or above the bond floor) is the only escalation trigger",
+      "docs/spec/ONT_ACQUISITION_STATE_MACHINE.md Contested Auction [candidate] — escalation on a qualifying bond",
+      "docs/GLOSSARY.md bond [candidate] — 'A qualifying bond (at or above the bond floor) is the only thing that opens an auction'",
+      "docs/core/B2_KERNEL_HARDENING.md B6 lines 903-912"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "'qualifying' is doing all the work: dust-bond griefing (posting a sub-floor bond to confuse adapters) must be a no-op in the kernel predicate",
+      "predicateSignature": "batchedPathTransition(bondEvent, bondFloor[launch-freeze], priorState) -> {verdict, newState}",
+      "fixture": {
+        "caseSubFloorBond": "a sub-floor (dust) bond posted inside the notice window does NOT escalate to contested; the single claim finalizes (or a collision nullifies) exactly as if no bond existed -> no-op",
+        "bondFloor": "launch-freeze parameter classifying qualifying-vs-not; tested at two values so no baked-in constant passes",
+        "priorState": "a provisional name with one eligible claim in its notice window"
+      },
+      "scopeNote": "Verdict authority is RATIFIED DECISIONS #37 ('a bond — not a bare claim — opens the auction'; a qualifying bond at/above the floor is the ONLY escalation trigger; claim count alone MUST NOT escalate). A sub-floor/dust bond is non-qualifying -> no-op. The bondFloor is a launch-freeze classifier (parameterized), not the verdict authority. State-machine/GLOSSARY [candidate] restate #37. Tier ratified (corrected from the seed's candidate); parallel to Q10 (non-qualifying null-effect).",
+      "authoringStatus": "authored: predicate-input shape proposed; tier verified = ratified; status stays proposed pending reviewer sign-off."
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "b6-01-sub-floor-bond-no-escalation",
+      "invariant": "a sub-floor (non-qualifying) bond does not transition a name to contested and does not open an auction; only a qualifying bond at/above the floor escalates; claim count alone never escalates",
+      "rationale": "The verdict is directly derivable from ratified authority: #37 makes a qualifying bond at-or-above the bond floor the only escalation trigger (claim count alone MUST NOT escalate); a sub-floor bond is non-qualifying and a no-op. The bondFloor is a launch-freeze parameter (parameterized classifier, not provisional), and the rule is cited. A negative vector that a sub-floor bond does not contest (the single claim finalizes as if no bond existed) is derivable from ratified #37; the candidate state-machine/GLOSSARY only restate it. No #49/#50 dependency. Tier ratified."
+    },
+    "status": "proposed",
+    "attackFlagRef": "B6-01",
+    "flipMarker": null
+  },
+  {
+    "id": "B7-neg-01",
+    "ruleId": "B7",
+    "area": "Batched-path transitions",
+    "authorityTier": "candidate",
+    "sources": [
+      "docs/spec/ONT_ACQUISITION_STATE_MACHINE.md Public Notice [candidate] — 'claims that arrive after a name is already final are already-owned attempts, not contests'",
+      "docs/core/DECISIONS.md §37 bond-opens [ratified] — bond posted inside the notice window opens the auction (in-window phrasing)",
+      "docs/GLOSSARY.md first-anchor-wins [candidate]",
+      "docs/core/B2_KERNEL_HARDENING.md B7 lines 915-923"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "spec covers post-final claims but is silent on post-final bonds — the only doc ground is the in-window phrasing of #37; an explicit negative test must pin that a rich attacker cannot bond-open against a final name",
+      "predicateSignature": "batchedPathTransition(claimOrBondEvent, witnessedChainFacts, priorState{final}) -> {verdict}",
+      "fixture": {
+        "casePostFinalBond": "a qualifying bond posted AFTER finality opens no auction, cannot evict the final owner, reopens/extends nothing; the incumbent record is byte-unchanged",
+        "casePostFinalClaim": "a claim landing after finality is refused as an already-owned attempt (no nullify, no contest)",
+        "priorState": "a final (settled) name"
+      },
+      "scopeNote": "Verdict authority is CANDIDATE: B7's rule cites the candidate state-machine ('post-final claims are already-owned attempts') + candidate first-anchor-wins; it does NOT cite #37 for the post-final-bond case (spec is silent on post-final bonds). #37's in-window phrasing corroborates (a qualifying bond opens an auction only inside the notice window). The post-final immunity is candidate authority. Tier candidate (NOT upgraded — the rule's cited authority is candidate; the post-final-bond MUST is the spec gap the flag names).",
+      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; status stays proposed pending reviewer sign-off."
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "b7-01-post-final-attempt-already-owned",
+      "invariant": "a claim or bond landing at or after a name's finality is refused as an already-owned attempt: no owner change, no window reopen/extend, no nullify, no auction opened; the incumbent record is byte-unchanged",
+      "rationale": "Derivable from existing candidate authority plus #37 corroboration. The state machine [candidate] says post-final claims are already-owned attempts, and #37's in-window phrasing (a qualifying bond opens an auction only when posted inside the notice window) corroborates that a post-final bond opens no auction and cannot evict the final owner; first-anchor-wins [candidate] confirms ordering/bonds never touch a final name. Tier candidate: the rule's explicit authority for post-final immunity is the candidate state-machine (#37 is not cited for the post-final-bond case — that silence is the flag's named gap). No provisional/#49/#50 dependency: the verdict is about a final (already-settled) name, not a boundary or DA-eligibility question."
+    },
+    "status": "proposed",
+    "attackFlagRef": "B7-01",
+    "flipMarker": null
+  },
+  {
+    "id": "B10-neg-01",
+    "ruleId": "B10",
+    "area": "Batched-path transitions",
+    "authorityTier": "ratified",
+    "sources": [
+      "docs/core/DECISIONS.md §47 marker-fold [ratified] Implications — 'The B2 DA verdict is the pure predicate eligible(anchor, servedEvidence, W, C)'",
+      "docs/core/SOFTWARE_CANON.md L2 ownership kernel [ratified] — 'pure deterministic predicates... No DB, no network, no clock, no UI'",
+      "docs/core/B2_KERNEL_HARDENING.md B10 line 956"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "uniformity depends on every verifier evaluating the same verdict input; if served-bytes evidence (B3 witness) differs between nodes, 'uniform' silently fails — kernel must take the verdict as an explicit witnessed input, never compute it from local fetch success",
+      "predicateSignature": "eligible(anchor, servedEvidence[witnessed input], W, C) -> {verdict}  [DA verdict is a witnessed input, NEVER computed from local fetch]",
+      "fixture": {
+        "caseLocalFetchImpurity": "a kernel that derives the DA verdict from local fetch success rather than the witnessed served-bytes input -> reject (impurity)",
+        "priorState": "an anchored batch awaiting DA eligibility",
+        "note": "W/C are #49 launch-freeze params; this vector tests only the witnessed-verdict-in / no-local-fetch posture, independent of the W/C values"
+      },
+      "scopeNote": "Verdict authority is RATIFIED: marker-fold (#47) Implications ('the B2 DA verdict is the pure predicate eligible(anchor, servedEvidence, W, C)') + SOFTWARE_CANON L2 (no DB/network/clock). The kernel MUST take the DA verdict as an explicit witnessed input and MUST NOT compute it from local fetch success. DELIBERATELY EXCLUDES (B3): the served-bytes witness FORMAT; and the W/C values (#49 launch-freeze) — this vector tests only the purity/witnessed-input posture.",
+      "authoringStatus": "authored: predicate-input shape proposed; status stays proposed pending reviewer sign-off."
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "b10-02-da-verdict-witnessed-input-not-local-fetch",
+      "invariant": "the DA verdict is an explicit witnessed input to the kernel; a kernel deriving it from local fetch success (rather than the witnessed served-bytes input) is rejected — uniformity requires every verifier evaluating the same witnessed verdict input",
+      "rationale": "This flag is purely about the kernel's fail-closed/pure-predicate posture: the kernel MUST take the DA verdict as an explicit witnessed input and MUST NOT compute it from local fetch success. Per the gate note, a flag purely about the kernel's posture on evidence is derivable now even though the served-bytes witness format is a B3 deliverable. The ratified marker-fold (#47) Implications state the DA verdict is the pure predicate eligible(anchor, servedEvidence, W, C) — no local I/O — which directly grounds 'never compute from local fetch success'. Tier ratified."
+    },
+    "status": "proposed",
+    "attackFlagRef": "B10-02",
+    "flipMarker": null
+  },
+  {
+    "id": "B12-neg-01",
+    "ruleId": "B12",
+    "area": "Batched-path transitions",
+    "authorityTier": "candidate",
+    "sources": [
+      "docs/spec/AUCTION.md Real Mechanism Choices [candidate] — 'a valid bonded opening bid is what creates the auction'",
+      "docs/LAUNCH.md Legacy Scheduled-Catalog Compatibility State [narrative, supplementary] — 'no auction exists until a valid bonded opening bid confirms'",
+      "docs/core/B2_KERNEL_HARDENING.md B12 lines 968-977"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "the lot commitment binds (auctionId, name, unlockBlock) — a bid whose recomputed lot commitment mismatches its claimed lot must be refused or attackers mint parallel lots for one name (legacy checks this at indexer.ts:1043-1045; the kernel predicate must own it)",
+      "predicateSignature": "bidAcceptance(bid{lotCommitment, claimedLot}, floorParams[launch-freeze], priorState) -> {verdict}",
+      "fixture": {
+        "caseLotMismatch": "a bid whose recomputed lot commitment (auctionId, name, unlockBlock) mismatches its claimed lot -> refuse (no parallel lot minted for the name)",
+        "positiveControl": "a bid whose recomputed lot commitment matches its claimed lot is admitted to that lot",
+        "priorState": "an open auction lot"
+      },
+      "scopeNote": "Verdict authority is CANDIDATE: the lot-identity rule (commitment binds (auctionId, name, unlockBlock); no parallel lots per name) is candidate AUCTION ('a valid bonded opening bid creates the auction') + LAUNCH. The auctionLotCommitment ENCODING is WIRE §6 (normative) — encoding the integrity check operates on, not the lot-identity verdict authority (cf. S9). The opening-floor curve values are launch-freeze placeholders. Tier candidate. No #49/#50 dependency.",
+      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; status stays proposed pending reviewer sign-off."
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "b12-01-lot-commitment-mismatch-refused",
+      "invariant": "a bid whose recomputed lot commitment (auctionId, name, unlockBlock) does not match its claimed lot is refused; no parallel lot is minted for a single name",
+      "rationale": "Derivable from candidate AUCTION.md (a valid bonded opening bid is what creates the auction; lot commitment recomputes from (auctionId, name, unlockBlock)) and LAUNCH.md (no auction exists until a valid bonded opening bid confirms). The opening-floor curve values are explicit placeholders, parameterized on floor(nameLength) — a launch-freeze parameter, not a provisional decision. A negative vector that a bid whose recomputed lot commitment mismatches its claimed lot is refused is derivable now; no #49/#50 dependency. Tier candidate (the lot-identity rule is candidate AUCTION)."
+    },
+    "status": "proposed",
+    "attackFlagRef": "B12-01",
+    "flipMarker": null
+  },
+  {
+    "id": "B14-neg-01",
+    "ruleId": "B14",
+    "area": "Batched-path transitions",
+    "authorityTier": "candidate",
+    "sources": [
+      "docs/spec/AUCTION.md Real Mechanism Choices [candidate] — soft-close extension on acceptance",
+      "docs/core/B2_KERNEL_HARDENING.md B14 rule lines 989-998 — 'a below-minimum bid MUST be rejected without changing leader, close height, or required minimum'",
+      "docs/spec/AUCTION.md Auction Timing [candidate] — extension on bid acceptance"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "whether a rejected late bid extends the close is unstated in spec text; legacy extends only on acceptance — if rejection extended, free close-griefing with dust bids",
+      "predicateSignature": "closeHeightUpdate(bid, accepted, currentClose, extensionBlocks[launch-freeze]) -> newClose",
+      "fixture": {
+        "caseRejectedLateBidNoExtend": "a below-minimum bid inside the soft-close window is rejected AND the close height is byte-identical before/after (extension is acceptance-only); leader and required-minimum unchanged",
+        "extensionBlocks": "launch-freeze parameter input",
+        "priorState": "an auction in its soft-close window"
+      },
+      "scopeNote": "Verdict authority is CANDIDATE: extension-on-acceptance is candidate AUCTION timing (parallel to Q7); the B14 rule text itself states a below-minimum bid 'MUST be rejected without changing leader, close height, or required minimum'. The rejected-bid-does-not-extend negative composes with B15. Window/extension block counts are launch-freeze inputs. Tier candidate. No #49/#50 dependency.",
+      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; status stays proposed pending reviewer sign-off."
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "b14-02-rejected-late-bid-no-close-extension",
+      "invariant": "a below-minimum bid inside the soft-close window is rejected without changing the leader, the close height, or the required minimum; close extension is acceptance-only",
+      "rationale": "Derivable from candidate AUCTION.md: extension is a consequence of acceptance ('Bid inside the final blocks moves close to bid block + extension'), and B15 makes close-extension monotone and acceptance-driven. A rejected below-minimum bid 'MUST be rejected without changing leader, close height, or required minimum' is the cited B14 rule text itself. So the negative vector (rejected late bid does NOT extend close) is derivable from the cited rule, independent of the rounding ambiguity in the sibling flag and independent of #49/#50. Block-count placeholders are launch-freeze parameters. Tier candidate (AUCTION timing)."
+    },
+    "status": "proposed",
+    "attackFlagRef": "B14-02",
+    "flipMarker": null
+  },
+  {
+    "id": "B15-pos-01",
+    "ruleId": "B15",
+    "area": "Batched-path transitions",
+    "authorityTier": "candidate",
+    "sources": [
+      "docs/spec/AUCTION.md Auction Timing [candidate] — 'Hard cap on extensions | None'",
+      "docs/spec/CONTESTED_AUCTION_REFERENCE.md Auction Family [candidate] — 'no hard extension cap in the current design'",
+      "docs/core/B2_KERNEL_HARDENING.md B15 lines 1002-1011"
+    ],
+    "kind": "positive",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "no hard cap means a capital-rich griefer can hold an auction open forever at escalating cost — AUCTION.md accepts this; the kernel must not import any 'eventually force-end' heuristic that text does not grant",
+      "predicateSignature": "closeHeightUpdate(acceptedBid, currentClose, extensionBlocks[launch-freeze]) -> newClose  [monotone non-decreasing, no hard cap]",
+      "fixture": {
+        "caseExtendIndefinitely": "chained late accepted bids extend the close indefinitely -> accept; no transcript length terminates the auction other than blocks passing the latest close",
+        "negativeCompanion": "a kernel importing any 'eventually force-end after N extensions' heuristic -> rejected (the design grants no such heuristic)",
+        "priorState": "an auction with repeated soft-close extensions"
+      },
+      "scopeNote": "Verdict authority is CANDIDATE: AUCTION.md Auction Timing ('Hard cap on extensions | None') + CONTESTED_AUCTION_REFERENCE ('no hard extension cap in the current design'). Close is monotone non-decreasing; the kernel must not import any 'eventually force-end' heuristic the text does not grant. The no-hard-cap design is an accepted candidate posture (parallel to Q7's #35 working-assumption family). Block-count placeholders are launch-freeze. Tier candidate. No #49/#50 dependency.",
+      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; status stays proposed pending reviewer sign-off."
+    },
+    "expected": {
+      "verdict": "accept",
+      "reason": "b15-01-no-hard-extension-cap-extend-indefinitely",
+      "invariant": "the close height is monotone non-decreasing with no hard cap on extensions; chained late accepted bids extend indefinitely; the kernel imports no 'eventually force-end' heuristic",
+      "rationale": "Derivable from candidate authority: AUCTION.md Auction Timing 'Hard cap on extensions | None' and CONTESTED_AUCTION_REFERENCE 'no hard extension cap in the current design'. The rule (close monotone non-decreasing, no hard cap, kernel must not import any 'eventually force-end' heuristic) is cited. A negative that any 'force-end after N extensions' heuristic is rejected and a positive that chained late bids extend indefinitely are derivable now; the no-hard-cap design is an accepted posture, not a provisional decision. Block-count placeholders are launch-freeze parameters. Tier candidate."
+    },
+    "status": "proposed",
+    "attackFlagRef": "B15-01",
+    "flipMarker": null
+  },
+  {
+    "id": "B19-neg-01",
+    "ruleId": "B19",
+    "area": "Batched-path transitions",
+    "authorityTier": "ratified",
+    "sources": [
+      "docs/core/DECISIONS.md §42 settlement-into-core [ratified] — 'the audited trust surface determines all ownership transitions' (no adapter authority)",
+      "docs/spec/AUCTION.md Bond Breaks And Reauction [candidate] — 'Reauction identity | Anchored to the release block'",
+      "docs/LAUNCH.md Released-Name Reauction Path [narrative, supplementary] — 'The indexer only recognizes a reopened auction if its anchor equals the latest recorded bond-break release block'",
+      "docs/core/B2_KERNEL_HARDENING.md release height glossary line 85; B19 lines 1047-1056"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "the rule depends on 'latest recorded bond-break release block' being itself a kernel-derived chain fact; if release recording stays adapter-side, a lying adapter mints reopen generations",
+      "predicateSignature": "reopenVerdict(reopenBid{anchor}, kernelDerivedReleaseHeight[from witnessed bond-spend], priorState) -> {verdict}",
+      "fixture": {
+        "caseAdapterAssertedRelease": "a reopen whose anchor is an ADAPTER-ASSERTED release height NOT equal to the kernel-derived latest canonical-chain bond-break height -> creates no auction (no adapter can mint reopen generations)",
+        "priorState": "a name with a witnessed bond-break release"
+      },
+      "scopeNote": "Verdict authority is RATIFIED DECISIONS #42 settlement-into-core ('the audited trust surface determines all ownership transitions' — no adapter authority): release recording must be a kernel-derived chain fact, so an adapter-asserted release height that differs from the kernel-derived canonical-chain bond-break height mints no reopen. The reopen-anchor-MATCHING mechanism is candidate AUCTION (cf. S9), but this vector tests the no-adapter-authority aspect = #42 ratified, parallel to T22-01 (reopen no-actor). The adapter-voiced LAUNCH 'the indexer only recognizes' is restated as a kernel predicate. DELIBERATELY EXCLUDES (spec-blocked): the reopen auctionId grammar. Tier ratified (corrected from the seed's candidate).",
+      "authoringStatus": "authored: predicate-input shape proposed; tier verified = ratified; status stays proposed pending reviewer sign-off."
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "b19-01-release-recording-is-kernel-chain-fact-no-adapter-mint",
+      "invariant": "release recording is a kernel-derived chain fact; a reopen anchored to an adapter-asserted release height that differs from the kernel-derived canonical-chain bond-break height creates no auction — no adapter can mint reopen generations",
+      "rationale": "The flag's concern — release recording must be a kernel-derived chain fact, not an adapter-side assertion that a lying adapter could mint — is derivable now as the kernel's fail-closed/no-adapter-authority posture, which is ratified canon (#42 settlement-into-core: the audited boundary determines all ownership transitions; pure predicate, no adapter). The B19 rule is cited; the neededSpecWork is only to restate the adapter-voiced LAUNCH text as a kernel predicate, which the vector itself pins. The release-height definition is a chain fact (release height = canonical-chain breaking-spend height). No #49/#50 dependency. Tier ratified (#42)."
+    },
+    "status": "proposed",
+    "attackFlagRef": "B19-01",
+    "flipMarker": null
+  },
+  {
+    "id": "B22-neg-01",
+    "ruleId": "B22",
+    "area": "Batched-path transitions",
+    "authorityTier": "candidate",
+    "sources": [
+      "docs/spec/AUCTION.md Decay Rule [candidate] — 'Use a frozen, monotonic, height-keyed schedule. Do not let market-derived system characteristics shrink windows'; 'extend-only'",
+      "docs/core/SOFTWARE_CANON.md L2 ownership kernel [ratified] — pure predicate, no I/O",
+      "docs/core/B2_KERNEL_HARDENING.md B22 lines 1078-1086 (rule shape 'final now')"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "this is the kernel-purity rule that keeps the window predicate I/O-free — any implementation reading 'market maturity' is the exact adversary-distortable input the spec names unsafe",
+      "predicateSignature": "windowLength(anchorHeight, frozenScheduleConstants[launch-freeze]) -> blocks  [inputs: anchor height + frozen constants only]",
+      "fixture": {
+        "caseMarketDerivedShrink": "any state/market-derived input (claim volume, bond totals, distinct keys, 'market maturity') that would SHORTEN a window -> rejected by construction; the window function's only inputs are anchor height and frozen constants",
+        "scheduleIntegers": "launch-freeze parameters",
+        "priorState": "any window computation"
+      },
+      "scopeNote": "Verdict authority is CANDIDATE: AUCTION Decay Rule (candidate, 'frozen, monotonic, height-keyed schedule; do not let market-derived characteristics shrink windows; extend-only') — parallel to Z11. The ratified kernel-purity canon (no I/O) corroborates the I/O-free window function, but the no-market-shrink schedule rule is candidate AUCTION. This is the schedule-function purity, DISTINCT from the W/C/K window-close algebra (#49). Schedule integers are launch-freeze. Tier candidate.",
+      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; status stays proposed pending reviewer sign-off."
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "b22-01-no-market-derived-window-shrink-io-free",
+      "invariant": "the window function's only inputs are anchor height and frozen schedule constants; any market/state-derived signal (claim volume, bond totals, distinct keys, 'market maturity') that would shorten a window is rejected by construction; extend-only",
+      "rationale": "Derivable from cited candidate AUCTION.md Decay Rule ('Use a frozen, monotonic, height-keyed schedule. Do not let market-derived system characteristics shrink windows'; 'extend-only') and the ratified kernel-purity canon (no I/O, pure predicate). The rule's shape (pure function of anchor height, extend-only) is explicitly noted as 'final now'. A negative vector that injecting any market-derived/state-derived signal that would shorten a window is rejected-by-construction is derivable; the concrete schedule integers are launch-freeze, not provisional. No #49/#50 dependency (this is the schedule-function purity, distinct from the W/C/K window-close algebra). Tier candidate (AUCTION Decay)."
+    },
+    "status": "proposed",
+    "attackFlagRef": "B22-01",
+    "flipMarker": null
+  }
+]
