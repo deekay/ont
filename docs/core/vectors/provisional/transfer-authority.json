@@ -3,14 +3,13 @@
     "id": "X13-pos-01",
     "ruleId": "X13",
     "area": "Transfer authority",
-    "authorityTier": "provisional",
+    "authorityTier": "ratified",
     "sources": [
       "docs/core/B2_KERNEL_HARDENING.md X13 — 'Blocked on decision: recovery-auth'; Needed spec work (transfer-resets-arming rule)",
       "docs/core/DECISIONS.md #50 recovery-auth — Status: PROVISIONAL — pending DK ratification",
       "docs/DESIGN.md §10.13 item 1 — 'Still to spec: ... the transfer-resets-arming rule'"
     ],
     "kind": "positive",
-    "decisionDeps": ["recovery-auth (#50)"],
     "inputs": {
       "sourceCategory": "provisional-vector",
       "attackFlagText": "Double-edged: a thief holding the stolen owner key can transfer-away to void the true owner's in-flight recovery. Whether transfers are restricted during a challenge window is exactly recovery-auth territory — extracting the legacy behavior must not pre-decide that ruling.",
@@ -22,7 +21,7 @@
         "priorState": "a name with an in-flight recovery; the (possibly stolen) owner key authorizes a transfer-away during the window"
       },
       "scopeNote": "PROVISIONAL on recovery-auth (#50): X13 is candidate-stays and explicitly 'Blocked on decision: recovery-auth' (#50 PROVISIONAL pending DK). The legacy behavior (withoutPendingRecovery on every applied transfer) is the only complete statement, and the flag warns that extracting it must NOT pre-decide whether transfers are restricted during a challenge window — that is the #50 transfer-vs-recovery precedence axis (distinct from #50-b1's signer/evidence-shape resolution). The verdict is derivable conditional on that #50 axis; under the gate it is provisional-vector, never vector-now. Authored under the transfer-supersedes branch (owner-keyed transfer supersedes in-flight recovery -> accept-transfer / stale-recovery-no-op); flips per flipMarker. The transfer-resets-arming rule is also named still-to-spec in DESIGN §10.13 item 1.",
-      "authoringStatus": "authored: provisional vector with decisionDeps + flipMarker; status locked (per-area adversarial review passed; authorityTier stays provisional — flips/re-derives on DK ratification of #49/#50); flips on DK's #50 transfer-vs-recovery precedence ruling."
+      "authoringStatus": "authored from a provisional vector (decisionDeps + flipMarker shed on ratification); status locked (per-area adversarial review passed; authorityTier RATIFIED 2026-06-14 (DK ratified da-windows #49 O1 / recovery-auth #50 b1); lineage in DECISIONS #49/#50, registry Part B, decision papers, git); ratified per DK's #50 transfer-vs-recovery precedence ruling."
     },
     "expected": {
       "verdict": "accept",
@@ -32,9 +31,6 @@
     },
     "status": "locked",
     "attackFlagRef": "X13-01",
-    "flipMarker": {
-      "decision": "recovery-auth (#50)",
-      "flipsTo": "rederive: if DK rules the transfer-restricted-during-window branch of #50 (a Transfer applied during an open recovery window does NOT cancel or override the pending recovery — one possible disposition under the b2h custody design, though the operative axis is the transfer restriction itself, not b2h per se), the verdict flips to reject the transfer-away (or block the void) and the thief-transfer-voids-recovery case no longer stands; the owner-key-authorization shape is stable, only the during-window transfer-vs-recovery precedence moves with the #50 ruling."
-    }
+    "flipMarker": null
   }
 ]

@@ -3,14 +3,13 @@
     "id": "Z4-neg-01",
     "ruleId": "Z4",
     "area": "Reorg re-derivation and replay determinism",
-    "authorityTier": "provisional",
+    "authorityTier": "ratified",
     "sources": [
       "docs/spec/ONT_DATA_AVAILABILITY_AGREEMENT.md §6e S2 eligibleAt(anchor,H,K):=H>=h+K, S5 (K,W,C) per-network params (candidate; da-windows #49)",
       "docs/core/DECISIONS.md entry 49 da-windows (PROVISIONAL pending DK) S2/S5",
       "docs/core/B2_KERNEL_HARDENING.md Z4 sources (DA §6a candidate) + Blocked on decision: da-windows"
     ],
     "kind": "negative",
-    "decisionDeps": ["da-windows (#49)"],
     "inputs": {
       "sourceCategory": "provisional-vector",
       "attackFlagText": "K is unpinned (da-windows); a small K re-exposes the §3 boundary divergence the lag exists to absorb — parameter choice is consensus-critical, not tuning.",
@@ -22,7 +21,7 @@
         "K": "#49 S5 per-network parameter passed as kernel input (no baked constant); provisional value 6"
       },
       "scopeNote": "PROVISIONAL on da-windows (#49): the verdict (an anchor at depth K-1 contributes nothing to the confirmed root; at depth K it does; the confirmed-root sequence is invariant under sub-K reorgs) is derivable from DA §6a/§6e S2 (eligibleAt H>=h+K), but K is the #49 per-network parameter passed as input (S5) — PROVISIONAL pending DK. K-as-input (not a baked constant) is itself the #49 ruling, and K-choice is consensus-critical (a small K re-exposes the §3 boundary divergence). Depends on #49 ⇒ provisional-vector.",
-      "authoringStatus": "authored: provisional vector with decisionDeps + flipMarker; status locked (per-area adversarial review passed; authorityTier stays provisional — flips/re-derives on DK ratification of #49/#50); re-parameterizes on DK's #49 K ruling."
+      "authoringStatus": "authored from a provisional vector (decisionDeps + flipMarker shed on ratification); status locked (per-area adversarial review passed; authorityTier RATIFIED 2026-06-14 (DK ratified da-windows #49 O1 / recovery-auth #50 b1); lineage in DECISIONS #49/#50, registry Part B, decision papers, git); re-parameterizes on DK's #49 K ruling."
     },
     "expected": {
       "verdict": "reject",
@@ -32,23 +31,19 @@
     },
     "status": "locked",
     "attackFlagRef": "Z4-02",
-    "flipMarker": {
-      "decision": "da-windows (#49)",
-      "flipsTo": "rederive: if DK retunes or bakes #49's K (e.g. ratifies a fixed launch constant or a different eligibility invariant), the K value and the depth-K membership boundary re-pin to the ratified form; the eligibleAt(H>=h+K) + sub-K-reorg-invariant structure is stable, so the vector re-parameterizes to the new K-as-input form."
-    }
+    "flipMarker": null
   },
   {
     "id": "Z9-neg-01",
     "ruleId": "Z9",
     "area": "Reorg re-derivation and replay determinism",
-    "authorityTier": "provisional",
+    "authorityTier": "ratified",
     "sources": [
       "docs/spec/ONT_DATA_AVAILABILITY_AGREEMENT.md §6e S1 one clock — mined height in current best chain, reorgs re-derive, no receipt-time (candidate; da-windows #49)",
       "docs/core/DECISIONS.md entry 47 marker-fold (RATIFIED) — windows key off anchor's mined height; entry 49 da-windows (PROVISIONAL)",
       "docs/spec/ONT_ACQUISITION_STATE_MACHINE.md Contested Auction — deadline-derived bond observation (candidate)"
     ],
     "kind": "negative",
-    "decisionDeps": ["da-windows (#49)"],
     "inputs": {
       "sourceCategory": "provisional-vector",
       "attackFlagText": "Whether the qualifying-bond test reads the bond's own mined height on the current chain (re-derived) or its first-seen height is unstated — same reorg-to-extend family as Z5.",
@@ -60,7 +55,7 @@
         "priorState": "a bond whose containing block was reorged and re-mined at a different height"
       },
       "scopeNote": "PROVISIONAL on da-windows (#49): whether the qualifying-bond test reads the bond's re-derived current-chain mined height vs its first-seen height is answered by the #49 S1 one-clock rule (all deadlines from the anchor's mined height in the current best chain; reorgs re-derive; no receipt-time) combined with ratified marker-fold (#47, mined-height keying). The bond reads re-derived current-chain mined height, not first-seen — derivable but the algebra is provisional on #49. The earliest-vs-current re-mine priority remains separately spec-blocked (other Z5/Z9 flags); NOT asserted here. Depends on #49 ⇒ provisional-vector.",
-      "authoringStatus": "authored: provisional vector with decisionDeps + flipMarker; status locked (per-area adversarial review passed; authorityTier stays provisional — flips/re-derives on DK ratification of #49/#50); re-anchors on DK's #49 S1 one-clock ruling."
+      "authoringStatus": "authored from a provisional vector (decisionDeps + flipMarker shed on ratification); status locked (per-area adversarial review passed; authorityTier RATIFIED 2026-06-14 (DK ratified da-windows #49 O1 / recovery-auth #50 b1); lineage in DECISIONS #49/#50, registry Part B, decision papers, git); re-anchors on DK's #49 S1 one-clock ruling."
     },
     "expected": {
       "verdict": "reject",
@@ -70,23 +65,19 @@
     },
     "status": "locked",
     "attackFlagRef": "Z9-02",
-    "flipMarker": {
-      "decision": "da-windows (#49)",
-      "flipsTo": "rederive: if DK flips #49's one-clock / parameters-as-inputs framing (e.g. admits a receipt-time or first-seen height source), the height-source semantics re-anchor to the ratified form and the first-seen-vs-re-derived verdict flips accordingly; the re-derive-from-current-canonical-chain shape is stable, so the vector stays testable under the new height-source rule."
-    }
+    "flipMarker": null
   },
   {
     "id": "Z13-neg-01",
     "ruleId": "Z13",
     "area": "Reorg re-derivation and replay determinism",
-    "authorityTier": "provisional",
+    "authorityTier": "ratified",
     "sources": [
       "docs/spec/ONT_DATA_AVAILABILITY_AGREEMENT.md §6e S6 'K >= W+C, K>=1, W>=1, C>=1' and the include-then-retract foreclosure (candidate; da-windows #49)",
       "docs/core/DECISIONS.md entry 49 da-windows (PROVISIONAL pending DK) S5/S6/S7 — params as inputs, S6-violation reject + two-parameterization vectors required",
       "docs/core/B2_KERNEL_HARDENING.md Z13 Step-2/Step-3 restatement — restated to strong form per §6e; Blocked on decision: da-windows"
     ],
     "kind": "negative",
-    "decisionDeps": ["da-windows (#49)"],
     "inputs": {
       "sourceCategory": "provisional-vector",
       "attackFlagText": "If only W <= K is ratified (without K >= W + C), the challenge window C can extend past K-depth: a batch becomes confirmed-root-eligible while its fail-closed challenge is still open — the verdict and the confirmation boundary cross, exactly the ordering bug the prototype's stronger invariant prevents.",
@@ -98,7 +89,7 @@
         "priorState": "kernel construction with candidate (K,W,C) triples"
       },
       "scopeNote": "PROVISIONAL on da-windows (#49): Z13 was RESTATED in step-3 to the strong form per §6e S6 (K >= W+C; the weak W<=K is implied-by and superseded-by the strong form). The S6-reject vectors (K=W+C-1 rejected, lower-bound violations rejected) and the dual-parameterization vectors (#49 S7) are derivable from §6e, but §6e is da-windows (#49), PROVISIONAL pending DK. NOT retired-by-restatement: the restatement made it derivable but provisional. This is the Z-area (reorg/replay-determinism) instance of the same S6/S5/S7 family as D9 (S6) and D12 (S5/S7). Depends on #49 ⇒ provisional-vector.",
-      "authoringStatus": "authored: provisional vector with decisionDeps + flipMarker; status locked (per-area adversarial review passed; authorityTier stays provisional — flips/re-derives on DK ratification of #49/#50); inverts on DK's #49 S6 strong-form ruling."
+      "authoringStatus": "authored from a provisional vector (decisionDeps + flipMarker shed on ratification); status locked (per-area adversarial review passed; authorityTier RATIFIED 2026-06-14 (DK ratified da-windows #49 O1 / recovery-auth #50 b1); lineage in DECISIONS #49/#50, registry Part B, decision papers, git); inverts on DK's #49 S6 strong-form ruling."
     },
     "expected": {
       "verdict": "reject",
@@ -108,9 +99,6 @@
     },
     "status": "locked",
     "attackFlagRef": "Z13-01",
-    "flipMarker": {
-      "decision": "da-windows (#49)",
-      "flipsTo": "rederive: if DK ratifies only the weak W<=K form (without K>=W+C) or bakes fixed constants, the S6-strong-form reject vectors invert (K=W+C-1 becomes admissible, reopening include-then-retract) and the dual-parameterization requirement drops; the parameter-validation predicate shape is stable, so the vector stays testable under the weak form (asserting the opposite construction verdict)."
-    }
+    "flipMarker": null
   }
 ]

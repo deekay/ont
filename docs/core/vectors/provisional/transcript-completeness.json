@@ -3,13 +3,12 @@
     "id": "T17-neg-01",
     "ruleId": "T17",
     "area": "Transcript completeness",
-    "authorityTier": "provisional",
+    "authorityTier": "ratified",
     "sources": [
       "docs/core/B2_KERNEL_HARDENING.md T17 'Blocked on decision: da-windows' + sources (ONT_ACQUISITION_STATE_MACHINE Public Notice/Contested Auction [candidate], DECISIONS #47 marker-fold)",
       "docs/core/STATUS.md 'da-windows (#49), 2026-06-13, provisional pending DK ... K >= W + C'"
     ],
     "kind": "negative",
-    "decisionDeps": ["da-windows (#49)"],
     "inputs": {
       "sourceCategory": "provisional-vector",
       "attackFlagText": "The verdict consumes the DA predicate (separate kernel area): if the DA challenge window (h+W+C) can end after the notice deadline (h+W_notice), the claim set at deadline time is not yet decidable — the window interleaving is exactly what da-windows must rule, and any implementation choice before that ruling is improvisation.",
@@ -22,7 +21,7 @@
         "priorState": "a name with competing in-window claims near the notice deadline"
       },
       "scopeNote": "PROVISIONAL on da-windows (#49): the finalize/nullify/escalate resolution logic is #37 / §6d (ratified/candidate), but the DECIDABILITY of the claim set at the notice deadline rests on #49 S6 (K>=W+C ensures the DA challenge resolves before finalization, so DA-validity is settled). Authored over claims whose DA-validity is unambiguous; the EXACT notice-deadline inclusivity (a claim landing exactly at the close height) is NOT asserted here — that non-DA exact edge is PR-13 (cf. A13). Depends on #49 ⇒ provisional-vector, never vector-now.",
-      "authoringStatus": "authored: provisional vector with decisionDeps + flipMarker; status locked (per-area adversarial review passed; authorityTier stays provisional — flips/re-derives on DK ratification of #49/#50); flips on DK's #49 K>=W+C interleaving ruling."
+      "authoringStatus": "authored from a provisional vector (decisionDeps + flipMarker shed on ratification); status locked (per-area adversarial review passed; authorityTier RATIFIED 2026-06-14 (DK ratified da-windows #49 O1 / recovery-auth #50 b1); lineage in DECISIONS #49/#50, registry Part B, decision papers, git); ratified per DK's #49 K>=W+C interleaving ruling."
     },
     "expected": {
       "verdict": "reject",
@@ -32,23 +31,19 @@
     },
     "status": "locked",
     "attackFlagRef": "T17-01",
-    "flipMarker": {
-      "decision": "da-windows (#49)",
-      "flipsTo": "rederive: if DK rules a non-(K>=W+C) interleaving where the claim set is not yet decidable at the notice deadline, the at-deadline finalize/nullify vectors flip to 'not-yet-decidable' (no verdict) rather than finalize/nullify; the resolution logic (one->finalize, two+ bondless->nullify, bond->escalate) is stable once the set is decidable, so the vector re-derives under the new interleaving."
-    }
+    "flipMarker": null
   },
   {
     "id": "T18-neg-01",
     "ruleId": "T18",
     "area": "Transcript completeness",
-    "authorityTier": "provisional",
+    "authorityTier": "ratified",
     "sources": [
       "docs/spec/ONT_ACQUISITION_STATE_MACHINE.md Public Notice [candidate] 'claims that arrive after a name is already final are already-owned attempts'",
       "docs/core/STATUS.md 'da-windows (#49) ... inclusive boundaries' (provisional pending DK)",
       "docs/core/B2_KERNEL_HARDENING.md T18 attack flag"
     ],
     "kind": "negative",
-    "decisionDeps": ["da-windows (#49)"],
     "inputs": {
       "sourceCategory": "provisional-vector",
       "attackFlagText": "'Already final' must be height-exact: a claim in the same block as the deadline boundary needs an inclusive/exclusive ruling, or reorg edges let a late claim flip between contest and inert across implementations.",
@@ -60,7 +55,7 @@
         "priorState": "a name approaching its holdsPriority deadline with a late-arriving claim"
       },
       "scopeNote": "PROVISIONAL on da-windows (#49): T18's core (a post-final claim does not enter the transcript) is candidate-derivable, but the height-EXACT disposition of a claim in the same block as the holdsPriority deadline rests on #49 S2/S3's inclusive-boundary ruling. This is the DA holdsPriority edge (h+W) — a genuine DA edge (#49 S2/S3), distinct from the non-DA notice-close / collision / maturity exact edges that route to PR-13 (cf. A13). ChatLunatique confirmed T18 stays #49 as a DA edge (batch-1 re-check). Depends on #49 ⇒ provisional-vector.",
-      "authoringStatus": "authored: provisional vector with decisionDeps + flipMarker; status locked (per-area adversarial review passed; authorityTier stays provisional — flips/re-derives on DK ratification of #49/#50); flips on DK's #49 S2/S3 boundary-inclusivity ruling."
+      "authoringStatus": "authored from a provisional vector (decisionDeps + flipMarker shed on ratification); status locked (per-area adversarial review passed; authorityTier RATIFIED 2026-06-14 (DK ratified da-windows #49 O1 / recovery-auth #50 b1); lineage in DECISIONS #49/#50, registry Part B, decision papers, git); ratified per DK's #49 S2/S3 boundary-inclusivity ruling."
     },
     "expected": {
       "verdict": "reject",
@@ -70,23 +65,19 @@
     },
     "status": "locked",
     "attackFlagRef": "T18-01",
-    "flipMarker": {
-      "decision": "da-windows (#49)",
-      "flipsTo": "rederive: if DK rules the opposite boundary inclusivity for #49 S2/S3 (exclusive), the same-block-as-h+W claim flips between contest and already-final-inert (the edge moves by one block); the post-final-does-not-enter-transcript shape is stable, so the height-exact vector stays testable under the new inclusivity."
-    }
+    "flipMarker": null
   },
   {
     "id": "T19-pos-01",
     "ruleId": "T19",
     "area": "Transcript completeness",
-    "authorityTier": "provisional",
+    "authorityTier": "ratified",
     "sources": [
       "docs/core/B2_KERNEL_HARDENING.md T19 verdict candidate-stays + 'Blocked on decision: recovery-auth' + step-2 correction",
       "docs/spec/WIRE_FORMAT.md line 408 'RecoverOwner authorization semantics | decided — recovery-auth (#50, provisional pending DK)'",
       "docs/spec/ONT_RECOVERY_INVOKE_SPEC.md What's missing in code, item 2 [candidate] 'invoke-path signer isn't yet defined'"
     ],
     "kind": "positive",
-    "decisionDeps": ["recovery-auth (#50)"],
     "inputs": {
       "sourceCategory": "provisional-vector",
       "attackFlagText": "challengeWindowBlocks rides inside the event the recoverer broadcasts; nothing cited binds it to the armed descriptor's value at the kernel layer — a recoverer choosing a 1-block window neuters the veto unless an equality check with the descriptor is ratified (the descriptor digest covers its own challengeWindowBlocks, but the cross-check is unstated kernel work).",
@@ -98,7 +89,7 @@
         "priorState": "a name with an armed recovery descriptor (challengeWindowBlocks fixed at arming)"
       },
       "scopeNote": "PROVISIONAL on recovery-auth (#50): T19 is candidate-stays, blocked on #50, with the step-2 fail-closed default flagged as invented. The verdict (bind the event's challengeWindowBlocks to the armed descriptor; admit the invoke only under the #50 signer model) rests on #50's invoke-path SIGNER / evidence shape — exactly what #50-b1 (fresh recovery-key BIP340 under descriptor v2) resolves. Unlike the interval-opening / transfer-precedence vectors (V2/V5/X13, whose axes are orthogonal to the signer shape), T19 tests the signer + cross-object check, so b1<->b2h IS its flip axis. Depends on #50 ⇒ provisional-vector; #50 carries a STANDING b2h counter-design.",
-      "authoringStatus": "authored: provisional vector with decisionDeps + flipMarker; status locked (per-area adversarial review passed; authorityTier stays provisional — flips/re-derives on DK ratification of #49/#50); flips on DK's #50 invoke-path signer ruling (b1 vs b2h)."
+      "authoringStatus": "authored from a provisional vector (decisionDeps + flipMarker shed on ratification); status locked (per-area adversarial review passed; authorityTier RATIFIED 2026-06-14 (DK ratified da-windows #49 O1 / recovery-auth #50 b1); lineage in DECISIONS #49/#50, registry Part B, decision papers, git); ratified per DK's #50 invoke-path signer ruling (b1 vs b2h)."
     },
     "expected": {
       "verdict": "accept",
@@ -108,9 +99,6 @@
     },
     "status": "locked",
     "attackFlagRef": "T19-01",
-    "flipMarker": {
-      "decision": "recovery-auth (#50)",
-      "flipsTo": "rederive: if DK rules the b2h counter-design (cold-hardware / BIP322 custody), the invoke-path signer/auth and any wallet-proof role change — the invoke-authorization vectors re-derive to the b2h signer model (the challengeWindowBlocks cross-object equality persists, but the admitting signature shape moves from a fresh recovery-key BIP340 to the b2h custody proof)."
-    }
+    "flipMarker": null
   }
 ]

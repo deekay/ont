@@ -3,14 +3,13 @@
     "id": "D3-pos-01",
     "ruleId": "D3",
     "area": "DA verdict",
-    "authorityTier": "provisional",
+    "authorityTier": "ratified",
     "sources": [
       "docs/core/B2_KERNEL_HARDENING.md D3 (lines 281-290), Blocked on decision: da-windows (line 284)",
       "docs/core/DECISIONS.md 49. da-windows S2 (lines 1060-1061) — inclusive deadlines, PROVISIONAL pending DK (lines 1043-1047)",
       "docs/spec/ONT_DATA_AVAILABILITY_AGREEMENT.md §6e S2 (lines 174-176) — '(provisional pending DK; candidate tier)'"
     ],
     "kind": "positive",
-    "decisionDeps": ["da-windows (#49)"],
     "inputs": {
       "sourceCategory": "provisional-vector",
       "attackFlagText": "Boundary inclusivity ('by height h+W') is not pinned in spec text — <= vs < differs by one block and only the sim's <= exists (see D13).",
@@ -22,7 +21,7 @@
         "priorState": "a single in-window claim on an uncontested name"
       },
       "scopeNote": "PROVISIONAL on da-windows (#49): the verdict (a claim first-servable at exactly h+W is in-window) is derivable, but the inclusive (<= vs <) boundary reading is pinned by #49 S2, which is PROVISIONAL pending DK. This is a DA-window edge (h+W) covered by #49 S2 — distinct from the non-DA window edges (notice-window/bond/collision/maturity) that route to PR-13. Authored with provisional W=2/C=3/K=6; flips to reject under a strict-< ruling per flipMarker. NOT vector-now.",
-      "authoringStatus": "authored: provisional vector with decisionDeps + flipMarker; status locked (per-area adversarial review passed; authorityTier stays provisional — flips/re-derives on DK ratification of #49/#50); flips on DK's #49 S2 boundary ruling."
+      "authoringStatus": "authored from a provisional vector (decisionDeps + flipMarker shed on ratification); status locked (per-area adversarial review passed; authorityTier RATIFIED 2026-06-14 (DK ratified da-windows #49 O1 / recovery-auth #50 b1); lineage in DECISIONS #49/#50, registry Part B, decision papers, git); ratified per DK's #49 S2 boundary ruling."
     },
     "expected": {
       "verdict": "accept",
@@ -32,16 +31,13 @@
     },
     "status": "locked",
     "attackFlagRef": "D3-01",
-    "flipMarker": {
-      "decision": "da-windows (#49)",
-      "flipsTo": "rederive: if DK flips #49 S2 to exclusive (strict-<) deadlines, the h+W-exact case flips to reject (out-of-window) and h+W-1 becomes the last in-window height; the first-servable-height predicate shape is stable, so the boundary vector stays testable under the strict-< reading."
-    }
+    "flipMarker": null
   },
   {
     "id": "D3-neg-01",
     "ruleId": "D3",
     "area": "DA verdict",
-    "authorityTier": "provisional",
+    "authorityTier": "ratified",
     "sources": [
       "docs/core/B2_KERNEL_HARDENING.md D3 reorg flag (line 291); Gaps 'Reorg semantics of the verdict' (line 409)",
       "docs/core/DECISIONS.md 49. da-windows S1 (lines 1057-1059) — reorgs re-derive h; PROVISIONAL (lines 1043-1047)",
@@ -49,7 +45,6 @@
       "docs/core/DECISIONS.md Open Question 6 (lines 1243-1248) — reorg handling is part of the W/C/K window design"
     ],
     "kind": "negative",
-    "decisionDeps": ["da-windows (#49)"],
     "inputs": {
       "sourceCategory": "provisional-vector",
       "attackFlagText": "Reorg can change h itself; verdict behavior across an anchor reorg is unspecified (DECISIONS Open Question 6: 'Still open: reorg handling, which is the W/C/K window design').",
@@ -61,7 +56,7 @@
         "priorState": "an anchor confirmed at h, then reorged out and re-mined at h' != h"
       },
       "scopeNote": "PROVISIONAL on da-windows (#49): the reorg deadline-clock rule (h re-derives from the new containing block on reorg; deadlines move with it) is pinned by #49 S1, PROVISIONAL pending DK. The verdict (a stale-pre-reorg-h evaluation is non-conformant; the correct verdict re-derives from h') is derivable from S1 but depends on the provisional decision. Broader reorg window-restart semantics beyond the clock remain a documented gap (Open Question 6); this vector tests only the S1 clock re-derivation. NOT vector-now.",
-      "authoringStatus": "authored: provisional vector with decisionDeps + flipMarker; status locked (per-area adversarial review passed; authorityTier stays provisional — flips/re-derives on DK ratification of #49/#50); flips on DK's #49 S1 reorg-clock ruling."
+      "authoringStatus": "authored from a provisional vector (decisionDeps + flipMarker shed on ratification); status locked (per-area adversarial review passed; authorityTier RATIFIED 2026-06-14 (DK ratified da-windows #49 O1 / recovery-auth #50 b1); lineage in DECISIONS #49/#50, registry Part B, decision papers, git); ratified per DK's #49 S1 reorg-clock ruling."
     },
     "expected": {
       "verdict": "reject",
@@ -71,16 +66,13 @@
     },
     "status": "locked",
     "attackFlagRef": "D3-02",
-    "flipMarker": {
-      "decision": "da-windows (#49)",
-      "flipsTo": "rederive: if DK flips #49 S1's one-clock reorg rule (e.g. freezes h at first confirmation rather than re-deriving from the new containing block), deadlines compute from the first-confirmation h and the re-derivation vector flips to treat the original h as authoritative; the deadline-clock predicate shape is stable, so the vector stays testable under the frozen-clock rule."
-    }
+    "flipMarker": null
   },
   {
     "id": "D6-neg-01",
     "ruleId": "D6",
     "area": "DA verdict",
-    "authorityTier": "provisional",
+    "authorityTier": "ratified",
     "sources": [
       "docs/core/B2_KERNEL_HARDENING.md D6 (lines 315-323)",
       "docs/core/DECISIONS.md 49. da-windows S2/S3 (lines 1060-1064) — inclusive deadlines + holdsPriority keyed to h+W; PROVISIONAL",
@@ -88,7 +80,6 @@
       "docs/spec/ONT_DATA_AVAILABILITY_AGREEMENT.md §3 (lines 80-89) — boundary fork hazard"
     ],
     "kind": "negative",
-    "decisionDeps": ["da-windows (#49)"],
     "inputs": {
       "sourceCategory": "provisional-vector",
       "attackFlagText": "Selective reveal at the boundary: an attacker who arranges first-servable exactly at the deadline exploits D13's unpinned inclusivity to win on some implementations and lose on others — a convergence fork on a contested name, the worst case in §3.",
@@ -99,7 +90,7 @@
         "priorState": "a contested name with two competing claimants near the hard deadline"
       },
       "scopeNote": "PROVISIONAL on da-windows (#49): the boundary selective-reveal attack is neutralized iff the inclusivity is pinned — exactly #49 S2 (inclusive deadlines) + S3 (holdsPriority keyed to h+W), PROVISIONAL pending DK. With the boundary pinned, the §6d (candidate) contested-priority forfeit becomes testable: a just-past-deadline claimant forfeits, and the at-boundary claimant converges on every verifier (no §3 fork). DA-window edge (h+W), distinct from the non-DA edges routed to PR-13. NOT vector-now.",
-      "authoringStatus": "authored: provisional vector with decisionDeps + flipMarker; status locked (per-area adversarial review passed; authorityTier stays provisional — flips/re-derives on DK ratification of #49/#50); flips on DK's #49 S2 boundary ruling."
+      "authoringStatus": "authored from a provisional vector (decisionDeps + flipMarker shed on ratification); status locked (per-area adversarial review passed; authorityTier RATIFIED 2026-06-14 (DK ratified da-windows #49 O1 / recovery-auth #50 b1); lineage in DECISIONS #49/#50, registry Part B, decision papers, git); ratified per DK's #49 S2 boundary ruling."
     },
     "expected": {
       "verdict": "reject",
@@ -109,23 +100,19 @@
     },
     "status": "locked",
     "attackFlagRef": "D6-01",
-    "flipMarker": {
-      "decision": "da-windows (#49)",
-      "flipsTo": "rederive: if DK flips #49 to exclusive (strict-<) deadlines, the boundary winner flips — an h+W-exact reveal forfeits priority under the strict-< deadline (h+W becomes out-of-window), and the just-past-deadline threshold moves to h+W; the contested-priority forfeit shape is stable, so the vector stays testable under the strict-< reading."
-    }
+    "flipMarker": null
   },
   {
     "id": "D9-neg-01",
     "ruleId": "D9",
     "area": "DA verdict",
-    "authorityTier": "provisional",
+    "authorityTier": "ratified",
     "sources": [
       "docs/core/B2_KERNEL_HARDENING.md D9 (lines 344-353)",
       "docs/core/DECISIONS.md 49. da-windows S6 (lines 1069-1070) and corroboration C3 (lines 1081-1084) — PROVISIONAL (lines 1043-1047)",
       "docs/spec/ONT_DATA_AVAILABILITY_AGREEMENT.md §6e S6 (lines 185-189) — 'K >= W + C ... superseded ... the weaker W <= K form ... permits include-then-retract'; §6a (lines 127-132) — stated W <= K"
     ],
     "kind": "negative",
-    "decisionDeps": ["da-windows (#49)"],
     "inputs": {
       "sourceCategory": "provisional-vector",
       "attackFlagText": "§6a's stated constraint (W <= K) is weaker than the prototype's enforced invariant (K >= W+C): with C > 0 and W = K the challenge resolves after finalization, opening a divergence window the spec text as written permits. The hardening pass must pick the strong form explicitly.",
@@ -137,7 +124,7 @@
         "WCK": "#49 provisional parameters (W=2, C=3, K=6 satisfy K >= W+C); the K=W,C>0 counterexample violates S6"
       },
       "scopeNote": "PROVISIONAL on da-windows (#49): #49 S6 explicitly picks the strong form K >= W + C (load-bearing; the weak W<=K read alone permits include-then-retract at W=K,C>0). The verdict (a K<W+C triple is rejected at construction; eligible anchors never retract for an availability reason) is derivable from S6 but the algebra is PROVISIONAL pending DK. NOT vector-now.",
-      "authoringStatus": "authored: provisional vector with decisionDeps + flipMarker; status locked (per-area adversarial review passed; authorityTier stays provisional — flips/re-derives on DK ratification of #49/#50); flips on DK's #49 S6 strong-form ruling."
+      "authoringStatus": "authored from a provisional vector (decisionDeps + flipMarker shed on ratification); status locked (per-area adversarial review passed; authorityTier RATIFIED 2026-06-14 (DK ratified da-windows #49 O1 / recovery-auth #50 b1); lineage in DECISIONS #49/#50, registry Part B, decision papers, git); ratified per DK's #49 S6 strong-form ruling."
     },
     "expected": {
       "verdict": "reject",
@@ -147,16 +134,13 @@
     },
     "status": "locked",
     "attackFlagRef": "D9-01",
-    "flipMarker": {
-      "decision": "da-windows (#49)",
-      "flipsTo": "rederive: if DK flips #49 to adopt the weaker W <= K form, the rejection of the K=W,C>0 triple flips to acceptance (the strong-form construction guard is removed) and the include-then-retract divergence window reopens; the parameter-validation predicate shape is stable, so the vector stays testable under the weak form (asserting the opposite construction verdict)."
-    }
+    "flipMarker": null
   },
   {
     "id": "D12-neg-01",
     "ruleId": "D12",
     "area": "DA verdict",
-    "authorityTier": "provisional",
+    "authorityTier": "ratified",
     "sources": [
       "docs/core/B2_KERNEL_HARDENING.md D12 (lines 375-384), Blocked on decision: da-windows (line 379)",
       "docs/core/DECISIONS.md 49. da-windows S5/S7 (lines 1067-1079) — parameters as inputs, two-parameterization vectors; PROVISIONAL",
@@ -164,7 +148,6 @@
       "docs/core/SOFTWARE_INVENTORY.md STATUS parameter-table row (line 91) — 'placeholders cannot harden past candidate' [ledger discipline]"
     ],
     "kind": "negative",
-    "decisionDeps": ["da-windows (#49)"],
     "inputs": {
       "sourceCategory": "provisional-vector",
       "attackFlagText": "Sim defaults can fossilize: vectors written against K=6/W=2/C=3 risk becoming de-facto frozen parameters — the inventory rule says placeholders cannot pass candidate.",
@@ -175,7 +158,7 @@
         "params": "#49 S5/S7: (K,W,C) are per-network consensus parameters passed as kernel inputs; no constant lives in @ont/consensus; provisional (6,2,3) are placeholders only"
       },
       "scopeNote": "PROVISIONAL on da-windows (#49): #49 S5/S7 pins that (K,W,C) are per-network parameters passed to the kernel as inputs (no constant in @ont/consensus) and mandates conformance at two distinct parameterizations so a baked-in constant cannot pass. The verdict (reject invalid params; total across parameterizations; no hardcoded numbers) is derivable from S5/S7 but PROVISIONAL pending DK. The 'placeholders cannot pass candidate' inventory rule (ratified ledger discipline) reinforces, not replaces, the #49 dependency. NOT vector-now.",
-      "authoringStatus": "authored: provisional vector with decisionDeps + flipMarker; status locked (per-area adversarial review passed; authorityTier stays provisional — flips/re-derives on DK ratification of #49/#50); the two-parameterization vector's purpose changes on DK's #49 S5/S7 ruling."
+      "authoringStatus": "authored from a provisional vector (decisionDeps + flipMarker shed on ratification); status locked (per-area adversarial review passed; authorityTier RATIFIED 2026-06-14 (DK ratified da-windows #49 O1 / recovery-auth #50 b1); lineage in DECISIONS #49/#50, registry Part B, decision papers, git); the two-parameterization vector's purpose changes on DK's #49 S5/S7 ruling."
     },
     "expected": {
       "verdict": "reject",
@@ -185,23 +168,19 @@
     },
     "status": "locked",
     "attackFlagRef": "D12-01",
-    "flipMarker": {
-      "decision": "da-windows (#49)",
-      "flipsTo": "rederive: if DK rules #49 to ratify fixed launch constants baked into the kernel (rather than parameters-as-inputs), the two-parameterization totality vector becomes informational only and the second parameterization is no longer a conformance requirement; the invalid-parameter-rejection half stays testable under either ruling."
-    }
+    "flipMarker": null
   },
   {
     "id": "D13-pos-01",
     "ruleId": "D13",
     "area": "DA verdict",
-    "authorityTier": "provisional",
+    "authorityTier": "ratified",
     "sources": [
       "docs/core/B2_KERNEL_HARDENING.md D13 (lines 386-394) — verdict candidate-stays; Needed spec work names a future §6b/§6c amendment; '<= reading exists only in sim code'",
       "docs/core/DECISIONS.md 49. da-windows S2 (lines 1060-1061) — inclusive deadlines; PROVISIONAL (lines 1043-1047)",
       "docs/spec/ONT_DATA_AVAILABILITY_AGREEMENT.md §6e S2 (lines 174-176) — '(provisional pending DK; candidate tier)'; §3 (lines 80-89) — boundary fork hazard"
     ],
     "kind": "positive",
-    "decisionDeps": ["da-windows (#49)"],
     "inputs": {
       "sourceCategory": "provisional-vector",
       "attackFlagText": "A one-block ambiguity at the deadline is a convergence fork by construction — exactly the boundary-divergence class §3 warns about; any cross-implementation disagreement here splits roots on contested names.",
@@ -213,7 +192,7 @@
         "WCK": "#49 provisional parameters (W=2, C=3, K=6); §6e S2 inclusive deadlines"
       },
       "scopeNote": "PROVISIONAL on da-windows (#49): D13's verdict is candidate-stays (inclusive <= deadline comparisons), but the substantive inclusive reading is supplied by #49 S2 in §6e ('a witness at the deadline height exactly is in-window'); D13's own 'Needed spec work' still names a future §6b/§6c amendment and #49 is PROVISIONAL pending DK. Because the <= choice rests on the provisional #49 algebra (today it exists only in sim code + the provisional §6e), the boundary verdict is provisional-vector, not vector-now. DA-window edges (h+W, h+W+C), distinct from the non-DA edges routed to PR-13.",
-      "authoringStatus": "authored: provisional vector with decisionDeps + flipMarker; status locked (per-area adversarial review passed; authorityTier stays provisional — flips/re-derives on DK ratification of #49/#50); flips on DK's #49 S2 boundary ruling."
+      "authoringStatus": "authored from a provisional vector (decisionDeps + flipMarker shed on ratification); status locked (per-area adversarial review passed; authorityTier RATIFIED 2026-06-14 (DK ratified da-windows #49 O1 / recovery-auth #50 b1); lineage in DECISIONS #49/#50, registry Part B, decision papers, git); ratified per DK's #49 S2 boundary ruling."
     },
     "expected": {
       "verdict": "accept",
@@ -223,9 +202,6 @@
     },
     "status": "locked",
     "attackFlagRef": "D13-01",
-    "flipMarker": {
-      "decision": "da-windows (#49)",
-      "flipsTo": "rederive: if DK flips #49 S2 to exclusive (strict-<) deadlines, every boundary vector flips — h+W and h+W+C exact yield reject, and h+W-1 / h+W+C-1 become the last in-window/includable heights; the first-servable-height predicate shape is stable, so the boundary vectors stay testable under the strict-< reading."
-    }
+    "flipMarker": null
   }
 ]

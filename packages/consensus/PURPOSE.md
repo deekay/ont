@@ -65,7 +65,10 @@ code is only mining material.
   rows once; `--check-authored[-complete]` validates the per-area authored
   files against the hardened schema + coverage; `--check-provisional[-partial]`
   validates `docs/core/vectors/provisional/` (the 29 `provisional-vector` rows,
-  `authorityTier: "provisional"` + `decisionDeps` + `flipMarker`).
+  `authorityTier: "provisional"` + `decisionDeps` + `flipMarker`);
+  `--check-ratified-provisional[-partial]` validates the same 29
+  provisional-origin rows after DK ratifies their dependencies, requiring
+  `authorityTier: "ratified"` and `status: "locked"`.
 - `src/b2-boundary.test.ts` is the first executable B2 gate: production
   `@ont/consensus` modules must not import filesystem, network, process,
   timer, or clock channels, and must not read host-time/browser/network

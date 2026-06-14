@@ -3,14 +3,13 @@
     "id": "A3-neg-01",
     "ruleId": "A3",
     "area": "Anchor acceptance",
-    "authorityTier": "provisional",
+    "authorityTier": "ratified",
     "sources": [
       "docs/core/B2_KERNEL_HARDENING.md A3 (lines 118-129), Step-2 correction: 'da-windows (#49 ... merged) pins the strong form K >= W + C as S6 — the rule restates per §6e and conflict C3 is resolved by that ruling' (line 121)",
       "docs/spec/ONT_DATA_AVAILABILITY_AGREEMENT.md §6c (candidate) + §6e S1-S6 da-windows (provisional pending DK) — decidable predicate over witnessed evidence",
       "docs/core/DECISIONS.md entry 49 da-windows (PROVISIONAL pending DK ratification)"
     ],
     "kind": "negative",
-    "decisionDeps": ["da-windows (#49)"],
     "inputs": {
       "sourceCategory": "provisional-vector",
       "attackFlagText": "DA agreement §6c describes the challenge outcome as having 'an objective, eventually-consistent answer' — 'eventually-consistent' is not a pure predicate; the B2 rule must be restated as decidable at a fixed height over a witnessed evidence set or the kernel cannot be pure.",
@@ -22,7 +21,7 @@
         "priorState": "baseline; a single witnessed evidence set, no qualifying bond"
       },
       "scopeNote": "PROVISIONAL on da-windows (#49): the A3 rule SHAPE (the §6c challenge outcome restated as a pure predicate decidable at a fixed height over the witnessed evidence set — S2 eligibleAt H>=h+K, S3 includable/holdsPriority, S4 evidence-in/verdict-out, identical on replay) is derivable, but the h+K eligibility boundary and the K >= W + C strong-form invariant are governed by #49 (PROVISIONAL — S2/S5/S6/S7). A3 is the precise concern #49 resolves; per the gate, depends-on-#49 ⇒ provisional-vector, never vector-now. Authored with provisional W=2, C=3, K=6; the verdict re-derives per flipMarker if DK rules #49 differently.",
-      "authoringStatus": "authored: provisional vector with decisionDeps + flipMarker; status locked (per-area adversarial review passed; authorityTier stays provisional — flips/re-derives on DK ratification of #49/#50); flips/re-derives on DK's #49 ruling."
+      "authoringStatus": "authored from a provisional vector (decisionDeps + flipMarker shed on ratification); status locked (per-area adversarial review passed; authorityTier RATIFIED 2026-06-14 (DK ratified da-windows #49 O1 / recovery-auth #50 b1); lineage in DECISIONS #49/#50, registry Part B, decision papers, git); flips/re-derives on DK's #49 ruling."
     },
     "expected": {
       "verdict": "reject",
@@ -32,23 +31,19 @@
     },
     "status": "locked",
     "attackFlagRef": "A3-01",
-    "flipMarker": {
-      "decision": "da-windows (#49)",
-      "flipsTo": "rederive: if DK flips #49 to the weak W<=K form, re-pin the K >= W + C invariant and the include-then-retract foreclosure boundary; the W=K, C>0 include-then-retract case becomes admissible and the boundary verdict at h+K re-derives, while the decidable-at-fixed-height shape (S2/S3/S4 evidence-in/verdict-out) is stable, so the vector stays testable under the new window algebra."
-    }
+    "flipMarker": null
   },
   {
     "id": "A11-pos-01",
     "ruleId": "A11",
     "area": "Anchor acceptance",
-    "authorityTier": "provisional",
+    "authorityTier": "ratified",
     "sources": [
       "docs/core/B2_KERNEL_HARDENING.md A11 (lines 210-218), flag (line 218)",
       "docs/core/DECISIONS.md entry 26 (ratified, insertion-only) + entry 49 da-windows (provisional — includable/holdsPriority post-DA state)",
       "docs/spec/ONT_DATA_AVAILABILITY_AGREEMENT.md §5 (candidate, insertion-only uniqueness) / §6e S3 (provisional)"
     ],
     "kind": "positive",
-    "decisionDeps": ["da-windows (#49)"],
     "inputs": {
       "sourceCategory": "provisional-vector",
       "attackFlagText": "Uniqueness is enforced against kernel state, which depends on the DA verdicts of earlier batches: a name 'already inserted' by a later-forfeited batch must not block honest re-claiming — the insertion-uniqueness check must be defined over the post-DA-verdict state, and the spec does not yet say so.",
@@ -60,7 +55,7 @@
         "scopeExclusion": "this vector does NOT assert the first-anchor-wins (earliest-VALID-anchor) merge or same-(name,owner) idempotency — those are PR-5 / PR-6 definition-block claims, not #49; it tests only post-DA-verdict occupancy"
       },
       "scopeNote": "PROVISIONAL on da-windows (#49): A11 (anchors are insertion-only; a claim must not take an already-FINAL name) is cited on ratified #26 + candidate DA §5, but the flag's demand — insertion-uniqueness must be defined over the POST-DA-verdict state so a later-forfeited batch does not block honest re-claiming — consumes the eligibility verdict pinned by #49 S3 (includable/holdsPriority). What this vector tests is exactly that: a forfeited earlier batch is ABSENT from post-DA-verdict occupancy and so does not block a fresh honest claim. Depends-on-#49 ⇒ provisional-vector, never vector-now. The broader first-anchor-wins (earliest-VALID-anchor) definition and same-(name,owner) idempotency are PR-5 / PR-6 territory and are NOT asserted here (context only). Authored with provisional W=2/C=3/K=6; re-derives per flipMarker.",
-      "authoringStatus": "authored: provisional vector with decisionDeps + flipMarker; status locked (per-area adversarial review passed; authorityTier stays provisional — flips/re-derives on DK ratification of #49/#50); re-derives on DK's #49 ruling."
+      "authoringStatus": "authored from a provisional vector (decisionDeps + flipMarker shed on ratification); status locked (per-area adversarial review passed; authorityTier RATIFIED 2026-06-14 (DK ratified da-windows #49 O1 / recovery-auth #50 b1); lineage in DECISIONS #49/#50, registry Part B, decision papers, git); re-derives on DK's #49 ruling."
     },
     "expected": {
       "verdict": "accept",
@@ -70,9 +65,6 @@
     },
     "status": "locked",
     "attackFlagRef": "A11-01",
-    "flipMarker": {
-      "decision": "da-windows (#49)",
-      "flipsTo": "rederive: if DK flips #49's includable/holdsPriority semantics, re-pin the height at which a forfeited insertion stops contributing occupancy — what counts as 'post-DA-verdict state' moves with the C/W algebra; the insertion-only + post-DA-verdict-occupancy shape (ratified #26) is stable, so the re-claim-accepted vector stays testable under the new eligibility algebra."
-    }
+    "flipMarker": null
   }
 ]

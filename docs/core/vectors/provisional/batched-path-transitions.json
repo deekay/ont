@@ -3,14 +3,13 @@
     "id": "B1-neg-02",
     "ruleId": "B1",
     "area": "Batched-path transitions",
-    "authorityTier": "provisional",
+    "authorityTier": "ratified",
     "sources": [
       "docs/spec/AUCTION.md Provisional Utility [candidate] — provisional row 'DA-valid'",
       "docs/spec/ONT_DATA_AVAILABILITY_AGREEMENT.md §6e da-windows (#49) [provisional; candidate tier] S4 'evidence in, verdict out'",
       "docs/core/DECISIONS.md §49 da-windows [PROVISIONAL]"
     ],
     "kind": "negative",
-    "decisionDeps": ["da-windows (#49)"],
     "inputs": {
       "sourceCategory": "provisional-vector",
       "attackFlagText": "the table row for provisional says 'DA-valid' — eligibility verdicts are inputs, so an implementation caching state across a flipped DA verdict desynchronizes",
@@ -21,7 +20,7 @@
         "priorState": "a provisional-utility name whose DA verdict subsequently flips"
       },
       "scopeNote": "PROVISIONAL on da-windows (#49): the verdict (state is re-derived from the witnessed DA verdict, never cached; eligibility verdicts are pure-predicate INPUTS) is derivable, but the DA-eligibility verdict the state consumes is governed by #49 S2/S3/S4 (includable/holdsPriority, evidence-in/verdict-out), PROVISIONAL pending DK. This is a DA-validity-CONSUMER (it counts/recomputes from the DA verdict), not a non-DA boundary edge. Depends on #49 ⇒ provisional-vector.",
-      "authoringStatus": "authored: provisional vector with decisionDeps + flipMarker; status locked (per-area adversarial review passed; authorityTier stays provisional — flips/re-derives on DK ratification of #49/#50); re-pins on DK's #49 window-algebra ruling."
+      "authoringStatus": "authored from a provisional vector (decisionDeps + flipMarker shed on ratification); status locked (per-area adversarial review passed; authorityTier RATIFIED 2026-06-14 (DK ratified da-windows #49 O1 / recovery-auth #50 b1); lineage in DECISIONS #49/#50, registry Part B, decision papers, git); re-pins on DK's #49 window-algebra ruling."
     },
     "expected": {
       "verdict": "reject",
@@ -31,23 +30,19 @@
     },
     "status": "locked",
     "attackFlagRef": "B1-02",
-    "flipMarker": {
-      "decision": "da-windows (#49)",
-      "flipsTo": "rederive: if DK flips #49's window algebra, the boundary heights at which the DA verdict is evaluated change, re-pinning the cache-invalidation fixture (which height the verdict flips at); the never-cache / always-re-derive shape is stable, so the vector stays testable under the new algebra."
-    }
+    "flipMarker": null
   },
   {
     "id": "B3-neg-01",
     "ruleId": "B3",
     "area": "Batched-path transitions",
-    "authorityTier": "provisional",
+    "authorityTier": "ratified",
     "sources": [
       "docs/spec/ONT_ACQUISITION_STATE_MACHINE.md Public Notice [candidate] — 'exactly one cheap claim and no qualifying bond'",
       "docs/core/DECISIONS.md §37 bond-opens [ratified] — 'One cheap claim, no bond by the deadline -> finalizes'",
       "docs/spec/ONT_DATA_AVAILABILITY_AGREEMENT.md §6e da-windows (#49) [provisional] S1 one clock"
     ],
     "kind": "negative",
-    "decisionDeps": ["da-windows (#49)"],
     "inputs": {
       "sourceCategory": "provisional-vector",
       "attackFlagText": "'exactly one' silently depends on the three eligibility verdicts from other kernel areas; if any verdict is evaluated at a different height than window close, the claim count can differ between honest nodes",
@@ -59,7 +54,7 @@
         "priorState": "a name with one cheap claim and one DA-excluded colliding claim near window close"
       },
       "scopeNote": "PROVISIONAL on da-windows (#49): the 'exactly one eligible claim' verdict is from ratified #37 + candidate state machine, but the HEIGHT at which DA-eligibility is evaluated for the count rides on #49 S1/S3 (one clock, includable/holdsPriority), PROVISIONAL. DA-validity-COUNTING consumer. Tests the one-clock height-uniformity (honest-node-invariant count), explicitly NOT the exact at-close edge (that non-DA edge is PR-13, cf. A13). Depends on #49 ⇒ provisional-vector.",
-      "authoringStatus": "authored: provisional vector with decisionDeps + flipMarker; status locked (per-area adversarial review passed; authorityTier stays provisional — flips/re-derives on DK ratification of #49/#50); re-pins on DK's #49 eligibility-evaluation-height ruling."
+      "authoringStatus": "authored from a provisional vector (decisionDeps + flipMarker shed on ratification); status locked (per-area adversarial review passed; authorityTier RATIFIED 2026-06-14 (DK ratified da-windows #49 O1 / recovery-auth #50 b1); lineage in DECISIONS #49/#50, registry Part B, decision papers, git); re-pins on DK's #49 eligibility-evaluation-height ruling."
     },
     "expected": {
       "verdict": "reject",
@@ -69,23 +64,19 @@
     },
     "status": "locked",
     "attackFlagRef": "B3-01",
-    "flipMarker": {
-      "decision": "da-windows (#49)",
-      "flipsTo": "rederive: a different #49 ruling on the eligibility-evaluation height re-pins which height the count is taken at; the one-clock uniformity requirement (count is honest-node-invariant) is stable, so the desync-rejection vector stays testable at the new evaluation height."
-    }
+    "flipMarker": null
   },
   {
     "id": "B4-neg-01",
     "ruleId": "B4",
     "area": "Batched-path transitions",
-    "authorityTier": "provisional",
+    "authorityTier": "ratified",
     "sources": [
       "docs/spec/CONTESTED_AUCTION_REFERENCE.md Core Rule [candidate] — 'two or more DA-valid claims... no bond... nullified'",
       "docs/spec/ONT_DATA_AVAILABILITY_AGREEMENT.md §6e da-windows (#49) [provisional] S3 includable/holdsPriority",
       "docs/core/B2_KERNEL_HARDENING.md B4 lines 881-890"
     ],
     "kind": "negative",
-    "decisionDeps": ["da-windows (#49)"],
     "inputs": {
       "sourceCategory": "provisional-vector",
       "attackFlagText": "CONTESTED_AUCTION_REFERENCE says 'DA-valid claims' while the state machine says 'cheap claims' — an ineligible (withheld) colliding claim must NOT nullify, or withholding becomes a free denial weapon",
@@ -96,7 +87,7 @@
         "priorState": "a victim name with one withheld colliding claim"
       },
       "scopeNote": "PROVISIONAL on da-windows (#49): the verdict (only DA-eligible claims count toward a collision; a withheld/excluded colliding claim does NOT nullify) resolves the CONTESTED_AUCTION_REFERENCE-vs-state-machine doc conflict in favor of 'DA-valid', derivable, but 'DA-valid/eligible' is defined by #49 S3 includable/holdsPriority, PROVISIONAL. DA-validity-COUNTING consumer (the #49 class ChatLunatique confirmed, alongside F11). Depends on #49 ⇒ provisional-vector.",
-      "authoringStatus": "authored: provisional vector with decisionDeps + flipMarker; status locked (per-area adversarial review passed; authorityTier stays provisional — flips/re-derives on DK ratification of #49/#50); re-pins on DK's #49 includable/holdsPriority threshold ruling."
+      "authoringStatus": "authored from a provisional vector (decisionDeps + flipMarker shed on ratification); status locked (per-area adversarial review passed; authorityTier RATIFIED 2026-06-14 (DK ratified da-windows #49 O1 / recovery-auth #50 b1); lineage in DECISIONS #49/#50, registry Part B, decision papers, git); re-pins on DK's #49 includable/holdsPriority threshold ruling."
     },
     "expected": {
       "verdict": "reject",
@@ -106,23 +97,19 @@
     },
     "status": "locked",
     "attackFlagRef": "B4-02",
-    "flipMarker": {
-      "decision": "da-windows (#49)",
-      "flipsTo": "rederive: a #49 ruling that changes the includable/holdsPriority threshold changes which colliding claims count as DA-valid for the nullify decision; the only-DA-eligible-claims-nullify shape is stable, so the withheld-claim-does-not-nullify vector stays testable under the new threshold."
-    }
+    "flipMarker": null
   },
   {
     "id": "B10-pos-01",
     "ruleId": "B10",
     "area": "Batched-path transitions",
-    "authorityTier": "provisional",
+    "authorityTier": "ratified",
     "sources": [
       "docs/spec/ONT_DATA_AVAILABILITY_AGREEMENT.md §6c/§5 [candidate] — uniform exclusion, only D's own leaves move",
       "docs/core/B2_KERNEL_HARDENING.md B10 lines 947-955 ('Blocked on decision: da-windows')",
       "docs/core/DECISIONS.md §49 da-windows [PROVISIONAL] S5 (K,W,C) are inputs"
     ],
     "kind": "positive",
-    "decisionDeps": ["da-windows (#49)"],
     "inputs": {
       "sourceCategory": "provisional-vector",
       "attackFlagText": "the rule's shape is final but its trigger heights (W, C, K) are the open da-windows decision — any test fixture must parameterize them",
@@ -134,7 +121,7 @@
         "priorState": "a kernel state with a final owner on one name and an in-flight batch D on others"
       },
       "scopeNote": "PROVISIONAL on da-windows (#49): the rule (a DA-excluded batch's claims vanish uniformly; exclusion removes only the batch's own leaves and unseats no final owner) is cited and final in shape, but the trigger heights W/C/K are exactly the #49 decision (B10 marked 'Blocked on decision: da-windows'). The verdict is a parameterized function; the parameters come from provisional #49 and the fixtures run at two parameterizations (S7). Depends on #49 ⇒ provisional-vector.",
-      "authoringStatus": "authored: provisional vector with decisionDeps + flipMarker; status locked (per-area adversarial review passed; authorityTier stays provisional — flips/re-derives on DK ratification of #49/#50); re-instantiates trigger heights on DK's #49 parameterization ruling."
+      "authoringStatus": "authored from a provisional vector (decisionDeps + flipMarker shed on ratification); status locked (per-area adversarial review passed; authorityTier RATIFIED 2026-06-14 (DK ratified da-windows #49 O1 / recovery-auth #50 b1); lineage in DECISIONS #49/#50, registry Part B, decision papers, git); re-instantiates trigger heights on DK's #49 parameterization ruling."
     },
     "expected": {
       "verdict": "accept",
@@ -144,9 +131,6 @@
     },
     "status": "locked",
     "attackFlagRef": "B10-01",
-    "flipMarker": {
-      "decision": "da-windows (#49)",
-      "flipsTo": "rederive: a different #49 parameterization re-instantiates the trigger heights (the vectors must run at two parameterizations per #49 S7); the uniform-exclusion / only-own-leaves-move / no-final-owner-unseated shape is stable, so the vector re-parameterizes to the ratified (K,W,C)."
-    }
+    "flipMarker": null
   }
 ]

@@ -3,14 +3,13 @@
     "id": "F9-neg-01",
     "ruleId": "F9",
     "area": "Gate-fee validation",
-    "authorityTier": "provisional",
+    "authorityTier": "ratified",
     "sources": [
       "docs/core/B2_KERNEL_HARDENING.md F9 ('Blocked on decision: da-windows')",
       "docs/core/DECISIONS.md #49 da-windows (PROVISIONAL; S2 eligibleAt H>=h+K, S5 K per-network parameter, S7 provisional (6,2,3), deterministic replay over reorgs)",
       "docs/spec/ONT_DATA_AVAILABILITY_AGREEMENT.md §6a ('eligible ... once h is K-deep') + §6e (window algebra pinned by #49)"
     ],
     "kind": "negative",
-    "decisionDeps": ["da-windows (#49)"],
     "inputs": {
       "sourceCategory": "provisional-vector",
       "attackFlagText": "K is one of the W/C/K values in the open pre-B2 da-windows decision; the rule shape is extractable but the confirmation depth the fee verdict waits for cannot be finalized until that ruling lands.",
@@ -22,7 +21,7 @@
         "priorState": "baseline"
       },
       "scopeNote": "PROVISIONAL on da-windows (#49): the F9 rule SHAPE (the gate keys to the anchor at K-deep confirmation; reorged-out-before-K -> no fee fact; a re-mined replacement is gated on its own new intrinsic fee; deterministic replay over reorgs) is derivable, but the confirmation-depth K and the h+K eligibility boundary are governed by #49 (PROVISIONAL — S2/S5/S7). F9's rule is explicitly 'Blocked on decision: da-windows'. Authored now with the provisional K=6; the verdict re-pins per flipMarker if DK rules #49 differently. NOT vector-now (depends on the provisional decision).",
-      "authoringStatus": "authored: provisional vector with decisionDeps + flipMarker; status locked (per-area adversarial review passed; authorityTier stays provisional — flips/re-derives on DK ratification of #49/#50); flips/retires on DK's #49 ruling."
+      "authoringStatus": "authored from a provisional vector (decisionDeps + flipMarker shed on ratification); status locked (per-area adversarial review passed; authorityTier RATIFIED 2026-06-14 (DK ratified da-windows #49 O1 / recovery-auth #50 b1); lineage in DECISIONS #49/#50, registry Part B, decision papers, git); flips/retires on DK's #49 ruling."
     },
     "expected": {
       "verdict": "reject",
@@ -32,16 +31,13 @@
     },
     "status": "locked",
     "attackFlagRef": "F9-01",
-    "flipMarker": {
-      "decision": "da-windows (#49)",
-      "flipsTo": "rederive: if DK changes K's value or the eligibility-boundary form (h+K), re-pin the confirmation-depth integer and the h+K boundary block; the algebra — reorged-out-before-K contributes nothing, a re-mined replacement re-evaluates its own intrinsic fee, deterministic replay — is stable, so the vector stays testable with the new K."
-    }
+    "flipMarker": null
   },
   {
     "id": "F11-neg-01",
     "ruleId": "F11",
     "area": "Gate-fee validation",
-    "authorityTier": "provisional",
+    "authorityTier": "ratified",
     "sources": [
       "docs/spec/CONTESTED_AUCTION_REFERENCE.md ('two or more DA-valid claims for the same name land inside the notice window')",
       "docs/core/DECISIONS.md #49 da-windows (PROVISIONAL; S3 holdsPriority keyed to h+W; S2 inclusive deadlines)",
@@ -49,7 +45,6 @@
       "docs/core/DECISIONS.md #37 bond-opens [ratified] (escalation-trigger half: qualifying bond opens; bare collision denies, never awards)"
     ],
     "kind": "negative",
-    "decisionDeps": ["da-windows (#49)"],
     "inputs": {
       "sourceCategory": "provisional-vector",
       "attackFlagText": "Which competing claims count toward 'two or more' depends on the DA-validity of each claim ('two or more DA-valid claims', CONTESTED_AUCTION_REFERENCE) — this rule consumes the DA-verdict area's output, whose windows are unruled (da-windows); the predicate shape stands, its claim-counting input does not finalize until then.",
@@ -61,7 +56,7 @@
         "priorState": "a name with competing in-window claims, no qualifying bond"
       },
       "scopeNote": "PROVISIONAL on da-windows (#49): the F11 escalation-trigger half (a qualifying bond opens the auction; a bare collision denies-never-awards; two+ DA-valid bondless claims nullify) is RATIFIED via #37 — but the claim-counting INPUT ('which claims are DA-valid') consumes the DA-verdict, whose W (holdsPriority) window is governed by #49 (PROVISIONAL, S3). So whether a borderline claim qualifies — and thus nullify-vs-single-survivor-finalize — depends on #49's W boundary. Authored with provisional W=2; the escalation-trigger half is stable, only the DA-validity counting flips. NOT vector-now.",
-      "authoringStatus": "authored: provisional vector with decisionDeps + flipMarker; status locked (per-area adversarial review passed; authorityTier stays provisional — flips/re-derives on DK ratification of #49/#50); the #37 escalation-trigger half is ratified, only the #49-bounded DA-validity counting is provisional."
+      "authoringStatus": "authored from a provisional vector (decisionDeps + flipMarker shed on ratification); status locked (per-area adversarial review passed; authorityTier RATIFIED 2026-06-14 (DK ratified da-windows #49 O1 / recovery-auth #50 b1); lineage in DECISIONS #49/#50, registry Part B, decision papers, git); the #37 escalation-trigger half is ratified, only the #49-bounded DA-validity counting is provisional."
     },
     "expected": {
       "verdict": "reject",
@@ -71,9 +66,6 @@
     },
     "status": "locked",
     "attackFlagRef": "F11-02",
-    "flipMarker": {
-      "decision": "da-windows (#49)",
-      "flipsTo": "rederive: if DK flips #49's W boundary or its inclusivity, re-pin which borderline claims qualify as DA-valid and thus whether the name nullifies vs a single survivor finalizes; the #37 escalation-trigger / bare-collision-denies-never-awards half is stable, so the vector stays testable with the new W."
-    }
+    "flipMarker": null
   }
 ]

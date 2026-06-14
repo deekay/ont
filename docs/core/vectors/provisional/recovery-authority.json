@@ -3,14 +3,13 @@
     "id": "R7-neg-01",
     "ruleId": "R7",
     "area": "Recovery authority (arming + cross-object)",
-    "authorityTier": "provisional",
+    "authorityTier": "ratified",
     "sources": [
       "docs/core/B2_KERNEL_HARDENING.md R7 Step-3 restatement + Blocked on decision: recovery-auth",
       "docs/core/DECISIONS.md 50 recovery-auth (PROVISIONAL) — descriptor v2 BIP340 path; v1 parse-valid not invokable; b2h standing counter-design",
       "docs/spec/WIRE_FORMAT.md §8.2 — proof normalized signingProfile equals descriptor's; a descriptor naming any other profile cannot be invoked"
     ],
     "kind": "negative",
-    "decisionDeps": ["recovery-auth (#50)"],
     "inputs": {
       "sourceCategory": "provisional-vector",
       "attackFlagText": "This is the rare normative §8 sentence explicitly routed to B2 — losing it during kernel implementation would let a shape-valid future-profile descriptor be invoked under a bip322 proof.",
@@ -21,7 +20,7 @@
         "priorState": "an armed descriptor of the named profile/version"
       },
       "scopeNote": "PROVISIONAL on recovery-auth (#50): under #50-b1 the supported invoke profile set is descriptor v2's BIP340 recovery-key path; v1 descriptors stay parse-valid but not invokable. The verdict (unsupported/future-profile or v1 descriptor never reaches pendingRecovery) is derivable under #50-b1 — the original encoded the pre-#50 wallet-proof profile gate. Normative §8.2 profile-equality anchors the 'unsupported profile not invokable' core, but #50 narrows §8.2's proof-equality leg to corroboration, so the kernel-acceptance shape depends on the provisional decision. #50 signer/evidence-shape axis (flip b1<->b2h); PR-34 owns the wider recovery transaction-shape/flags surface. Depends on #50 ⇒ provisional-vector.",
-      "authoringStatus": "authored: provisional vector with decisionDeps + flipMarker; status locked (per-area adversarial review passed; authorityTier stays provisional — flips/re-derives on DK ratification of #49/#50); flips on DK's #50 invoke-profile-gate ruling (b1 vs b2h)."
+      "authoringStatus": "authored from a provisional vector (decisionDeps + flipMarker shed on ratification); status locked (per-area adversarial review passed; authorityTier RATIFIED 2026-06-14 (DK ratified da-windows #49 O1 / recovery-auth #50 b1); lineage in DECISIONS #49/#50, registry Part B, decision papers, git); ratified per DK's #50 invoke-profile-gate ruling (b1 vs b2h)."
     },
     "expected": {
       "verdict": "reject",
@@ -31,23 +30,19 @@
     },
     "status": "locked",
     "attackFlagRef": "R7-01",
-    "flipMarker": {
-      "decision": "recovery-auth (#50)",
-      "flipsTo": "rederive: if DK rules the b2h counter-design, the supported set re-admits the §8.2 proof<->descriptor profile-equality check as a kernel-acceptance input (rather than evidence-layer corroboration), and a v1 descriptor + wallet-proof remains invokable — flipping which descriptors pass the profile gate."
-    }
+    "flipMarker": null
   },
   {
     "id": "R9-neg-01",
     "ruleId": "R9",
     "area": "Recovery authority (arming + cross-object)",
-    "authorityTier": "provisional",
+    "authorityTier": "ratified",
     "sources": [
       "docs/core/B2_KERNEL_HARDENING.md R9 Step-3 restatement + Blocked on decision: recovery-auth; b2h standing counter-design",
       "docs/core/DECISIONS.md 50 — b1: BIP322 wallet proof non-authorizing corroboration vs b2h: BIP322/script/text verification inside the audited kernel",
       "docs/core/SOFTWARE_CANON.md L2 row (ratified) — pure deterministic predicate, no network/clock"
     ],
     "kind": "negative",
-    "decisionDeps": ["recovery-auth (#50)"],
     "inputs": {
       "sourceCategory": "provisional-vector",
       "attackFlagText": "BIP322 verification embeds Bitcoin script semantics — the B2 purity gate must treat the verifier as a deterministic pure function over (address, message, signature) with no network/UTXO lookups, or recovery verdicts stop being replayable.",
@@ -58,7 +53,7 @@
         "priorState": "a pending-recovery invoke carrying a valid wallet proof but a bad event signature"
       },
       "scopeNote": "PROVISIONAL on recovery-auth (#50): the purity requirement (any BIP322 verification is a deterministic pure function over (address,message,signature), no network/UTXO) derives from ratified SOFTWARE_CANON and holds under either ruling. BUT under #50-b1 the BIP322 wallet proof is NON-authorizing corroboration (its absence/failure must not block; its presence must not substitute for the event BIP340 sig), whereas under the standing counter-design b2h the BIP322 verifier IS an authorizing kernel predicate. Whether BIP322 verification is even an acceptance-path predicate hinges on #50, so the verdict's shape is provisional. #50 signer/evidence-shape axis (flip b1<->b2h). Depends on #50 ⇒ provisional-vector.",
-      "authoringStatus": "authored: provisional vector with decisionDeps + flipMarker; status locked (per-area adversarial review passed; authorityTier stays provisional — flips/re-derives on DK ratification of #49/#50); flips on DK's #50 wallet-proof-authority ruling (b1 vs b2h)."
+      "authoringStatus": "authored from a provisional vector (decisionDeps + flipMarker shed on ratification); status locked (per-area adversarial review passed; authorityTier RATIFIED 2026-06-14 (DK ratified da-windows #49 O1 / recovery-auth #50 b1); lineage in DECISIONS #49/#50, registry Part B, decision papers, git); ratified per DK's #50 wallet-proof-authority ruling (b1 vs b2h)."
     },
     "expected": {
       "verdict": "reject",
@@ -68,23 +63,19 @@
     },
     "status": "locked",
     "attackFlagRef": "R9-01",
-    "flipMarker": {
-      "decision": "recovery-auth (#50)",
-      "flipsTo": "rederive: if DK rules the b2h counter-design, the BIP322 verifier becomes an authorizing kernel predicate (descriptor + wallet-proof evidence + BIP322/script/text verification inside the audited kernel), so absence or failure of the proof DOES block acceptance — flipping this vector from reject-on-bad-event-sig (proof non-authorizing) to a model where the proof authorizes; the purity-of-the-verifier requirement persists under both."
-    }
+    "flipMarker": null
   },
   {
     "id": "R10-neg-01",
     "ruleId": "R10",
     "area": "Recovery authority (arming + cross-object)",
-    "authorityTier": "provisional",
+    "authorityTier": "ratified",
     "sources": [
       "docs/core/B2_KERNEL_HARDENING.md R10 Step-3 restatement — drafted against b1 with ratification flip marker; Blocked on decision: recovery-auth",
       "docs/core/DECISIONS.md 50 — fresh BIP340 over W13 digest; Replay: digest binds prevStateTxid, W13 domain separation; negative test replayed-arming-sig-as-invoke",
       "docs/spec/ONT_RECOVERY_INVOKE_SPEC.md What's missing item 2 — invoke-path signer is the open protocol question"
     ],
     "kind": "negative",
-    "decisionDeps": ["recovery-auth (#50)"],
     "inputs": {
       "sourceCategory": "provisional-vector",
       "attackFlagText": "Option (a) would make the slot a static, publicly-known value (the arming signature) replayable by anyone who has seen the descriptor — the ruling must address replay; flagged, not decided.",
@@ -95,7 +86,7 @@
         "priorState": "an armed descriptor; an attacker has seen the descriptor and replays its arming-style value as an invoke"
       },
       "scopeNote": "PROVISIONAL on recovery-auth (#50): under #50-b1 the 64-byte field carries a fresh BIP340 signature over the W13 digest (which binds prevStateTxid -> a captured sig dies when the state head moves -> plus W13 domain separation), so a replayed static arming value is rejected. Option-(a) acceptance vs (b1) rejection is exactly what #50 decides; the hardening doc drafts this against b1 with a ratification flip marker. #50 signer-shape axis (flip b1<->b2h). Depends on #50 ⇒ provisional-vector.",
-      "authoringStatus": "authored: provisional vector with decisionDeps + flipMarker; status locked (per-area adversarial review passed; authorityTier stays provisional — flips/re-derives on DK ratification of #49/#50); flips on DK's #50 invoke-slot ruling (b1 vs b2h)."
+      "authoringStatus": "authored from a provisional vector (decisionDeps + flipMarker shed on ratification); status locked (per-area adversarial review passed; authorityTier RATIFIED 2026-06-14 (DK ratified da-windows #49 O1 / recovery-auth #50 b1); lineage in DECISIONS #49/#50, registry Part B, decision papers, git); ratified per DK's #50 invoke-slot ruling (b1 vs b2h)."
     },
     "expected": {
       "verdict": "reject",
@@ -105,23 +96,19 @@
     },
     "status": "locked",
     "attackFlagRef": "R10-01",
-    "flipMarker": {
-      "decision": "recovery-auth (#50)",
-      "flipsTo": "rederive: if DK rules the b2h counter-design, the authorizing artifact is the BIP322 wallet-proof commitment, so the replay analysis and the accepted slot content change accordingly (the fresh-BIP340-over-W13-digest check is replaced by the b2h custody-proof check)."
-    }
+    "flipMarker": null
   },
   {
     "id": "R10-neg-02",
     "ruleId": "R10",
     "area": "Recovery authority (arming + cross-object)",
-    "authorityTier": "provisional",
+    "authorityTier": "ratified",
     "sources": [
       "docs/spec/WIRE_FORMAT.md §4.2 RecoverOwner — signature(64, Schnorr) (normative naming)",
       "docs/core/B2_KERNEL_HARDENING.md R10 Needed spec work — reconcile §4.2 signature field with legacy commitment-in-slot; Blocked on recovery-auth",
       "docs/core/DECISIONS.md 50 — 64-byte field carries fresh BIP340 over W13 digest; ratified §8.3 proof commitment is 32 bytes"
     ],
     "kind": "negative",
-    "decisionDeps": ["recovery-auth (#50)"],
     "inputs": {
       "sourceCategory": "provisional-vector",
       "attackFlagText": "Normative wire text labels the field `signature`(64, Schnorr) while the only deployed behavior put a non-signature commitment there — divergence between normative naming and legacy evidence.",
@@ -132,7 +119,7 @@
         "priorState": "an armed descriptor; an invoke carrying the legacy commitment-in-slot rather than a signature"
       },
       "scopeNote": "PROVISIONAL on recovery-auth (#50): divergence between normative §4.2 naming (signature, 64, Schnorr) and the only deployed behavior (legacy filled the slot with proofHash || 32 reserved zero bytes — a commitment, not a signature). Under #50-b1 the field's meaning is a fresh BIP340 signature over the W13 digest (the normative naming wins; the legacy commitment-in-slot is rejected; the ratified §8.3 proof commitment is now 32 bytes so the legacy 64-byte packing no longer fits). Derivable under #50; under b2h the slot semantics differ. #50 signer-shape axis (flip b1<->b2h). Depends on #50 ⇒ provisional-vector.",
-      "authoringStatus": "authored: provisional vector with decisionDeps + flipMarker; status locked (per-area adversarial review passed; authorityTier stays provisional — flips/re-derives on DK ratification of #49/#50); flips on DK's #50 invoke-slot-semantics ruling (b1 vs b2h)."
+      "authoringStatus": "authored from a provisional vector (decisionDeps + flipMarker shed on ratification); status locked (per-area adversarial review passed; authorityTier RATIFIED 2026-06-14 (DK ratified da-windows #49 O1 / recovery-auth #50 b1); lineage in DECISIONS #49/#50, registry Part B, decision papers, git); ratified per DK's #50 invoke-slot-semantics ruling (b1 vs b2h)."
     },
     "expected": {
       "verdict": "reject",
@@ -142,9 +129,6 @@
     },
     "status": "locked",
     "attackFlagRef": "R10-02",
-    "flipMarker": {
-      "decision": "recovery-auth (#50)",
-      "flipsTo": "rederive: if DK rules the b2h counter-design, the field/commitment semantics are redefined per the cold-hardware design, changing what occupies and validates the 64-byte slot (the BIP340-signature reading is replaced by the b2h commitment semantics)."
-    }
+    "flipMarker": null
   }
 ]

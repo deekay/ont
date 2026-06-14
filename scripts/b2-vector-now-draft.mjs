@@ -311,7 +311,7 @@ function expectedProvisionalVectors(rows, seed) {
   });
 }
 
-function checkProvisional({ requireComplete }) {
+function checkProvisional({ requireComplete, authorityState = "provisional" }) {
   const rows = classifiedRows();
   const seed = readJson(OUT_PATH);
   const expected = expectedProvisionalVectors(rows, seed);
@@ -334,8 +334,16 @@ function checkProvisional({ requireComplete }) {
     for (const vector of vectors) {
       problems.push(...validateSchemaVector(vector).map((problem) => `${file}: ${problem}`));
 
-      if (vector.authorityTier !== "provisional") {
+      if (authorityState === "provisional" && vector.authorityTier !== "provisional") {
         problems.push(`${file}: ${vector.id}: provisional vector must carry authorityTier=provisional`);
+      }
+      if (authorityState === "ratified") {
+        if (vector.authorityTier !== "ratified") {
+          problems.push(`${file}: ${vector.id}: ratified provisional-origin vector must carry authorityTier=ratified`);
+        }
+        if (vector.status !== "locked") {
+          problems.push(`${file}: ${vector.id}: ratified provisional-origin vector must remain status=locked`);
+        }
       }
       if (vector.inputs?.sourceCategory !== undefined && vector.inputs.sourceCategory !== "provisional-vector") {
         problems.push(`${file}: ${vector.id}: inputs.sourceCategory ${vector.inputs.sourceCategory} != provisional-vector`);
@@ -381,7 +389,7 @@ function checkProvisional({ requireComplete }) {
     }
   }
 
-  return { problems, files, authoredCount: seenIds.size, expectedCount: expectedIds.size };
+  return { problems, files, authoredCount: seenIds.size, expectedCount: expectedIds.size, authorityState };
 }
 
 const mode = process.argv[2] ?? "--check";
@@ -415,7 +423,18 @@ if (mode === "--write") {
   }
   const suffix = mode === "--check-provisional" ? "complete" : "partial";
   console.log(`B2 provisional vectors OK (${suffix}): ${result.authoredCount}/${result.expectedCount} provisional ids covered across ${result.files.length} file(s)`);
+} else if (mode === "--check-ratified-provisional" || mode === "--check-ratified-provisional-partial") {
+  const result = checkProvisional({
+    requireComplete: mode === "--check-ratified-provisional",
+    authorityState: "ratified",
+  });
+  if (result.problems.length) {
+    console.error(result.problems.join("\n"));
+    process.exit(1);
+  }
+  const suffix = mode === "--check-ratified-provisional" ? "complete" : "partial";
+  console.log(`B2 ratified provisional-origin vectors OK (${suffix}): ${result.authoredCount}/${result.expectedCount} provisional ids covered across ${result.files.length} file(s)`);
 } else {
-  console.error("usage: node scripts/b2-vector-now-draft.mjs [--write|--check|--check-authored|--check-authored-complete|--check-provisional-partial|--check-provisional]");
+  console.error("usage: node scripts/b2-vector-now-draft.mjs [--write|--check|--check-authored|--check-authored-complete|--check-provisional-partial|--check-provisional|--check-ratified-provisional-partial|--check-ratified-provisional]");
   process.exit(1);
 }

@@ -3,14 +3,13 @@
     "id": "V2-neg-01",
     "ruleId": "V2",
     "area": "Value-record authority",
-    "authorityTier": "provisional",
+    "authorityTier": "ratified",
     "sources": [
       "docs/core/B2_KERNEL_HARDENING.md V2 (cited) and V5 attack flag",
       "docs/core/DECISIONS.md #17 (ratified): 'authenticated by signatures from the current owner key'",
       "docs/core/DECISIONS.md #50 recovery-auth (Status: PROVISIONAL — pending DK ratification, 2026-06-13)"
     ],
     "kind": "negative",
-    "decisionDeps": ["recovery-auth (#50)"],
     "inputs": {
       "sourceCategory": "provisional-vector",
       "attackFlagText": "'Current owner key' is undefined mid-recovery (during an open challengeWindowBlocks window) until recovery-auth is ruled — an attacker could race records in that window; the R* area owns the state definition, this predicate consumes it.",
@@ -21,7 +20,7 @@
         "priorState": "a name with an in-flight recovery; pre-recovery owner key still holds the stolen credential"
       },
       "scopeNote": "PROVISIONAL on recovery-auth (#50): the V2 predicate (reject unless ownerPubkey == the interval's CURRENT owner key) is ratified via #17, but WHICH key is current during an open recovery challenge window depends on #50's interval-opening point — whether the new interval opens at recovery invocation or only at challenge-window close. #50 is PROVISIONAL pending DK; note that #50-b1 resolves the recovery signer/evidence shape, NOT the interval-opening point, so this vector tests a distinct #50 axis. The R* area owns the recovery state shape; this predicate consumes it, so the verdict flips with the interval-opening ruling. Authored under the invocation-opening branch (pre-recovery owner not current during the window -> reject); flips per flipMarker. NOT vector-now.",
-      "authoringStatus": "authored: provisional vector with decisionDeps + flipMarker; status locked (per-area adversarial review passed; authorityTier stays provisional — flips/re-derives on DK ratification of #49/#50); flips on DK's #50 interval-opening ruling."
+      "authoringStatus": "authored from a provisional vector (decisionDeps + flipMarker shed on ratification); status locked (per-area adversarial review passed; authorityTier RATIFIED 2026-06-14 (DK ratified da-windows #49 O1 / recovery-auth #50 b1); lineage in DECISIONS #49/#50, registry Part B, decision papers, git); ratified per DK's #50 interval-opening ruling."
     },
     "expected": {
       "verdict": "reject",
@@ -31,23 +30,19 @@
     },
     "status": "locked",
     "attackFlagRef": "V2-01",
-    "flipMarker": {
-      "decision": "recovery-auth (#50)",
-      "flipsTo": "rederive: if DK rules the window-close-opening branch of #50 (the new interval opens only at challenge-window close, not at invocation), the pre-recovery owner key remains current DURING the window and this same record ACCEPTS (verdict flips reject->accept); the #17 'current-owner-key authenticates' shape is stable, only the interval-opening point moves with the #50 ruling."
-    }
+    "flipMarker": null
   },
   {
     "id": "V5-neg-01",
     "ruleId": "V5",
     "area": "Value-record authority",
-    "authorityTier": "provisional",
+    "authorityTier": "ratified",
     "sources": [
       "docs/core/B2_KERNEL_HARDENING.md V5 (candidate-stays; 'Blocked on decision: recovery-auth')",
       "docs/core/DECISIONS.md #50 recovery-auth (PROVISIONAL — pending DK ratification)",
       "docs/spec/WIRE_FORMAT.md §8.1 (normative): ownershipRef(32-hex)"
     ],
     "kind": "negative",
-    "decisionDeps": ["recovery-auth (#50)"],
     "inputs": {
       "sourceCategory": "provisional-vector",
       "attackFlagText": "Whether RecoverOwner opens a new interval at invocation or only at challenge-window close determines which ref is 'current' mid-recovery — cannot be pinned until recovery-auth is ruled.",
@@ -59,7 +54,7 @@
         "priorState": "a name with an in-flight recovery; two candidate ownershipRefs (pre-recovery interval vs recovery-invocation txid)"
       },
       "scopeNote": "PROVISIONAL on recovery-auth (#50): V5 is candidate-stays and explicitly 'Blocked on decision: recovery-auth.' Which interval reference is 'current' mid-recovery is fixed only once #50 rules whether the new interval opens at invocation or at window-close (the interval-opening axis — distinct from #50-b1's signer/evidence-shape resolution). The candidate-tier authority for the interval-reference shape (WIRE §8.1 ownershipRef) exists, so the verdict is derivable once the interval-opening point is fixed; until then provisional. Authored under the invocation-opening branch (current ref = recovery-invocation txid -> pre-recovery ref stale -> reject); the neg/pos pair swaps per flipMarker. NOT vector-now.",
-      "authoringStatus": "authored: provisional vector with decisionDeps + flipMarker; status locked (per-area adversarial review passed; authorityTier stays provisional — flips/re-derives on DK ratification of #49/#50); the neg/pos pair swaps on DK's #50 interval-opening ruling."
+      "authoringStatus": "authored from a provisional vector (decisionDeps + flipMarker shed on ratification); status locked (per-area adversarial review passed; authorityTier RATIFIED 2026-06-14 (DK ratified da-windows #49 O1 / recovery-auth #50 b1); lineage in DECISIONS #49/#50, registry Part B, decision papers, git); the neg/pos pair swaps on DK's #50 interval-opening ruling."
     },
     "expected": {
       "verdict": "reject",
@@ -69,9 +64,6 @@
     },
     "status": "locked",
     "attackFlagRef": "V5-01",
-    "flipMarker": {
-      "decision": "recovery-auth (#50)",
-      "flipsTo": "rederive: if DK rules the window-close-opening branch of #50, the pre-recovery interval ref stays current THROUGH the window — the stale-ref record then ACCEPTS and a record keyed to the recovery-invocation txid is the one rejected (the neg/pos pair swaps); the ownershipRef-must-equal-current-ref shape (WIRE §8.1) is stable, only the interval-opening point moves with the #50 ruling."
-    }
+    "flipMarker": null
   }
 ]
