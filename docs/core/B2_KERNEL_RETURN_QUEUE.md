@@ -49,12 +49,13 @@ These are **not** restated here — see the matrix. The B2-kernel-relevant clust
    in, callback out (R19 purity restored). Full plan + engine delta + test battery:
    [`../research/RECOVERY_INVOKE_B1_PLAN.md`](../research/RECOVERY_INVOKE_B1_PLAN.md).
    **Gate:** §2 recovery cluster ruled + slice greenlit.
-2. **All-auth-digests-ride-wire migration** — the parked `(ii)` option from the
-   transfer-authority tier call: move `CORE_DECIDERS` from `@ont/protocol` onto the
-   B1-normative `@ont/wire` digests directly (retiring the legacy auth verifiers for the
-   kernel). A refactor, **no new consensus law** — the §5 equivalence pins already prove
-   the digests match, so this is mechanical and low-risk. **Gate:** own boundary-amendment
-   slice (a #59/#60-style manifest amendment), reviewer-gated, no DK decision.
+2. **All-auth-digests-ride-wire migration — LANDED @ `51e748b` (DECISIONS #61), pending
+   confirm-pass.** `engine.ts` now verifies the B1 §5 owner-key auth digests via `@ont/wire`
+   (`verifySchnorr` + `transferAuthDigest`/`recoverAuthDigest`) instead of the legacy
+   `@ont/protocol` verifiers. Scoped as an **`engine.ts` per-file allowance** for `@ont/wire`
+   (the #60 pattern), **not** tier-wide `CORE_DECIDERS` — `state.ts` and `proof-bundle.ts`
+   stay narrow ({`@ont/protocol`, `@ont/bitcoin`}). Behavior-preserving (the §5 pins prove the
+   digests match); no new consensus law, no DK.
 3. **Executable vector suite / harness-vector-loader** — instantiate the locked
    `docs/core/vectors/*.json` as runnable fixtures against the existing predicates (the
    safe executable lane: no new consensus behavior). Harness is ChatLunatique's lane;
@@ -64,11 +65,13 @@ These are **not** restated here — see the matrix. The B2-kernel-relevant clust
 
 ## 4. Recommended order
 
-- **DK-independent, startable now:** queue item 3 (executable vector suite, CL's lane)
-  and item 2 (the all-auth-digests refactor, reviewer-gated). Neither needs a ruling.
+- **Done (DK-independent):** queue item 2 (all-auth-digests) landed @ `51e748b` (#61).
+- **DK-independent, startable now:** queue item 3 (executable vector suite, CL's lane) +
+  the §3c descriptor-evidence observation rule draft. Neither needs a ruling to *draft*.
 - **DK-gated:** queue item 1 waits on the §2 recovery cluster. It is the only B2-kernel
-  item that needs DK; everything else is either done, refactor, or test-instantiation.
+  item that needs DK; everything else is either done, test-instantiation, or draftable now.
 
 So the entire remaining B2-kernel *decision* surface reduces to: rule the recovery
-cluster (matrix PR-17/18/33/34/35 + §8.2/§8.3) and greenlight the invoke slice. The
-rest proceeds without you.
+cluster (matrix PR-17/18/33/34/35) + the §3c descriptor-evidence observation rule, and
+greenlight the invoke slice. (§8.2a/§8.3 are already landed — see §2.) The rest proceeds
+without you.
