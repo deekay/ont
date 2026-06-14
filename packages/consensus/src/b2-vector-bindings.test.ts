@@ -53,13 +53,34 @@ function loadVector(file: string, id: string): ConformanceVector {
   throw new Error(`vector ${id} not found in ${file} or provisional/${file}`);
 }
 
-// A binding may only execute a vector the harness considers required (normative/ratified)
-// and locked — never a candidate/DK-gated row.
+// The ids this file binds to a resident predicate. This MUST stay a subset of the loader
+// spine's ready-for-binding set (b2-vector-suite.test.ts `readyBindingTargetById`, which
+// the spine independently validates is the correct 23). Adding an id here without a real
+// resident predicate would re-open the hole the spine guards against; only add an id when
+// its binding lands. The spine cannot be imported for a cross-check (a non-test src/*.ts
+// trips the kernel manifest; importing its .test.ts would double-run its suites), so this
+// local manifest is the agreed mirror (ChatLunatique review event dab9960b).
+const LOCAL_BINDING_MANIFEST = new Set<string>([
+  // DA-verdict family
+  "D4-neg-01",
+  "D3-pos-01",
+  "D6-neg-01",
+  "D13-pos-01",
+]);
+
+// A binding may only execute a vector that is (a) locked, (b) required-tier
+// (normative/ratified, never candidate/DK-gated), AND (c) in this file's binding manifest
+// — so a required-but-pending-predicate vector (e.g. R1/B1/T1/Q10: ratified but with no
+// resident predicate) can never execute just because it is ratified.
 function assertBindable(vector: ConformanceVector): void {
   expect(vector.status, `${vector.id} must be locked`).toBe("locked");
   expect(["normative", "ratified"], `${vector.id} must be required-tier, not DK-gated`).toContain(
     vector.authorityTier
   );
+  expect(
+    LOCAL_BINDING_MANIFEST.has(vector.id),
+    `${vector.id} is not in LOCAL_BINDING_MANIFEST — only ready-for-binding vectors (resident predicate) may execute`
+  ).toBe(true);
 }
 
 const accepts = (vector: ConformanceVector): boolean => vector.expected.verdict === "accept";
