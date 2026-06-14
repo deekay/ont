@@ -1,0 +1,75 @@
+[
+  {
+    "id": "D4-neg-01",
+    "ruleId": "D4",
+    "area": "DA verdict",
+    "authorityTier": "candidate",
+    "sources": [
+      "docs/core/B2_KERNEL_HARDENING.md D4 (lines 293-302)",
+      "docs/spec/ONT_DATA_AVAILABILITY_AGREEMENT.md §6c (lines 147-153) — 'uniformly excluded — every honest node drops it'",
+      "docs/core/DECISIONS.md 47. marker-fold The rule (lines 974-975) — '§6c uniform-exclusion rule ... unchanged' [ratified]",
+      "docs/GLOSSARY.md data availability [candidate] — 'a batch whose bytes don't surface in time is excluded, never trusted'"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "'Bytes can't be produced by anyone' quantifies over an open server set — a pure predicate sees only the evidence presented to it, so evidence-gathering completeness is silently delegated to B3/adapters; an under-collecting adapter turns fail-closed exclusion into censorship of honest batches.",
+      "predicateSignature": "daVerdict(anchoredCommitment{newRoot,batchSize}, witnessedServedEvidence, witnessedChainFacts{evaluationHeight,challengeDeadlineHeight}, priorKernelState) -> {verdict, reason}",
+      "fixture": {
+        "anchoredBatch": { "newRoot": "22d10d5ce4947e2f186d299a8f648f96032d0e22d3d4cc55930e7ac31e47ddc4", "batchSize": 42, "note": "an accepted, mined RootAnchor commitment" },
+        "caseA_absentEvidence": "witnessedServedEvidence empty/absent at an evaluationHeight past challengeDeadlineHeight -> reject (excluded)",
+        "caseB_insufficientEvidence": "witnessedServedEvidence present but not matching the anchored (newRoot,batchSize) commitment, past the deadline -> reject (excluded)",
+        "failClosedProperty": "at every evaluation height past the challenge deadline, absent/insufficient evidence yields ineligible — NEVER pending-include and NEVER fail-open",
+        "positiveCompanion": "commitment-matching served bytes presented inside the window -> accept (eligible)",
+        "priorState": "baseline"
+      },
+      "scopeNote": "Cited-now (ratified marker-fold §6c uniform-exclusion + candidate DA §6c): the kernel-side fail-closed verdict — absent/insufficient served-evidence presented to the predicate yields ineligible, never trusted/provisional. DELIBERATELY EXCLUDES (B3/transport, NOT asserted): evidence-collection completeness and the under-collecting-adapter censorship concern (the flag's substance), plus the served-bytes witness FORMAT (B3). This vector asserts ONLY the no-evidence-in -> excluded-out predicate.",
+      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; status stays proposed pending reviewer sign-off."
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "d4-01-fail-closed-exclude-absent-evidence",
+      "invariant": "absent or insufficient served-evidence yields ineligible at every evaluation height past the challenge deadline; never a trusted or provisional include; the verdict fails closed",
+      "rationale": "Per the gate protocol, a flag purely about the kernel's fail-closed posture on absent evidence is derivable now even though the evidence-collection completeness lives in B3/adapters. The kernel-side verdict — absent/insufficient served-evidence presented to the predicate yields ineligible, never a trusted or provisional include — is grounded in ratified marker-fold and candidate §6c uniform-exclusion. The adapter-censorship substance is a B3/transport concern, but the testable kernel predicate (no evidence in → excluded out) is fully derivable."
+    },
+    "status": "proposed",
+    "attackFlagRef": "D4-01",
+    "flipMarker": null
+  },
+  {
+    "id": "D7-pos-01",
+    "ruleId": "D7",
+    "area": "DA verdict",
+    "authorityTier": "candidate",
+    "sources": [
+      "docs/core/B2_KERNEL_HARDENING.md D7 (lines 325-332)",
+      "docs/spec/ONT_DATA_AVAILABILITY_AGREEMENT.md §5 (lines 102-123) [candidate] — delta only inserts; disjoint insertions commute; §4 (lines 91-100) — 'a hidden delta only fails to register its own names'",
+      "docs/spec/ONT_ACQUISITION_STATE_MACHINE.md Data Availability [candidate] — 'exclusion cannot take someone else's name; it only prevents the withheld data from counting'"
+    ],
+    "kind": "positive",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "The guarantee leans on the insert-only/commutative merge fact (§5): if batched-path transitions ever admit non-insert operations inside batches, exclusion stops being self-contained — a scope coupling the batched-path area must hold.",
+      "predicateSignature": "batchedPathMerge(acceptedBatches, excludedBatchId, priorKernelState) -> {verdict, derivedRoot, nameState}",
+      "fixture": {
+        "batches": "a set of accepted batches B0..Bn plus batch X",
+        "exclusion": "batch X is DA-ineligible (excluded)",
+        "stateEquivalenceProperty": "every other batch's names register identically to a world where X was never anchored -> accept",
+        "negativeCompanion": "an exclusion implementation that perturbs an unrelated name's owner OR the root over the remaining leaves -> reject (fails)",
+        "crossAreaNote": "assumes the insert-only-batches invariant, owned by the batched-path (B) area",
+        "priorState": "baseline"
+      },
+      "scopeNote": "Cited-now (candidate): DA §4/§5 (delta only inserts; disjoint insertions commute) + state-machine ('exclusion only prevents the withheld data from counting'). The insert-only-batches invariant is a CROSS-AREA dependency owned by the batched-path (B) area — this vector ASSUMES it, does not re-derive it; the flag's coupling caveat is an invariant B must preserve, not a missing-spec gap for D7's own verdict.",
+      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; status stays proposed pending reviewer sign-off."
+    },
+    "expected": {
+      "verdict": "accept",
+      "reason": "d7-01-exclusion-state-equivalence",
+      "invariant": "excluding batch X removes only X's own leaves; all other batches' names register identically to the as-if-X-never-anchored world; exclusion alters no other name's owner and no remaining-leaf root",
+      "rationale": "D7's verdict — excluding a batch removes only its own leaves and the resulting state equals the state as-if-that-batch-never-existed — is derivable today from candidate authority: DA agreement §4/§5 establish insert-only/commutative merge, and the state-machine pins that exclusion 'only prevents the withheld data from counting'. The flag is a scope-coupling caveat (it holds only while batched-path transitions stay insert-only), which is an invariant the batched-path (B) area must preserve, not a missing-spec gap for D7's own verdict. The state-equivalence property is testable now."
+    },
+    "status": "proposed",
+    "attackFlagRef": "D7-01",
+    "flipMarker": null
+  }
+]

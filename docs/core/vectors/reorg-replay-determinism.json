@@ -1,0 +1,135 @@
+[
+  {
+    "id": "Z1-neg-01",
+    "ruleId": "Z1",
+    "area": "Reorg re-derivation and replay determinism",
+    "authorityTier": "candidate",
+    "sources": [
+      "docs/core/SOFTWARE_CANON.md Layer vocabulary, L2 ownership kernel (ratified) — 'ordered, witnessed inputs in; name state out ... No DB, no network, no clock, no UI'",
+      "docs/spec/ONT_DATA_AVAILABILITY_AGREEMENT.md §6c Fail closed (candidate); §6e S4 evidence-in-verdict-out (candidate)",
+      "docs/ONT.md Nobody decides — 'two honest observers always get the same answer'"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "Determinism is only relative to the servedEvidence input; DA agreement §3 admits honest verifiers cannot prove non-availability, so convergence of the servedEvidence set itself is the open B3 witness question — a spec reading where each node assembles its own evidence set quietly reintroduces the fork Z1 forbids.",
+      "predicateSignature": "kernelVerdict(canonicalChainView{orderedEventBytes,blockHeights,intraBlockTxIndexes}, witnessedServedEvidence, priorKernelState) -> nameState  [NO wall-clock, network, byte-arrival-order, or local-receipt-time input]",
+      "fixture": {
+        "caseA_localReceiptTime": "a kernel variant that consults local receipt time / a per-node-assembled evidence set forks across differing local views -> reject (this is the da-convergence-sim 'naive' rule; named here as context, not authority)",
+        "positiveCompanion": "the spec predicate yields byte-identical state under randomized byte-arrival schedules given the same canonical-chain view + witnessed evidence -> accept",
+        "priorState": "baseline"
+      },
+      "scopeNote": "Cited-now: SOFTWARE_CANON L2 (ratified, 'ordered, witnessed inputs in; name state out ... No DB, no network, no clock') + DA §6c fail-closed + §6e S4 evidence-in/verdict-out (candidate). SCOPED to the purity / no-local-receipt-time determinism verdict. CONTEXT-ONLY (NOT verdict authority): ONT.md 'two honest observers always get the same answer' (corroboration); the da-convergence-sim 'naive' rule (analysis-tier research sim — names the rejected variant, does not authorize the verdict). DELIBERATELY EXCLUDES (B3): served-evidence-set convergence / witness format — this vector asserts ONLY purity + arrival-order-independence keyed to canonical-chain view + witnessed evidence.",
+      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; status stays proposed pending reviewer sign-off."
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "z1-01-no-local-receipt-time-determinism",
+      "invariant": "name state is a function of (canonical-chain view + served evidence) only; a variant consulting local receipt time or a per-node-assembled evidence set forks and is rejected; identical inputs yield identical state regardless of byte-arrival order",
+      "rationale": "The flag's actual derivable predicate is the kernel's fail-closed posture on absent/unconverged evidence and its purity (no clock/network/receipt-time). Per the gate's carve-out, a flag purely about fail-closed behavior on absent evidence is vector-now even though the served-evidence WITNESS FORMAT is a B3 deliverable. SOFTWARE_CANON L2 (ratified, 'ordered, witnessed inputs in; name state out ... No DB, no network, no clock') plus DA §6c fail-closed and §6e S4 ('evidence in, verdict out; never asks did I receive the bytes') let a second implementer derive: a kernel variant that consults local receipt time (the da-convergence-sim 'naive' rule) MUST be rejected; the determinism property is accepted. The B3 part of the flag (witness-set convergence) is not the vector — the purity/fail-closed verdict is."
+    },
+    "status": "proposed",
+    "attackFlagRef": "Z1-01",
+    "flipMarker": null
+  },
+  {
+    "id": "Z6-pos-01",
+    "ruleId": "Z6",
+    "area": "Reorg re-derivation and replay determinism",
+    "authorityTier": "candidate",
+    "sources": [
+      "docs/spec/ONT_DATA_AVAILABILITY_AGREEMENT.md §5 The key decomposition (candidate) — disjoint insertions commute, root is function of leaf set",
+      "docs/core/SOFTWARE_CANON.md Item 5 B2 gate (ratified) — permutation/reorg invariance property tests where the spec claims it",
+      "docs/core/B2_KERNEL_HARDENING.md Z6 attack flag — scope to disjoint only"
+    ],
+    "kind": "positive",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "The invariance claim is scoped to disjoint insertions only; quoting it unscoped would 'prove' order-independence exactly where order decides ownership (same-name conflicts) — tests must pin the scope.",
+      "predicateSignature": "batchedPathMerge(orderedDisjointBatches, priorKernelState) -> {verdict, derivedRoot}",
+      "fixture": {
+        "disjointBatches": "random sets of DA-valid, non-conflicting (pairwise disjoint-leaf) batch insertions",
+        "invarianceProperty": "every sampled permutation of application order yields one identical root -> accept",
+        "negativeCompanion": "batches that conflict on a name, resolved by APPLICATION ORDER (last-write/first-applied) instead of commit priority -> reject (pins the scope so the commutativity claim is never quoted unscoped onto same-name conflicts)",
+        "priorState": "baseline"
+      },
+      "scopeNote": "Cited-now (candidate DA §5 + ratified SOFTWARE_CANON Item-5 B2 gate): permutation-invariance of the root over DISJOINT-leaf batch insertions only (root = f(leaf set)). DELIBERATELY EXCLUDES: same-name conflict resolution (owned by Z7 commit-priority / batched-path) — the negative companion pins that the commutativity claim must NOT be quoted onto same-name conflicts. No #49/#50 dependency.",
+      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; status stays proposed pending reviewer sign-off."
+    },
+    "expected": {
+      "verdict": "accept",
+      "reason": "z6-01-disjoint-permutation-invariant-root",
+      "invariant": "the root over disjoint-leaf batch insertions is invariant under application-order permutation (root = f(leaf set)); order-independence is asserted ONLY for disjoint insertions, never same-name conflicts",
+      "rationale": "Z6 (permutation-invariance of the root over DISJOINT-leaf batch insertions) is grounded in DA §5 ('Disjoint insertions commute ... the root is a function of the set of leaves, not the order') and SOFTWARE_CANON Item 5 B2 gate (ratified, 'property tests over event orderings (reorg/permutation invariance where the spec claims it)'). The flag is a SCOPE-pinning note, not a missing rule: the vector must test permutation-invariance ONLY for disjoint insertions and must NOT extend it to same-name conflicts (which Z7 resolves by commit priority). The scope boundary is fully derivable from the candidate text + ratified gate, with no dependence on #49/#50."
+    },
+    "status": "proposed",
+    "attackFlagRef": "Z6-01",
+    "flipMarker": null
+  },
+  {
+    "id": "Z11-neg-01",
+    "ruleId": "Z11",
+    "area": "Reorg re-derivation and replay determinism",
+    "authorityTier": "candidate",
+    "sources": [
+      "docs/spec/AUCTION.md Decay Rule (candidate) — 'frozen, monotonic, height-keyed schedule. Do not let market-derived system characteristics shrink windows'",
+      "docs/spec/AUCTION.md Window Schedule Bottom Line (candidate) — 'Reduce windows by passage of block height only'",
+      "docs/core/B2_KERNEL_HARDENING.md Z11 negative test — window shorter than height_keyed_floor (volume/bonded-value/bidder-count driven) rejected"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "The spec's own unsafe-shrink list (bonded value, bidder count, key count, volumes) is the attack catalogue: every listed signal is adversary-manufacturable at launch.",
+      "predicateSignature": "windowLength(anchorHeight) = max(height_keyed_floor(anchorHeight), adaptive_extension(...)) -> extend-only; market signals MUST NOT shorten",
+      "fixture": {
+        "caseShrink": "a computed window SHORTER than height_keyed_floor(anchor_height), driven by bonded value / bidder count / key count / claim volume -> reject (shrink forbidden in every state)",
+        "positiveCompanion": "a window that depends only on the frozen height-keyed schedule of anchor height (with extend-only adaptive behavior) -> accept",
+        "note": "schedule integers are launch-freeze placeholders; the no-shrink rule is parameter-independent"
+      },
+      "scopeNote": "Cited-now (candidate AUCTION Decay Rule + Window Schedule Bottom Line): the extend-only / no-shrink invariant — market-derived characteristics MUST NOT shorten any window; reduce windows by passage of block height only. SCOPED to the parameter-INDEPENDENT no-shrink rule. NOT a #49/#50 dependency: this is the AUCTION decay schedule, not the K/W/C availability algebra. Only the schedule VALUES are launch-freeze; the rule is asserted parameterized on the schedule (no decisionDeps).",
+      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; status stays proposed pending reviewer sign-off."
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "z11-02-no-market-driven-window-shrink",
+      "invariant": "any computed window shorter than height_keyed_floor(anchor_height) driven by any market signal (bonded value / bidder count / key count / claim volume) is rejected; windows reduce only by passage of block height; adaptive behavior is extend-only",
+      "rationale": "The EXTEND-ONLY / no-shrink invariant is fully stated in AUCTION.md Decay Rule (candidate): 'Use a frozen, monotonic, height-keyed schedule. Do not let market-derived system characteristics shrink windows,' and §Window Schedule Bottom Line 'Reduce windows by passage of block height only.' The named unsafe-shrink signals (bonded value, bidder count, key count, volumes) are precisely the rejects. A second implementer can derive: any computed window shorter than height_keyed_floor(anchor_height) driven by any market signal MUST be rejected. No dependency on #49/#50 (this is the AUCTION decay rule, not the K/W/C algebra); only the schedule VALUES are launch-freeze, and the rule is stated parameterized on the schedule."
+    },
+    "status": "proposed",
+    "attackFlagRef": "Z11-02",
+    "flipMarker": null
+  },
+  {
+    "id": "Z12-neg-01",
+    "ruleId": "Z12",
+    "area": "Reorg re-derivation and replay determinism",
+    "authorityTier": "normative",
+    "sources": [
+      "docs/core/SOFTWARE_CANON.md L2 ownership kernel (ratified) — 'No DB, no network, no clock, no UI'",
+      "docs/spec/WIRE_FORMAT.md §8 Off-chain owner-signed shapes (normative, wire-normative #48) — 'Every issuedAt is the literal form'",
+      "docs/core/B2_KERNEL_HARDENING.md Z12 negative test — reject any rule comparing issuedAt to 'now'"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "issuedAt is normative wire content but semantically untethered: any future rule that gives it meaning (freshness, expiry) re-imports wall-clock into the audited boundary — the V* and R* extractors must keep ordering on sequence/predecessor links, with issuedAt as display metadata only.",
+      "predicateSignature": "kernelVerdict(eventBytes, priorState, witnessedChainFacts in BLOCK HEIGHTS) -> {verdict,reason}; off-chain issuedAt = opaque committed bytes, never compared to current time",
+      "fixture": {
+        "caseIssuedAtVsNow": "a value-record / recovery predicate that accepts or rejects a payload by comparing issuedAt to current time -> reject (issuedAt is opaque committed bytes, influencing only the digest)",
+        "positiveCompanion": "replays at arbitrary real-world times / speeds yield byte-identical state -> accept",
+        "note": "forward-guard context: a future rule giving issuedAt freshness/expiry semantics would re-import wall-clock"
+      },
+      "scopeNote": "Cited-now (ratified SOFTWARE_CANON L2 'No DB, no network, no clock' + normative WIRE_FORMAT §8 'every issuedAt is the literal form'): no kernel predicate consumes wall-clock; off-chain timestamps (issuedAt) are opaque committed bytes, never compared to current time. The forward-guard (a future freshness/expiry rule re-importing wall-clock) is CONTEXT — the testable verdict today is the no-issuedAt-vs-now-comparison reject. No #49/#50 dependency.",
+      "authoringStatus": "authored: predicate-input shape proposed; ratified+normative basis; status stays proposed pending reviewer sign-off."
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "z12-01-no-wallclock-issuedat-opaque",
+      "invariant": "a kernel rule that compares issuedAt (or any off-chain timestamp) to current time is rejected; issuedAt influences only digest bytes; replays at arbitrary real times yield byte-identical state",
+      "rationale": "Z12 (no kernel predicate consumes wall-clock; off-chain timestamps like issuedAt are opaque committed bytes, never compared to 'now') is derivable from SOFTWARE_CANON L2 (ratified, 'No DB, no network, no clock') + WIRE_FORMAT §8 (normative, wire-normative #48: 'Every issuedAt is the literal form'). The flag is a forward-guard note (a future rule giving issuedAt freshness/expiry semantics would re-import wall-clock); the testable verdict today is: a value-record or recovery rule that accepts/rejects by comparing issuedAt to current time MUST fail; issuedAt influences only digest bytes. Fully grounded in ratified + normative text, no #49/#50 dependency."
+    },
+    "status": "proposed",
+    "attackFlagRef": "Z12-01",
+    "flipMarker": null
+  }
+]
