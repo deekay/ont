@@ -1,0 +1,229 @@
+import { readFileSync, readdirSync } from "node:fs";
+import { dirname, join, relative } from "node:path";
+import { fileURLToPath } from "node:url";
+
+import { describe, expect, it } from "vitest";
+
+const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "../../..");
+const authoredDir = join(repoRoot, "docs/core/vectors");
+const provisionalDir = join(authoredDir, "provisional");
+
+const areaByPrefix: Record<string, string> = {
+  A: "Anchor acceptance",
+  D: "DA verdict",
+  F: "Gate-fee validation",
+  T: "Transcript completeness",
+  B: "Batched-path transitions",
+  V: "Value-record authority",
+  Z: "Reorg re-derivation and replay determinism",
+  S: "Settlement consequences (bond release)",
+  R: "Recovery authority (arming + cross-object)",
+  X: "Transfer authority",
+  Q: "Winner selection and bid acceptance",
+  G: "Kernel-wide glue (ordering, evidence deadlines, parameter surface)",
+};
+
+const requiredTiers = new Set(["normative", "ratified"]);
+const allowedTiers = new Set(["normative", "ratified", "candidate"]);
+const allowedKinds = new Set(["negative", "positive"]);
+
+// These required vectors have a resident @ont/consensus predicate/test surface
+// today. This is deliberately per-vector rather than per-area because areas are
+// mixed: e.g. G9 is params-ready, while G1 is still winner-selection work.
+const readyBindingTargetById: Record<string, string> = {
+  "A1-neg-01": "scanner: ONT frame decode reject/ignore",
+  "A3-neg-01": "params: h+K eligibility and K>=W+C construction",
+  "A10-neg-01": "b2-boundary: zero host-I/O purity gate",
+  "D3-pos-01": "da-verdict: h+W inclusive priority boundary",
+  "D4-neg-01": "da-verdict: absent/insufficient evidence fails closed",
+  "D6-neg-01": "da-verdict: h+W+1 forfeits priority",
+  "D9-neg-01": "params: reject K<W+C",
+  "D12-neg-01": "params: no baked K/W/C constants",
+  "D13-pos-01": "da-verdict: h+W and h+W+C inclusive boundaries",
+  "G7-neg-01": "b2-boundary: no provenance-less callback or host-I/O seam",
+  "G9-neg-01": "params: no defaults and two-parameterization readiness",
+  "V1-neg-01": "value-record-authority: no interval rejects",
+  "V3-neg-01": "value-record-authority: v1 signature/domain binding",
+  "V4-neg-01": "value-record-authority: ownershipRef binding",
+  "V6-neg-01": "value-record-authority: first-record sequence",
+  "V7-neg-01": "value-record-authority: sequence monotonicity",
+  "V8-neg-01": "value-record-authority: recomputed previous hash",
+  "V10-neg-01": "value-record-authority: transfer-clears composition",
+  "V11-pos-01": "value-record-authority: issuedAt ignored",
+  "X2-neg-01": "engine: current-owner transfer signature only",
+  "X6-neg-01": "engine: successor bond amount threshold",
+  "X6-neg-02": "wire/engine: successorBondVout u8 ceiling",
+  "X8-pos-01": "engine: mature transfer ignores bond byte",
+};
+
+type VectorOrigin = "vector-now" | "provisional-origin";
+type BindingState = "ready-for-binding" | "pending-predicate" | "pending-dk";
+
+interface B2Vector {
+  id: string;
+  ruleId: string;
+  area: string;
+  authorityTier: string;
+  sources: string[];
+  kind: string;
+  inputs: Record<string, unknown>;
+  expected: {
+    verdict: string;
+    reason: string;
+  };
+  status: string;
+  attackFlagRef: string | null;
+  flipMarker: unknown;
+  decisionDeps?: unknown;
+}
+
+interface LoadedVector extends B2Vector {
+  file: string;
+  origin: VectorOrigin;
+}
+
+interface VectorBindingPlan {
+  vector: LoadedVector;
+  state: BindingState;
+  target: string;
+}
+
+function readJson(path: string): unknown {
+  return JSON.parse(readFileSync(path, "utf8"));
+}
+
+function jsonFilesIn(dir: string): string[] {
+  return readdirSync(dir)
+    .filter((file) => file.endsWith(".json"))
+    .map((file) => join(dir, file))
+    .sort();
+}
+
+function loadVectorFile(path: string, origin: VectorOrigin): LoadedVector[] {
+  const data = readJson(path);
+  expect(Array.isArray(data), `${relative(repoRoot, path)} must contain a JSON array`).toBe(true);
+  return (data as B2Vector[]).map((vector) => ({
+    ...vector,
+    file: relative(repoRoot, path),
+    origin,
+  }));
+}
+
+function loadVectors(): LoadedVector[] {
+  return [
+    ...jsonFilesIn(authoredDir).flatMap((path) => loadVectorFile(path, "vector-now")),
+    ...jsonFilesIn(provisionalDir).flatMap((path) => loadVectorFile(path, "provisional-origin")),
+  ].sort((a, b) => a.id.localeCompare(b.id));
+}
+
+function expectVectorShape(vector: LoadedVector): void {
+  const label = `${vector.file}:${vector.id}`;
+  expect(vector.id, label).toMatch(/^[A-Z]+[0-9]+[a-z]?-(neg|pos)-[0-9]{2}$/);
+  expect(vector.ruleId, label).toMatch(/^(A|D|F|T|B|V|Z|S|R|X|Q|G)[0-9]+[a-z]?$/);
+  expect(vector.area, label).toBe(areaByPrefix[vector.ruleId[0] as string]);
+  expect(allowedTiers.has(vector.authorityTier), label).toBe(true);
+  expect(allowedKinds.has(vector.kind), label).toBe(true);
+  expect(vector.status, label).toBe("locked");
+  expect(Array.isArray(vector.sources) && vector.sources.length > 0, label).toBe(true);
+  expect(typeof vector.inputs === "object" && vector.inputs !== null && !Array.isArray(vector.inputs), label).toBe(true);
+  expect(vector.inputs.sourceCategory, label).toBe(vector.origin === "vector-now" ? "vector-now" : "provisional-vector");
+  expect(vector.expected.verdict, label).toBe(vector.kind === "negative" ? "reject" : "accept");
+  expect(typeof vector.expected.reason === "string" && vector.expected.reason.length > 0, label).toBe(true);
+  expect(vector.flipMarker, label).toBeNull();
+  expect("decisionDeps" in vector, `${label} should have shed decisionDeps after ratification`).toBe(false);
+}
+
+function bindingPlan(vector: LoadedVector): VectorBindingPlan {
+  if (!requiredTiers.has(vector.authorityTier)) {
+    return {
+      vector,
+      state: "pending-dk",
+      target: "candidate-tier vector; do not execute until DK/spec promotion",
+    };
+  }
+
+  const target = readyBindingTargetById[vector.id];
+  if (target) {
+    return { vector, state: "ready-for-binding", target };
+  }
+
+  return {
+    vector,
+    state: "pending-predicate",
+    target: "required vector, but its predicate slice is not resident in @ont/consensus yet",
+  };
+}
+
+function countsBy<T extends string>(values: readonly T[]): Record<T, number> {
+  const counts = {} as Record<T, number>;
+  for (const value of values) counts[value] = (counts[value] ?? 0) + 1;
+  return counts;
+}
+
+describe("B2 executable vector suite inventory", () => {
+  const vectors = loadVectors();
+  const plans = vectors.map(bindingPlan);
+
+  it("loads the complete locked B2 vector surface (68 vector-now + 26 provisional-origin)", () => {
+    expect(vectors).toHaveLength(94);
+    expect(countsBy(vectors.map((vector) => vector.origin))).toEqual({
+      "provisional-origin": 26,
+      "vector-now": 68,
+    });
+    expect(countsBy(vectors.map((vector) => (requiredTiers.has(vector.authorityTier) ? "required" : "pending")))).toEqual({
+      pending: 30,
+      required: 64,
+    });
+  });
+
+  it("keeps every loaded vector schema-valid for the executable harness", () => {
+    const ids = new Set<string>();
+    const refs = new Set<string>();
+
+    for (const vector of vectors) {
+      expectVectorShape(vector);
+      expect(ids.has(vector.id), `${vector.id} duplicated`).toBe(false);
+      ids.add(vector.id);
+      expect(typeof vector.attackFlagRef === "string" && vector.attackFlagRef.length > 0, `${vector.id} attackFlagRef`).toBe(true);
+      expect(refs.has(vector.attackFlagRef as string), `${vector.attackFlagRef} duplicated`).toBe(false);
+      refs.add(vector.attackFlagRef as string);
+    }
+  });
+
+  it("does not execute candidate-tier vectors until DK/spec promotion", () => {
+    const pendingDk = plans.filter((plan) => plan.state === "pending-dk");
+    expect(pendingDk).toHaveLength(30);
+    expect(pendingDk.every((plan) => plan.vector.authorityTier === "candidate")).toBe(true);
+  });
+
+  it("declares the first kernel-resident binding queue explicitly", () => {
+    const readyIds = new Set(Object.keys(readyBindingTargetById));
+    const plansById = new Map(plans.map((plan) => [plan.vector.id, plan]));
+
+    for (const id of readyIds) {
+      const plan = plansById.get(id);
+      expect(plan, `${id} binding target references a missing vector`).toBeDefined();
+      expect(plan?.state, `${id} must be ready-for-binding`).toBe("ready-for-binding");
+      expect(requiredTiers.has(plan?.vector.authorityTier ?? ""), `${id} must not bind candidate authority`).toBe(true);
+    }
+
+    expect(countsBy(plans.map((plan) => plan.state))).toEqual({
+      "pending-dk": 30,
+      "pending-predicate": 41,
+      "ready-for-binding": 23,
+    });
+  });
+
+  it("leaves required non-resident vectors visible instead of silently skipping them", () => {
+    const pendingRequired = plans
+      .filter((plan) => plan.state === "pending-predicate")
+      .map((plan) => plan.vector.id)
+      .sort();
+
+    expect(pendingRequired).toHaveLength(41);
+    expect(pendingRequired).toContain("R10-neg-01");
+    expect(pendingRequired).toContain("B1-neg-02");
+    expect(pendingRequired).toContain("T1-neg-01");
+    expect(pendingRequired).toContain("Q10-neg-01");
+  });
+});
