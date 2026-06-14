@@ -3,7 +3,7 @@
     "id": "D4-neg-01",
     "ruleId": "D4",
     "area": "DA verdict",
-    "authorityTier": "candidate",
+    "authorityTier": "ratified",
     "sources": [
       "docs/core/B2_KERNEL_HARDENING.md D4 (lines 293-302)",
       "docs/spec/ONT_DATA_AVAILABILITY_AGREEMENT.md §6c (lines 147-153) — 'uniformly excluded — every honest node drops it'",
@@ -23,14 +23,14 @@
         "positiveCompanion": "commitment-matching served bytes presented inside the window -> accept (eligible)",
         "priorState": "baseline"
       },
-      "scopeNote": "Cited-now (ratified marker-fold §6c uniform-exclusion + candidate DA §6c): the kernel-side fail-closed verdict — absent/insufficient served-evidence presented to the predicate yields ineligible, never trusted/provisional. DELIBERATELY EXCLUDES (B3/transport, NOT asserted): evidence-collection completeness and the under-collecting-adapter censorship concern (the flag's substance), plus the served-bytes witness FORMAT (B3). This vector asserts ONLY the no-evidence-in -> excluded-out predicate.",
-      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; reviewer sign-off complete; locked."
+      "scopeNote": "Ratified (da-windows (#49) S3/S4 + marker-fold §6c uniform-exclusion): #49 S3 ratifies the §6c fail-closed inclusion verdict and S4 the evidence-in/verdict-out shape, so the kernel-side fail-closed verdict — absent/insufficient served-evidence presented to the predicate yields ineligible, never trusted/provisional — is ratified, not candidate. DELIBERATELY EXCLUDES (B3/transport, NOT asserted): evidence-collection completeness and the under-collecting-adapter censorship concern (the flag's substance), plus the served-bytes witness FORMAT (B3). This vector asserts ONLY the no-evidence-in -> excluded-out predicate.",
+      "authoringStatus": "authored: predicate-input shape ratified under da-windows (#49) S3/S4; reviewer sign-off complete (ChatLunatique 2026-06-14); locked."
     },
     "expected": {
       "verdict": "reject",
       "reason": "d4-01-fail-closed-exclude-absent-evidence",
       "invariant": "absent or insufficient served-evidence yields ineligible at every evaluation height past the challenge deadline; never a trusted or provisional include; the verdict fails closed",
-      "rationale": "Per the gate protocol, a flag purely about the kernel's fail-closed posture on absent evidence is derivable now even though the evidence-collection completeness lives in B3/adapters. The kernel-side verdict — absent/insufficient served-evidence presented to the predicate yields ineligible, never a trusted or provisional include — is grounded in ratified marker-fold and candidate §6c uniform-exclusion. The adapter-censorship substance is a B3/transport concern, but the testable kernel predicate (no evidence in → excluded out) is fully derivable."
+      "rationale": "A flag purely about the kernel's fail-closed posture on absent evidence is ratified now: da-windows (#49) S3 ratifies the §6c fail-closed inclusion verdict and S4 the evidence-in/verdict-out shape. The kernel-side verdict — absent/insufficient served-evidence presented to the predicate yields ineligible, never a trusted or provisional include — rests on that ratified authority (marker-fold preserves §6c unchanged). The adapter-censorship substance and evidence-collection completeness remain a B3/transport concern, explicitly excluded; the testable kernel predicate (no evidence in → excluded out) is fully derivable and is implemented by includable()'s fail-closed branch."
     },
     "status": "locked",
     "attackFlagRef": "D4-01",
