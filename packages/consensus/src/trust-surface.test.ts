@@ -42,26 +42,29 @@ const srcDir = dirname(fileURLToPath(import.meta.url));
 //     are evaluated against, so the deciders depend on it, not the reverse. It
 //     takes values as caller inputs and depends on nothing outside the audited
 //     modules (no external package, no host I/O).
-//   - CONSENSUS_VERDICTS: pure verdict deciders (the DA-verdict predicate). They
-//     ARE consensus-deciding — a claim counts only if the DA verdict says so
-//     (D10) — but they compute a verdict the state deciders consume rather than
-//     mutating state themselves, so they are listed separately from
-//     CORE_DECIDERS. Pure: they consume only witnessed facts plus the audited
-//     parameter surface, no external package and no host I/O.
+//   - CONSENSUS_VERDICTS: pure verdict deciders (the DA-verdict predicate; the
+//     value-record authority predicate). They ARE consensus-deciding — a claim
+//     counts only if the verdict says so (D10) — but they compute a verdict the
+//     state deciders consume rather than mutating state themselves, so they are
+//     listed separately from CORE_DECIDERS. Pure: they consume witnessed facts,
+//     the audited parameter surface, and the audited B1 wire digest/verification
+//     primitives (@ont/wire) — no host I/O and no state mutation (#60).
 const CORE_DECIDERS = ["engine.ts", "state.ts", "proof-bundle.ts"] as const;
 const CONSENSUS_SUPPORT = ["scanner.ts"] as const;
 const CONSENSUS_PARAMS = ["params.ts"] as const;
-const CONSENSUS_VERDICTS = ["da-verdict.ts"] as const;
+const CONSENSUS_VERDICTS = ["da-verdict.ts", "value-record-authority.ts"] as const;
 
 // Deciders ride the legacy protocol/bitcoin primitives; consensus-support rides
 // the B1 normative wire grammar (@ont/wire) — B1 → B2 means @ont/consensus
-// consumes @ont/wire for what the active codec understands; the parameter
-// surface and the verdict predicates ride nothing external (witnessed facts and
-// parameters enter as inputs).
+// consumes @ont/wire for what the active codec understands. The parameter surface
+// rides nothing external (values enter as inputs). The verdict predicates ride
+// only the audited B1 wire digest/verification primitives (@ont/wire) — NOT the
+// legacy @ont/protocol records, which are evidence-only — and never host I/O or
+// state mutation (b2-consensus-verdicts-wire-primitives (#60), amending #59).
 const DECIDER_ALLOWED_PACKAGES = new Set(["@ont/protocol", "@ont/bitcoin"]);
 const SUPPORT_ALLOWED_PACKAGES = new Set(["@ont/wire", "@ont/bitcoin"]);
 const PARAMS_ALLOWED_PACKAGES = new Set<string>([]);
-const VERDICTS_ALLOWED_PACKAGES = new Set<string>([]);
+const VERDICTS_ALLOWED_PACKAGES = new Set(["@ont/wire"]);
 const ALL_MANIFEST = [...CORE_DECIDERS, ...CONSENSUS_SUPPORT, ...CONSENSUS_PARAMS, ...CONSENSUS_VERDICTS];
 const ALLOWED_RELATIVE = new Set(ALL_MANIFEST.map((file) => `./${file.replace(/\.ts$/, ".js")}`));
 
@@ -120,7 +123,7 @@ describe("sovereignty trust surface (docs/DESIGN.md (trust surface / sovereignty
   }
 
   for (const file of CONSENSUS_VERDICTS) {
-    it(`${file} (consensus verdict) depends on no external package — only audited modules`, () => {
+    it(`${file} (consensus verdict) depends only on @ont/wire B1 primitives and audited modules`, () => {
       assertImportsAllowed(file, VERDICTS_ALLOWED_PACKAGES, "consensus verdict");
     });
   }

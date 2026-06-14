@@ -1364,6 +1364,36 @@ da-windows (#49) S2/S3/S4. This satisfies #44's "boundary may change only with a
 DECISIONS entry + conformance coverage"; the boundary freezes permanently at
 launch.
 
+60. b2-consensus-verdicts-wire-primitives: the CONSENSUS_VERDICTS tier may import
+the audited B1 @ont/wire digest/verification primitives (not the legacy
+@ont/protocol records) — admitting the value-record authority predicate — 2026-06-14
+
+*Status: **Proposed** (writer ClaudeleLunatique, reviewer ChatLunatique; lands on
+branch clean-build-b2-kernel, DK merges). A boundary-manifest amendment of #59
+under #44 — covered by conformance: `trust-surface.test.ts` (the broadened
+per-tier allowlist) and `value-record-authority.test.ts`. Authored under DK's
+keep-building / ask-later grant (event 83243101, 2026-06-14).*
+
+**The rule.** #59 created the **CONSENSUS_VERDICTS** tier with an empty external
+allowlist (`da-verdict.ts` rides only witnessed facts + the parameter surface).
+The value-record authority predicate (`value-record-authority.ts`) is the same
+class of object — a pure, consensus-deciding, state-mutating-nothing verdict — but
+it must verify a §8.1 Schnorr signature and recompute a §8.1 record digest, which
+are B1 primitives. This amendment broadens the tier's allowlist from empty to
+**`@ont/wire`** (plus the audited relative modules), and **not** to `@ont/protocol`.
+The distinction is load-bearing: `@ont/wire` is the B1-normative active codec with
+`VALUE_RECORD_VERSION = 1` (the §8.1 authority record), whereas `@ont/protocol`
+carries the legacy `VALUE_RECORD_VERSION = 2` record, which WIRE §8.1 declares
+evidence-only / never valid. A value-record authority predicate that imported the
+legacy v2 primitives would sign and verify the wrong digest, so the kernel must
+ride the wire v1 primitives. The tier property is unchanged: pure verdicts that
+mutate no state and perform no host I/O — `da-verdict.ts` continues to import
+nothing external, while `value-record-authority.ts` imports only the wire v1
+digest/verification functions. Spec: [B2_KERNEL_HARDENING.md](./B2_KERNEL_HARDENING.md)
+V1–V13; DECISIONS #17/#18; WIRE_FORMAT §8.1. This satisfies #44's "boundary may
+change only with a DECISIONS entry + conformance coverage"; the boundary freezes
+permanently at launch.
+
 ## Fairness Principles To Carry Into The Launch Rewrite
 
 The rewritten launch draft should explicitly state:
