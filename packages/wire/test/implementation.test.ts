@@ -116,13 +116,14 @@ type EnvelopeCase = {
   digestKey?: string;
   verify: (e: Record<string, unknown>) => boolean;
   verificationRejects: string[]; // reject ids that parse cleanly and fail only at verification
+  semanticRejects?: string[]; // reject ids that parse/verify cleanly but fail a cross-object semantic check
 };
 const CASES: EnvelopeCase[] = [
   { file: "value-record.json", parse: wire.parseValueRecord, digest: wire.valueRecordDigest,
     digestKey: "digest", verify: wire.verifyValueRecord, verificationRejects: [] },
   { file: "recovery-descriptor.json", parse: wire.parseRecoveryDescriptor,
     digest: wire.recoveryDescriptorDigest, digestKey: "digest", verify: wire.verifyRecoveryDescriptor,
-    verificationRejects: [] },
+    verificationRejects: [], semanticRejects: ["descriptor-v2-reject-wrong-recovery-pubkey-for-invoke"] },
   { file: "wallet-proof.json", parse: wire.parseWalletProof, digest: wire.walletProofHash,
     digestKey: "proofHash", verify: wire.verifyWalletProofSignature,
     verificationRejects: ["wallet-proof-reject-bip322-invalid-signature",
@@ -141,6 +142,10 @@ describe("impl §8 envelopes", () => {
         } else if (c.verificationRejects.includes(v.id)) {
           const e = c.parse(json); // must parse cleanly...
           expect(c.verify(e), `${v.id} (${v.cite})`).toBe(false); // ...and fail only here
+        } else if (c.semanticRejects?.includes(v.id)) {
+          const e = c.parse(json); // must parse and verify as a descriptor...
+          expect(toHex(c.digest!(e)), v.id).toBe(v[c.digestKey!]);
+          expect(c.verify(e), `${v.id} descriptor signature`).toBe(true);
         } else {
           expect(() => c.parse(json), `${v.id} (${v.cite})`).toThrow(wire.WireError);
         }
@@ -157,6 +162,26 @@ describe("impl §8 envelopes", () => {
     const e = wire.parseWalletProof(JSON.stringify(v.envelope));
     expect(toHex(wire.walletProofCommitment(e))).toBe(v.proofCommitment);
     expect(wire.walletProofCommitment(e)).toHaveLength(32);
+  });
+  it("§8.2a descriptor v2 is invokable only with a recoveryPubkey-matching invoke signature", () => {
+    const rd = VEC("recovery-descriptor.json");
+    const byId = Object.fromEntries(rd.vectors.map((v: any) => [v.id, v]));
+    const v1 = byId["descriptor-v1-not-invokable"];
+    const parsedV1 = wire.parseRecoveryDescriptor(JSON.stringify(v1.envelope));
+    expect(parsedV1.descriptorVersion).toBe(wire.RECOVERY_DESCRIPTOR_VERSION_V1);
+    expect("recoveryPubkey" in parsedV1).toBe(false);
+
+    const v2 = byId["descriptor-v2-valid"];
+    const parsedV2 = wire.parseRecoveryDescriptor(JSON.stringify(v2.envelope));
+    expect(parsedV2.descriptorVersion).toBe(wire.RECOVERY_DESCRIPTOR_VERSION_V2);
+    expect(wire.verifySchnorr(v2.invoke.signature, wire.recoverAuthDigest(v2.invoke.fields), String(parsedV2.recoveryPubkey)))
+      .toBe(true);
+
+    const wrong = byId["descriptor-v2-reject-wrong-recovery-pubkey-for-invoke"];
+    const parsedWrong = wire.parseRecoveryDescriptor(JSON.stringify(wrong.envelope));
+    expect(wire.verifyRecoveryDescriptor(parsedWrong)).toBe(true);
+    expect(wire.verifySchnorr(wrong.invoke.signature, wire.recoverAuthDigest(wrong.invoke.fields), String(parsedWrong.recoveryPubkey)))
+      .toBe(false);
   });
 });
 

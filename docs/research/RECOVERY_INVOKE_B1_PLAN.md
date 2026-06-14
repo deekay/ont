@@ -93,12 +93,13 @@ digest) and **§8.3** (wallet proof → corroboration, not the invoke authorizer
 [`ONT_RECOVERY_INVOKE_SPEC.md`](../spec/ONT_RECOVERY_INVOKE_SPEC.md) item 2. DK is
 **not** asked to re-approve them. What remains is implementation + conformance.
 
-**3a. Code-package delta (prerequisite, currently missing).** Both `@ont/protocol`
-and `@ont/wire` still expose descriptor **v1 only** (`RECOVERY_DESCRIPTOR_VERSION = 1`;
-`parseRecoveryDescriptor` rejects v2; no `recoveryPubkey`). Before the engine can build
-`RecoveryDescriptorEvidence`, a package step must add v2 parse/digest/verify/sign per
-§8.2a, keep v1 parse-valid but **not invokable**, and carry v2 golden + negative
-(wrong-`recoveryPubkey`, v1-invoke) vectors. Reviewer-gated, no DK.
+**3a. Code-package delta (prerequisite, partially landed).** `@ont/wire` now carries
+descriptor-v2 parse/digest/verify support plus §8.2a vectors (v2 golden,
+wrong-`recoveryPubkey`, and v1-parse-valid/not-invokable). `@ont/protocol` still exposes
+descriptor **v1 only** (`RECOVERY_DESCRIPTOR_VERSION = 1`; no `recoveryPubkey`). Before
+the engine can build `RecoveryDescriptorEvidence`, the remaining package step is protocol
+parity (or an explicit decision to consume only the `@ont/wire` envelope at the kernel
+boundary), then the engine evidence type. Reviewer-gated, no DK.
 
 **3b. The recovery acceptance-rule cluster — decision-ready in the matrix.** DK rules
 these via [`B2_SPEC_PR_DECISION_MATRIX.md`](../core/B2_SPEC_PR_DECISION_MATRIX.md); this
@@ -150,8 +151,9 @@ Spec is ratified; the DK input needed is narrow (§6). Order:
 1. **DK greenlights the slice** + rules the matrix individual-review rows
    (PR-17/PR-34/PR-35; PR-34 & PR-35 together) + ratifies the §3c evidence-timing
    proposal. §8.2a/§8.3 are already landed — no re-approval.
-2. **Package v2 (§3a)** — descriptor v2 in `@ont/protocol` + `@ont/wire`; reviewer-gated,
-   no DK. Prerequisite to building `RecoveryDescriptorEvidence`.
+2. **Package v2 (§3a)** — `@ont/wire` landed descriptor-v2 conformance; finish
+   `@ont/protocol` parity (or explicitly route descriptor evidence through `@ont/wire`
+   only). Reviewer-gated, no DK. Prerequisite to building `RecoveryDescriptorEvidence`.
 3. **Engine + caller change** — implement `acceptRecoverOwner` (§2). This is a
    **public-API change, not engine-internal**: `OntEventApplicationOptions` loses
    `recoveryWalletProofAvailable`, and the caller `@ont/core` `indexer.ts`
@@ -183,7 +185,9 @@ replaced (the bond/lifecycle mechanics survive). Otherwise on fully-ratified gro
 
 ### Ripples if greenlit
 
-- `@ont/protocol` + `@ont/wire`: descriptor **v2** support (§8.2a) — currently v1-only.
+- `@ont/protocol`: descriptor **v2** support (§8.2a), or explicit retirement of the
+  protocol descriptor envelope in favor of `@ont/wire` for recovery evidence. (`@ont/wire`
+  support has landed.)
 - `WIRE_FORMAT.md`: §4.2 flags-bit registry (PR-34). §8.2a/§8.3 already landed.
 - `@ont/consensus` `engine.ts` + `OntEventApplicationOptions`; `@ont/core` `indexer.ts`
   + `indexer.test.ts` — callback removed, witnessed descriptor evidence supplied instead.
