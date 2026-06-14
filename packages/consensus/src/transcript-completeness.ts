@@ -67,6 +67,8 @@ const isWellFormedTxid = (txid: string): boolean => /^[0-9a-f]{64}$/.test(txid);
 const TRANSCRIPT_KEYS = ["bids"] as const;
 const COUNTED_BID_KEYS = ["txid"] as const;
 const WITNESS_KEYS = ["kind"] as const;
+const isObject = (x: unknown): x is Record<string, unknown> =>
+  typeof x === "object" && x !== null && !Array.isArray(x);
 const isClosedShape = (obj: object, allowed: readonly string[]): boolean =>
   Object.keys(obj).every((key) => allowed.includes(key));
 
@@ -86,41 +88,63 @@ export function transcriptCompleteness(
   transcript: AuctionTranscript,
   completenessWitness: CompletenessWitness | null
 ): TranscriptCompletenessVerdict {
-  // T1 (field-level) — the transcript object admits ONLY `bids`. A transcript carrying a
-  // producer / source / endpoint / actor (or any other) field is rejected at the boundary,
-  // closing the no-source-identity channel at runtime, not only in the type.
-  if (!isClosedShape(transcript, TRANSCRIPT_KEYS)) {
+  // Fail-closed shape guards — an exported B2 verdict is TOTAL: a malformed input (non-object,
+  // wrong-typed field, non-array bids) yields a rejecting verdict, never an exception. The typed
+  // params document the intended shape; these guards enforce it at the runtime boundary, where a
+  // caller can violate the types.
+  const t = transcript as unknown;
+  const w = completenessWitness as unknown;
+
+  // T1 (field-level + shape) — the transcript must be a non-null object admitting ONLY `bids`,
+  // and `bids` must be an array. A producer / source / endpoint / actor (or any other) field is
+  // rejected at the boundary, closing the no-source-identity channel at runtime, not only in the type.
+  if (!isObject(t)) {
+    return reject("t1-transcript-malformed");
+  }
+  if (!isClosedShape(t, TRANSCRIPT_KEYS)) {
     return reject("t1-transcript-extra-field-rejected");
   }
+  const bids = t.bids;
+  if (!Array.isArray(bids)) {
+    return reject("t1-transcript-bids-not-array");
+  }
 
-  // T2 — completeness must be witnessed by a verifier-checkable B3 witness. An absent or
-  // producer-asserted (self-asserted) witness fails closed; completeness is never trusted
-  // from the producer. (B2 consumes the witness opaquely — it does not decide the witness
+  // T2 — completeness must be witnessed by a verifier-checkable B3 witness. An absent (null or
+  // undefined) or producer-asserted (self-asserted) witness fails closed; completeness is never
+  // trusted from the producer. (B2 consumes the witness opaquely — it does not decide the witness
   // format or the lot's block range / soft-close window; those are B3.)
-  if (completenessWitness === null) {
+  if (w == null) {
     return reject("t2-absent-completeness-witness");
   }
-  // T1 (field-level) — the witness admits ONLY `kind` for the current B2 placeholder
-  // variants: no producer / source / actor field rides it. (B3 may extend this shape when it
-  // defines the real verifier-checkable witness.)
-  if (!isClosedShape(completenessWitness, WITNESS_KEYS)) {
+  // T1 (field-level + shape) — the witness must be a non-null object admitting ONLY `kind` for the
+  // current B2 placeholder variants, with a string `kind`: no producer / source / actor field rides
+  // it. (B3 may extend this shape when it defines the real verifier-checkable witness.)
+  if (!isObject(w)) {
+    return reject("t1-witness-malformed");
+  }
+  if (!isClosedShape(w, WITNESS_KEYS)) {
     return reject("t1-witness-extra-field-rejected");
   }
-  if (completenessWitness.kind !== "b3-verified-completeness-witness") {
+  if (typeof w.kind !== "string") {
+    return reject("t1-witness-malformed");
+  }
+  if (w.kind !== "b3-verified-completeness-witness") {
     return reject("t2-completeness-not-verifier-checkable");
   }
-  // T21 — the counted bid set must be distinct and well-formed: every txid is 32-byte
-  // lowercase hex, with no duplicate. A repeated or malformed txid is a forged summary and
-  // is rejected, never silently deduplicated. (No bidder identity / amount / qualification
-  // is examined — auction resolution is out of this slice.)
+
+  // T21 — the counted bid set must be distinct and well-formed: each bid is a non-null object
+  // admitting ONLY `txid`, whose `txid` is 32-byte lowercase hex, with no duplicate. A repeated or
+  // malformed txid is a forged summary and is rejected, never silently deduplicated. (No bidder
+  // identity / amount / qualification is examined — auction resolution is out of this slice.)
   const seen = new Set<string>();
-  for (const bid of transcript.bids) {
-    // T1 (field-level) — each counted bid admits ONLY `txid`: a bidder / amount / source
-    // field (auction-resolution or identity leakage) is rejected, not silently ignored.
+  for (const bid of bids) {
+    if (!isObject(bid)) {
+      return reject("t1-bid-malformed");
+    }
     if (!isClosedShape(bid, COUNTED_BID_KEYS)) {
       return reject("t1-bid-extra-field-rejected");
     }
-    if (!isWellFormedTxid(bid.txid)) {
+    if (typeof bid.txid !== "string" || !isWellFormedTxid(bid.txid)) {
       return reject("t21-malformed-bid-txid");
     }
     if (seen.has(bid.txid)) {

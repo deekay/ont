@@ -359,6 +359,14 @@ describe("B2 vector bindings — transcript-completeness family (transcriptCompl
     expect(
       transcriptCompleteness(cleanTranscript, { kind: "b3-verified-completeness-witness", producer: "publisher-x" } as unknown as CompletenessWitness).complete
     ).toBe(false); // `producer` on the witness -> rejected
+    // Total / fail-closed: a malformed JS shape returns a rejecting verdict, never throws (an
+    // exported B2 verdict must not be exceptional).
+    expect(() => transcriptCompleteness(null as unknown as AuctionTranscript, b3Verified)).not.toThrow();
+    expect(transcriptCompleteness(null as unknown as AuctionTranscript, b3Verified).complete).toBe(false); // null transcript
+    expect(transcriptCompleteness({ bids: null } as unknown as AuctionTranscript, b3Verified).complete).toBe(false); // bids not an array
+    expect(transcriptCompleteness(cleanTranscript, undefined as unknown as CompletenessWitness).complete).toBe(false); // undefined witness
+    expect(transcriptCompleteness({ bids: [null as unknown as { txid: string }] }, b3Verified).complete).toBe(false); // null bid
+    expect(transcriptCompleteness({ bids: [{ txid: 123 } as unknown as { txid: string }] }, b3Verified).complete).toBe(false); // non-string txid
   });
 
   it("T2-neg-01: completeness must be witnessed — an absent or producer-asserted witness fails closed", () => {
