@@ -96,7 +96,7 @@
       "verdict": "reject",
       "reason": "d6-01-contested-claimant-past-deadline-forfeits",
       "invariant": "on a contested name a claimant whose first-servable height is past the inclusive hard deadline (h+W+1 under #49 S2) forfeits priority and is rejected; the at-boundary (h+W) claimant resolves identically on every verifier, so the boundary selective-reveal attack cannot manufacture a convergence fork (§3); identical on deterministic replay",
-      "rationale": "The attack — arranging first-servable exactly at the deadline to win on some implementations and lose on others — is neutralized iff boundary inclusivity is pinned, which is exactly D13/#49 S2. With #49's inclusive deadlines, the boundary verdict converges, so the contested-name priority rule (§6d, candidate) becomes testable. The verdict is derivable but depends on #49 (candidate)."
+      "rationale": "The attack — arranging first-servable exactly at the deadline to win on some implementations and lose on others — is neutralized iff boundary inclusivity is pinned, which is exactly D13/#49 S2. With #49's inclusive deadlines, the boundary verdict converges, so the contested-name priority rule (§6d, candidate) becomes testable. The verdict is derivable and rests on ratified #49 S2/S3."
     },
     "status": "locked",
     "attackFlagRef": "D6-01",
@@ -164,7 +164,7 @@
       "verdict": "reject",
       "reason": "d12-01-invalid-params-rejected-and-no-baked-constant",
       "invariant": "(K,W,C) are kernel inputs with no constant in @ont/consensus (#49 S5/S7): construction rejects missing/invalid params (non-integer, negative, K<W+C), and the predicate is total at two distinct K>=W+C parameterizations so a baked-in (6,2,3) constant fails the second; identical on deterministic replay",
-      "rationale": "da-windows (#49) S5/S7 pins that (K,W,C) are per-network consensus parameters passed to the kernel as inputs with no constant in @ont/consensus, and mandates conformance vectors at two distinct parameterizations so a baked-in constant cannot pass. The verdict (kernel rejects missing/invalid params; predicate is total across parameterizations satisfying K>=W+C; no hardcoded numbers) is derivable, but rests on the provisional algebra. The 'placeholders cannot pass candidate' discipline is a ratified inventory-ledger rule that reinforces, not replaces, the #49 dependency."
+      "rationale": "da-windows (#49) S5/S7 pins that (K,W,C) are per-network consensus parameters passed to the kernel as inputs with no constant in @ont/consensus, and mandates conformance vectors at two distinct parameterizations so a baked-in constant cannot pass. The verdict (kernel rejects missing/invalid params; predicate is total across parameterizations satisfying K>=W+C; no hardcoded numbers) is derivable, and rests on ratified #49 S5/S7 — only the (6,2,3) values remain provisional launch-freeze placeholders. The 'placeholders cannot pass candidate' discipline is a ratified inventory-ledger rule that reinforces, not replaces, the #49 dependency."
     },
     "status": "locked",
     "attackFlagRef": "D12-01",
@@ -176,7 +176,7 @@
     "area": "DA verdict",
     "authorityTier": "ratified",
     "sources": [
-      "docs/core/B2_KERNEL_HARDENING.md D13 (lines 386-394) — verdict candidate-stays; Needed spec work names a future §6b/§6c amendment; '<= reading exists only in sim code'",
+      "docs/core/B2_KERNEL_HARDENING.md D13 (lines 386-394) — standalone verdict tagged candidate-stays, superseded by ratified #49 S2 (the inclusive reading now lives in §6e, not only in sim code); Needed spec work named a future §6b/§6c amendment",
       "docs/core/DECISIONS.md 49. da-windows S2 (lines 1060-1061) — inclusive deadlines; RATIFIED 2026-06-14 (lines 1043-1047)",
       "docs/spec/ONT_DATA_AVAILABILITY_AGREEMENT.md §6e S2 (lines 174-176) — '(ratified 2026-06-14; candidate tier)'; §3 (lines 80-89) — boundary fork hazard"
     ],
@@ -191,14 +191,14 @@
         "caseStrictLessThanDocumentingNegative": "the documenting companion: a strict-< implementation that fails the h+W boundary vector (treats h+W as out-of-window) is non-conformant, and first-servable = h+W+C+1 -> reject",
         "WCK": "#49 provisional parameters (W=2, C=3, K=6); §6e S2 inclusive deadlines"
       },
-      "scopeNote": "Originated provisional on da-windows (#49, RATIFIED 2026-06-14): D13's verdict is candidate-stays (inclusive <= deadline comparisons), but the substantive inclusive reading is supplied by #49 S2 in §6e ('a witness at the deadline height exactly is in-window'); D13's own 'Needed spec work' still names a future §6b/§6c amendment and #49 is RATIFIED 2026-06-14. Because the <= choice rests on the provisional #49 algebra (today it exists only in sim code + the provisional §6e), the boundary verdict is provisional-vector (now ratified). DA-window edges (h+W, h+W+C), distinct from the non-DA edges routed to PR-13.",
+      "scopeNote": "Originated provisional on da-windows (#49, RATIFIED 2026-06-14): D13's standalone verdict was tagged candidate-stays (inclusive <= deadline comparisons), but the substantive inclusive reading is supplied by ratified #49 S2 in §6e ('a witness at the deadline height exactly is in-window'); D13's own 'Needed spec work' named a future §6b/§6c amendment. The <= choice is pinned by ratified #49 S2 in §6e, so the boundary verdict — originated provisional-vector — is now ratified. DA-window edges (h+W, h+W+C), distinct from the non-DA edges routed to PR-13.",
       "authoringStatus": "authored from a provisional vector (decisionDeps + flipMarker shed on ratification); status locked (per-area adversarial review passed; authorityTier RATIFIED 2026-06-14 (DK ratified da-windows #49 O1 / recovery-auth #50 b1); lineage in DECISIONS #49/#50, registry Part B, decision papers, git); ratified per DK's #49 S2 boundary ruling."
     },
     "expected": {
       "verdict": "accept",
       "reason": "d13-01-deadline-boundaries-inclusive-h+W-and-h+W+C",
       "invariant": "under #49 S2 inclusive comparisons a claim first-servable at exactly h+W is in-window and at exactly h+W+C is includable (both ACCEPT); h+W+C+1 is rejected; a strict-< implementation that fails the h+W boundary is non-conformant; identical on deterministic replay. DA-window edges pinned by #49 S2, not the non-DA edges routed to PR-13.",
-      "rationale": "D13's verdict is candidate-stays (inclusive <= deadline comparisons). The substantive inclusive reading is now provided by da-windows (#49) S2 in §6e ('a witness at the deadline height exactly is in-window'), but the rule's own 'Needed spec work' still names a future spec PR to amend §6b/§6c, and #49 is ratified 2026-06-14. Because the <= choice rests on the provisional #49 algebra (today it exists only in sim code + the provisional §6e), the boundary verdict is provisional-vector (now ratified)."
+      "rationale": "D13's standalone verdict was tagged candidate-stays (inclusive <= deadline comparisons). The substantive inclusive reading is now provided by ratified da-windows (#49) S2 in §6e ('a witness at the deadline height exactly is in-window'); the rule's own 'Needed spec work' named a future spec PR to amend §6b/§6c. The <= choice is pinned by ratified #49 S2 in §6e, so the boundary verdict — originated provisional-vector — is now ratified."
     },
     "status": "locked",
     "attackFlagRef": "D13-01",
