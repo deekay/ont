@@ -332,11 +332,58 @@ profile MUST NOT produce two descriptor hashes — the hash is referenced
 on-chain, and representation malleability there is avoidable. Parsed
 envelopes carry the normalized value.
 
+### 8.2a Recovery descriptor v2 (`descriptorVersion 2`) — recovery-auth (#50), RATIFIED b1
+
+*(Named amendment to normative §8 per recovery-auth (#50), DK-ratified b1
+2026-06-14, event 3edddac1. descriptorVersion 1 above stays valid wire and
+parses, but is **not invokable** — it commits no key the on-chain invoke
+signature can verify against; an armed name re-arms to v2 to become
+recoverable. With signet decommissioned and nothing-is-precious ratified,
+v1 descriptors are conformance fossils.)*
+
+descriptorVersion 2 adds one required field to the §8.2 envelope:
+
+- **`recoveryPubkey`** (32-hex, x-only BIP340) — the key that authorizes the
+  on-chain RecoverOwner invoke.
+
+Everything else (field set, `signingProfile` grammar, `recoveryAddress`,
+normalization) is unchanged from v1. Under b1 the on-chain `RecoverOwner`
+(0x09) event's 64-byte `signature` field carries a **fresh BIP340 signature
+by `recoveryPubkey` over the unchanged W13 `ont-recover-owner` digest** —
+this defines the meaning of that existing normative field (the work WIRE §5
+routed to B2); the 0x09 wire layout is byte-for-byte unchanged. `recoveryAddress`
+is retained in v2 for the §8.3 corroboration proof and the PR-34
+successor-output check; it no longer carries invoke authority.
+
+Digest (v2) = the v1 preimage with `version(2)` and `recoveryPubkey(32)`
+appended after `lenPrefix(issuedAt)`:
+
+`sha256( lenPrefix("ont-recovery-descriptor") ‖ version(2) ‖
+lenPrefix(name) ‖ ownerPubkey(32) ‖ ownershipRef(32) ‖ sequence(u64) ‖
+nullFlag(previousDescriptorHash(32)) ‖ lenPrefix(recoveryAddress) ‖
+lenPrefix(signingProfile) ‖ challengeWindowBlocks(u32) ‖
+lenPrefix(issuedAt) ‖ recoveryPubkey(32) )`
+
+*(Byte placement = pure append after the v1 preimage, so v1 and v2 share a
+prefix and differ only in the version byte + the appended key — flagged for
+reviewer confirmation. The B2 conformance suite carries v1-not-invokable
+plus v2 invoke-accept / wrong-recoveryPubkey-reject vectors per the #50
+negative-test list in DECISIONS.)*
+
 ### 8.3 Recovery wallet proof (`ont-recovery-wallet-proof`, proofVersion 1)
 
 A separate object from the descriptor, and the deliberate exception to the
 Schnorr-digest rule: it is signed **BIP322 by the recovery address key**
 over a normalized *text message*, and verified by a BIP322 verifier.
+
+**Under recovery-auth (#50), RATIFIED b1 (2026-06-14, event 3edddac1):** this
+wallet proof is an **evidence-layer corroboration object, not the invoke
+authorizer**. The on-chain invoke is authorized by the §8.2a v2
+`recoveryPubkey` BIP340 signature; the §8.3 proof corroborates arming/intent
+for resolvers and watchers and is checked as evidence (the §8.2 cross-object
+`signingProfile` equality still applies), but it does not by itself authorize
+the RecoverOwner. (Per the paper's reopen trigger, b2h — proof-as-authorizer
+— remains the standing counter-design.)
 
 Fields (the complete JSON envelope; a parser MUST reject an envelope whose
 `format` or `proofVersion` differ from the values below):
@@ -404,8 +451,8 @@ optional `chainTipBlockHash`(32-hex) and `chainTipHeight`,
 | --- | --- |
 | Whether an event changes name state (authorization, ordering, finality) | kernel spec material, B2 |
 | Gate-fee validation (fee ≥ Σ gates) | B2 (spec/ONT_ISSUANCE_FEE_MECHANICS.md) |
-| Data-availability deadlines; marker-vs-folded-anchor | pre-B2 named spec decision + B2/B3 |
-| RecoverOwner authorization semantics | decided — recovery-auth (#50, provisional pending DK): fresh recovery-key BIP340 under a v2 descriptor; the §8.2/§8.3 amendments land at ratification |
+| Data-availability deadlines; marker-vs-folded-anchor | RATIFIED — marker-fold (#47) + da-windows (#49, O1); algebra in DA §6e, enforcement B2/B3 |
+| RecoverOwner authorization semantics | RATIFIED — recovery-auth (#50, b1): fresh recovery-key BIP340 under a v2 descriptor; §8.2a/§8.3 amendments landed (2026-06-14) |
 | Economic parameter values | launch-parameter freeze |
 | Proof-bundle construction and sizes | B3 evidence layer |
 | Wallet-handoff envelope formats | B5 (W17 ruling); labels reserved in §7 |

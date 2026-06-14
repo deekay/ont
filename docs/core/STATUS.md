@@ -106,9 +106,10 @@ determine **owner-key authority and replay validation** (transfers, value record
   2026-06-11**: the separate `AvailabilityMarker` event (0x0d) is retired (it was wire-defined and
   tested but never emitted or checked in production; it survives only as legacy-codec evidence), and
   all availability deadlines key off the anchor's mined height. The window *algebra* is pinned —
-  **da-windows (#49), 2026-06-13, provisional pending DK** (DA agreement §6e: one clock, inclusive
-  boundaries, `includable` vs `holdsPriority`, `K ≥ W + C`); the window *values* remain
-  launch-freeze placeholders. Enforcement is still only in the research simulations. The historical
+  **da-windows (#49), RATIFIED O1 (DK event 8c3b4beb, 2026-06-14)** (DA agreement §6e: one clock,
+  inclusive boundaries, `includable` vs `holdsPriority`, `K ≥ W + C`); the window *values* remain
+  launch-freeze placeholders. Algebra ratified; enforcement (B2 predicate + B3 served-bytes
+  witness) is the implementation step, still only in the research simulations today. The historical
   live loop was: anchors verified on-chain,
   batch bytes fetched and re-verified against the anchored root, missing bytes simply retried (with
   backoff) — fine for an honest single publisher on signet, but the *withhold-then-reveal* defense
