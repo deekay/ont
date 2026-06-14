@@ -22,17 +22,17 @@ packet says "pairs with PR-n".
 **Decision surface (the sub-rulings DK makes):**
 1. Whether B2 defines `servedEvidence` as an opaque, verifier-checkable interface NOW (so the DA predicate is well-typed), deferring the concrete bytes to B3 — or waits for B3's full format.
 2. The interface contract: the properties the kernel requires of `servedEvidence` independent of its byte layout.
-3. The honest-verifier convergence property (every honest verifier with the same chain + evidence derives the same DA verdict).
+3. The honest-verifier convergence property (two verifiers with the same confirmed-chain facts AND the same `servedEvidence` derive the same DA verdict).
 
 **Options:**
 - **(A) define the opaque interface now, defer bytes to B3** — `eligible(anchor, servedEvidence, W, C)` consumes `servedEvidence` as an abstract verifier-checkable type with a stated contract; B3 later fills the concrete byte format without changing the predicate signature.
 - **(B) wait for B3's concrete format** — leave the DA predicate untyped until B3 lands.
 
 **Recommendation (advisory, for DK ratification): (A).**
-Define `servedEvidence` now as an opaque interface with a three-property contract: (i) **anchor binding** — the evidence is cryptographically bound to the anchor it serves (evidence for one anchor is not valid for another); (ii) **first-servable-height** — it determines a single first-servable height comparable to the `h+W` deadline; (iii) **independent chain-checkable verifiability** — any party can verify it against the confirmed chain alone (no trust in the submitter), so honest verifiers converge on the verdict. The B2 DA predicate `eligible(anchor, servedEvidence, W, C)` consumes this abstract type today; the concrete byte layout is B3's deliverable (P2). Option (B) leaves the entire D-area DA predicate a typed hole, so the whole DA-verdict family cannot be written or conformance-tested — unacceptable for B2.
+Define `servedEvidence` now as an opaque interface with a three-property contract: (i) **anchor binding** — the evidence is cryptographically bound to the anchor it serves (evidence for one anchor is not valid for another); (ii) **first-servable-height** — it determines a single first-servable height comparable to the `h+W` deadline; (iii) **independent verifiability** — any party can verify it from the `servedEvidence` object plus confirmed-chain facts (no external I/O, no trust in the submitter), so two verifiers with the same chain AND the same `servedEvidence` derive the same verdict. (B3 still owns evidence availability/convergence; the kernel verdict is deterministic over the presented `servedEvidence` + chain facts, not a claim that the chain alone supplies the evidence.) The B2 DA predicate `eligible(anchor, servedEvidence, W, C)` consumes this abstract type today; the concrete byte layout is B3's deliverable (P2). Option (B) leaves the entire D-area DA predicate a typed hole, so the whole DA-verdict family cannot be written or conformance-tested — unacceptable for B2.
 
 **Minimal amendment text (one block, for the DA agreement / B2 kernel spec):**
-> servedEvidence interface (B2). The DA-eligibility predicate `eligible(anchor, servedEvidence, W, C)` consumes `servedEvidence` as an opaque, verifier-checkable value satisfying: (i) it is cryptographically bound to `anchor` (evidence for one anchor is not valid for another); (ii) it determines a single first-servable height comparable to the `h+W` deadline; (iii) it is independently verifiable against the confirmed chain by any party, so two honest verifiers with the same chain derive the same verdict. The concrete byte encoding is defined by the B3 evidence layer; B2 depends only on this interface.
+> servedEvidence interface (B2). The DA-eligibility predicate `eligible(anchor, servedEvidence, W, C)` consumes `servedEvidence` as an opaque, verifier-checkable value satisfying: (i) it is cryptographically bound to `anchor` (evidence for one anchor is not valid for another); (ii) it determines a single first-servable height comparable to the `h+W` deadline; (iii) it is independently verifiable from the `servedEvidence` object plus confirmed-chain facts by any party, with no external I/O or trust in the submitter, so two verifiers with the same chain AND the same `servedEvidence` derive the same verdict. The concrete byte encoding is defined by the B3 evidence layer; B2 depends only on this interface.
 
 **Ripple:**
 - Unblocks the witness-CONSUMING halves of D1, D2, D14, B11 once the interface is defined (they author as vectors against the abstract type); likewise the witness-dependent halves of A2/A10, F6 (Σ gᵢ over committed leaves), and B10.
@@ -50,6 +50,49 @@ Define `servedEvidence` now as an opaque interface with a three-property contrac
 - The B2 DA predicate `eligible(anchor, servedEvidence, W, C)` is a **typed hole** — it cannot be written, so the entire D-area (DA verdict) and the witness-dependent halves of A/F/B/Z cannot be conformance-tested (D1-01, D2-01, D14-01, B8-01, B11-01).
 - "Demonstrably servable by `h+W`" stays undefined, so honest verifiers cannot be shown to **converge** — the §3 boundary/convergence hazard reopens on contested names.
 - Reorg re-derivation of served evidence (Z5-02) has no defined input to re-check against the current chain.
+
+---
+
+## PR-2. Commitment-match construction: B3 leaf format + DA verdict granularity (conflicts C5, C6) — EXPANDED
+
+**Flags (5):** A4-02, A6-01, D4-02, D8-01, B9-01. **Registry priority:** P0 (two divergent leaf constructions fork the root; the merge predicate cannot be written until one is pinned). **Blocking dependency:** B3 for the concrete leaf/served-bytes bytes, plus a named consensus-tier ruling on the owner-binding construction (C6) and the granularity table (C5) — the rulings are makeable now; the concrete bytes are B3-gated. Independent of #49/#50; pairs with PR-1.
+
+**Decision surface (the sub-rulings DK makes):**
+1. **Owner-binding (C6):** the committed leaf value = `H(ownerPubkey)` (publisher spec) or raw `ownerPubkey` (the only code that ran).
+2. **Verdict granularity (C5):** the disposition per failure class — and specifically the leaf-level fork: **per-leaf-drop** vs **batch-poison**.
+3. The meaning of "bytes match the commitment": per-leaf membership proof vs full-batch root recomputation from `prevRoot`.
+4. `Σ gᵢ` (gate-fee sum) is pinned over the full committed leaf set regardless of any per-leaf drops.
+
+**Options:**
+- **(1) owner-binding** — (a) `H(ownerPubkey)` [follows the publisher spec; fixed-width, domain-separable] vs (b) raw `ownerPubkey` [what the legacy code committed].
+- **(2) leaf-level granularity** — (a) **per-leaf-drop** (a malformed leaf is dropped; the rest of the batch stands) vs (b) **batch-poison** (one malformed leaf rejects the whole batch). [Fee shortfall and missed DA-deadline are whole-batch under both.]
+- **(3) commitment-match** — (a) per-leaf Merkle membership against the committed root vs (b) full-batch root recomputation from `prevRoot` (recommend both: membership for inclusion + recomputation for completeness).
+
+**Recommendation (advisory, for DK ratification):**
+- **(1) = (a) `H(ownerPubkey)`** — docs-are-the-spec (clean-build #46 assumes the legacy code is wrong where it diverges); the publisher spec's `H(ownerPubkey)` is the published construction, fixed-width and domain-separable. Reconcile the code to the spec. (Genuine C6 fork, flagged: the only deployed code used raw `ownerPubkey`, so this is a deliberate spec-wins ruling, not a no-op.)
+- **(2) — the central P0 fork; I lean (a) per-leaf-drop CONDITIONED on a detectable-malformation rule, but this is the packet's highest-uncertainty call.** Per-leaf-drop is resilient (one bad leaf does not deny honest co-claimants) but enables the **B9 selective-victim-drop grief** (a publisher includes a victim's leaf subtly malformed so it silently drops). The condition that closes B9: leaf well-formedness must be defined so a claimant can verify its OWN leaf committed correctly (a dropped leaf is detectable by its claimant, never silent). Absent that condition, **batch-poison (b)** is the safer ruling — it removes selective drop entirely, at the cost of collective grief (one bad leaf kills the batch). DK rules; I recommend per-leaf-drop + detectable-malformation, and name batch-poison as the conservative alternative.
+- **(3) = both** — "bytes match the commitment" means each claimed leaf (per (1)) is provably a member of the anchored root, AND the root recomputes from `prevRoot` over the full committed leaf set (so no undeclared leaves were inserted).
+- **(4)** `Σ gᵢ` is summed over the full committed leaf set regardless of per-leaf drops (a dropped leaf still counts toward the batch's gate-fee obligation), so dropping cannot dodge the fee.
+
+**Minimal amendment text (one block, for the DA agreement / B2 kernel spec):**
+> Commitment-match (B2). The committed leaf value is `H(ownerPubkey)`. The merge predicate verifies each claimed leaf is a member of the anchored root and recomputes the root from `prevRoot` over the full committed leaf set. Failure granularity: a fee shortfall or a missed DA deadline rejects the whole batch; a leaf-level well-formedness failure [drops only that leaf | rejects the whole batch — DK ruling], with leaf well-formedness defined so a claimant can verify its own leaf committed (no silent drop). `Σ gᵢ` is summed over the full committed leaf set regardless of drops. The concrete leaf/served-bytes encoding is the B3 deliverable.
+
+**Ripple:**
+- Locks A4 (membership-vs-recompute), A6 (owner-binding), D4/D8 (partial-service / `batchSize` role), B9 (per-leaf-drop) once ratified.
+- Feeds the shared "eligible claim" / "leaf format" definitions PR-1's `servedEvidence` consumes (the served bytes prove membership against the leaf this PR defines) — **pairs with PR-1**.
+- The concrete leaf bytes stay B3-gated; the construction + granularity RULINGS land now.
+- The granularity ruling feeds the gate-fee (F) area: `Σ gᵢ` over the full committed set is F's fee-attribution input.
+
+**Non-goals / dependencies:**
+- **Non-goal:** the concrete B3 byte layout of a leaf (deferred to B3).
+- **Dependency:** B3 for the bytes; a named consensus-tier ruling for C5 (granularity) + C6 (owner-binding) — both makeable now.
+- **Independent of #49/#50.**
+- **Pairs with PR-1** (the served-bytes witness proves membership against this leaf construction).
+
+**Attack if rejected (what breaks without PR-2):**
+- Two divergent leaf constructions (`H(ownerPubkey)` vs raw) compute **different roots** from the same batch — a consensus fork at the merge predicate (A6-01); the predicate cannot be written until one is pinned.
+- Unstated leaf-level granularity leaves the **B9 selective-victim-drop grief** open (a publisher silently drops a victim's leaf), or — if implementations diverge on drop-vs-poison — an honest-node fork.
+- Partial service (D4-02) and `batchSize`'s role (D8-01) stay undefined, so "did this batch serve its leaves" is undecidable.
 
 ---
 
