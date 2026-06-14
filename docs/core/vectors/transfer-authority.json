@@ -1,0 +1,209 @@
+[
+  {
+    "id": "X2-neg-01",
+    "ruleId": "X2",
+    "area": "Transfer authority",
+    "authorityTier": "normative",
+    "sources": [
+      "docs/spec/WIRE_FORMAT.md §5 Keys and owner-key Schnorr digests (normative) — ont-transfer-owner digest + 'Authorization semantics ... are kernel rules (B2), not wire'",
+      "docs/core/DECISIONS.md Decision Log #1 Ownership model"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "The §5 digest excludes both the name and the carrying txid: authorization binds to a name only through prevStateTxid (ambiguity risk flagged on X4) and to no particular carrying transaction (extraction risk flagged on X10).",
+      "predicateSignature": "transferAuthority(eventBytes{prevStateTxid,newOwnerPubkey,flags,successorBondVout,signature}, witnessedChainFacts, priorKernelState{currentOwnerKey}) -> {verdict, reason}",
+      "fixture": {
+        "caseA_recoverDigestInTransfer": "a valid ont-recover-owner BIP340 signature over the shared prefix presented inside a Transfer event -> reject (the §5 ont-transfer-owner digest is a different domain; no state change)",
+        "caseB_nonOwnerKeys": "signatures by the incoming/recipient owner, a random key, or the prior owner -> reject (must verify against the current-state owner key)",
+        "priorState": "name in an owned state with currentOwnerKey = K_owner",
+        "positiveControl": "a valid BIP340 signature over the §5 ont-transfer-owner digest verifying against K_owner -> accept"
+      },
+      "scopeNote": "Cited-now (normative WIRE_FORMAT §5 ont-transfer-owner digest + DECISIONS #1 ownership model): authority binds to the current-state owner key over the exact §5 digest fields (prevStateTxid, newOwnerPubkey, flags, successorBondVout) and nothing else; no prior/incoming-owner, recovery, or publisher key authorizes. The recovery-key rejection is DOMAIN SEPARATION (the ont-recover-owner digest != the ont-transfer-owner digest), NOT a claim about #50's recovery-auth model. DELIBERATELY EXCLUDES (tracked separately): the prevStateTxid name-binding ambiguity (X4) and the no-carrying-txid extraction risk (X10).",
+      "authoringStatus": "authored: predicate-input shape proposed; status stays proposed pending reviewer sign-off."
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "x2-01-only-current-owner-key-over-transfer-digest",
+      "invariant": "a Transfer changes state only under a valid BIP340 signature over the §5 ont-transfer-owner digest verifying against the current-state owner key; recover-owner digests and all non-owner keys (prior owner, incoming owner, recovery key, publisher) reject",
+      "rationale": "The flag observes that the §5 digest binds a name only via prevStateTxid and binds no carrying txid; the cross-context guard it implies (a non-owner key, or a recover-owner digest presented inside a Transfer, authorizes nothing) is directly derivable from normative WIRE_FORMAT §5 ('which key must have produced a signature ... are kernel rules') plus DECISIONS #1 ('authorized by signatures from the corresponding private key'). The downstream ambiguity (X4) and extraction (X10) risks are tracked separately; for X2 itself the reject verdicts are normatively pinned."
+    },
+    "status": "proposed",
+    "attackFlagRef": "X2-01",
+    "flipMarker": null
+  },
+  {
+    "id": "X6-neg-01",
+    "ruleId": "X6",
+    "area": "Transfer authority",
+    "authorityTier": "ratified",
+    "sources": [
+      "docs/core/DECISIONS.md Decision Log #5 Bond continuity — 'at least the required bond amount'",
+      "docs/core/DECISIONS.md Decision Log #4 Transfer semantics — pre-maturity must move the bonded UTXO",
+      "docs/core/STATUS.md params table — min bond ₿50,000 (placeholder/launch-freeze)"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "Fee erosion: #5 notes fees should be funded separately; a successor output that slips below threshold simply invalidates the transfer — the kernel must not round or forgive, and wallet layers must guard it.",
+      "predicateSignature": "transferAuthority(eventBytes, witnessedChainFacts{carryingTx spends bondOutpoint, successor output value at successorBondVout}, priorKernelState{pre-maturity, bondOutpoint}) -> {verdict}",
+      "fixture": {
+        "params": { "requiredBondAmount": "launch-freeze parameter, carried as a vector input (STATUS placeholder ₿50,000)", "note": "vectors run at TWO distinct bond values so a baked-in constant cannot pass" },
+        "caseBelow": "pre-maturity transfer whose successor bond output value = requiredBondAmount - 1 sat -> reject (no rounding/forgiveness)",
+        "positiveCompanion": "successor bond output value = exactly requiredBondAmount -> accept",
+        "carryingTx": "spends the name's current bond outpoint and creates a successor output at index successorBondVout",
+        "priorState": "pre-maturity owned name with a bond outpoint (height clearly before maturity; the exact maturity boundary is excluded)"
+      },
+      "scopeNote": "Cited-now (ratified DECISIONS #5 'at least the required bond amount' + #4 pre-maturity must move the bonded UTXO): fail-closed on a below-threshold successor bond — no rounding or forgiveness. The required amount is a launch-freeze PARAMETER carried as a vector input, tested at two values so no baked-in constant passes — NOT a spec gap. DELIBERATELY EXCLUDES: the exact maturity-boundary height (window-boundary convention, spec-blocked) — fixtures sit clearly pre-maturity.",
+      "authoringStatus": "authored: predicate-input shape proposed; bond amount is launch-freeze param; status stays proposed pending reviewer sign-off."
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "x6-01-below-threshold-successor-bond-no-forgiveness",
+      "invariant": "a pre-maturity transfer whose successor bond output is below the required amount (even by one sat) is rejected with no rounding or forgiveness; the required amount is a launch-freeze parameter, not a baked-in constant",
+      "rationale": "The fee-erosion flag is the fail-closed posture on a below-threshold successor bond: a successor output one sat below the required amount simply invalidates the transfer with no rounding or forgiveness. That reject verdict is directly derivable from DECISIONS #5 ('The successor bond output must contain at least the required bond amount') — the amount itself is a launch-freeze parameter carried as a vector input (params), not a spec gap. The kernel-must-not-round verdict needs no invented rule."
+    },
+    "status": "proposed",
+    "attackFlagRef": "X6-01",
+    "flipMarker": null
+  },
+  {
+    "id": "X6-neg-02",
+    "ruleId": "X6",
+    "area": "Transfer authority",
+    "authorityTier": "normative",
+    "sources": [
+      "docs/spec/WIRE_FORMAT.md §4.1 Transfer + §5 digest — successorBondVout(1) (normative, u8)",
+      "docs/core/DECISIONS.md Decision Log #27 Pre-maturity transfer linkage — successor bond output index (vout)",
+      "docs/core/DECISIONS.md Decision Log #5 Bond continuity"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "successorBondVout is u8: outputs at index >255 can never be successor bonds — a wire bound with kernel consequence the spec should state explicitly.",
+      "predicateSignature": "transferAuthority(eventBytes{successorBondVout: u8}, witnessedChainFacts, priorKernelState{pre-maturity}) -> {verdict}",
+      "fixture": {
+        "caseOutOfRange": "a pre-maturity transfer whose required successor bond sits at carrying-tx output index >255 (unrepresentable in the u8 successorBondVout) -> reject",
+        "positiveCompanion": "same transfer with an in-range successorBondVout designating an adequate output -> accept",
+        "priorState": "pre-maturity owned name with a bond outpoint"
+      },
+      "scopeNote": "Cited-now (normative WIRE_FORMAT §4.1/§5 successorBondVout = u8 one byte + DECISIONS #27 'successor bond output index (vout)' in the signed payload + #5): the u8 field cannot designate an output index >255, so a pre-maturity transfer needing such an output cannot satisfy the X6 bond conjunct and rejects. A wire-bound-with-kernel-consequence; no invented rule.",
+      "authoringStatus": "authored: predicate-input shape proposed; status stays proposed pending reviewer sign-off."
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "x6-02-u8-successorbondvout-ceiling",
+      "invariant": "successorBondVout is a u8; a pre-maturity transfer needing a successor bond at carrying-tx output index >255 cannot satisfy the bond conjunct and rejects",
+      "rationale": "successorBondVout is a u8 in the normative §4.1/§5 layout (one byte), so a successor bond can never be designated at an output index >255; a pre-maturity transfer that would need such an output cannot satisfy the X6 bond conjunct and rejects. This is a wire-bound-with-kernel-consequence derivable from the normative one-byte field plus DECISIONS #27 ('the signed transfer payload includes the successor bond output index (vout)') and #5 — no invented rule needed."
+    },
+    "status": "proposed",
+    "attackFlagRef": "X6-02",
+    "flipMarker": null
+  },
+  {
+    "id": "X8-pos-01",
+    "ruleId": "X8",
+    "area": "Transfer authority",
+    "authorityTier": "ratified",
+    "sources": [
+      "docs/core/DECISIONS.md Decision Log #4 Transfer semantics — 'Post-maturity transfers do not require bond continuity.'",
+      "docs/core/DECISIONS.md Decision Log #27 — 'mature transfers do not require successor bond output linkage'",
+      "docs/LAUNCH.md Transfers — 'no successor bond is required'"
+    ],
+    "kind": "positive",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "The dead-but-signed successorBondVout byte in mature transfers admits arbitrary values; harmless under this rule, but the spec should explicitly say 'ignored' (or require 0) so implementations do not invent semantics.",
+      "predicateSignature": "transferAuthority(eventBytes{successorBondVout: arbitrary}, witnessedChainFacts{height >> maturityHeight, no bond i/o}, priorKernelState{mature owned name}) -> {verdict}",
+      "fixture": {
+        "matureTransfer": "a Transfer at a height comfortably past maturity, with an arbitrary (including nonsense/out-of-range) successorBondVout byte and no bond inputs or outputs",
+        "expectedEffect": "accept — the byte is ignored, owner + state-head update, bond fields untouched",
+        "boundaryNote": "fixtures use a height comfortably past maturity to AVOID the maturity-boundary question (window-boundary convention, spec-blocked)"
+      },
+      "scopeNote": "Cited-now (ratified DECISIONS #4 'post-maturity transfers do not require bond continuity' + #27 'mature transfers do not require successor bond output linkage' + LAUNCH 'no successor bond is required'): the mature path imposes no bond conjunct; the signed successorBondVout byte carries no semantic effect (any value, incl. out-of-range, is ignored). DELIBERATELY EXCLUDES: the exact maturity-boundary height (window-boundary convention, spec-blocked) — fixtures sit comfortably past maturity.",
+      "authoringStatus": "authored: predicate-input shape proposed; status stays proposed pending reviewer sign-off."
+    },
+    "expected": {
+      "verdict": "accept",
+      "reason": "x8-02-mature-transfer-ignores-bond-byte",
+      "invariant": "a Transfer at a height comfortably past maturity accepts with no bond spend or successor-output requirement; the successorBondVout byte is ignored (any value); owner + head update, bond fields untouched",
+      "rationale": "This flag is the benign mature-path posture: under X8 the kernel MUST NOT impose any bond conjunct on a mature transfer, so the signed successorBondVout byte carries no semantic effect and any value (including out-of-range) is ignored. The 'ignored' verdict is directly derivable from DECISIONS #4/#27 and the candidate state-machine ('mature transfers do not require successor bond continuity') plus LAUNCH ('no successor bond is required') — the flag's note that the spec 'should say ignored' is a wording recommendation, not a verdict gap."
+    },
+    "status": "proposed",
+    "attackFlagRef": "X8-02",
+    "flipMarker": null
+  },
+  {
+    "id": "X11-neg-01",
+    "ruleId": "X11",
+    "area": "Transfer authority",
+    "authorityTier": "candidate",
+    "sources": [
+      "docs/spec/ONT_ACQUISITION_STATE_MACHINE.md Owner-Key Control (candidate) — 'Once a name is final, the owner key is the stable authority layer'",
+      "docs/spec/ONT_ACQUISITION_STATE_MACHINE.md State Model (candidate) — owner-key transfer reachable only from Final/Bonded/Mature owner states",
+      "docs/DESIGN.md §6 Economics — owner can transfer the moment the auction settles"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "The only authority is the state diagram plus 'once a name is final' — no MUST sentence prohibits transferring provisional claims; pre-trading claims during the notice window is excluded only by inference and must be stated at promotion.",
+      "predicateSignature": "transferAuthority(eventBytes, witnessedChainFacts, priorKernelState{nameLifecycleState}) -> {verdict}",
+      "fixture": {
+        "negativeBattery": [
+          "Transfer against a provisional batched claim in its notice window -> reject (no state change)",
+          "Transfer against a name in a live auction -> reject",
+          "Transfer against a nullified name -> reject",
+          "Transfer against a name invalidated by broken bond continuity -> reject",
+          "Transfer against a nonexistent name -> reject"
+        ],
+        "positiveCompanion": "Transfer in the block after auction settlement (owned state) -> accept",
+        "priorState": "varies per battery case"
+      },
+      "scopeNote": "Cited-now (candidate state-machine Owner-Key Control + State Model; DESIGN §6 'owner can transfer the name the moment the auction settles'): transfer authority attaches ONLY in an owned/final state; all non-owned states reject (fail-closed — only an owned state has a transferable owner key). Candidate text is acceptable authority for this candidate-stays verdict. The 'restate as an explicit MUST at promotion' is a wording note, not a verdict gap.",
+      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; status stays proposed pending reviewer sign-off."
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "x11-01-non-owned-state-no-transfer",
+      "invariant": "a Transfer against any non-owned state (provisional-in-notice / live-auction / nullified / broken-bond / nonexistent) makes no state change; transfer authority requires an owned state",
+      "rationale": "The flag notes the only authority is the candidate state diagram plus 'once a name is final', with no explicit MUST forbidding transfer of a provisional claim. But X11 is candidate-stays and candidate text is acceptable authority for a candidate-stays verdict; the state model is unambiguous that transfer authority attaches only in an owned/final state, and DESIGN §6 ('owner ... can transfer the name the moment the auction settles') confirms the boundary. The negatives (provisional-in-notice, live-auction, nullified, broken-bond, nonexistent -> no state change) are derivable as fail-closed: only an owned state has a transferable owner key. The 'must be restated as MUST at promotion' is a wording note, not a verdict gap."
+    },
+    "status": "proposed",
+    "attackFlagRef": "X11-01",
+    "flipMarker": null
+  },
+  {
+    "id": "X14-neg-01",
+    "ruleId": "X14",
+    "area": "Transfer authority",
+    "authorityTier": "ratified",
+    "sources": [
+      "docs/core/DECISIONS.md Decision Log #18 Destination behavior on transfer — 'cleared by default'; 'preserve is not the default behavior'",
+      "docs/core/DECISIONS.md Decision Log #17 — 'destination authority moves to the new owner key'",
+      "docs/core/B2_KERNEL_HARDENING.md X14 Gaps — Transfer flags bit registry (no spec text -> fail-closed)"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "#18's 'explicit preserve signal' has no defined carrier — the Transfer flags byte is the obvious slot but no flag registry exists (see gaps); until a named decision defines one, every flag bit must mean no-preserve, fail-closed.",
+      "predicateSignature": "transferAuthority(eventBytes{flags}, witnessedChainFacts, priorKernelState{priorValueRecordHead}) -> {verdict, valueRecordAuthority}",
+      "fixture": {
+        "caseFlagBitSet": "a Transfer with any flags-byte bit set (no spec-defined preserve carrier) does NOT preserve the prior owner's value record -> record cleared (preserve rejected)",
+        "caseStaleRecord": "a prior-owner-signed value record presented after the transfer -> reject (stale; authority moved to the new owner)",
+        "positiveCompanion": "the new owner's fresh value record (seq 1, no prev hash) -> valid head",
+        "priorState": "owned name with a prior-owner value record head"
+      },
+      "scopeNote": "Cited-now (ratified DECISIONS #18 'cleared by default; preserve is not the default' + #17 'destination authority moves to the new owner key'): fail-closed no-preserve — with NO spec-defined preserve carrier (no Transfer flags-bit registry yet, per X14 gaps), every flag bit means no-preserve; value-record authority moves to the new owner and the prior record is cleared. DELIBERATELY EXCLUDES (future work): the eventual preserve-signal carrier / flags-bit registry — this vector asserts ONLY the fail-closed cleared-by-default verdict.",
+      "authoringStatus": "authored: predicate-input shape proposed; status stays proposed pending reviewer sign-off."
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "x14-01-no-preserve-default-record-cleared",
+      "invariant": "with no spec-defined preserve carrier, every Transfer flag bit means no-preserve; value-record authority moves to the new owner and the prior record is cleared; a prior-owner-signed record after transfer is stale (reject); the new owner's seq-1 record is the valid head",
+      "rationale": "The flag notes DECISIONS #18 names an 'explicit preserve signal' with no defined carrier and no flag-bit registry exists. But the derivable verdict is the fail-closed default: with no spec-defined preserve carrier, every Transfer flag bit MUST mean no-preserve, so value-record authority moves to the new owner and the prior record is cleared. This is exactly the kernel's fail-closed posture on absent spec (preserve is explicitly NOT the default per #18), which the gate guidance marks derivable now even though the eventual carrier format is future work. DECISIONS #17/#18 pin the cleared-by-default and preserve-not-default verdicts."
+    },
+    "status": "proposed",
+    "attackFlagRef": "X14-01",
+    "flipMarker": null
+  }
+]
