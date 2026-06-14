@@ -95,6 +95,19 @@ function assertBindable(vector: ConformanceVector): void {
 
 const accepts = (vector: ConformanceVector): boolean => vector.expected.verdict === "accept";
 
+// Maps a construction attempt to the vector's verdict vocabulary so the primary scenario
+// is checked against the vector's OWN expected.verdict (not just `toThrow`): a triple that
+// constructs is "accept", one that throws at construction is "reject".
+function expectConstructionVerdict(vector: ConformanceVector, construct: () => unknown): void {
+  let constructed = true;
+  try {
+    construct();
+  } catch {
+    constructed = false;
+  }
+  expect(constructed, `${vector.id}: construction outcome must equal expected.verdict`).toBe(accepts(vector));
+}
+
 // (K, W, C) = (6, 2, 3): availability deadline h+W = h+2, challenge deadline h+W+C = h+5.
 const params = createDaWindowParams({ K: 6, W: 2, C: 3 });
 const H = 1000;
@@ -149,17 +162,17 @@ describe("B2 vector bindings — params family (DA-window construction + h+K eli
   it("D9-neg-01: a weak-form triple K < W+C is rejected at kernel construction (#49 S6 strong form)", () => {
     const vector = loadVector("da-verdict.json", "D9-neg-01");
     assertBindable(vector);
-    // reject = construction refuses the weak-form triple.
-    expect(() => createDaWindowParams({ K: 4, W: 2, C: 3 })).toThrow(); // K=4 < W+C=5
+    // Primary -> expected.verdict: a weak-form triple's construction outcome is the verdict.
+    expectConstructionVerdict(vector, () => createDaWindowParams({ K: 4, W: 2, C: 3 })); // K=4 < W+C=5 -> reject
     expect(() => createDaWindowParams({ K: 5, W: 2, C: 3 })).not.toThrow(); // companion: K=W+C boundary is valid
   });
 
   it("D12-neg-01: invalid params are rejected; the predicate is total at two distinct parameterizations (no baked constant)", () => {
     const vector = loadVector("da-verdict.json", "D12-neg-01");
     assertBindable(vector);
-    // reject = invalid params refused at construction.
-    expect(() => createDaWindowParams({ K: 2, W: 2, C: 3 })).toThrow(); // K < W+C
-    expect(() => createDaWindowParams({ K: 6.5, W: 2, C: 3 })).toThrow(); // non-integer
+    // Primary -> expected.verdict: an invalid triple's construction outcome is the verdict.
+    expectConstructionVerdict(vector, () => createDaWindowParams({ K: 2, W: 2, C: 3 })); // K < W+C -> reject
+    expect(() => createDaWindowParams({ K: 6.5, W: 2, C: 3 })).toThrow(); // companion: non-integer also rejected
     // companion (no baked constant): a (6,2,3)-baked deadline cannot also be correct at (10,3,4).
     expect(challengeDeadlineHeight(H, params)).toBe(H + 5); // (6,2,3)
     expect(challengeDeadlineHeight(H, altParams)).toBe(H + 7); // (10,3,4)
@@ -168,8 +181,14 @@ describe("B2 vector bindings — params family (DA-window construction + h+K eli
   it("G9-neg-01: a true parametric kernel produces different windows per parameterization (baked default would fail the second)", () => {
     const vector = loadVector("kernel-wide-glue.json", "G9-neg-01");
     assertBindable(vector);
-    // The two-parameterization detector: a kernel with K/W/C baked to (6,2,3) would return
-    // identical deadlines for altParams; a genuinely parametric one returns different ones.
+    // Primary -> expected.verdict: the rejected realization is a baked default — one that
+    // returns identical windows across both parameterizations. A true parametric kernel does
+    // not, so `bakedDefaultAccepted` is false, matching the vector's reject verdict.
+    const bakedDefaultAccepted =
+      availabilityDeadlineHeight(H, params) === availabilityDeadlineHeight(H, altParams) &&
+      challengeDeadlineHeight(H, params) === challengeDeadlineHeight(H, altParams);
+    expect(bakedDefaultAccepted).toBe(accepts(vector)); // false === reject
+    // companions: the actual windows differ per parameterization.
     expect(availabilityDeadlineHeight(H, params)).not.toBe(availabilityDeadlineHeight(H, altParams)); // h+2 vs h+3
     expect(challengeDeadlineHeight(H, params)).not.toBe(challengeDeadlineHeight(H, altParams)); // h+5 vs h+7
   });
