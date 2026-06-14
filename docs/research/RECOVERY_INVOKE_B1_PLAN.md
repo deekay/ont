@@ -94,59 +94,52 @@ small, and already scoped in the hardening doc / RECOVERY_AUTH ripples:
 2. **WIRE §8.3 narrowing** — the wallet proof's invoke-field bindings narrow to an
    evidence-layer corroboration object (resolver/watcher hygiene), not a kernel
    acceptance input.
-3. **R-row spec PRs** grounding the predicate (all `candidate-stays` in
-   [`B2_KERNEL_HARDENING.md`](../core/B2_KERNEL_HARDENING.md), each needing a named
-   section in `ONT_RECOVERY_INVOKE_SPEC.md` or the B2 kernel spec):
-   - **R5** prevStateTxid = current state head (replay protection across intervals);
-   - **R6** "armed descriptor" = current-interval chain head (closes the
-     compromised-old-recovery-wallet attack — any historical descriptor invocable by
-     hash today);
-   - **R3** descriptor-chain acceptance (exactly-next sequence, previousDescriptorHash
-     links to head) as a kernel predicate, not a store guard;
-   - **R4** `ownershipRef` semantics + interval rotation (shared with value records;
-     no doc defines it today);
-   - **R11** the invoke transaction-shape predicate (bond spend + qualifying successor,
-     and whether the successor MUST pay the descriptor's `recoveryAddress`).
-4. **Evidence-timing observation rule** — the R19 attack flag and the recovery Gaps
-   list: *by when* must the descriptor evidence have been served/witnessed relative to
-   the invoke's mined height? Without a defined observation rule, proof-withholding /
-   late-reveal can flip verdicts (shaped like the DA fail-closed problem). This is the
-   one genuinely open *design* sub-question inside the rewrite.
-5. **WIRE §4.2 flags-bit registry** — the invoke/cancel discriminator
-   (`RECOVER_OWNER_FLAG_CANCEL = 0x01`) is code-only; the invoke predicate needs
-   `flags & CANCEL == 0` to mean "this is an invoke," which rests on a non-normative
-   bit today.
+3. **The recovery acceptance-rule cluster — already drafted as decision-ready spec-PRs
+   in [`B2_SPEC_PR_DECISION_MATRIX.md`](../core/B2_SPEC_PR_DECISION_MATRIX.md), NOT
+   undrafted.** DK ratifies them via the matrix (as-recommended or row-by-row); this
+   plan is their engine landing. Mapping:
+   - **PR-17** (state-head linkage + recovery interval-opening) + **PR-18**
+     (`ownershipRef` / interval rotation) → R5 (`prevStateTxid == head`) and R4
+     (descriptor binds the current interval). PR-17's interval-opening half is a flagged
+     individual-review row (recommended: open at finalization, not invocation).
+   - **PR-33** (descriptor chain) → R3/R6 (exactly-next sequence; armed = current-interval
+     head — closes the compromised-old-recovery-wallet attack).
+   - **PR-34** (RecoverOwner transaction-shape, refined post-#50-b1) → R8/R11/R12/R13/R15/R16/R19,
+     and it already carries the three things an earlier draft of this plan flagged as loose:
+     the **CANCEL flag-bit registry** (`0x01`, wire-normative), the **recovery-evidence
+     witnessing deadline** (`h_r + W_r`, with `W_r <= challengeWindowBlocks` — so the
+     evidence-timing rule is *drafted, not open*), and **X13 transfer-vs-recovery
+     precedence** (recommended: block in-window transfers, CANCEL-only veto). Flagged
+     individual-review; must be ruled together with PR-35.
+   - **PR-35** (recovery finalization) → R18.
 
 ## 4. What stays parked (interactions, not part of this slice)
 
-- **transfer-during-recovery conflict rule** — its own return-docket item (DK leaned
-  block + explicit-cancel). It shapes whether/how a transfer interacts with an open
-  `pendingRecovery`; the invoke rewrite should not pre-empt it. Recommend ruling it in
-  parallel since both touch the `pendingRecovery` lifecycle.
-- **PR-17/34/35** — recovery interval-opening, recovery bond-fields, cancel-timing.
+- **The cluster decisions themselves** (PR-17/18/33/34/35 + §8.2/§8.3) — ruled by DK
+  via the matrix; this plan does not pre-empt them. In particular the
+  transfer-during-recovery precedence is **PR-34's X13** (recommended block + CANCEL-only
+  veto), ruled together with PR-35.
 - **Decision #40 abort-only watcher credential** — relaxes the R15 cancel-signer
   exclusivity by named amendment; touches the cancel side, not invoke.
-- **R12 maturity boundary** (`>=` vs `>`) and **R13 single-pending** semantics — pin
-  on promotion; the legacy mechanics are reused but their boundaries are unspecified.
+- **PR-32 value-record interval rule** (records attach only to materialized intervals)
+  — adjacent (shares PR-18 interval rotation), not in this slice.
 
 ## 5. Recommendation & sequencing
 
-Land the spec ratifications as **one batched amendment set** (§3 items 1–5 are
-small, mutually consistent, and all flow from #50-b1), then implement the predicate
-as a single audited slice with negative tests. Proposed order:
+The spec side is already batched in the decision matrix; implement the predicate as a
+single audited slice once it is ruled. Proposed order:
 
-1. **DK greenlights the slice** + batch-approves the §8.2 v2 / §8.3-narrowing
-   amendments (they are the RECOVERY_AUTH §6 ripples, already recommended).
-2. **Author the R5/R6/R3/R4/R11 spec sections** + the evidence-timing observation
-   rule + the §4.2 flags registry (writer/reviewer loop; no DK needed once the
-   amendments are greenlit, except the evidence-timing rule which is a design call).
-3. **Implement** `acceptRecoverOwner` per §3, witnessed descriptor-v2 evidence in,
+1. **DK rules the recovery cluster in the matrix** — PR-17/18/33/34/35 (the
+   individual-review rows PR-17/PR-34/PR-35 are flagged there) + the §8.2 v2 /
+   §8.3-narrowing amendments (RECOVERY_AUTH §6 ripples) + greenlights this slice.
+2. **Land any writer/reviewer-only matrix halves** once greenlit (no further DK input
+   on the non-individual-review portions).
+3. **Implement** `acceptRecoverOwner` per §2, witnessed descriptor-v2 evidence in,
    callback out; negative battery from RECOVERY_AUTH §6:
    replayed-arming-sig-as-invoke, descriptor-hash mismatch, non-head descriptor,
    stale `prevStateTxid`, cancel-digest-as-invoke, v1-descriptor invoke,
-   wrong-pubkey signature — all rejected.
-4. Rule **transfer-during-recovery** in parallel so the `pendingRecovery`
-   interaction is settled before the invoke path goes live.
+   wrong-pubkey signature — all rejected. (PR-34/PR-35's X13 settles the
+   `pendingRecovery` interaction before the path goes live.)
 
 **The one risk to name:** the b2h reopen-trigger. If expert custody feedback (the
 standing "raise with Max" item) says BIP340 recovery custody is impractical for the
@@ -156,20 +149,16 @@ otherwise on fully-ratified ground.
 
 ## 6. Open questions for DK
 
-1. **Greenlight the invoke-rewrite slice?** (b1 is ratified; the slice was parked
-   only on the spec deps + the transfer-during-recovery interaction.)
-2. **Batch-approve the §8.2 v2 + §8.3-narrowing amendments?** (RECOVERY_AUTH §6
-   recommends both; they are the deferred-to-DK normative ripples.)
-3. **transfer-during-recovery:** rule it first, or in parallel with the spec
-   sections? (Recommend parallel.)
-4. **Evidence-timing observation rule:** any steer on the by-when-witnessed posture,
-   or leave it to the writer/reviewer loop to draft a fail-closed proposal for your
-   ratification? (Recommend the latter.)
+1. **Greenlight the invoke-rewrite slice?** (b1 is ratified; the slice was parked on
+   the matrix recovery-cluster rulings, not on any undrafted design.)
+2. **Rule the recovery cluster** (PR-17/18/33/34/35) + the §8.2 v2 / §8.3-narrowing
+   amendments in the matrix? PR-34 and PR-35 must be ruled together (X13). The matrix
+   is the decision vehicle; this plan is the engine landing once they're ruled.
 
 ### Ripples if greenlit
 
 - `ONT_RECOVERY_INVOKE_SPEC.md`: item 2 (signer) → resolved-and-implemented; gains the
-  R5/R6/R3/R4/R11 acceptance sections.
+  acceptance sections from the ratified PR-17/18/33/34/35 cluster.
 - `WIRE_FORMAT.md`: §8.2 v2, §8.3 narrowing, §4.2 flags registry.
 - `B2_KERNEL_HARDENING.md`: R-invoke rows move `candidate-stays` → tested; R19 callback
   violation closed.
