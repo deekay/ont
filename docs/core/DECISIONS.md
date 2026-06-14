@@ -1451,6 +1451,39 @@ reconciliation — all B3, which fill in along this same identity-free signature
 over witnessed inputs, zero-I/O); DECISIONS #59. This satisfies #44's "boundary may
 change only with a DECISIONS entry + conformance coverage"; the boundary freezes at launch.
 
+63. b2-transcript-completeness-boundary: the transcript-completeness predicate enters
+@ont/consensus as a pure CONSENSUS_VERDICTS decider riding nothing external — 2026-06-14
+
+*Status: **Proposed** (writer ClaudeleLunatique, reviewer ChatLunatique; lands on branch
+clean-build-b2-kernel, DK merges). A boundary-manifest addition under #44, riding the
+CONSENSUS_VERDICTS tier established by #59 — a new pure verdict module, NOT a
+tier-widening: its external allowlist is empty (the strictest, like `da-verdict.ts` and
+`gate-fee.ts`/#62). No new consensus law (canon Item 4 + the SOFTWARE_CANON boundary rule
+are ratified core), no DK ruling required. Covered by conformance: `trust-surface.test.ts`
+(`transcript-completeness.ts` in CONSENSUS_VERDICTS with an empty `VERDICTS_ALLOWED_BY_FILE`
+entry), `b2-boundary.test.ts` (zero-I/O purity), and the T1/T2/T21 bindings in
+`b2-vector-bindings.test.ts`. Authored under DK's keep-going grant (event 62b47b5e,
+2026-06-14).*
+
+**The rule.** `transcriptCompleteness(transcript, completenessWitness)` is a pure
+deterministic verdict over witnessed inputs only — it carries NO actor / source / endpoint
+/ producer / evidence-layer parameter, so no out-of-kernel layer can override it (T1; the
+SOFTWARE_CANON L2 boundary rule). It fails closed when completeness is not witnessed by a
+verifier-checkable B3 witness — absent, producer-asserted, or otherwise not
+verifier-checkable ⇒ incomplete, never certified (T2; canon Item 4) — and rejects a counted
+bid set that is not distinct and well-formed (32-byte lowercase-hex L1 txids; duplicate or
+malformed txids rejected, never silently deduplicated — T21; canon Item 4). It rides nothing
+external (empty allowlist) and mutates no state. SCOPE: this B2 slice pins purity + the
+fail-closed completeness posture + txid integrity. It DELIBERATELY EXCLUDES the auction
+winner / amount / bidder identity / bid qualification (auction resolution — T7/T9), the
+concrete completeness-witness format and the lot's block range / soft-close range semantics
+(B3; the range issue is T2-neg-02, candidate — the witness is consumed opaquely), and the
+T17 / T18 / T22 / T19 surfaces (DA claim-counting, transcript-entry-vs-holdsPriority,
+reopen/bond-continuity, and #50-b1 recovery invoke admission respectively). Spec:
+`SOFTWARE_CANON.md` Item 4 + the L2 boundary rule; `B2_KERNEL_HARDENING.md` T1/T2/T21;
+DECISIONS #59. This satisfies #44's "boundary may change only with a DECISIONS entry +
+conformance coverage"; the boundary freezes at launch.
+
 ## Fairness Principles To Carry Into The Launch Rewrite
 
 The rewritten launch draft should explicitly state:

@@ -37,3 +37,8 @@ export * from "./value-record-authority.js";
 // gate over witnessed (anchor, batch, fee) with no publisher-identity channel — rides
 // nothing external (the g(name) schedule is B3). See DECISIONS b2-gate-fee-boundary (#62).
 export * from "./gate-fee.js";
+// The transcript-completeness predicate (#63, riding #59's verdict tier): a pure
+// predicate over a counted bid transcript + a B3-verified completeness witness, with no
+// actor/source channel — fail-closed on an absent/producer-asserted witness; rides nothing
+// external (the witness format + lot range are B3). See DECISIONS b2-transcript-completeness-boundary (#63).
+export * from "./transcript-completeness.js";

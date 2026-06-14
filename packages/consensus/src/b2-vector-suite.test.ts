@@ -42,6 +42,9 @@ const readyBindingTargetById: Record<string, string> = {
   "D12-neg-01": "params: no baked K/W/C constants",
   "D13-pos-01": "da-verdict: h+W and h+W+C inclusive boundaries",
   "F8-pos-01": "gate-fee: pure structural gate over (anchor, batch, fee), no publisher-identity channel",
+  "T1-neg-01": "transcript-completeness: pure verdict, no out-of-kernel override channel",
+  "T2-neg-01": "transcript-completeness: absent/producer-asserted completeness witness fails closed",
+  "T21-neg-01": "transcript-completeness: distinct/well-formed L1 bid txids, no silent dedup",
   "G7-neg-01": "b2-boundary: no provenance-less callback or host-I/O seam",
   "G9-neg-01": "params: no defaults and two-parameterization readiness",
   "V1-neg-01": "value-record-authority: issuedAt never compared to host clock (purity)",
@@ -212,8 +215,8 @@ describe("B2 executable vector suite inventory", () => {
 
     expect(countsBy(plans.map((plan) => plan.state))).toEqual({
       "pending-dk": 30,
-      "pending-predicate": 38,
-      "ready-for-binding": 26,
+      "pending-predicate": 35,
+      "ready-for-binding": 29,
     });
   });
 
@@ -223,10 +226,10 @@ describe("B2 executable vector suite inventory", () => {
       .map((plan) => plan.vector.id)
       .sort();
 
-    expect(pendingRequired).toHaveLength(38);
+    expect(pendingRequired).toHaveLength(35);
     expect(pendingRequired).toContain("R10-neg-01");
     expect(pendingRequired).toContain("B1-neg-02");
-    expect(pendingRequired).toContain("T1-neg-01");
+    expect(pendingRequired).toContain("T7-neg-01"); // T1/T2/T21 are now resident; T7 (auction resolution) stays pending
     expect(pendingRequired).toContain("Q10-neg-01");
   });
 });

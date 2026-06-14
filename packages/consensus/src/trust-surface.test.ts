@@ -55,7 +55,7 @@ const srcDir = dirname(fileURLToPath(import.meta.url));
 const CORE_DECIDERS = ["engine.ts", "state.ts", "proof-bundle.ts"] as const;
 const CONSENSUS_SUPPORT = ["scanner.ts"] as const;
 const CONSENSUS_PARAMS = ["params.ts"] as const;
-const CONSENSUS_VERDICTS = ["da-verdict.ts", "value-record-authority.ts", "gate-fee.ts"] as const;
+const CONSENSUS_VERDICTS = ["da-verdict.ts", "value-record-authority.ts", "gate-fee.ts", "transcript-completeness.ts"] as const;
 
 // Consensus-support rides the B1 normative wire grammar (@ont/wire); the parameter
 // surface rides nothing external (values enter as inputs).
@@ -91,6 +91,10 @@ const VERDICTS_ALLOWED_BY_FILE: Record<string, ReadonlySet<string>> = {
   // gate-fee is a pure structural gate over witnessed (anchor, batch, fee); it rides
   // nothing external (no g(name) schedule here — B3), so its allowlist is empty (#62).
   "gate-fee.ts": new Set<string>([]),
+  // transcript-completeness is a pure predicate over a counted bid transcript + a
+  // B3-verified completeness witness; it rides nothing external (witness format + lot
+  // range are B3), so its allowlist is empty (#63).
+  "transcript-completeness.ts": new Set<string>([]),
 };
 const ALL_MANIFEST = [...CORE_DECIDERS, ...CONSENSUS_SUPPORT, ...CONSENSUS_PARAMS, ...CONSENSUS_VERDICTS];
 const ALLOWED_RELATIVE = new Set(ALL_MANIFEST.map((file) => `./${file.replace(/\.ts$/, ".js")}`));

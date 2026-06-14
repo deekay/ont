@@ -47,6 +47,11 @@ import {
   type GateFeeAnchorFacts,
 } from "./gate-fee.js";
 import {
+  transcriptCompleteness,
+  type AuctionTranscript,
+  type CompletenessWitness,
+} from "./transcript-completeness.js";
+import {
   createTransferPayload,
   deriveOwnerPubkey,
   encodeTransferPayload,
@@ -130,6 +135,10 @@ const LOCAL_BINDING_MANIFEST = new Set<string>([
   "X14-neg-01",
   // gate-fee family (gateFeeValidation)
   "F8-pos-01",
+  // transcript-completeness family (transcriptCompleteness)
+  "T1-neg-01",
+  "T2-neg-01",
+  "T21-neg-01",
   // engine-transfer family (applyBlockTransactions)
   "X2-neg-01",
   "X6-neg-01",
@@ -316,6 +325,54 @@ describe("B2 vector bindings — gate-fee family (gateFeeValidation)", () => {
     expect(gateFeeValidation(feeAnchor, { anchoredRoot: "ffff", batchSize: 4 }, fee).accepted).toBe(false);
     // NOTE: amount adequacy (fee >= Σ g(name), the g(name) schedule) and batchSize-vs-leaf-count are
     // deliberately B3 per the vector scopeNote — not asserted here.
+  });
+});
+
+describe("B2 vector bindings — transcript-completeness family (transcriptCompleteness)", () => {
+  // A distinct, well-formed counted bid set + a labelled "B3-verified witness placeholder".
+  // The concrete verifier-checkable witness format and the lot's block range / soft-close are
+  // B3 (T2-neg-02 candidate); B2 consumes the witness opaquely.
+  const b3Verified: CompletenessWitness = { kind: "b3-verified-completeness-witness" };
+  const cleanTranscript: AuctionTranscript = { bids: [{ txid: "ab".repeat(32) }, { txid: "cd".repeat(32) }] };
+
+  it("T1-neg-01: the transcript verdict is pure with no out-of-kernel override channel", () => {
+    const vector = loadVector("transcript-completeness.json", "T1-neg-01");
+    assertBindable(vector);
+    // The signature admits exactly two witnessed inputs (transcript, completenessWitness) and NO
+    // actor / source / endpoint / producer / evidence-layer parameter — there is no channel by which
+    // a hostile or swapped evidence-layer stub could override the verdict (T1; canon boundary rule).
+    expect(transcriptCompleteness.length).toBe(2);
+    // determinism / no hidden channel: identical witnessed inputs -> byte-identical verdict.
+    expect(transcriptCompleteness(cleanTranscript, b3Verified)).toEqual(transcriptCompleteness(cleanTranscript, b3Verified));
+    // Primary -> expected.verdict (negative): with no witness the verdict is incomplete, and there is
+    // no out-of-kernel input that could flip it to complete — a hostile stub cannot override it.
+    expect(transcriptCompleteness(cleanTranscript, null).complete).toBe(accepts(vector)); // false === reject
+  });
+
+  it("T2-neg-01: completeness must be witnessed — an absent or producer-asserted witness fails closed", () => {
+    const vector = loadVector("transcript-completeness.json", "T2-neg-01");
+    assertBindable(vector);
+    // Primary -> expected.verdict: a producer-asserted completeness claim is never trusted -> incomplete.
+    expect(transcriptCompleteness(cleanTranscript, { kind: "producer-asserted" }).complete).toBe(accepts(vector)); // false === reject
+    // companion: an absent witness also fails closed.
+    expect(transcriptCompleteness(cleanTranscript, null).complete).toBe(false);
+    // companion (positive control): only the B3-verified witness placeholder satisfies the posture.
+    // The concrete verifier-checkable format and the lot's block range / soft-close are B3 (T2-neg-02);
+    // consumed opaquely here.
+    expect(transcriptCompleteness(cleanTranscript, b3Verified).complete).toBe(true);
+  });
+
+  it("T21-neg-01: counted bids must be distinct, well-formed L1 txids — no silent dedup", () => {
+    const vector = loadVector("transcript-completeness.json", "T21-neg-01");
+    assertBindable(vector);
+    const dup = "ab".repeat(32);
+    // Primary -> expected.verdict: a transcript repeating a bid txid is rejected (not silently deduped).
+    expect(transcriptCompleteness({ bids: [{ txid: dup }, { txid: dup }] }, b3Verified).complete).toBe(accepts(vector)); // false === reject
+    // companion: a malformed (non-32-byte-lowercase-hex) txid is rejected.
+    expect(transcriptCompleteness({ bids: [{ txid: "ZZ" }] }, b3Verified).complete).toBe(false);
+    expect(transcriptCompleteness({ bids: [{ txid: "AB".repeat(32) }] }, b3Verified).complete).toBe(false); // uppercase hex rejected
+    // companion (positive control): an all-distinct, well-formed set with a verified witness passes.
+    expect(transcriptCompleteness(cleanTranscript, b3Verified).complete).toBe(true);
   });
 });
 
