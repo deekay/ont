@@ -1266,6 +1266,33 @@ floor / failed-winner exclusion is a default B2 rule unless launch-parameter
 modeling or external review shows the loop is too cheap (then a later named
 decision adds one). Model: [PR23_DENIAL_LOOP.md](../research/PR23_DENIAL_LOOP.md).
 
+57. b2-scanner-boundary: the B2 transaction scanner enters @ont/consensus as
+audited consensus-support (not a state-decider), and the package consumes the B1
+normative @ont/wire grammar — 2026-06-14
+
+*Status: **Proposed** (writer ClaudeleLunatique, reviewer ChatLunatique; lands on
+branch clean-build-b2-kernel, DK merges). A boundary-manifest change under #44 —
+the new tier + dependency are covered by conformance: `trust-surface.test.ts`
+(manifest split + per-tier import allowlist) and `scanner.test.ts`. Authored under
+DK's keep-building / ask-later grant (event 83243101, 2026-06-14).*
+
+**The rule.** @ont/consensus now has two audited tiers. **CORE_DECIDERS**
+(`engine.ts`, `state.ts`, `proof-bundle.ts`) hold owner-key authority and
+replay/state decisions — a name moves only if these say so; they ride
+@ont/protocol + @ont/bitcoin. **CONSENSUS_SUPPORT** (`scanner.ts`) is non-mutating
+but consensus-bearing input normalization: it classifies a Bitcoin transaction's
+OP_RETURN outputs into ordered valid ONT events plus zero-side-effect diagnostics,
+enforcing skip-bad, future-version activation gating, same-block-order (#55), and
+the one-anchor-per-tx (#54) `>1`-RootAnchor whole-tx reject. It rides the B1
+normative @ont/wire grammar (B1 → B2: the kernel consumes @ont/wire for what the
+active codec understands) + @ont/bitcoin, and has **zero authority to mutate name
+state**. The scanner is audited — two implementations that scan differently fork
+before the deciders ever see a byte — but it is deliberately *not* a decider, so it
+is listed separately from CORE_DECIDERS rather than expanding that set. Spec:
+[B2_SKIP_BAD_CLASSIFICATION.md](./B2_SKIP_BAD_CLASSIFICATION.md). This satisfies
+#44's "boundary may change only with a DECISIONS entry + conformance coverage"; the
+boundary freezes permanently at launch.
+
 ## Fairness Principles To Carry Into The Launch Rewrite
 
 The rewritten launch draft should explicitly state:

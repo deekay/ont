@@ -13,3 +13,5 @@
 export * from "./engine.js";
 export * from "./state.js";
 export * from "./proof-bundle.js";
+// Consensus-support (non state-deciding) — see DECISIONS b2-scanner-boundary (#57).
+export * from "./scanner.js";

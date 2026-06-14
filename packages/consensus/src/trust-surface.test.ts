@@ -23,12 +23,27 @@ const srcDir = dirname(fileURLToPath(import.meta.url));
 // exists so *silent* drift fails the build. The boundary freezes permanently
 // at public/mainnet launch (a launch-gate checklist item). If you are editing
 // this list, write the decision entry first.
-const SOVEREIGNTY_CORE = ["engine.ts", "state.ts", "proof-bundle.ts"] as const;
+//
+// The audited B2 package splits into two tiers (DECISIONS b2-scanner-boundary
+// (#57)):
+//   - CORE_DECIDERS: owner-key authority + replay/state deciders. A name moves
+//     only if these say so.
+//   - CONSENSUS_SUPPORT: non-mutating but consensus-bearing input normalization
+//     (the scanner: skip-bad, future-version gating, same-block-order, and the
+//     >1-RootAnchor whole-tx reject decide which bytes ever reach the deciders,
+//     so two implementations that scan differently fork before the core sees
+//     anything — it must be audited, but it has zero authority to mutate name
+//     state, so it is not a decider).
+const CORE_DECIDERS = ["engine.ts", "state.ts", "proof-bundle.ts"] as const;
+const CONSENSUS_SUPPORT = ["scanner.ts"] as const;
 
-const CORE_ALLOWED_PACKAGES = new Set(["@ont/protocol", "@ont/bitcoin"]);
-const CORE_ALLOWED_RELATIVE = new Set(
-  SOVEREIGNTY_CORE.map((file) => `./${file.replace(/\.ts$/, ".js")}`)
-);
+// Deciders ride the legacy protocol/bitcoin primitives; consensus-support rides
+// the B1 normative wire grammar (@ont/wire) — B1 → B2 means @ont/consensus
+// consumes @ont/wire for what the active codec understands.
+const DECIDER_ALLOWED_PACKAGES = new Set(["@ont/protocol", "@ont/bitcoin"]);
+const SUPPORT_ALLOWED_PACKAGES = new Set(["@ont/wire", "@ont/bitcoin"]);
+const ALL_MANIFEST = [...CORE_DECIDERS, ...CONSENSUS_SUPPORT];
+const ALLOWED_RELATIVE = new Set(ALL_MANIFEST.map((file) => `./${file.replace(/\.ts$/, ".js")}`));
 
 function importSpecifiers(file: string): readonly string[] {
   const text = readFileSync(join(srcDir, file), "utf8");
@@ -47,35 +62,44 @@ function importSpecifiers(file: string): readonly string[] {
   return specifiers;
 }
 
+function assertImportsAllowed(file: string, allowedPackages: ReadonlySet<string>, tier: string): void {
+  for (const specifier of importSpecifiers(file)) {
+    if (specifier.startsWith("node:")) {
+      continue;
+    }
+    const allowed = allowedPackages.has(specifier) || ALLOWED_RELATIVE.has(specifier);
+    expect(
+      allowed,
+      `${file} (${tier}) must not import "${specifier}". It may depend only on ` +
+        `${[...allowedPackages].join(", ")}, node builtins, and the other audited B2 modules ` +
+        `(${ALL_MANIFEST.join(", ")}). Importing allocation (auctions), indexer/resolver ` +
+        `convenience, or research/simulation code here would silently expand the trust surface a ` +
+        `newcomer must audit. See docs/DESIGN.md (trust surface / sovereignty map) and ` +
+        `DECISIONS b2-scanner-boundary (#57).`
+    ).toBe(true);
+  }
+}
+
 describe("sovereignty trust surface (docs/DESIGN.md (trust surface / sovereignty map))", () => {
-  for (const file of SOVEREIGNTY_CORE) {
-    it(`${file} depends only on protocol/bitcoin primitives and other core files`, () => {
-      for (const specifier of importSpecifiers(file)) {
-        if (specifier.startsWith("node:")) {
-          continue;
-        }
-
-        const allowed =
-          CORE_ALLOWED_PACKAGES.has(specifier) || CORE_ALLOWED_RELATIVE.has(specifier);
-
-        expect(
-          allowed,
-          `${file} must not import "${specifier}". The audited sovereignty core may depend only on ` +
-            `@ont/protocol, @ont/bitcoin, node builtins, and the other core files ` +
-            `(${SOVEREIGNTY_CORE.join(", ")}). Importing allocation (auctions), indexer/resolver ` +
-            `convenience, or research/simulation code here would silently expand the trust surface a ` +
-            `newcomer must audit. See docs/DESIGN.md (trust surface / sovereignty map).`
-        ).toBe(true);
-      }
+  for (const file of CORE_DECIDERS) {
+    it(`${file} (core decider) depends only on protocol/bitcoin primitives and audited modules`, () => {
+      assertImportsAllowed(file, DECIDER_ALLOWED_PACKAGES, "core decider");
     });
   }
 
-  it("every source file in the package is part of the documented core manifest", () => {
+  for (const file of CONSENSUS_SUPPORT) {
+    it(`${file} (consensus support) depends only on @ont/wire grammar, @ont/bitcoin, and audited modules`, () => {
+      assertImportsAllowed(file, SUPPORT_ALLOWED_PACKAGES, "consensus support");
+    });
+  }
+
+  it("every source file in the package is part of the documented audited manifest", () => {
     // @ont/consensus exists to BE the trust surface, so its production modules
-    // should be exactly the documented core files — nothing else slips in here.
+    // should be exactly the documented decider + support files — nothing else
+    // slips in here.
     const production = readdirSync(srcDir)
       .filter((file) => file.endsWith(".ts") && !file.endsWith(".test.ts") && file !== "index.ts")
       .sort();
-    expect(production).toEqual([...SOVEREIGNTY_CORE].sort());
+    expect(production).toEqual([...ALL_MANIFEST].sort());
   });
 });
