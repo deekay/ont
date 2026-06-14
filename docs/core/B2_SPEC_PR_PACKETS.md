@@ -96,6 +96,51 @@ Define `servedEvidence` now as an opaque interface with a three-property contrac
 
 ---
 
+## PR-3. Root-chain transition rule (conflict C2; the A7–A9 named PR) — EXPANDED
+
+**Flags (5):** A5-01, A7-01, A7-02, A8-01, Z8-01. **Registry priority:** P0 (two linkage models give opposite verdicts for identical chain histories; no anchor-acceptance vector is derivable until one is chosen). **Blocking dependency:** a new named anchor-acceptance spec decision; the linkage-model RULING is independent of #49/#50 — it coordinates with D9's K-deep eligibility (the confirmed root `R_{h−K}` whose K is #49's already-provisional parameter, not a blocker for the model choice).
+
+**Decision surface (the sub-rulings DK makes):**
+1. **Linkage model (C2):** what an accepted anchor's `prevRoot` must equal — strict tip-linkage vs the DA §6a delta-merge `R_{h−K}` model.
+2. Whether a structurally-valid-but-INELIGIBLE (fee/DA-failing) anchor consumes a `prevRoot→newRoot` position.
+3. No-op / duplicate-transition rejection (re-anchoring the same `newRoot`; `prevRoot == newRoot`).
+4. **Anchor identity (A5-01, A8-01):** which mined instance is "the" anchor owning the deadline clock and the proof-bundle txid, when the same `newRoot` is anchored more than once.
+5. The `prevRoot` ↔ `R_{h−K}` relation and chaining of multiple anchors inside one K window (Z8-01); reconcile with D9's K-deep eligibility.
+
+**Options:**
+- **(1) linkage** — (a) strict tip-linkage (`prevRoot` must equal the current chain-tip root; the only behavior that ran) vs (b) delta-merge against the K-deep confirmed root `R_{h−K}` (the DA §6a model).
+- **(2) ineligible-anchor position** — (a) an ineligible anchor consumes no `prevRoot→newRoot` position (confers nothing) vs (b) it consumes a position (blocks the slot).
+- **(4) anchor identity** — (a) the earliest valid instance in the PR-16 total order owns the clock + proof-bundle txid vs (b) the gate keys on the root VALUE, instance-agnostic (A5-01's ambiguity).
+
+**Recommendation (advisory, for DK ratification):**
+- **(1) = (b) delta-merge against `R_{h−K}`.** Strict tip-linkage (a) is a griefing surface (A7-01): anyone who lands a tiny valid anchor first moves the tip and invalidates every other publisher's `prevRoot` — a cheap DoS on honest publishers. Delta-merge keys `prevRoot` off the K-deep CONFIRMED root (stable, not the volatile tip), so concurrent honest anchors in a K window merge rather than racing to invalidate each other; it is also the DA §6a model the spec already states. Reconcile the legacy strict-tip code to (b). (Genuine C2 fork — flagged; the two models give opposite verdicts on identical histories, A7-02.)
+- **(2) = (a) ineligible anchor consumes no position** — a structurally-valid-but-fee/DA-failing anchor confers no `prevRoot→newRoot` transition (consistent with first-anchor-wins = earliest-VALID, PR-5; an ineligible anchor must not block the slot or honest successors).
+- **(3) reject no-op / duplicate transitions** — re-anchoring an existing `newRoot`, or a `prevRoot == newRoot` no-op, is rejected (no state change, no clock reset, no duplicate position).
+- **(4) = (a) earliest valid instance owns identity** — when the same `newRoot` is anchored more than once, the earliest valid instance in the PR-16 same-block/total order owns the deadline clock and the proof-bundle txid; later duplicates are no-ops per (3). Resolves A5-01 (key on the instance, not only the root value) and A8-01 (duplicate-anchor ownership) deterministically. **Depends on PR-16's total order** for "earliest."
+- **(5)** `prevRoot` must equal `R_{h−K}` (the confirmed root K-deep below the anchor), and multiple anchors in one K window chain by applying their deltas in the PR-16 order against that confirmed base; K is #49's parameter (coordinate with D9, not re-decided here).
+
+**Minimal amendment text (one block, for the anchor-acceptance spec / DA agreement):**
+> Root-chain transition (B2). An accepted RootAnchor's `prevRoot` must equal the confirmed root `R_{h−K}` (K-deep below the anchor's mined height); anchors are not tip-linked. A structurally-valid but ineligible (fee- or DA-failing) anchor consumes no `prevRoot→newRoot` position. A transition that re-anchors an existing `newRoot`, or whose `prevRoot == newRoot`, is a no-op and is rejected. When the same `newRoot` is anchored more than once, the earliest valid instance in the same-block total order owns the deadline clock and the proof-bundle txid; later instances are no-ops. Multiple anchors in one K window chain by applying deltas in that order against `R_{h−K}`. (K is the #49 parameter.)
+
+**Ripple:**
+- Locks A5 (anchor identity), A7 (both flags — the grief is closed by delta-merge), A8 (duplicate-anchor ownership), Z8 (`prevRoot ↔ R_{h−K}` relation) once ratified.
+- **Pairs with PR-5** (an ineligible/forfeited anchor confers no position/priority — the same earliest-VALID principle) and **PR-16** (anchor identity uses the same-block total order).
+- **Coordinates with D9 / #49** on the K-deep root (`R_{h−K}`): the model is #49-independent but instantiates K from #49; no new #49 dependency for the model choice.
+- Retires the strict-tip-linkage code path (the A7-01 grief surface).
+
+**Non-goals / dependencies:**
+- **Non-goal:** the K value itself (that is #49; PR-3 uses `R_{h−K}` parametrically).
+- **Dependency:** PR-16 (total order) for the "earliest valid instance" identity rule; PR-5 (earliest-VALID) for the ineligible-anchor-confers-nothing principle.
+- **Independent of #49/#50** for the linkage-model ruling (it coordinates with D9 on K-deep but does not re-decide #49).
+
+**Attack if rejected (what breaks without PR-3):**
+- The two linkage models give **opposite verdicts for identical chain histories** (A7-02) — an honest-node consensus fork at anchor acceptance; no anchor-acceptance vector is derivable until one is chosen (the P0 core).
+- Strict tip-linkage left in place is a **cheap grief** (A7-01): a tiny first anchor invalidates every concurrent honest publisher's `prevRoot`.
+- Duplicate-anchor ambiguity (A5-01, A8-01) leaves the deadline clock and proof-bundle txid **undefined** when the same root is anchored twice.
+- `prevRoot`'s required relation stays unstated (Z8-01), so a stale/sibling-`prevRoot` reject is not derivable.
+
+---
+
 ## PR-5. First-anchor-wins = earliest-VALID-anchor (conflict C1)
 
 **Flags (4):** A12-01, D5-01, B8-01, B11-01. **Registry priority:** P1. **Blocking dependency:** new one-sentence named spec decision; no open named decision implicated (the recommended amendment is writable now and independent of #49 and PR-1, but is not ratified law until DK rules).
