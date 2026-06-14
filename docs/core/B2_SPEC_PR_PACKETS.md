@@ -117,10 +117,10 @@ Define `servedEvidence` now as an opaque interface with a three-property contrac
 - **(2) = (a) ineligible anchor consumes no position** — a structurally-valid-but-fee/DA-failing anchor confers no `prevRoot→newRoot` transition (consistent with first-anchor-wins = earliest-VALID, PR-5; an ineligible anchor must not block the slot or honest successors).
 - **(3) reject no-op / duplicate transitions** — re-anchoring an existing `newRoot`, or a `prevRoot == newRoot` no-op, is rejected (no state change, no clock reset, no duplicate position).
 - **(4) = (a) earliest valid instance owns identity** — when the same `newRoot` is anchored more than once, the earliest valid instance in the PR-16 same-block/total order owns the deadline clock and the proof-bundle txid; later duplicates are no-ops per (3). Resolves A5-01 (key on the instance, not only the root value) and A8-01 (duplicate-anchor ownership) deterministically. **Depends on PR-16's total order** for "earliest."
-- **(5)** `prevRoot` must equal `R_{h−K}` (the confirmed root K-deep below the anchor), and multiple anchors in one K window chain by applying their deltas in the PR-16 order against that confirmed base; K is #49's parameter (coordinate with D9, not re-decided here).
+- **(5)** `prevRoot` must equal `R_{h−K}` (the confirmed root K-deep below the anchor), and multiple anchors in one K window compose/merge by applying their deltas in the PR-16 order against that confirmed base; K is #49's parameter (coordinate with D9, not re-decided here).
 
 **Minimal amendment text (one block, for the anchor-acceptance spec / DA agreement):**
-> Root-chain transition (B2). An accepted RootAnchor's `prevRoot` must equal the confirmed root `R_{h−K}` (K-deep below the anchor's mined height); anchors are not tip-linked. A structurally-valid but ineligible (fee- or DA-failing) anchor consumes no `prevRoot→newRoot` position. A transition that re-anchors an existing `newRoot`, or whose `prevRoot == newRoot`, is a no-op and is rejected. When the same `newRoot` is anchored more than once, the earliest valid instance in the same-block total order owns the deadline clock and the proof-bundle txid; later instances are no-ops. Multiple anchors in one K window chain by applying deltas in that order against `R_{h−K}`. (K is the #49 parameter.)
+> Root-chain transition (B2). An accepted RootAnchor's `prevRoot` must equal the confirmed root `R_{h−K}` (K-deep below the anchor's mined height); anchors are not tip-linked. A structurally-valid but ineligible (fee- or DA-failing) anchor consumes no `prevRoot→newRoot` position. A transition that re-anchors an existing `newRoot`, or whose `prevRoot == newRoot`, is a no-op and is rejected. When the same `newRoot` is anchored more than once, the earliest valid instance in the same-block total order owns the deadline clock and the proof-bundle txid; later instances are no-ops. Multiple anchors in one K window compose/merge by applying deltas in that order against `R_{h−K}`. (K is the #49 parameter.)
 
 **Ripple:**
 - Locks A5 (anchor identity), A7 (both flags — the grief is closed by delta-merge), A8 (duplicate-anchor ownership), Z8 (`prevRoot ↔ R_{h−K}` relation) once ratified.
@@ -138,6 +138,48 @@ Define `servedEvidence` now as an opaque interface with a three-property contrac
 - Strict tip-linkage left in place is a **cheap grief** (A7-01): a tiny first anchor invalidates every concurrent honest publisher's `prevRoot`.
 - Duplicate-anchor ambiguity (A5-01, A8-01) leaves the deadline clock and proof-bundle txid **undefined** when the same root is anchored twice.
 - `prevRoot`'s required relation stays unstated (Z8-01), so a stale/sibling-`prevRoot` reject is not derivable.
+
+---
+
+## PR-4. Multi-anchor-per-transaction / one-anchor-per-tx rule (conflict C7) — EXPANDED
+
+**Flags (2):** A1-01, F5-01. **Registry priority:** P0 (anchor-acceptance and gate-fee areas pull toward incompatible defaults — fork risk). **Blocking dependency:** a new named spec decision, folded into the anchor-acceptance spec PR but stated separately so neither the A-area nor the F-area ships its own default. Independent of #49/#50; coordinates with PR-16 (intra-tx cohabitation) and PR-1/PR-2 (fee Σ over the committed set).
+
+**Decision surface (the sub-rulings DK makes):**
+1. **Anchor multiplicity (C7):** one-anchor-per-tx, or all-decodable-anchors-count.
+2. (if one-per-tx) the verdict for a tx carrying more than one valid anchor — reject-all vs first-wins.
+3. (if all-count) an explicit fee-attribution rule so one tx's intrinsic fee `F` cannot satisfy more than one anchor's gate (no Σ-gate double-count).
+4. The disposition of malformed / non-anchor OP_RETURN outputs in the same tx — skip vs invalidate-tx (must match PR-16's cohabitation ruling).
+
+**Options:**
+- **(1) multiplicity** — (a) one-anchor-per-tx (at most one valid decodable RootAnchor per tx) vs (b) all-decodable-anchors-count.
+- **(2) >1-anchor verdict (under a)** — reject-all (the whole tx) vs first-wins (the first decodable anchor).
+- **(4) malformed-output disposition** — skip (ignore non-anchor/malformed outputs, process the single valid anchor) vs invalidate-tx (any malformed OP_RETURN poisons the tx).
+
+**Recommendation (advisory, for DK ratification):**
+- **(1) = (a) one-anchor-per-tx.** It closes the fork by construction: one tx → at most one valid anchor → one intrinsic fee `F` → one gate, so the Σ-gate double-count problem cannot arise (no fee-attribution rule needed). All-count (b) is more permissive but forces an explicit fee-attribution mechanism (split `F` across anchors so it cannot satisfy two gates) — added consensus surface for a marginal batching optimization (RootAnchors are naturally one-per-batch-root). The legacy "extract ALL, skip malformed" behavior (A1-01) is exactly the divergence clean-build reconciles toward the simpler spec rule.
+- **(2) = reject-all.** A tx carrying more than one valid decodable RootAnchor is rejected wholesale — fail-closed and unambiguous. first-wins invites "which is first" ambiguity (vout order is publisher-controlled) and a silent drop of the loser; reject-all has neither.
+- **(4) = skip (ignore malformed / non-anchor outputs), COUPLED to PR-16.** Malformed or non-ONT OP_RETURN outputs in the tx are ignored — they neither count toward the "one anchor" limit nor poison it — consistent with PR-16's skip-bad cohabitation recommendation and the A1 multi-OP_RETURN direction. **This MUST match PR-16's sub-decision (4):** if DK rules reject-all for cohabitation there, rule invalidate-tx here too; they are the same question at different granularity.
+- Net: `F` attributes to the single valid anchor; the F-area gate (Σ gᵢ over that anchor's committed leaves, PR-1/PR-2) consumes `F` once — no double-count.
+
+**Minimal amendment text (one block, for the anchor-acceptance spec):**
+> Anchor multiplicity (B2). A Bitcoin transaction carries at most one valid decodable RootAnchor. A transaction carrying more than one valid decodable RootAnchor is rejected in whole. Malformed or non-ONT OP_RETURN outputs in the transaction are ignored — they neither count toward the single-anchor limit nor invalidate it (matching the kernel's cohabitation rule). The transaction's intrinsic fee `F` attributes to that single anchor for the gate-fee check, so no fee can satisfy more than one anchor's gate.
+
+**Ripple:**
+- Locks A1 (multi-OP_RETURN / multi-anchor) and F5 (multi-event-per-tx + fee double-count) once ratified.
+- **Couples to PR-16** (the malformed-output / cohabitation disposition must be the same ruling) and **PR-1/PR-2** (`F` attributes once to the single anchor's gate-fee Σ).
+- Closes the A-area-vs-F-area incompatible-default fork: neither ships its own multiplicity rule.
+- Retires the legacy extract-all / skip-malformed path.
+
+**Non-goals / dependencies:**
+- **Non-goal:** the general intra-tx ordering of multiple ONT EVENTS (that is PR-16; PR-4 is specifically RootAnchor multiplicity + fee-attribution).
+- **Dependency:** PR-16 for the cohabitation/skip-bad disposition (keep (4) consistent); PR-1/PR-2 for the fee Σ the single anchor's `F` feeds.
+- **Independent of #49/#50.**
+
+**Attack if rejected (what breaks without PR-4):**
+- The A-area (anchor acceptance) and F-area (gate-fee) ship **incompatible defaults** for multi-anchor txs — an honest-node fork (the P0 core).
+- Under all-count without a fee-attribution rule, one tx's fee `F` **double-counts** across multiple anchors' gates (F5-01) — a fee-evasion / Σ-gate exploit.
+- The multi-OP_RETURN disposition stays unstated (A1-01), so skip-vs-reject diverges across implementations.
 
 ---
 
