@@ -400,7 +400,8 @@ describe("B2 vector bindings — value-record family (valueRecordAccept)", () =>
 // transfer event's provenance verdict — "applied" maps to accept, "ignored" to reject.
 const ET_OWNER_PRIV = "01".repeat(32);
 const ET_OWNER_PUB = deriveOwnerPubkey(ET_OWNER_PRIV);
-const ET_NEW_OWNER_PUB = deriveOwnerPubkey("02".repeat(32));
+const ET_NEW_OWNER_PRIV = "02".repeat(32);
+const ET_NEW_OWNER_PUB = deriveOwnerPubkey(ET_NEW_OWNER_PRIV);
 const ET_STRANGER_PRIV = "03".repeat(32);
 const ET_OLD_BOND_TXID = "cc".repeat(32);
 const ET_OLD_BOND_VOUT = 0;
@@ -483,34 +484,42 @@ describe("B2 vector bindings — engine-transfer family (applyBlockTransactions)
     etSeed(crossState, { name: "alice", maturityHeight: 1000 });
     const crossPayload = createTransferPayload({ ...matureFields, signature: recoverSig });
     expect(etApplyVerdict(crossState, etBlock({ txid: "e1".repeat(32), blockHeight: 2000, payload: crossPayload }))).toBe("ignored");
+    // companion (caseB): the incoming/recipient owner self-signing authorizes nothing — it must
+    // verify against the current owner key, not the key being transferred to.
+    const recipientState = createEmptyState();
+    etSeed(recipientState, { name: "alice", maturityHeight: 1000 });
+    expect(
+      etApplyVerdict(recipientState, etBlock({ txid: "e8".repeat(32), blockHeight: 2000, payload: etSignedTransfer(matureFields, ET_NEW_OWNER_PRIV) }))
+    ).toBe("ignored");
   });
 
-  it("X6-neg-01: a pre-maturity successor bond one sat below the required amount is rejected (no forgiveness)", () => {
+  it("X6-neg-01: a pre-maturity successor bond below the required amount is rejected — at two distinct required values (no baked constant)", () => {
     const vector = loadVector("transfer-authority.json", "X6-neg-01");
     assertBindable(vector);
-    const state = createEmptyState();
-    etSeed(state, { name: "alice", maturityHeight: 1000, requiredBondSats: 50_000n });
-    const applied =
-      etApplyVerdict(state, etBlock({
-        txid: "e2".repeat(32),
-        blockHeight: 500,
+    // The threshold tracks the per-name requiredBondSats, exercised at two distinct
+    // non-coincident values: a kernel with a baked 50,000 constant would WRONGLY apply the
+    // 123,455-sat successor under the 123,456 requirement.
+    const transferVerdict = (
+      requiredBondSats: bigint,
+      successorSats: bigint,
+      txid: string
+    ): "applied" | "ignored" | undefined => {
+      const state = createEmptyState();
+      etSeed(state, { name: "alice", maturityHeight: 1000, requiredBondSats });
+      return etApplyVerdict(state, etBlock({
+        txid,
+        blockHeight: 500, // pre-maturity, spends the current bond
         payload: etSignedTransfer(baseFields, ET_OWNER_PRIV),
         inputs: [etBondInput(ET_OLD_BOND_TXID, ET_OLD_BOND_VOUT)],
-        extraOutputs: [etPayment(49_999n)],
-      })) === "applied";
-    expect(applied).toBe(accepts(vector)); // 1 sat short -> ignored
-    // companion (two bond values, no baked constant): an adequate successor applies.
-    const ok = createEmptyState();
-    etSeed(ok, { name: "alice", maturityHeight: 1000, requiredBondSats: 50_000n });
-    expect(
-      etApplyVerdict(ok, etBlock({
-        txid: "e3".repeat(32),
-        blockHeight: 500,
-        payload: etSignedTransfer(baseFields, ET_OWNER_PRIV),
-        inputs: [etBondInput(ET_OLD_BOND_TXID, ET_OLD_BOND_VOUT)],
-        extraOutputs: [etPayment(50_000n)],
-      }))
-    ).toBe("applied");
+        extraOutputs: [etPayment(successorSats)],
+      }));
+    };
+    // primary -> expected.verdict, at a non-placeholder required value: 1 sat short rejects.
+    expect(transferVerdict(123_456n, 123_455n, "e2".repeat(32)) === "applied").toBe(accepts(vector));
+    // companions: the same required value applies exactly, and the threshold tracks a SECOND value.
+    expect(transferVerdict(123_456n, 123_456n, "e3".repeat(32))).toBe("applied"); // exact = required applies
+    expect(transferVerdict(50_000n, 49_999n, "e6".repeat(32))).toBe("ignored"); // tracks a different value
+    expect(transferVerdict(50_000n, 50_000n, "e7".repeat(32))).toBe("applied");
   });
 
   it("X6-neg-02: a successorBondVout beyond the u8 ceiling is unrepresentable and rejected at the wire", () => {
