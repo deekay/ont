@@ -1,0 +1,40 @@
+[
+  {
+    "id": "X13-pos-01",
+    "ruleId": "X13",
+    "area": "Transfer authority",
+    "authorityTier": "provisional",
+    "sources": [
+      "docs/core/B2_KERNEL_HARDENING.md X13 — 'Blocked on decision: recovery-auth'; Needed spec work (transfer-resets-arming rule)",
+      "docs/core/DECISIONS.md #50 recovery-auth — Status: PROVISIONAL — pending DK ratification",
+      "docs/DESIGN.md §10.13 item 1 — 'Still to spec: ... the transfer-resets-arming rule'"
+    ],
+    "kind": "positive",
+    "decisionDeps": ["recovery-auth (#50)"],
+    "inputs": {
+      "sourceCategory": "provisional-vector",
+      "attackFlagText": "Double-edged: a thief holding the stolen owner key can transfer-away to void the true owner's in-flight recovery. Whether transfers are restricted during a challenge window is exactly recovery-auth territory — extracting the legacy behavior must not pre-decide that ruling.",
+      "predicateSignature": "transferAuthority(transfer{ownerKeySig}, pendingRecovery?, recoveryChallengeWindowOpen, transferRestrictedDuringWindow[#50-dependent], priorKernelState) -> {verdict}",
+      "fixture": {
+        "caseTransferVoidsRecoveryDuringWindow": "an owner-key-authorized Transfer applied during an open recovery challenge window cancels the pending recovery (withoutPendingRecovery); the now-voided recovery later completes as a NO-OP -> ACCEPT the transfer (under #50-b1 an owner-keyed transfer supersedes the in-flight recovery)",
+        "caseStaleRecoveryNoOp": "the voided recovery, when its challenge window later closes, applies as a no-op (the name already moved by the superseding transfer)",
+        "recoveryState": "RecoverOwner invoked, challengeWindowBlocks open; #50-b1 current draft = transfers are NOT restricted during the window and an owner-keyed transfer supersedes recovery",
+        "priorState": "a name with an in-flight recovery; the (possibly stolen) owner key authorizes a transfer-away during the window"
+      },
+      "scopeNote": "PROVISIONAL on recovery-auth (#50): X13 is candidate-stays and explicitly 'Blocked on decision: recovery-auth' (#50 PROVISIONAL pending DK). The legacy behavior (withoutPendingRecovery on every applied transfer) is the only complete statement, and the flag warns that extracting it must NOT pre-decide whether transfers are restricted during a challenge window — that is #50 territory. The verdict is derivable conditional on #50; under the gate it is provisional-vector, never vector-now. Authored under #50-b1 (owner-keyed transfer supersedes in-flight recovery -> accept-transfer / stale-recovery-no-op); flips per flipMarker if DK rules toward b2h / transfer-restricted. The transfer-resets-arming rule is also named still-to-spec in DESIGN §10.13 item 1.",
+      "authoringStatus": "authored: provisional vector with decisionDeps + flipMarker; status proposed pending reviewer sign-off; flips on DK's #50 ruling."
+    },
+    "expected": {
+      "verdict": "accept",
+      "reason": "x13-01-transfer-supersedes-in-flight-recovery",
+      "invariant": "under recovery-auth #50-b1 (current draft) an owner-key-authorized Transfer applied during an open recovery challenge window supersedes the in-flight recovery: it cancels the pending recovery (withoutPendingRecovery) and the voided recovery later completes as a no-op; the transfer is accepted; identical on deterministic replay (extracting the legacy withoutPendingRecovery behavior must not pre-decide whether transfers are restricted during the window — that is #50 territory; the transfer-resets-arming rule is still-to-spec per DESIGN §10.13 item 1)",
+      "rationale": "X13 is candidate-stays and explicitly 'Blocked on decision: recovery-auth' (#50, verified PROVISIONAL — pending DK ratification). The legacy behavior (withoutPendingRecovery on every applied transfer) is the only complete statement, and the flag warns extracting it must not pre-decide whether transfers are restricted during a challenge window — that is recovery-auth (#50) territory. So a verdict is derivable conditional on #50, but it depends on the provisional decision; under the gate it is provisional-vector, never vector-now. The transfer-resets-arming spec PR is also named as still-to-spec in DESIGN §10.13 item 1."
+    },
+    "status": "proposed",
+    "attackFlagRef": "X13-01",
+    "flipMarker": {
+      "decision": "recovery-auth (#50)",
+      "flipsTo": "rederive: if DK rules recovery-auth toward b2h or otherwise restricts transfers during the challenge window, a Transfer applied during an open recovery window does NOT cancel or override the pending recovery — the verdict flips to reject the transfer-away (or block the void) and the thief-transfer-voids-recovery case no longer stands; the owner-key-authorization shape is stable, only the during-window transfer/recovery precedence moves with the #50 ruling."
+    }
+  }
+]

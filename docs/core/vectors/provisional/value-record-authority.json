@@ -1,0 +1,77 @@
+[
+  {
+    "id": "V2-neg-01",
+    "ruleId": "V2",
+    "area": "Value-record authority",
+    "authorityTier": "provisional",
+    "sources": [
+      "docs/core/B2_KERNEL_HARDENING.md V2 (cited) and V5 attack flag",
+      "docs/core/DECISIONS.md #17 (ratified): 'authenticated by signatures from the current owner key'",
+      "docs/core/DECISIONS.md #50 recovery-auth (Status: PROVISIONAL — pending DK ratification, 2026-06-13)"
+    ],
+    "kind": "negative",
+    "decisionDeps": ["recovery-auth (#50)"],
+    "inputs": {
+      "sourceCategory": "provisional-vector",
+      "attackFlagText": "'Current owner key' is undefined mid-recovery (during an open challengeWindowBlocks window) until recovery-auth is ruled — an attacker could race records in that window; the R* area owns the state definition, this predicate consumes it.",
+      "predicateSignature": "valueRecordAuthority(record{ownerPubkeySig}, currentOwnerKey[#50-dependent mid-recovery], recoveryChallengeWindowOpen?, priorKernelState) -> {verdict}",
+      "fixture": {
+        "caseRecordByPreRecoveryOwnerDuringWindow": "a value record signed by the PRE-recovery owner key, submitted while a recovery challenge window is OPEN; under recovery-auth #50-b1 (interval opens at invocation) the pre-recovery owner is no longer current -> REJECT (closes the mid-recovery record-race)",
+        "recoveryState": "RecoverOwner invoked, challengeWindowBlocks open; #50-b1 current draft = interval (and thus the current owner key) opens at invocation",
+        "priorState": "a name with an in-flight recovery; pre-recovery owner key still holds the stolen credential"
+      },
+      "scopeNote": "PROVISIONAL on recovery-auth (#50): the V2 predicate (reject unless ownerPubkey == the interval's CURRENT owner key) is ratified via #17, but WHICH key is current during an open recovery challenge window is determined by #50 — whether RecoverOwner opens a new interval at invocation (#50-b1, current draft) or only at window-close. #50 is PROVISIONAL pending DK. The R* area owns the recovery state shape; this predicate consumes it, so the verdict flips with the #50 ruling. Authored under #50-b1 (interval opens at invocation -> pre-recovery owner not current -> reject); flips per flipMarker. NOT vector-now.",
+      "authoringStatus": "authored: provisional vector with decisionDeps + flipMarker; status proposed pending reviewer sign-off; flips on DK's #50 ruling."
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "v2-01-pre-recovery-owner-not-current",
+      "invariant": "a value record is authentic only if signed by the CURRENT owner key for the interval; under recovery-auth #50-b1 (interval opens at invocation) a record signed by the pre-recovery owner key during an open recovery challenge window is no longer current and is rejected — closing the mid-recovery record-race; identical on deterministic replay (Decision #17 fixes 'current owner key authenticates'; #50 fixes WHICH key is current mid-recovery)",
+      "rationale": "The V2 predicate (reject unless ownerPubkey == current interval's owner key) is ratified (Decision #17), but WHICH key is 'current' during an open recovery challenge window depends on recovery-auth (#50): whether RecoverOwner opens a new interval at invocation or only at window-close determines whose key is current. #50 is PROVISIONAL pending DK. The R* area owns the state shape; this predicate consumes it, so the verdict flips with the #50 ruling."
+    },
+    "status": "proposed",
+    "attackFlagRef": "V2-01",
+    "flipMarker": {
+      "decision": "recovery-auth (#50)",
+      "flipsTo": "rederive: if DK rules recovery-auth toward window-close opening (the interval opens only at challenge-window close, not at invocation), the pre-recovery owner key remains current DURING the window and this same record ACCEPTS (verdict flips reject->accept); the #17 'current-owner-key authenticates' shape is stable, only which key is current mid-recovery moves with the #50 ruling."
+    }
+  },
+  {
+    "id": "V5-neg-01",
+    "ruleId": "V5",
+    "area": "Value-record authority",
+    "authorityTier": "provisional",
+    "sources": [
+      "docs/core/B2_KERNEL_HARDENING.md V5 (candidate-stays; 'Blocked on decision: recovery-auth')",
+      "docs/core/DECISIONS.md #50 recovery-auth (PROVISIONAL — pending DK ratification)",
+      "docs/spec/WIRE_FORMAT.md §8.1 (normative): ownershipRef(32-hex)"
+    ],
+    "kind": "negative",
+    "decisionDeps": ["recovery-auth (#50)"],
+    "inputs": {
+      "sourceCategory": "provisional-vector",
+      "attackFlagText": "Whether RecoverOwner opens a new interval at invocation or only at challenge-window close determines which ref is 'current' mid-recovery — cannot be pinned until recovery-auth is ruled.",
+      "predicateSignature": "valueRecordAuthority(record{ownershipRef}, currentIntervalRef[#50-dependent mid-recovery], recoveryInvocationTxid, recoveryChallengeWindowOpen?, priorKernelState) -> {verdict}",
+      "fixture": {
+        "caseStalePreRecoveryRef": "a value record whose ownershipRef equals the PRE-recovery interval ref, submitted during an open challenge window; under recovery-auth #50-b1 (interval opens at invocation) the current ref moved to the recovery-invocation txid, so the pre-recovery ref is stale -> REJECT",
+        "caseRefAtInvocation": "the paired case: a record whose ownershipRef equals the recovery-invocation txid ACCEPTS under #50-b1 (this is the neg/pos pair; the verdict swaps under window-close opening)",
+        "recoveryState": "RecoverOwner invoked, challengeWindowBlocks open; #50-b1 current draft = current interval ref is the recovery-invocation txid",
+        "priorState": "a name with an in-flight recovery; two candidate ownershipRefs (pre-recovery interval vs recovery-invocation txid)"
+      },
+      "scopeNote": "PROVISIONAL on recovery-auth (#50): V5 is candidate-stays and explicitly 'Blocked on decision: recovery-auth.' Which interval reference is 'current' mid-recovery is fixed only once #50 rules whether RecoverOwner opens the interval at invocation (#50-b1, current draft) or at window-close. The candidate-tier authority for the interval-reference shape (WIRE §8.1 ownershipRef) exists, so the verdict is derivable once #50 is fixed; until then provisional. Authored under #50-b1 (current ref = recovery-invocation txid -> pre-recovery ref stale -> reject); the neg/pos pair swaps per flipMarker. NOT vector-now.",
+      "authoringStatus": "authored: provisional vector with decisionDeps + flipMarker; status proposed pending reviewer sign-off; the neg/pos pair swaps on DK's #50 ruling."
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "v5-01-stale-pre-recovery-ref",
+      "invariant": "a value record's ownershipRef must equal the CURRENT interval reference; under recovery-auth #50-b1 (interval opens at invocation) the current ref mid-recovery is the recovery-invocation txid, so a record carrying the pre-recovery interval ref is stale and is rejected; identical on deterministic replay (#50 fixes which ref is current mid-recovery; WIRE §8.1 fixes the ownershipRef encoding)",
+      "rationale": "V5 is candidate-stays and explicitly 'Blocked on decision: recovery-auth.' Which interval reference is 'current' mid-recovery is determined only once recovery-auth (#50, PROVISIONAL) rules whether RecoverOwner opens the interval at invocation or at window-close. The candidate-tier authority for the interval-reference shape exists, so the verdict is derivable once the #50 ruling is fixed; until then it is provisional."
+    },
+    "status": "proposed",
+    "attackFlagRef": "V5-01",
+    "flipMarker": {
+      "decision": "recovery-auth (#50)",
+      "flipsTo": "rederive: if DK rules recovery-auth toward window-close opening, the pre-recovery interval ref stays current THROUGH the window — the stale-ref record then ACCEPTS and a record keyed to the recovery-invocation txid is the one rejected (the neg/pos pair swaps); the ownershipRef-must-equal-current-ref shape (WIRE §8.1) is stable, only which ref is current mid-recovery moves with the #50 ruling."
+    }
+  }
+]

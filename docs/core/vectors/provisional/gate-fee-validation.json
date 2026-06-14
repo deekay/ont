@@ -34,7 +34,7 @@
     "attackFlagRef": "F9-01",
     "flipMarker": {
       "decision": "da-windows (#49)",
-      "flipsTo": "rederive: <if DK changes K's value or the eligibility-boundary form (h+K), re-pin the confirmation-depth integer and the h+K boundary block; the algebra — reorged-out-before-K contributes nothing, a re-mined replacement re-evaluates its own intrinsic fee, deterministic replay — is stable, so the vector stays testable with the new K>"
+      "flipsTo": "rederive: if DK changes K's value or the eligibility-boundary form (h+K), re-pin the confirmation-depth integer and the h+K boundary block; the algebra — reorged-out-before-K contributes nothing, a re-mined replacement re-evaluates its own intrinsic fee, deterministic replay — is stable, so the vector stays testable with the new K."
     }
   },
   {
@@ -73,7 +73,7 @@
     "attackFlagRef": "F11-02",
     "flipMarker": {
       "decision": "da-windows (#49)",
-      "flipsTo": "rederive: <if DK flips #49's W boundary or its inclusivity, re-pin which borderline claims qualify as DA-valid and thus whether the name nullifies vs a single survivor finalizes; the #37 escalation-trigger / bare-collision-denies-never-awards half is stable, so the vector stays testable with the new W>"
+      "flipsTo": "rederive: if DK flips #49's W boundary or its inclusivity, re-pin which borderline claims qualify as DA-valid and thus whether the name nullifies vs a single survivor finalizes; the #37 escalation-trigger / bare-collision-denies-never-awards half is stable, so the vector stays testable with the new W."
     }
   }
 ]
