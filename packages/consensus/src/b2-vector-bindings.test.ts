@@ -591,20 +591,43 @@ function productionModulesAdmittingHostIO(): string[] {
 }
 
 describe("B2 vector bindings — scanner / boundary-purity family (meta-shaped)", () => {
-  it("A1-neg-01: a one-byte near-miss of the golden RootAnchor frame opens no batch (scanner decode-reject)", () => {
+  it("A1-neg-01: the golden RootAnchor near-miss sweep (truncations, trailing byte, wrong magic, bad version, unassigned/retired type) opens no batch", () => {
     const vector = loadVector("anchor-acceptance.json", "A1-neg-01");
     assertBindable(vector);
     const active = new Set([0x01]);
     // The 0x0b RootAnchor golden (packages/wire/vectors/events.json) — the fixture's positive control.
     const goldenHex =
       "4f4e54010b24ba75b09004e044b254d238c53fa7c057111a65f4959335968970a70a75083e22d10d5ce4947e2f186d299a8f648f96032d0e22d3d4cc55930e7ac31e47ddc40000002a";
-    expect(classifyOutput(hexToBytes(goldenHex), active).class).toBe("valid"); // companion: positive control decodes valid
-    // primary: flip the version byte (index 3: 0x01 -> 0x02) — a near-miss that opens no batch.
-    const nearMiss = hexToBytes(goldenHex);
-    nearMiss[3] = 0x02;
-    const result = classifyOutput(nearMiss, active);
-    expect(result.class === "valid").toBe(accepts(vector)); // false === reject: no batch opens
-    expect(result.event).toBeNull(); // companion: no event materializes
+    const golden = hexToBytes(goldenHex);
+    expect(classifyOutput(golden, active).class).toBe("valid"); // positive control decodes valid
+
+    // The fixture's full near-miss family: every truncation, one trailing byte, wrong magic,
+    // a non-active version, an unassigned type, and the retired 0x0d marker type.
+    const mutated = (set: (bytes: Uint8Array) => void): Uint8Array => {
+      const copy = golden.slice();
+      set(copy);
+      return copy;
+    };
+    const nearMisses: Uint8Array[] = [];
+    for (let n = 1; n < golden.length; n++) nearMisses.push(golden.slice(0, n)); // truncations 1..len-1
+    nearMisses.push(new Uint8Array([...golden, 0x00])); // one trailing byte (over-long)
+    nearMisses.push(mutated((b) => { b[0] = 0x00; })); // wrong magic (byte 0)
+    nearMisses.push(mutated((b) => { b[3] = 0x02; })); // non-active version (byte 3 != 0x01)
+    nearMisses.push(mutated((b) => { b[4] = 0x05; })); // unassigned event type (byte 4)
+    nearMisses.push(mutated((b) => { b[4] = 0x0d; })); // retired 0x0d (AvailabilityMarker) type
+
+    // primary -> expected.verdict (aggregate over the whole family): NO near-miss opens a batch.
+    const anyOpensBatch = nearMisses.some((bytes) => {
+      const r = classifyOutput(bytes, active);
+      return r.class === "valid" || r.event !== null;
+    });
+    expect(anyOpensBatch).toBe(accepts(vector)); // false === reject
+    // companion: each near-miss individually classifies non-valid with no event materializing.
+    for (const bytes of nearMisses) {
+      const r = classifyOutput(bytes, active);
+      expect(r.class === "valid", `near-miss of length ${bytes.length} unexpectedly classified valid`).toBe(false);
+      expect(r.event).toBeNull();
+    }
   });
 
   it("A10-neg-01: the production kernel admits no live-availability seam (host I/O / clock / network)", () => {
