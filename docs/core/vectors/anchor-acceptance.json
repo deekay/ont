@@ -18,7 +18,7 @@
         "baseGoldenAnchor": {
           "ref": "packages/wire/vectors/events.json — the 0x0b RootAnchor golden (positive control)",
           "hex": "4f4e54010b24ba75b09004e044b254d238c53fa7c057111a65f4959335968970a70a75083e22d10d5ce4947e2f186d299a8f648f96032d0e22d3d4cc55930e7ac31e47ddc40000002a",
-          "decoded": { "magic": "ONT", "version": "0x01", "eventType": "0x0b RootAnchor", "prevRoot": "24ba75…75083e", "newRoot": "22d10d…47ddc4", "batchSize": 42 },
+          "decoded": { "magic": "ONT", "version": "0x01", "eventType": "0x0b RootAnchor", "prevRoot": "24ba75b09004e044b254d238c53fa7c057111a65f4959335968970a70a75083e", "newRoot": "22d10d5ce4947e2f186d299a8f648f96032d0e22d3d4cc55930e7ac31e47ddc4", "batchSize": 42 },
           "note": "73 bytes, frame(5) ‖ prevRoot(32) ‖ newRoot(32) ‖ batchSize(u32). Pinned byte-identical against the BDK spike (canon Item 2). This vector REUSES the B1 wire golden + frame-sweep negatives at the @ont/consensus anchor-acceptance boundary rather than minting new bytes."
         },
         "nearMissNegatives": [
@@ -64,7 +64,7 @@
       "fixture": {
         "acceptedAnchor": {
           "ref": "packages/wire/vectors/events.json — the 0x0b RootAnchor golden (batchSize 42)",
-          "anchoredCommitment": { "newRoot": "22d10d…47ddc4", "batchSize": 42 },
+          "anchoredCommitment": { "newRoot": "22d10d5ce4947e2f186d299a8f648f96032d0e22d3d4cc55930e7ac31e47ddc4", "batchSize": 42 },
           "note": "the anchored (newRoot, batchSize) pair fixes the authoritative leaf count N = 42"
         },
         "servedByteSet": {
