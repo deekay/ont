@@ -58,12 +58,18 @@ height of the `RecoverOwner` transaction.
 > arming signature (§8.2a) — is **demonstrably witnessed by height `h_r + W_r`** on the
 > canonical chain, where `W_r` is the recovery-evidence window (`W_r <=
 > challengeWindowBlocks`, PR-34). **Fail closed:** descriptor evidence not demonstrably
-> witnessed by `h_r + W_r` ⇒ the invoke does **not** rotate ownership — uniformly across
-> verifiers, never forking; the would-be recovery simply forfeits, exactly as a
-> DA no-show forfeits. **Evidence in, verdict out:** the kernel consumes an opaque,
-> verifier-checkable descriptor-evidence witness (B2 typed interface; the concrete
-> "demonstrably witnessed" format is a B3 evidence-layer deliverable, mirroring the
-> served-bytes witness).
+> witnessed by `h_r + W_r` ⇒ the invoke **opens no `pendingRecovery` and mutates no
+> state** — uniformly across verifiers, never forking; the would-be recovery simply
+> forfeits, exactly as a DA no-show forfeits. **Evidence in, verdict out:** the kernel
+> consumes an opaque, verifier-checkable descriptor-evidence witness (B2 typed interface;
+> the concrete "demonstrably witnessed" format is a B3 evidence-layer deliverable,
+> mirroring the served-bytes witness).
+
+Descriptor evidence is **acceptance** evidence, not merely finalization evidence: it is
+what verifies the invoke's `recoveryPubkey` signature, the owner arming signature, the
+descriptor hash, and the current-interval head — i.e. what *authorizes the invoke at all*
+(#50-b1, RECOVERY_AUTH §3). So the gate binds on **acceptance**: an unwitnessed invoke is
+unauthorized, and an unauthorized event must not start recovery state (§4).
 
 The mapping is exact: **descriptor evidence : recovery invoke :: served bytes : batch
 anchor.** Same fail-closed posture, same chain-height-keyed deadline, same
@@ -74,39 +80,55 @@ corroboration under #50-b1, so it gets **no** kernel witnessing deadline — its
 lateness MUST NOT block acceptance, and its presence MUST NOT substitute for the
 descriptor evidence. Only the descriptor evidence is on the `W_r` clock.
 
-## 4. Acceptance vs. finalization, and the cancel-window interaction
+## 4. When the gate binds — three structural choices (the DK call)
 
-`W_r <= challengeWindowBlocks` puts the evidence deadline at or before the finalize
-height `h_r + challengeWindowBlocks`. Two readings of *when* the fail-closed test binds,
-and how it composes with the owner's veto window `[h_r, h_r + challengeWindowBlocks)`:
+Because descriptor evidence *authorizes* the invoke (§3), the safe default gates on
+acceptance, not finalization. Three structural choices, distinguished by what an
+unverified invoke does to consensus state:
 
-- **(i) Gate finalization (recommended).** `pendingRecovery` is *entered* at `h_r` so the
-  owner's cancel/veto window starts immediately (the owner is protected from the moment
-  the invoke is mined, regardless of evidence resolution). **Finalization** at
-  `h_r + challengeWindowBlocks` requires *both* (a) no valid cancel mined strictly before
-  the deadline **and** (b) the descriptor evidence demonstrably witnessed by `h_r + W_r`.
-  Missing evidence by `h_r + W_r` ⇒ finalization never fires (forfeit). This starts the
-  veto promptly and fail-closes on evidence without a race.
-- **(ii) Gate acceptance.** `pendingRecovery` is not entered at all until the descriptor
-  evidence is witnessed (by `h_r + W_r`). Cleaner state model, but the owner's veto window
-  doesn't begin until evidence resolves — shrinking the effective veto and coupling the
-  owner's protection to the invoker's evidence timing.
+- **(1) Evidence-gated `pendingRecovery` (recommended).** A non-cancel `RecoverOwner` may
+  be *observed* at `h_r`, but it opens **no** `pendingRecovery`, blocks **no** owner-key
+  transfer (PR-34/X13), rotates **no** bond, and starts **no** cancel/finalization path
+  until the descriptor evidence is witnessed by `h_r + W_r` **and** the b1 predicate
+  verifies. No unauthenticated invoke ever mutates consensus state. **Forfeit is trivial
+  and needs no bespoke cleanup:** an unwitnessed invoke simply never took kernel effect,
+  like a bad-signature event — and the invoke transaction's on-chain bond spend (if any)
+  then falls through to the **standing #5 broken-bond-continuity rule**, exactly as a
+  failed pre-maturity transfer's does (no new rule). The finalization deadline can still
+  key off `h_r` to deny invoker delay; the honest tradeoff is that the **effective veto
+  window shrinks** to `[evidence-verified, h_r + challengeWindowBlocks)`.
+- **(2) Finalization-gated `pendingRecovery`.** Enter `pendingRecovery` at `h_r` (maximal,
+  invoker-independent veto window); gate only *finalization* on evidence by `h_r + W_r`.
+  **Acceptable only if it additionally specifies** what an open-but-unverified
+  `pendingRecovery` does to (a) the X13 transfer block, (b) cancel-path liveness, and
+  (c) the live bond it rotated — plus the **forfeit cleanup** when evidence misses
+  `h_r + W_r` (clear as a no-op? leave the owner with a recovery-controlled bond?
+  invalidate under #5?). Without those, an unauthenticated invoke creates a live
+  transfer-freeze / forced-veto / bond-custody state — the flaw this revision fixes.
+- **(3) Non-mutating `pendingEvidence` (compromise, only if a full veto window is required).**
+  A third explicit kernel state entered at `h_r` that **blocks no transfer, rotates no
+  bond, and has no finalization path** until evidence verifies, at which point it promotes
+  to `pendingRecovery`. Preserves an early observation point without unauthenticated state
+  mutation — at the cost of a new kernel state to specify and audit.
 
-**Recommendation: (i).** Entering `pendingRecovery` at `h_r` and gating *finalization* on
-the evidence deadline keeps the owner's veto window maximal and independent of the
-invoker, while still fail-closing on withheld/late evidence. It also composes cleanly with
-PR-34's `W_r <= challengeWindowBlocks` ("a recovery cannot finalize before its evidence
-deadline") and PR-35's finalization predicate.
+**Recommendation: (1).** Descriptor evidence authorizes the invoke, so no recovery state
+should exist before it verifies; the shrunk veto window is the honest cost, and it is
+small when `W_r` is small relative to the challenge window (§5 Q2). (2) re-opens the
+unauthenticated-state hole unless fully specified; (3) is the fallback if DK weighs a full
+veto window above kernel-state minimality.
 
 ## 5. Recommendation & open sub-questions for DK
 
 **Recommend:** adopt the §3 fail-closed observation rule (descriptor evidence witnessed by
-`h_r + W_r`, forfeit on no-show, §8.3 proof excluded) under reading **(i)** (gate
-finalization; veto window keys off `h_r`).
+`h_r + W_r`, forfeit-as-no-effect, §8.3 proof excluded) under choice **(1) evidence-gated
+`pendingRecovery`** — no unauthenticated invoke mutates consensus state.
 
 Sub-questions DK rules:
 
-1. **Reading (i) vs (ii)** — gate finalization (recommended) vs gate acceptance.
+1. **Structural choice (1) vs (2) vs (3)** (§4) — evidence-gated acceptance (recommended)
+   vs finalization-gated (only with the §4 pre-evidence-effects + forfeit-cleanup spec) vs
+   a non-mutating `pendingEvidence` state (if a full veto window outweighs a new kernel
+   state).
 2. **`W_r` launch value.** PR-34 fixes only the constraint `1 <= W_r <= challengeWindowBlocks`.
    The concrete launch value is a launch-freeze parameter; recommend `W_r` materially
    smaller than the minimum challenge window so honest evidence has slack but late-reveal

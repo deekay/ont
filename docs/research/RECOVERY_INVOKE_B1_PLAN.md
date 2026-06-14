@@ -128,8 +128,9 @@ applies to **descriptor evidence only** — the §8.3 wallet proof is corroborat
 gets **no** kernel witnessing deadline. Drafted as a DK-ratified decision paper:
 [`RECOVERY_EVIDENCE_TIMING.md`](./RECOVERY_EVIDENCE_TIMING.md) — fail-closed (descriptor
 evidence witnessed by `h_r + W_r` or the invoke forfeits, reusing the DA agreement §6
-pattern), §8.3 proof excluded, recommending finalization-gating with the veto window
-keyed off `h_r`.
+pattern), §8.3 proof excluded, recommending **evidence-gated acceptance** (descriptor
+evidence authorizes the invoke, so no `pendingRecovery`/transfer-block/bond-rotation
+opens until it verifies — no unauthenticated state mutation).
 
 ## 4. What stays parked (interactions, not part of this slice)
 
