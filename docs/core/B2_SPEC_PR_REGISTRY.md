@@ -114,9 +114,9 @@ Priority legend: **P0** = blocks B2 vector authoring now (a kernel predicate can
 
 #### PR-13. Kernel-wide window-boundary convention (conflict C9, non-DA windows)
 
-**Flags (2):** F12-01, T6-02
+**Flags (6):** A13-01, B2-01, B6-02, B20-01, F12-01, T6-02
 - **Scope:** Define ONE half-open-interval (or inclusive, per #49 S2) convention in the shared-definitions section and apply it to every non-DA window not covered by #49 S2 — notice-window close, collision window, bond-landing `h+W_notice`, auction close, soft-close, maturity — with edge−1/edge/edge+1 vectors for each. (#49 S2 already pins the DA `h+W` / `h+W+C` half; this extends that convention kernel-wide.)
-- **Unblocks ruleIds:** A13, B2, F12, T6, B20 (non-DA boundary halves).
+- **Unblocks ruleIds:** A13, B2, B6, F12, T6, B20 (non-DA boundary halves; A13-01/B2-01/B6-02/B20-01 are the now-spec-blocked flags listed above, reclassified from #49-provisional in the 2026-06-14 batch-1 review).
 - **Blocking dependency:** New named spec decision; partly leverages #49 S2 (DA half already ruled). The maturity instance overlaps PR-12; the auction-close instance overlaps PR-19.
 - **Priority:** P1.
 
@@ -311,9 +311,9 @@ Priority legend: **P0** = blocks B2 vector authoring now (a kernel predicate can
 These flags ARE derivable under a live provisional decision; they are not spec-blocked. They become conformance vectors with `authorityTier: provisional`, the named `decisionDeps`, and a `flipMarker` recording what the vector becomes if DK rules the other way. Listed here (not as PRs) because they cannot lock until DK ratifies #49 / #50.
 
 #### Group #49 — da-windows (K/W/C window algebra; flip if DK reverses S1–S6 / re-parameterizes)
-- **Flags:** A3, A11, A13, D3 (both flags), D6, D9, D12, D13, F9, F11, T17, T18, B1, B2, B3, B4, B6, B10, B20, Z4, Z9, Z13, and the #49 half of G6.
+- **Flags:** A3, A11, D3 (both flags), D6, D9, D12, D13, F9, F11, T17, T18, B1, B3, B4, B10, Z4, Z9, Z13, and the #49 half of G6. (A13, B2, B6, B20 — the non-DA boundary halves — were reclassified to spec-blocked/PR-13 in the 2026-06-14 batch-1 review; they are not #49-provisional.)
 - **decisionDeps:** `da-windows (#49)`.
-- **flipMarker semantics:** if DK reverses to the weak `W ≤ K` form, the include-then-retract negatives (D9, Z13) flip to accept; if the inclusive-deadline S2 convention is reversed to half-open, the boundary-exact vectors (A13, D3, D13, B2, B6, B20, T18) flip their edge verdict; if (K,W,C) re-parameterize, the placeholder-(6,2,3) values (D12) re-instantiate (two-parameterization vectors guard against a baked-in constant).
+- **flipMarker semantics:** if DK reverses to the weak `W ≤ K` form, the include-then-retract negatives (D9, Z13) flip to accept; if the inclusive-deadline S2 convention is reversed to half-open, the DA-boundary-exact vectors (D3, D13, T18) flip their edge verdict; if (K,W,C) re-parameterize, the placeholder-(6,2,3) values (D12) re-instantiate (two-parameterization vectors guard against a baked-in constant).
 
 #### Group #50 — recovery-auth (fresh BIP340 recovery-key under v2 descriptor; standing counter-design b2h)
 - **Flags:** T19, V2 (current-owner-key-mid-recovery facet), V5, V13 (current-owner-key facet), R7, R9, R10 (both flags), X13, and the #50 half of G6.

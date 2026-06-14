@@ -60,7 +60,7 @@ code is only mining material.
   regenerates and checks. `--check` proves the seed covers all 68 `vector-now`
   rows once; `--check-authored[-complete]` validates the per-area authored
   files against the hardened schema + coverage; `--check-provisional[-partial]`
-  validates `docs/core/vectors/provisional/` (the 33 `provisional-vector` rows,
+  validates `docs/core/vectors/provisional/` (the 29 `provisional-vector` rows,
   `authorityTier: "provisional"` + `decisionDeps` + `flipMarker`).
 - `src/b2-boundary.test.ts` is the first executable B2 gate: production
   `@ont/consensus` modules must not import filesystem, network, process,

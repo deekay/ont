@@ -17,7 +17,7 @@ packet says "pairs with PR-n".
 
 ## PR-5. First-anchor-wins = earliest-VALID-anchor (conflict C1)
 
-**Flags (4):** A12-01, D5-01, B8-01, B11-01. **Registry priority:** P1. **Blocking dependency:** new one-sentence named spec decision; no open named decision implicated (the rule TEXT is derivable now).
+**Flags (4):** A12-01, D5-01, B8-01, B11-01. **Registry priority:** P1. **Blocking dependency:** new one-sentence named spec decision; no open named decision implicated (the recommended amendment is writable now and independent of #49 and PR-1, but is not ratified law until DK rules).
 
 **Options**
 - **(a) earliest-VALID-anchor** — the lifecycle keys to the earliest anchor that passed ALL eligibility verdicts (accepted + DA-eligible + gate-fee-covered); a forfeited/excluded anchor confers no priority, and a post-exclusion re-anchor starts a fresh window at its own height.
@@ -28,12 +28,17 @@ Option (b) lets a withheld or DA-failed anchor resurrect priority simply by bein
 
 **Ripple**
 - Locks the A12 / B8 / D5 / B11 (priority half) vectors once ratified.
-- Rule TEXT is independent of #49 and PR-1 — those gate the *enforceability* of the forfeit verdict (served-bytes witness + window timing), not the rule itself; ratifiable now as a one-sentence amendment to the first-anchor-wins definition (GLOSSARY + the DA agreement).
+- The recommended amendment is independent of #49 and PR-1 — those gate the *enforceability* of the forfeit verdict (served-bytes witness + window timing), not the definition itself; it is writable now as a one-sentence amendment to the first-anchor-wins definition (GLOSSARY + the DA agreement), but is not ratified law until DK rules.
 - **Pairs with PR-6** (same first-anchor-wins definition block: "competing claim" = distinct-owner-key).
 - No new attack surface; it removes one (withhold-then-reveal resurrection).
 
 ---
 
-*Remaining PRs (PR-1..PR-4, PR-6..PR-36) to be added on the same Options →
-Recommendation → Ripple shape; this PR-5 packet is the format template pending
-ChatLunatique's review.*
+*Format (ChatLunatique-approved 2026-06-14, event 041948bc): this advisory packet
+doc stays separate from the neutral registry. Remaining PRs (PR-1..PR-4,
+PR-6..PR-36) follow the same compact Options → Recommendation → Ripple shape,
+EXCEPT the P0 / fork-surface packets — PR-1, PR-2, PR-3, PR-4, PR-16 — which get
+an expanded packet adding Decision surface, Non-goals/dependencies, Minimal
+amendment text, and Attack-if-rejected. PR-16 gets the fullest marker-fold-style
+treatment (it bundles total order, intra-tx order, malformed cohabitation, and
+same-outpoint contention).*

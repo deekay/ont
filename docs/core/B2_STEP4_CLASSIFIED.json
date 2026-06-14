@@ -345,12 +345,9 @@
   {
     "ruleId": "A13",
     "flagSnippet": "Boundary off-by-one: legacy uses height ≥ closeHeight for finality (indexer.ts:517)",
-    "category": "provisional-vector",
-    "legallyDerivable": true,
-    "rationale": "A13 (notice window opens at the claim's earliest-valid-anchor height; outcome derived only at currentHeight ≥ anchorHeight + W_notice) is verdict 'cited' on ratified DECISIONS #37 bond-opens ('a verifier checks, at currentHeight ≥ anchorHeight + W_notice'). The off-by-one half-open-interval verdict is derivable — the ≥ comparator is ratified and da-windows S2 pins inclusive deadlines (height ≤ h+X) consistently. But the boundary-block bond/collision pinning depends on the da-windows (#49) inclusive-deadline algebra (S2) to fix the close-height interval coherently; #49 is provisional. (W_notice value itself is launch-freeze, parameterized — not the blocker.)",
-    "decisionDeps": [
-      "da-windows (#49)"
-    ],
+    "category": "spec-blocked",
+    "legallyDerivable": false,
+    "rationale": "Reclassified provisional-vector -> spec-blocked (batch-1 review, 2026-06-14): the notice-window close edge (bond/collision at the close height) is a NON-DA window boundary. #49 S2 pins inclusive deadlines only for the DA h+W / h+W+C edges; applying that convention to the notice-window close edge (bond/collision at the close height) by analogy would invent a rule the guardrail forbids (cf. the A9->anchors no-analogy note). The exact-edge verdict is therefore not legally derivable until PR-13 (kernel-wide window-boundary convention) lands; a weaker edge+1-is-late vector would not cover this attack flag.",
     "sources": [
       "docs/core/B2_KERNEL_HARDENING.md A13 (lines 231-240), proposed test '(+) ... at close−1 it is still provisional (pins the ≥ comparison ... close−1, close, close+1)' + flag (line 240)",
       "docs/core/DECISIONS.md entry 37 bond-opens (ratified) — 'currentHeight ≥ anchorHeight + W_notice'",
@@ -359,7 +356,11 @@
     "vectorSketch": "negative+positive boundary triple at close−1 / close / close+1: at close−1 provisional, at close (= anchorHeight + W_notice) finalizes with no qualifying bond, a bond exactly at close is in-window (escalates). flipMarker: if DK flips #49's inclusive-deadline S2 to exclusive, the boundary-block bond/collision verdict at close flips (the half-open interval edge moves).",
     "area": "A",
     "attackFlagId": "A13-01",
-    "attackFlagText": "Boundary off-by-one: legacy uses height ≥ closeHeight for finality (indexer.ts:517) but blockHeight ≤ closeHeight for in-window collision (indexer.ts:828) — events landing exactly at the close height are simultaneously 'in-window' and 'window-closed'; the hardening pass must pin one half-open interval or two implementations disagree on boundary-block bonds and collisions."
+    "attackFlagText": "Boundary off-by-one: legacy uses height ≥ closeHeight for finality (indexer.ts:517) but blockHeight ≤ closeHeight for in-window collision (indexer.ts:828) — events landing exactly at the close height are simultaneously 'in-window' and 'window-closed'; the hardening pass must pin one half-open interval or two implementations disagree on boundary-block bonds and collisions.",
+    "specPrIds": [
+      "PR-13"
+    ],
+    "specPr": "Kernel-wide window-boundary convention (PR-13): pin ONE half-open-interval (or inclusive) convention in the shared-definitions section for every non-DA window not covered by #49 S2 — including the notice-window close edge (bond/collision at the close height) — with edge-1/edge/edge+1 vectors. #49 S2 already pins only the DA h+W / h+W+C half."
   },
   {
     "ruleId": "A14",
@@ -1596,21 +1597,22 @@
   {
     "ruleId": "B2",
     "flagSnippet": "boundary inclusivity is unstated: whether a qualifying bond mined exactly at height h",
-    "category": "provisional-vector",
-    "legallyDerivable": true,
-    "rationale": "Boundary inclusivity is no longer unstated: da-windows (#49) S2 adds candidate spec text 'By h+X means at a height <= h+X; a witness at the deadline height exactly is in-window' to DA agreement §6e. The verdict (an event at exactly h+W_notice is in-window) is now derivable, but §6e is explicitly labeled provisional pending DK ratification, so it is provisional-vector, not vector-now.",
+    "category": "spec-blocked",
+    "legallyDerivable": false,
+    "rationale": "Reclassified provisional-vector -> spec-blocked (batch-1 review, 2026-06-14): the bond-landing edge at h+W_notice is a NON-DA window boundary. #49 S2 pins inclusive deadlines only for the DA h+W / h+W+C edges; applying that convention to the bond-landing edge at h+W_notice by analogy would invent a rule the guardrail forbids (cf. the A9->anchors no-analogy note). The exact-edge verdict is therefore not legally derivable until PR-13 (kernel-wide window-boundary convention) lands; a weaker edge+1-is-late vector would not cover this attack flag.",
     "sources": [
       "docs/spec/ONT_DATA_AVAILABILITY_AGREEMENT.md §6e Inclusive deadlines (S2) [provisional; candidate tier] lines 174-176 'By h+X means at a height <= h+X; a witness at the deadline height exactly is in-window'",
       "docs/core/DECISIONS.md §49 da-windows [PROVISIONAL pending DK]",
       "docs/core/B2_KERNEL_HARDENING.md B2 lines 859-868"
     ],
-    "decisionDeps": [
-      "da-windows (#49)"
-    ],
     "vectorSketch": "negative/boundary; expected: bond mined at exactly h+W_notice is in-window (contested), one block later is out (final). flipMarker: if DK rules deadlines exclusive ('< h+X'), the in-window boundary vector flips to reject (out-of-window) and the +1 block vector becomes the in-window case.",
     "area": "B",
     "attackFlagId": "B2-01",
-    "attackFlagText": "boundary inclusivity is unstated: whether a qualifying bond mined exactly at height h + W_notice is in-window (#37 writes the verifier check as ≥ but never the bond-side comparison) — one block of ambiguity decides contested vs final"
+    "attackFlagText": "boundary inclusivity is unstated: whether a qualifying bond mined exactly at height h + W_notice is in-window (#37 writes the verifier check as ≥ but never the bond-side comparison) — one block of ambiguity decides contested vs final",
+    "specPrIds": [
+      "PR-13"
+    ],
+    "specPr": "Kernel-wide window-boundary convention (PR-13): pin ONE half-open-interval (or inclusive) convention in the shared-definitions section for every non-DA window not covered by #49 S2 — including the bond-landing edge at h+W_notice — with edge-1/edge/edge+1 vectors. #49 S2 already pins only the DA h+W / h+W+C half."
   },
   {
     "ruleId": "B3",
@@ -1704,21 +1706,22 @@
   {
     "ruleId": "B6",
     "flagSnippet": "a bond posted in the same block as window close hits the B2 boundary ambiguity",
-    "category": "provisional-vector",
-    "legallyDerivable": true,
-    "rationale": "Same boundary class as B2: a bond mined in the same block as window close is now resolved by da-windows (#49) S2 inclusive-deadline candidate text (in-window at exactly h+W_notice). Derivable but gated on the provisional #49 ratification.",
+    "category": "spec-blocked",
+    "legallyDerivable": false,
+    "rationale": "Reclassified provisional-vector -> spec-blocked (batch-1 review, 2026-06-14): a bond mined in the same block as the window close (collision / notice-window close edge) is a NON-DA window boundary. #49 S2 pins inclusive deadlines only for the DA h+W / h+W+C edges; applying that convention to a bond mined in the same block as the window close (collision / notice-window close edge) by analogy would invent a rule the guardrail forbids (cf. the A9->anchors no-analogy note). The exact-edge verdict is therefore not legally derivable until PR-13 (kernel-wide window-boundary convention) lands; a weaker edge+1-is-late vector would not cover this attack flag.",
     "sources": [
       "docs/spec/ONT_DATA_AVAILABILITY_AGREEMENT.md §6e S2 [provisional] — 'a witness at the deadline height exactly is in-window'",
       "docs/core/DECISIONS.md §49 da-windows [PROVISIONAL]",
       "docs/core/B2_KERNEL_HARDENING.md B6 line 913 / gaps line 1110"
     ],
-    "decisionDeps": [
-      "da-windows (#49)"
-    ],
     "vectorSketch": "boundary negative; expected: bond at exactly the close height contests (in-window). flipMarker: an exclusive-deadline #49 ruling flips it to out-of-window (claim finalizes, no contest).",
     "area": "B",
     "attackFlagId": "B6-02",
-    "attackFlagText": "a bond posted in the same block as window close hits the B2 boundary ambiguity"
+    "attackFlagText": "a bond posted in the same block as window close hits the B2 boundary ambiguity",
+    "specPrIds": [
+      "PR-13"
+    ],
+    "specPr": "Kernel-wide window-boundary convention (PR-13): pin ONE half-open-interval (or inclusive) convention in the shared-definitions section for every non-DA window not covered by #49 S2 — including a bond mined in the same block as the window close (collision / notice-window close edge) — with edge-1/edge/edge+1 vectors. #49 S2 already pins only the DA h+W / h+W+C half."
   },
   {
     "ruleId": "B7",
@@ -2022,21 +2025,22 @@
   {
     "ruleId": "B20",
     "flagSnippet": "maturity boundary inclusivity (at maturity height vs strictly after) is unstated —",
-    "category": "provisional-vector",
-    "legallyDerivable": true,
-    "rationale": "Same off-by-one class as B2. The maturity-boundary inclusivity is now provisionally resolved by da-windows (#49) S2's inclusive-deadline rule ('By h+X means at a height <= h+X'), which the hardening Gaps section explicitly lists maturity-height among the deadlines inheriting the off-by-one. Derivable but gated on provisional #49 ratification. Maturity duration is a launch-freeze parameter.",
+    "category": "spec-blocked",
+    "legallyDerivable": false,
+    "rationale": "Reclassified provisional-vector -> spec-blocked (batch-1 review, 2026-06-14): the maturity boundary (bond spent at exactly the maturity height) is a NON-DA window boundary. #49 S2 pins inclusive deadlines only for the DA h+W / h+W+C edges; applying that convention to the maturity boundary (bond spent at exactly the maturity height) by analogy would invent a rule the guardrail forbids (cf. the A9->anchors no-analogy note). The exact-edge verdict is therefore not legally derivable until PR-13 (kernel-wide window-boundary convention) lands; a weaker edge+1-is-late vector would not cover this attack flag.",
     "sources": [
       "docs/spec/ONT_DATA_AVAILABILITY_AGREEMENT.md §6e S2 [provisional] — inclusive deadlines",
       "docs/core/B2_KERNEL_HARDENING.md Gaps line 1110 — 'an event mined exactly at... the maturity/auction-close height... every deadline rule (B2, B6, B13, B15, B20) inherits the off-by-one'",
       "docs/spec/AUCTION.md Winner Bond And Maturity [candidate]; docs/core/B2_KERNEL_HARDENING.md B20 lines 1058-1066"
     ],
-    "decisionDeps": [
-      "da-windows (#49)"
-    ],
     "vectorSketch": "boundary positive/negative; expected: bond spent at exactly maturity height keeps the name owned (mature owner, no release), one block before releases it. flipMarker: an exclusive-boundary #49 ruling moves the inclusive edge to strictly-after, flipping the at-maturity-height vector to release.",
     "area": "B",
     "attackFlagId": "B20-01",
-    "attackFlagText": "maturity boundary inclusivity (at maturity height vs strictly after) is unstated — same class of off-by-one as B2"
+    "attackFlagText": "maturity boundary inclusivity (at maturity height vs strictly after) is unstated — same class of off-by-one as B2",
+    "specPrIds": [
+      "PR-13"
+    ],
+    "specPr": "Kernel-wide window-boundary convention (PR-13): pin ONE half-open-interval (or inclusive) convention in the shared-definitions section for every non-DA window not covered by #49 S2 — including the maturity boundary (bond spent at exactly the maturity height) — with edge-1/edge/edge+1 vectors. #49 S2 already pins only the DA h+W / h+W+C half."
   },
   {
     "ruleId": "B21",

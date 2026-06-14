@@ -43,7 +43,7 @@
     "area": "Anchor acceptance",
     "authorityTier": "provisional",
     "sources": [
-      "docs/core/B2_KERNEL_HARDENING.md A11 (lines 210-218), flag (line 218); crossArea 'first-anchor-wins (earliest valid anchor) ... forfeited/excluded anchors confer no priority' (line 74)",
+      "docs/core/B2_KERNEL_HARDENING.md A11 (lines 210-218), flag (line 218)",
       "docs/core/DECISIONS.md entry 26 (ratified, insertion-only) + entry 49 da-windows (provisional — includable/holdsPriority post-DA state)",
       "docs/spec/ONT_DATA_AVAILABILITY_AGREEMENT.md §5 (candidate, insertion-only uniqueness) / §6e S3 (provisional)"
     ],
@@ -52,65 +52,27 @@
     "inputs": {
       "sourceCategory": "provisional-vector",
       "attackFlagText": "Uniqueness is enforced against kernel state, which depends on the DA verdicts of earlier batches: a name 'already inserted' by a later-forfeited batch must not block honest re-claiming — the insertion-uniqueness check must be defined over the post-DA-verdict state, and the spec does not yet say so.",
-      "predicateSignature": "anchorAcceptance(candidateAnchor, priorKernelState{post-DA-verdict name state}, witnessedDAVerdicts{includable/holdsPriority per #49}, W[#49=2], C[#49=3], K[#49=6]) -> {verdict}",
+      "predicateSignature": "anchorAcceptance(candidateAnchor, priorKernelState{post-DA-verdict occupancy}, witnessedDAVerdicts{includable/holdsPriority per #49}, W[#49=2], C[#49=3], K[#49=6]) -> {verdict}",
       "fixture": {
-        "caseForfeitedThenReclaim": "name N is inserted by batch B1 whose anchor later FORFEITS DA (excluded/never reaches eligibility at its window) -> B1 confers no priority; an honest re-claim of N at a fresh valid anchor B2 is ACCEPTED, because uniqueness is evaluated over the post-DA-verdict state in which B1's insertion was never finalized",
-        "caseIdempotentSameOwner": "a same-(name,owner) re-claim at a fresh valid anchor is idempotent (accept, no double-insert)",
-        "postDaVerdictState": "the kernel state AFTER each prior batch's DA verdict is applied (S3 includable/holdsPriority, #49 provisional); first-anchor-wins keys to the earliest VALID anchor (crossArea line 74)",
-        "priorState": "name N marked inserted by B1 in pre-verdict state; B1 subsequently forfeits DA"
+        "caseForfeitedThenReclaim": "name N's ONLY prior insertion came from batch B1 whose anchor later FORFEITS DA (excluded / never reaches eligibility at its window); evaluated over post-DA-verdict occupancy, N is absent (B1's insertion was never finalized), so an honest claim of N at a fresh valid anchor B2 is ACCEPTED",
+        "postDaVerdictState": "the kernel occupancy state AFTER each prior batch's DA verdict is applied (S3 includable/holdsPriority, #49 provisional); the forfeited batch contributes no occupancy",
+        "priorState": "name N marked inserted by B1 in pre-verdict state; B1 subsequently forfeits DA, so N is absent from post-DA-verdict occupancy",
+        "scopeExclusion": "this vector does NOT assert the first-anchor-wins (earliest-VALID-anchor) merge or same-(name,owner) idempotency — those are PR-5 / PR-6 definition-block claims, not #49; it tests only post-DA-verdict occupancy"
       },
-      "scopeNote": "PROVISIONAL on da-windows (#49): A11 (anchors are insertion-only; a claim must not take an already-FINAL name) is cited on ratified #26 + candidate DA §5, but the flag's demand — insertion-uniqueness must be defined over the POST-DA-verdict state so a later-forfeited batch does not block honest re-claiming — consumes the eligibility verdict pinned by #49 S3 (includable/holdsPriority). The 'forfeited batch confers no priority / re-claim allowed' verdict rides on #49's eligibility algebra (and on first-anchor-wins = earliest-VALID-anchor, the subject of advisory spec-PR PR-5). Depends-on-#49 ⇒ provisional-vector, never vector-now. Authored with provisional W=2/C=3/K=6; re-derives per flipMarker.",
+      "scopeNote": "PROVISIONAL on da-windows (#49): A11 (anchors are insertion-only; a claim must not take an already-FINAL name) is cited on ratified #26 + candidate DA §5, but the flag's demand — insertion-uniqueness must be defined over the POST-DA-verdict state so a later-forfeited batch does not block honest re-claiming — consumes the eligibility verdict pinned by #49 S3 (includable/holdsPriority). What this vector tests is exactly that: a forfeited earlier batch is ABSENT from post-DA-verdict occupancy and so does not block a fresh honest claim. Depends-on-#49 ⇒ provisional-vector, never vector-now. The broader first-anchor-wins (earliest-VALID-anchor) definition and same-(name,owner) idempotency are PR-5 / PR-6 territory and are NOT asserted here (context only). Authored with provisional W=2/C=3/K=6; re-derives per flipMarker.",
       "authoringStatus": "authored: provisional vector with decisionDeps + flipMarker; status proposed pending reviewer sign-off; re-derives on DK's #49 ruling."
     },
     "expected": {
       "verdict": "accept",
       "reason": "a11-01-forfeited-insertion-does-not-block-reclaim",
-      "invariant": "insertion-uniqueness is evaluated over the post-DA-verdict kernel state: a name inserted by a batch whose anchor later forfeits DA confers no priority and does not block an honest re-claim at a fresh valid anchor; first-anchor-wins keys to the earliest VALID anchor; a same-(name,owner) re-claim is idempotent; identical on deterministic replay",
-      "rationale": "A11 (anchors are insertion-only; a claim must not take an already-final name) is cited on ratified DECISIONS #26 and candidate DA §5. The flag's specific demand — insertion-uniqueness must be defined over POST-DA-verdict state so a later-forfeited batch does not block honest re-claiming — is derivable, but the post-DA-verdict state IS the eligibility verdict pinned by da-windows (#49) S3 (includable/holdsPriority). The forfeited-batch-confers-no-priority / re-claim-allowed verdict depends on the #49 eligibility algebra and the first-anchor-wins (earliest-valid) merge. Depends on #49 ⇒ provisional-vector."
+      "invariant": "insertion-uniqueness is evaluated over the post-DA-verdict kernel state: a name whose only prior insertion came from a batch that later forfeits DA is ABSENT from post-DA-verdict occupancy, so it does not block an honest re-claim at a fresh valid anchor; identical on deterministic replay. (The broader first-anchor-wins / same-(name,owner)-idempotency definition is PR-5 / PR-6 territory and is NOT asserted by this vector.)",
+      "rationale": "A11 (anchors are insertion-only; a claim must not take an already-final name) is cited on ratified DECISIONS #26 and candidate DA §5. The flag's specific demand — insertion-uniqueness must be defined over POST-DA-verdict state so a later-forfeited batch does not block honest re-claiming — is derivable, but the post-DA-verdict occupancy IS the eligibility verdict pinned by da-windows (#49) S3 (includable/holdsPriority). The forfeited-batch-confers-no-occupancy / re-claim-allowed verdict depends on the #49 eligibility algebra. Depends on #49 ⇒ provisional-vector. (First-anchor-wins / idempotency are PR-5 / PR-6, not asserted here.)"
     },
     "status": "proposed",
     "attackFlagRef": "A11-01",
     "flipMarker": {
       "decision": "da-windows (#49)",
-      "flipsTo": "rederive: if DK flips #49's includable/holdsPriority semantics, re-pin the height at which a forfeited insertion stops blocking — what counts as 'post-DA-verdict state' moves with the C/W algebra; the insertion-only + earliest-valid-anchor shape (ratified #26) is stable, so the re-claim-accepted vector stays testable under the new eligibility algebra."
-    }
-  },
-  {
-    "id": "A13-neg-01",
-    "ruleId": "A13",
-    "area": "Anchor acceptance",
-    "authorityTier": "provisional",
-    "sources": [
-      "docs/core/B2_KERNEL_HARDENING.md A13 (lines 231-240), proposed test '(+) ... at close-1 it is still provisional (pins the >= comparison ... close-1, close, close+1)' + flag (line 240)",
-      "docs/core/DECISIONS.md entry 37 bond-opens (ratified) — 'currentHeight >= anchorHeight + W_notice'",
-      "docs/spec/ONT_DATA_AVAILABILITY_AGREEMENT.md §6e S2 da-windows (provisional) — 'Inclusive deadlines ... a witness at the deadline height exactly is in-window'"
-    ],
-    "kind": "negative",
-    "decisionDeps": ["da-windows (#49)"],
-    "inputs": {
-      "sourceCategory": "provisional-vector",
-      "attackFlagText": "Boundary off-by-one: legacy uses height >= closeHeight for finality (indexer.ts:517) but blockHeight <= closeHeight for in-window collision (indexer.ts:828) — events landing exactly at the close height are simultaneously 'in-window' and 'window-closed'; the hardening pass must pin one half-open interval or two implementations disagree on boundary-block bonds and collisions.",
-      "predicateSignature": "noticeWindowOutcome(claim, currentHeight, anchorHeight, W_notice[launch-freeze], inclusiveDeadline[#49 S2 provisional], qualifyingBond?, priorKernelState) -> {verdict}",
-      "fixture": {
-        "caseBondAfterClose": "a qualifying bond submitted at currentHeight = close+1 (= anchorHeight + W_notice + 1) -> REJECTED as out-of-window; the window is closed and finality was already derived at close, so the late bond does not escalate",
-        "caseBoundaryTriple": "the close-1 / close / close+1 triple pins one half-open interval: at close-1 the name is still provisional, at close (= anchorHeight + W_notice) it finalizes with no qualifying bond, and a bond exactly at close is in-window (escalates) per #49 S2 inclusive deadlines",
-        "windowForm": "close = anchorHeight + W_notice; finality at currentHeight >= close (#37 >=); in-window inclusive through close (#49 S2 provisional); W_notice value is launch-freeze (parameterized)",
-        "priorState": "a single in-window claim, no qualifying bond, no collision"
-      },
-      "scopeNote": "PROVISIONAL on da-windows (#49): A13 (notice window opens at the claim's earliest-valid-anchor height; outcome derived only at currentHeight >= anchorHeight + W_notice) is cited on ratified #37 bond-opens, and the off-by-one half-open-interval verdict is derivable — the >= comparator is ratified and #49 S2 pins inclusive deadlines consistently. But the close-height interval edge (in-window vs window-closed at exactly close) is fixed by #49 S2's inclusive-deadline algebra (PROVISIONAL). W_notice's value is launch-freeze (parameterized, not the blocker). Authored with #49 S2 inclusive; re-derives per flipMarker if DK rules S2 exclusive. NOT vector-now.",
-      "authoringStatus": "authored: provisional vector with decisionDeps + flipMarker; status proposed pending reviewer sign-off; re-derives on DK's #49 ruling."
-    },
-    "expected": {
-      "verdict": "reject",
-      "reason": "a13-01-bond-after-close-out-of-window",
-      "invariant": "the notice window is pinned to ONE half-open interval keyed to the claim's earliest-valid-anchor height: in-window collision/bond is inclusive through close = anchorHeight + W_notice (#49 S2 inclusive deadline), finality is derived at currentHeight >= close (#37), and a qualifying bond at close+1 is out-of-window and does not escalate; the close-1/close/close+1 triple is identical on deterministic replay (W_notice value is launch-freeze; the interval form is #49 S2)",
-      "rationale": "A13 (notice window opens at the claim's earliest-valid-anchor height; outcome derived only at currentHeight >= anchorHeight + W_notice) is cited on ratified DECISIONS #37 bond-opens. The off-by-one half-open-interval verdict is derivable — the >= comparator is ratified and da-windows S2 pins inclusive deadlines (height <= h+X) consistently. But the boundary-block bond/collision pinning depends on the da-windows (#49) inclusive-deadline algebra (S2) to fix the close-height interval coherently; #49 is provisional. (W_notice value itself is launch-freeze, parameterized — not the blocker.)"
-    },
-    "status": "proposed",
-    "attackFlagRef": "A13-01",
-    "flipMarker": {
-      "decision": "da-windows (#49)",
-      "flipsTo": "rederive: if DK flips #49's S2 inclusive deadline to exclusive, the half-open interval edge moves — a witness or bond AT close flips from in-window to out-of-window and the close-height bond/collision verdict re-derives; the >=-comparator finality (ratified #37) and the single-half-open-interval requirement are stable, so the close-1/close/close+1 triple stays testable under the new boundary convention."
+      "flipsTo": "rederive: if DK flips #49's includable/holdsPriority semantics, re-pin the height at which a forfeited insertion stops contributing occupancy — what counts as 'post-DA-verdict state' moves with the C/W algebra; the insertion-only + post-DA-verdict-occupancy shape (ratified #26) is stable, so the re-claim-accepted vector stays testable under the new eligibility algebra."
     }
   }
 ]
