@@ -27,6 +27,19 @@ import {
   createDaWindowParams,
 } from "./params.js";
 import { holdsPriority, includable, type AnchorFacts, type ServedEvidence } from "./da-verdict.js";
+import { schnorr } from "@noble/curves/secp256k1.js";
+import {
+  RECOVERY_DESCRIPTOR_FORMAT,
+  RECOVERY_DESCRIPTOR_VERSION,
+  SEQUENCE_BOUND,
+  VALUE_RECORD_FORMAT,
+  VALUE_RECORD_VERSION,
+  bytesToHex,
+  hexToBytes,
+  recoveryDescriptorDigest,
+  valueRecordDigest,
+} from "@ont/wire";
+import { valueRecordAccept, type OwnershipInterval, type ValueRecordEnvelope } from "./value-record-authority.js";
 
 const vectorsDir = join(dirname(fileURLToPath(import.meta.url)), "../../../docs/core/vectors");
 
@@ -76,6 +89,15 @@ const LOCAL_BINDING_MANIFEST = new Set<string>([
   "D9-neg-01",
   "D12-neg-01",
   "G9-neg-01",
+  // value-record family (valueRecordAccept)
+  "V1-neg-01",
+  "V3-neg-01",
+  "V4-neg-01",
+  "V6-neg-01",
+  "V7-neg-01",
+  "V8-neg-01",
+  "V10-neg-01",
+  "V11-pos-01",
 ]);
 
 // A binding may only execute a vector that is (a) locked, (b) required-tier
@@ -199,5 +221,151 @@ describe("B2 vector bindings — params family (DA-window construction + h+K eli
     expect(confirmedRootEligible(H, H + params.K - 1, params)).toBe(accepts(vector)); // h+K-1 -> not eligible (accepts=false)
     expect(confirmedRootEligible(H, H + params.K, params)).toBe(true); // companion: eligible exactly at h+K
     expect(() => createDaWindowParams({ K: 4, W: 2, C: 3 })).toThrow(); // S6 companion: K<W+C can't be constructed
+  });
+});
+
+// Value-record fixtures. Records are signed over the B1 §8.1 wire v1 digest with @noble
+// (the same primitive @ont/wire verifies with), mirroring value-record-authority.test.ts.
+const VR_PRIV = "11".repeat(32);
+const VR_AUX = new Uint8Array(32); // deterministic BIP340 aux -> reproducible signatures
+const vrXonly = (privHex: string): string => bytesToHex(schnorr.getPublicKey(hexToBytes(privHex)));
+const VR_PUB = vrXonly(VR_PRIV);
+const VR_REF_1 = "aa".repeat(32);
+const VR_REF_2 = "bb".repeat(32);
+const VR_NAME = "alice";
+const VR_T0 = "2026-06-01T00:00:00Z";
+const vrIntervalA: OwnershipInterval = { ownerPubkey: VR_PUB, ownershipRef: VR_REF_1 };
+
+function vrSign(opts: {
+  priv?: string;
+  name?: string;
+  ownershipRef?: string;
+  sequence: number;
+  previousRecordHash?: string | null;
+  payloadHex?: string;
+  issuedAt?: string;
+}): ValueRecordEnvelope {
+  const priv = opts.priv ?? VR_PRIV;
+  const unsigned: ValueRecordEnvelope = {
+    format: VALUE_RECORD_FORMAT,
+    recordVersion: VALUE_RECORD_VERSION,
+    name: opts.name ?? VR_NAME,
+    ownerPubkey: vrXonly(priv),
+    ownershipRef: opts.ownershipRef ?? VR_REF_1,
+    sequence: opts.sequence,
+    previousRecordHash: opts.previousRecordHash ?? null,
+    valueType: 1,
+    payloadHex: opts.payloadHex ?? "00",
+    issuedAt: opts.issuedAt ?? VR_T0,
+    signature: "00".repeat(64),
+  };
+  const digest = valueRecordDigest(unsigned as unknown as Record<string, unknown>);
+  return { ...unsigned, signature: bytesToHex(schnorr.sign(digest, hexToBytes(priv), VR_AUX)) };
+}
+
+const vrHeadHash = (head: ValueRecordEnvelope): string =>
+  bytesToHex(valueRecordDigest(head as unknown as Record<string, unknown>));
+
+describe("B2 vector bindings — value-record family (valueRecordAccept)", () => {
+  it("V6-neg-01: a first record must be sequence 1 with a null previous hash", () => {
+    const vector = loadVector("value-record-authority.json", "V6-neg-01");
+    assertBindable(vector);
+    expect(valueRecordAccept(vrSign({ sequence: 2 }), vrIntervalA, null).accepted).toBe(accepts(vector)); // first record at seq 2 -> reject
+    expect(valueRecordAccept(vrSign({ sequence: 1 }), vrIntervalA, null).accepted).toBe(true); // companion: valid first record accepts
+  });
+
+  it("V7-neg-01: a chain at the max sequence bound cannot extend (fail-closed)", () => {
+    const vector = loadVector("value-record-authority.json", "V7-neg-01");
+    assertBindable(vector);
+    const maxHead = vrSign({ sequence: SEQUENCE_BOUND });
+    expect(
+      valueRecordAccept(vrSign({ sequence: 5, previousRecordHash: vrHeadHash(maxHead) }), vrIntervalA, maxHead).accepted
+    ).toBe(accepts(vector)); // no head+1 is a safe integer at the bound -> reject
+    // companions: stale (<=head) and gap (>head+1) sequences also reject.
+    const head = vrSign({ sequence: 1 });
+    expect(valueRecordAccept(vrSign({ sequence: 1, previousRecordHash: vrHeadHash(head) }), vrIntervalA, head).reason).toBe(
+      "v7-stale-or-duplicate-sequence"
+    );
+    expect(valueRecordAccept(vrSign({ sequence: 3, previousRecordHash: vrHeadHash(head) }), vrIntervalA, head).reason).toBe(
+      "v7-sequence-gap"
+    );
+  });
+
+  it("V8-neg-01: the previous-record hash is recomputed, never trusted as declared", () => {
+    const vector = loadVector("value-record-authority.json", "V8-neg-01");
+    assertBindable(vector);
+    const head = vrSign({ sequence: 1 });
+    expect(
+      valueRecordAccept(vrSign({ sequence: 2, previousRecordHash: "dd".repeat(32) }), vrIntervalA, head).accepted
+    ).toBe(accepts(vector)); // wrong previousRecordHash -> reject
+    expect(
+      valueRecordAccept(vrSign({ sequence: 2, previousRecordHash: vrHeadHash(head) }), vrIntervalA, head).accepted
+    ).toBe(true); // companion: linking the recomputed head hash accepts
+  });
+
+  it("V3-neg-01: a recovery-descriptor signature presented as a value-record signature is rejected (domain separation)", () => {
+    const vector = loadVector("value-record-authority.json", "V3-neg-01");
+    assertBindable(vector);
+    // A valid BIP340 signature by owner A, but over the 'ont-recovery-descriptor' digest of the
+    // structurally-identical prefix — only the domain label differs, so it cannot authorize a value record.
+    const descriptor = {
+      format: RECOVERY_DESCRIPTOR_FORMAT,
+      descriptorVersion: RECOVERY_DESCRIPTOR_VERSION,
+      name: VR_NAME,
+      ownerPubkey: VR_PUB,
+      ownershipRef: VR_REF_1,
+      sequence: 1,
+      previousDescriptorHash: null,
+      recoveryAddress: "bc1qrecoveryexampleaddr0000000000000000",
+      signingProfile: "bip322",
+      challengeWindowBlocks: 144,
+      issuedAt: VR_T0,
+      signature: "00".repeat(64),
+    };
+    const descSig = bytesToHex(schnorr.sign(recoveryDescriptorDigest(descriptor), hexToBytes(VR_PRIV), VR_AUX));
+    const crossContext = { ...vrSign({ sequence: 1 }), signature: descSig };
+    expect(valueRecordAccept(crossContext, vrIntervalA, null).accepted).toBe(accepts(vector)); // reject
+  });
+
+  it("V4-neg-01: a record validly signed for name A does not validate for name B (the §8.1 digest binds the name)", () => {
+    const vector = loadVector("value-record-authority.json", "V4-neg-01");
+    assertBindable(vector);
+    const recA = vrSign({ name: "alice", sequence: 1 });
+    const replayedAsB = { ...recA, name: "bob" }; // keep A's signature, relabel the name (sibling names share ownershipRef)
+    expect(valueRecordAccept(replayedAsB, vrIntervalA, null).accepted).toBe(accepts(vector)); // reject: digest binds name
+  });
+
+  it("V10-neg-01: a transfer is non-preserving — an old-interval record is rejected under the new interval", () => {
+    const vector = loadVector("value-record-authority.json", "V10-neg-01");
+    assertBindable(vector);
+    const newInterval: OwnershipInterval = { ownerPubkey: VR_PUB, ownershipRef: VR_REF_2 };
+    expect(valueRecordAccept(vrSign({ ownershipRef: VR_REF_1, sequence: 1 }), newInterval, null).accepted).toBe(
+      accepts(vector)
+    ); // old-interval ref under the post-transfer interval -> reject
+    expect(valueRecordAccept(vrSign({ ownershipRef: VR_REF_2, sequence: 1 }), newInterval, null).accepted).toBe(true); // companion: fresh seq-1/null-prev under the new ref accepts
+    // NOTE: the unassigned-"preserve"-flag-bit aspect of V10 is engine/Transfer-side (X-area); valueRecordAccept
+    // only ever sees the post-transfer interval the engine supplies (new ref, null head) — a companion concern.
+  });
+
+  it("V11-pos-01: issuedAt never orders the chain — an earlier-issuedAt successor on valid linkage is accepted", () => {
+    const vector = loadVector("value-record-authority.json", "V11-pos-01");
+    assertBindable(vector);
+    const head = vrSign({ sequence: 1, issuedAt: "2026-06-01T00:00:00Z" });
+    const earlier = vrSign({ sequence: 2, previousRecordHash: vrHeadHash(head), issuedAt: "2026-01-01T00:00:00Z" });
+    expect(valueRecordAccept(earlier, vrIntervalA, head).accepted).toBe(accepts(vector)); // earlier issuedAt + valid linkage -> accept
+    // companion: a LATER issuedAt with a stale sequence is still rejected (recency confers nothing).
+    const laterStale = vrSign({ sequence: 1, previousRecordHash: vrHeadHash(head), issuedAt: "2027-01-01T00:00:00Z" });
+    expect(valueRecordAccept(laterStale, vrIntervalA, head).reason).toBe("v7-stale-or-duplicate-sequence");
+  });
+
+  it("V1-neg-01: the verdict never compares issuedAt to a host clock (purity probe)", () => {
+    const vector = loadVector("value-record-authority.json", "V1-neg-01");
+    assertBindable(vector);
+    // A structurally-rejected record (first record at seq 2 -> v6), evaluated at a far-future and a
+    // far-past issuedAt: the verdict must be identical, proving issuedAt is never compared to "now".
+    const future = valueRecordAccept(vrSign({ sequence: 2, issuedAt: "2999-01-01T00:00:00Z" }), vrIntervalA, null);
+    const past = valueRecordAccept(vrSign({ sequence: 2, issuedAt: "1999-01-01T00:00:00Z" }), vrIntervalA, null);
+    expect(future.accepted).toBe(accepts(vector)); // reject regardless of issuedAt
+    expect(future).toEqual(past); // companion: byte-identical verdict at any host clock
   });
 });
