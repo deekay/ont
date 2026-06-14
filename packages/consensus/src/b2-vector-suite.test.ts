@@ -42,7 +42,7 @@ const readyBindingTargetById: Record<string, string> = {
   "D13-pos-01": "da-verdict: h+W and h+W+C inclusive boundaries",
   "G7-neg-01": "b2-boundary: no provenance-less callback or host-I/O seam",
   "G9-neg-01": "params: no defaults and two-parameterization readiness",
-  "V1-neg-01": "value-record-authority: no interval rejects",
+  "V1-neg-01": "value-record-authority: issuedAt never compared to host clock (purity)",
   "V3-neg-01": "value-record-authority: v1 signature/domain binding",
   "V4-neg-01": "value-record-authority: ownershipRef binding",
   "V6-neg-01": "value-record-authority: first-record sequence",

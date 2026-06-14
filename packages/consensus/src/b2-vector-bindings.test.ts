@@ -40,6 +40,26 @@ import {
   valueRecordDigest,
 } from "@ont/wire";
 import { valueRecordAccept, type OwnershipInterval, type ValueRecordEnvelope } from "./value-record-authority.js";
+import {
+  createTransferPayload,
+  deriveOwnerPubkey,
+  encodeTransferPayload,
+  signRecoverOwnerCancelAuthorization,
+  signTransferAuthorization,
+  type TransferAuthorizationFields,
+  type TransferEventPayload,
+} from "@ont/protocol";
+import type {
+  BitcoinTransactionInBlock,
+  BitcoinTransactionInput,
+  BitcoinTransactionOutput,
+} from "@ont/bitcoin";
+import {
+  applyBlockTransactionsWithProvenance,
+  createEmptyState,
+  type NameRecord,
+  type OntState,
+} from "./engine.js";
 
 const vectorsDir = join(dirname(fileURLToPath(import.meta.url)), "../../../docs/core/vectors");
 
@@ -98,6 +118,11 @@ const LOCAL_BINDING_MANIFEST = new Set<string>([
   "V8-neg-01",
   "V10-neg-01",
   "V11-pos-01",
+  // engine-transfer family (applyBlockTransactions)
+  "X2-neg-01",
+  "X6-neg-01",
+  "X6-neg-02",
+  "X8-pos-01",
 ]);
 
 // A binding may only execute a vector that is (a) locked, (b) required-tier
@@ -367,5 +392,161 @@ describe("B2 vector bindings — value-record family (valueRecordAccept)", () =>
     const past = valueRecordAccept(vrSign({ sequence: 2, issuedAt: "1999-01-01T00:00:00Z" }), vrIntervalA, null);
     expect(future.accepted).toBe(accepts(vector)); // reject regardless of issuedAt
     expect(future).toEqual(past); // companion: byte-identical verdict at any host clock
+  });
+});
+
+// Engine-transfer fixtures (mirror engine.test.ts): seed an owned NameRecord, build a
+// Transfer as an OP_RETURN-carrying Bitcoin tx, apply it through the engine, and read the
+// transfer event's provenance verdict — "applied" maps to accept, "ignored" to reject.
+const ET_OWNER_PRIV = "01".repeat(32);
+const ET_OWNER_PUB = deriveOwnerPubkey(ET_OWNER_PRIV);
+const ET_NEW_OWNER_PUB = deriveOwnerPubkey("02".repeat(32));
+const ET_STRANGER_PRIV = "03".repeat(32);
+const ET_OLD_BOND_TXID = "cc".repeat(32);
+const ET_OLD_BOND_VOUT = 0;
+const ET_OLD_HEAD_TXID = "dd".repeat(32);
+
+function etSeed(state: OntState, overrides: Partial<NameRecord> & { name: string }): NameRecord {
+  const record: NameRecord = {
+    status: "immature",
+    currentOwnerPubkey: ET_OWNER_PUB,
+    claimCommitTxid: "a1".repeat(32),
+    claimRevealTxid: "b1".repeat(32),
+    claimHeight: 100,
+    maturityHeight: 1000,
+    requiredBondSats: 50_000n,
+    currentBondTxid: ET_OLD_BOND_TXID,
+    currentBondVout: ET_OLD_BOND_VOUT,
+    currentBondValueSats: 50_000n,
+    lastStateTxid: ET_OLD_HEAD_TXID,
+    lastStateHeight: 100,
+    winningCommitBlockHeight: 100,
+    winningCommitTxIndex: 0,
+    ...overrides,
+  };
+  state.names.set(record.name, record);
+  return record;
+}
+const etOpReturn = (payload: TransferEventPayload): BitcoinTransactionOutput => ({
+  valueSats: 0n,
+  scriptType: "op_return",
+  dataHex: bytesToHex(encodeTransferPayload(payload)),
+});
+const etPayment = (valueSats: bigint): BitcoinTransactionOutput => ({ valueSats, scriptType: "payment" });
+const etBondInput = (txid: string, vout: number): BitcoinTransactionInput => ({ txid, vout, coinbase: false });
+const etSignedTransfer = (fields: TransferAuthorizationFields, signerPriv: string): TransferEventPayload =>
+  createTransferPayload({ ...fields, signature: signTransferAuthorization({ ...fields, ownerPrivateKeyHex: signerPriv }) });
+function etBlock(input: {
+  txid: string;
+  blockHeight: number;
+  payload: TransferEventPayload;
+  inputs?: readonly BitcoinTransactionInput[];
+  extraOutputs?: readonly BitcoinTransactionOutput[]; // outputs[0] is always the OP_RETURN
+}): BitcoinTransactionInBlock {
+  return {
+    tx: { txid: input.txid, inputs: input.inputs ?? [], outputs: [etOpReturn(input.payload), ...(input.extraOutputs ?? [])] },
+    blockHeight: input.blockHeight,
+    txIndex: 0,
+  };
+}
+function etApplyVerdict(state: OntState, tx: BitcoinTransactionInBlock): "applied" | "ignored" | undefined {
+  return applyBlockTransactionsWithProvenance(state, [tx], 0).flatMap((record) => record.events)[0]?.validationStatus;
+}
+
+describe("B2 vector bindings — engine-transfer family (applyBlockTransactions)", () => {
+  const baseFields: TransferAuthorizationFields = {
+    prevStateTxid: ET_OLD_HEAD_TXID,
+    newOwnerPubkey: ET_NEW_OWNER_PUB,
+    flags: 0,
+    successorBondVout: 1,
+  };
+  const matureFields: TransferAuthorizationFields = { ...baseFields, successorBondVout: 0 };
+
+  it("X2-neg-01: only the current owner key over the §5 transfer digest authorizes a transfer", () => {
+    const vector = loadVector("transfer-authority.json", "X2-neg-01");
+    assertBindable(vector);
+    // primary: a transfer signed by a non-owner (stranger) key authorizes nothing (mature path).
+    const state = createEmptyState();
+    etSeed(state, { name: "alice", maturityHeight: 1000 });
+    const applied =
+      etApplyVerdict(state, etBlock({ txid: "e0".repeat(32), blockHeight: 2000, payload: etSignedTransfer(matureFields, ET_STRANGER_PRIV) })) ===
+      "applied";
+    expect(applied).toBe(accepts(vector)); // accepts=false -> ignored
+    // companion (caseA): a recover-owner-domain signature presented as a transfer signature also authorizes nothing.
+    const recoverSig = signRecoverOwnerCancelAuthorization({
+      ...matureFields,
+      challengeWindowBlocks: 144,
+      recoveryDescriptorHash: "ee".repeat(32),
+      ownerPrivateKeyHex: ET_OWNER_PRIV,
+    });
+    const crossState = createEmptyState();
+    etSeed(crossState, { name: "alice", maturityHeight: 1000 });
+    const crossPayload = createTransferPayload({ ...matureFields, signature: recoverSig });
+    expect(etApplyVerdict(crossState, etBlock({ txid: "e1".repeat(32), blockHeight: 2000, payload: crossPayload }))).toBe("ignored");
+  });
+
+  it("X6-neg-01: a pre-maturity successor bond one sat below the required amount is rejected (no forgiveness)", () => {
+    const vector = loadVector("transfer-authority.json", "X6-neg-01");
+    assertBindable(vector);
+    const state = createEmptyState();
+    etSeed(state, { name: "alice", maturityHeight: 1000, requiredBondSats: 50_000n });
+    const applied =
+      etApplyVerdict(state, etBlock({
+        txid: "e2".repeat(32),
+        blockHeight: 500,
+        payload: etSignedTransfer(baseFields, ET_OWNER_PRIV),
+        inputs: [etBondInput(ET_OLD_BOND_TXID, ET_OLD_BOND_VOUT)],
+        extraOutputs: [etPayment(49_999n)],
+      })) === "applied";
+    expect(applied).toBe(accepts(vector)); // 1 sat short -> ignored
+    // companion (two bond values, no baked constant): an adequate successor applies.
+    const ok = createEmptyState();
+    etSeed(ok, { name: "alice", maturityHeight: 1000, requiredBondSats: 50_000n });
+    expect(
+      etApplyVerdict(ok, etBlock({
+        txid: "e3".repeat(32),
+        blockHeight: 500,
+        payload: etSignedTransfer(baseFields, ET_OWNER_PRIV),
+        inputs: [etBondInput(ET_OLD_BOND_TXID, ET_OLD_BOND_VOUT)],
+        extraOutputs: [etPayment(50_000n)],
+      }))
+    ).toBe("applied");
+  });
+
+  it("X6-neg-02: a successorBondVout beyond the u8 ceiling is unrepresentable and rejected at the wire", () => {
+    const vector = loadVector("transfer-authority.json", "X6-neg-02");
+    assertBindable(vector);
+    // primary -> expected.verdict: an out-of-range (>255) successorBondVout cannot be encoded.
+    expectConstructionVerdict(vector, () =>
+      createTransferPayload({ ...baseFields, successorBondVout: 256, signature: "00".repeat(64) })
+    );
+    // companion: the same transfer with an in-range vout designating an adequate output applies.
+    const ok = createEmptyState();
+    etSeed(ok, { name: "alice", maturityHeight: 1000, requiredBondSats: 50_000n });
+    expect(
+      etApplyVerdict(ok, etBlock({
+        txid: "e4".repeat(32),
+        blockHeight: 500,
+        payload: etSignedTransfer(baseFields, ET_OWNER_PRIV),
+        inputs: [etBondInput(ET_OLD_BOND_TXID, ET_OLD_BOND_VOUT)],
+        extraOutputs: [etPayment(50_000n)],
+      }))
+    ).toBe("applied");
+  });
+
+  it("X8-pos-01: a mature transfer ignores the bond byte and applies with no bond inputs/outputs", () => {
+    const vector = loadVector("transfer-authority.json", "X8-pos-01");
+    assertBindable(vector);
+    const state = createEmptyState();
+    etSeed(state, { name: "alice", maturityHeight: 1000 });
+    // primary: comfortably past maturity (h=5000 >> 1000), arbitrary successorBondVout, no bond -> applied.
+    const applied =
+      etApplyVerdict(state, etBlock({
+        txid: "e5".repeat(32),
+        blockHeight: 5000,
+        payload: etSignedTransfer({ ...baseFields, successorBondVout: 255 }, ET_OWNER_PRIV),
+      })) === "applied";
+    expect(applied).toBe(accepts(vector)); // accepts=true -> applied
+    expect(state.names.get("alice")?.currentBondTxid).toBe(ET_OLD_BOND_TXID); // companion: bond fields untouched on the mature path
   });
 });
