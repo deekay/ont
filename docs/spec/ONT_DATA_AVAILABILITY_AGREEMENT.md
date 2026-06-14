@@ -160,12 +160,13 @@ high-value marquee names, the fallback is **direct-L1 settlement with full data 
 Approach A below — which has *no* DA problem at all and is affordable precisely because contested
 names are few (~110 vB each, ~4.78M/yr ceiling at 1% blockspace).
 
-### 6e. Window algebra — da-windows (#49) *(provisional pending DK; candidate tier)*
+### 6e. Window algebra — da-windows (#49) *(RATIFIED O1, DK event 8c3b4beb 2026-06-14; candidate tier)*
 
 *(Added 2026-06-13 per da-windows (#49), decision paper
-[research/DA_WINDOWS.md](../research/DA_WINDOWS.md); reviewer-concurred, awaiting DK
-ratification. This pins the §6a–6d deadline* algebra *for the B2 kernel; the parameter*
-values *remain open — see the parameters block below.)*
+[research/DA_WINDOWS.md](../research/DA_WINDOWS.md); reviewer-concurred, **DK ratified
+O1 on 2026-06-14 (event 8c3b4beb)** — the algebra below is fixed; the parameter*
+values *remain open (launch-freeze) — see the parameters block below. This pins the
+§6a–6d deadline* algebra *for the B2 kernel.)*
 
 - **One clock (S1).** All windows are measured in Bitcoin block heights from `h`, the
   mined height of the anchor's containing block in the evaluator's current best chain.

@@ -18,7 +18,14 @@ Decisions are cited as "Decision #N" against [`core/DECISIONS.md`](./core/DECISI
 > area in the design — surface it, don't hide it.** We propose our best thinking and tradeoffs
 > below and in [`spec/ONT_DATA_AVAILABILITY_AGREEMENT.md`](./spec/ONT_DATA_AVAILABILITY_AGREEMENT.md),
 > and we are explicitly soliciting attack on the approaches *and* the parameters that make them
-> workable. The specific things to attack:
+> workable.
+>
+> **#1 priority (DK, 2026-06-14, da-windows (#49) ratification):** the honest residual is **not**
+> the K/W/C numbers — it is the **availability/liveness trust floor**: the **1-of-N honest-archive
+> assumption** (§8 below; this is *not* cryptographic DA — there is no erasure-coded sampling) and
+> the **unfunded long-term archival economics** (§1.2 — who retains and serves TB-scale history
+> indefinitely, and what subsidizes it). Surface these two as the lead review asks; the items below
+> are the supporting detail. The specific things to attack:
 >
 > 1. **The served-bytes witness.** Anchor height is objective; "bytes demonstrably servable by
 >    `h+W`" is the hard evidence question. B3 must define it tightly enough that honest verifiers
