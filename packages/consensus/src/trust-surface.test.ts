@@ -57,11 +57,22 @@ const CONSENSUS_SUPPORT = ["scanner.ts"] as const;
 const CONSENSUS_PARAMS = ["params.ts"] as const;
 const CONSENSUS_VERDICTS = ["da-verdict.ts", "value-record-authority.ts"] as const;
 
-// Deciders ride the legacy protocol/bitcoin primitives; consensus-support rides
-// the B1 normative wire grammar (@ont/wire) — B1 → B2 means @ont/consensus
-// consumes @ont/wire for what the active codec understands. The parameter surface
-// rides nothing external (values enter as inputs).
-const DECIDER_ALLOWED_PACKAGES = new Set(["@ont/protocol", "@ont/bitcoin"]);
+// Consensus-support rides the B1 normative wire grammar (@ont/wire); the parameter
+// surface rides nothing external (values enter as inputs).
+//
+// The core-decider allowlist is pinned PER FILE (the #60 pattern, extended to the
+// state-mutating deciders by b2-core-deciders-wire-auth-digests (#61)): engine.ts rides
+// @ont/protocol (event codec/types) + @ont/bitcoin (tx shape) + @ont/wire (the B1 §5
+// owner-key auth digests transferAuthDigest/recoverAuthDigest/verifySchnorr), while
+// state.ts and proof-bundle.ts stay as narrow as before (no @ont/wire). Pinning per file
+// stops the same silent tier-wide expansion #60 fixed for CONSENSUS_VERDICTS — admitting
+// @ont/wire to a state-mutating decider is justified only for engine.ts, only for the
+// §5 digests, and only because the equivalence pins prove they match the legacy digests.
+const CORE_DECIDERS_ALLOWED_BY_FILE: Record<string, ReadonlySet<string>> = {
+  "engine.ts": new Set(["@ont/protocol", "@ont/bitcoin", "@ont/wire"]),
+  "state.ts": new Set(["@ont/protocol", "@ont/bitcoin"]),
+  "proof-bundle.ts": new Set(["@ont/protocol", "@ont/bitcoin"])
+};
 const SUPPORT_ALLOWED_PACKAGES = new Set(["@ont/wire", "@ont/bitcoin"]);
 const PARAMS_ALLOWED_PACKAGES = new Set<string>([]);
 // The verdict allowlist is pinned PER FILE, not tier-wide. da-verdict.ts rides
@@ -118,10 +129,29 @@ function assertImportsAllowed(file: string, allowedPackages: ReadonlySet<string>
 
 describe("sovereignty trust surface (docs/DESIGN.md (trust surface / sovereignty map))", () => {
   for (const file of CORE_DECIDERS) {
-    it(`${file} (core decider) depends only on protocol/bitcoin primitives and audited modules`, () => {
-      assertImportsAllowed(file, DECIDER_ALLOWED_PACKAGES, "core decider");
+    const allowed = CORE_DECIDERS_ALLOWED_BY_FILE[file];
+    const allowedDesc = !allowed ? "(no per-file allowlist — manifest error)" : [...allowed].join(", ");
+    it(`${file} (core decider) depends only on ${allowedDesc} and audited modules`, () => {
+      expect(
+        allowed,
+        `${file} is listed in CORE_DECIDERS but has no entry in CORE_DECIDERS_ALLOWED_BY_FILE. ` +
+          `Each core decider's external allowlist is pinned individually (#61); add an explicit entry.`
+      ).toBeDefined();
+      assertImportsAllowed(file, allowed as ReadonlySet<string>, "core decider");
     });
   }
+
+  it("engine.ts no longer rides the legacy @ont/protocol auth verifiers (now @ont/wire digests, #61)", () => {
+    const engineSrc = readFileSync(join(srcDir, "engine.ts"), "utf8");
+    for (const legacy of ["verifyTransferAuthorization", "verifyRecoverOwnerCancelAuthorization"]) {
+      expect(
+        engineSrc.includes(legacy),
+        `engine.ts must verify B1 §5 owner-key signatures via @ont/wire (verifySchnorr + ` +
+          `transferAuthDigest/recoverAuthDigest), not the legacy @ont/protocol ${legacy} — see ` +
+          `b2-core-deciders-wire-auth-digests (#61).`
+      ).toBe(false);
+    }
+  });
 
   for (const file of CONSENSUS_SUPPORT) {
     it(`${file} (consensus support) depends only on @ont/wire grammar, @ont/bitcoin, and audited modules`, () => {

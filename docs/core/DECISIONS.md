@@ -1395,6 +1395,35 @@ V1–V13; DECISIONS #17/#18; WIRE_FORMAT §8.1. This satisfies #44's "boundary m
 change only with a DECISIONS entry + conformance coverage"; the boundary freezes
 permanently at launch.
 
+61. b2-core-deciders-wire-auth-digests: engine.ts (a CORE_DECIDER) verifies the B1 §5
+owner-key auth digests via @ont/wire, not the legacy @ont/protocol verifiers — 2026-06-14
+
+*Status: **Proposed** (writer ClaudeleLunatique, reviewer ChatLunatique; lands on branch
+clean-build-b2-kernel, DK merges). A boundary-manifest amendment of #57/#59/#60 under #44,
+framed as a refactor over already-pinned equivalent digests — no new consensus law, no DK
+ruling required. Covered by conformance: `trust-surface.test.ts` (the per-file
+CORE_DECIDERS allowlist + the engine-no-legacy-verifier import-surface test), the §5
+equivalence pins (`engine.test.ts` X2, `engine.recovery.test.ts` R15), and the full
+transfer/cancel suites. Authored under DK's keep-going grant (event 4892d54d, 2026-06-14).*
+
+**The rule.** #57/#59 set CORE_DECIDERS riding {@ont/protocol, @ont/bitcoin}; #60 admitted
+@ont/wire to the separate CONSENSUS_VERDICTS tier. This amendment lets the state-mutating
+decider `engine.ts` verify the B1 §5 owner-key signatures (Transfer, and the RecoverOwner
+cancel veto) directly off the @ont/wire normative digests — `transferAuthDigest`,
+`recoverAuthDigest`, `verifySchnorr` — instead of the legacy @ont/protocol
+`verifyTransferAuthorization` / `verifyRecoverOwnerCancelAuthorization`. The §5 equivalence
+pins prove the @ont/protocol and @ont/wire digests are byte-identical, so the migration is
+behavior-preserving; the win is that the kernel's owner-key authorization now rides the
+single B1-normative digest source and any future drift is build-failing. The allowlist is
+pinned **per file** (the #60 pattern): only `engine.ts` gains @ont/wire, and only for the
+auth digests; `state.ts` and `proof-bundle.ts` stay {@ont/protocol, @ont/bitcoin}.
+@ont/protocol remains for event codec/types/constants (a separate codec migration, not this
+slice). Engine signature checks are fail-closed: a malformed field that makes the wire
+digest/verify throw yields a rejecting verdict, never an exception (the X3/R15 no-throw
+guarantee is preserved). Spec: WIRE_FORMAT §5; DECISIONS #57/#59/#60; the
+all-auth-digests-ride-wire follow-up flagged at #60. This satisfies #44's "boundary may
+change only with a DECISIONS entry + conformance coverage"; the boundary freezes at launch.
+
 ## Fairness Principles To Carry Into The Launch Rewrite
 
 The rewritten launch draft should explicitly state:

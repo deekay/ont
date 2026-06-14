@@ -12,10 +12,9 @@ import {
   decodeOntPayload,
   extractRecoveryWalletProofHashFromCommitment,
   getEventTypeName,
-  type TransferEventPayload,
-  verifyRecoverOwnerCancelAuthorization,
-  verifyTransferAuthorization
+  type TransferEventPayload
 } from "@ont/protocol";
+import { recoverAuthDigest, transferAuthDigest, verifySchnorr } from "@ont/wire";
 
 import { getClaimedNameStatus } from "./state.js";
 
@@ -332,6 +331,64 @@ function applyAuctionBid(
   };
 }
 
+// B1 §5 owner-key signature verification, ridden directly off the @ont/wire normative
+// digests (b2-core-deciders-wire-auth-digests (#61), amending #59/#60). Fail closed: a
+// malformed field that makes the wire digest/verify throw yields a rejecting verdict,
+// never an exception (preserves the X3/R15 no-throw guarantee). The §5 equivalence pins
+// (engine.test.ts, engine.recovery.test.ts) prove these match the legacy @ont/protocol
+// digests byte-for-byte, so the migration is behavior-preserving.
+function verifyTransferSignature(input: {
+  readonly prevStateTxid: string;
+  readonly newOwnerPubkey: string;
+  readonly flags: number;
+  readonly successorBondVout: number;
+  readonly ownerPubkey: string;
+  readonly signature: string;
+}): boolean {
+  try {
+    return verifySchnorr(
+      input.signature,
+      transferAuthDigest({
+        prevStateTxid: input.prevStateTxid,
+        newOwnerPubkey: input.newOwnerPubkey,
+        flags: input.flags,
+        successorBondVout: input.successorBondVout
+      }),
+      input.ownerPubkey
+    );
+  } catch {
+    return false;
+  }
+}
+
+function verifyRecoverOwnerCancelSignature(input: {
+  readonly prevStateTxid: string;
+  readonly newOwnerPubkey: string;
+  readonly flags: number;
+  readonly successorBondVout: number;
+  readonly challengeWindowBlocks: number;
+  readonly recoveryDescriptorHash: string;
+  readonly ownerPubkey: string;
+  readonly signature: string;
+}): boolean {
+  try {
+    return verifySchnorr(
+      input.signature,
+      recoverAuthDigest({
+        prevStateTxid: input.prevStateTxid,
+        newOwnerPubkey: input.newOwnerPubkey,
+        flags: input.flags,
+        successorBondVout: input.successorBondVout,
+        challengeWindowBlocks: input.challengeWindowBlocks,
+        recoveryDescriptorHash: input.recoveryDescriptorHash
+      }),
+      input.ownerPubkey
+    );
+  } catch {
+    return false;
+  }
+}
+
 function applyTransfer(state: OntState, event: ParsedOntEvent): EventApplicationResult {
   const payload = event.payload as TransferEventPayload;
   const record = findNameRecordByLastStateTxid(state, payload.prevStateTxid);
@@ -345,7 +402,7 @@ function applyTransfer(state: OntState, event: ParsedOntEvent): EventApplication
   }
 
   if (
-    !verifyTransferAuthorization({
+    !verifyTransferSignature({
       prevStateTxid: payload.prevStateTxid,
       newOwnerPubkey: payload.newOwnerPubkey,
       flags: payload.flags,
@@ -609,7 +666,7 @@ function applyRecoverOwnerCancel(
   }
 
   if (
-    !verifyRecoverOwnerCancelAuthorization({
+    !verifyRecoverOwnerCancelSignature({
       prevStateTxid: payload.prevStateTxid,
       newOwnerPubkey: payload.newOwnerPubkey,
       flags: payload.flags,

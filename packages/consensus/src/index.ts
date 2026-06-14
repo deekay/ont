@@ -5,7 +5,8 @@
 // current owner key signed it; uniqueness and finality come from deterministic
 // Bitcoin replay; ownership is provable to anyone. trust-surface.test.ts splits
 // the package into four audited tiers, each with its own dependency allowlist:
-// the state/replay deciders ride @ont/protocol + @ont/bitcoin, the scanner
+// the state/replay deciders ride @ont/protocol + @ont/bitcoin (and engine.ts also
+// the B1 @ont/wire §5 owner-key auth digests, pinned per file — #61), the scanner
 // (consensus-support) rides the @ont/wire grammar + @ont/bitcoin, the parameter
 // surface rides nothing external, and the verdict predicates ride only the B1
 // @ont/wire digest/verification primitives where a specific verdict needs them
