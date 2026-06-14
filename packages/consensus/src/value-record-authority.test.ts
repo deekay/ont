@@ -9,10 +9,12 @@
 // AUTHORITY = the B1 @ont/wire v1 §8.1 record (recordVersion 1). Records here are
 // signed against the wire v1 digest (valueRecordDigest), NOT the legacy
 // @ont/protocol v2 digest, which is evidence-only and must never authorize. There
-// is no v1 signer in @ont/wire (it is verify-only for records), so the test signs
-// the wire digest directly with @noble/curves schnorr — the same primitive
-// @ont/wire verifies with. @noble/curves is root-hoisted in the workspace and
-// this test file is not part of the audited @ont/consensus trust surface.
+// is no v1 signer in @ont/wire (it is verify-only for records — a deliberately
+// narrower B1 surface), so the test signs the wire digest directly with
+// @noble/curves schnorr — the same primitive @ont/wire verifies with. @noble/curves
+// is declared in this package's devDependencies (a test-helper dependency, not a
+// production import); this test file is not part of the audited @ont/consensus
+// trust surface.
 
 import { describe, expect, it } from "vitest";
 

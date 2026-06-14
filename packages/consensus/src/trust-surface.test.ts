@@ -47,8 +47,11 @@ const srcDir = dirname(fileURLToPath(import.meta.url));
 //     counts only if the verdict says so (D10) — but they compute a verdict the
 //     state deciders consume rather than mutating state themselves, so they are
 //     listed separately from CORE_DECIDERS. Pure: they consume witnessed facts,
-//     the audited parameter surface, and the audited B1 wire digest/verification
-//     primitives (@ont/wire) — no host I/O and no state mutation (#60).
+//     the audited parameter surface, and — only where a specific verdict needs
+//     them — the audited B1 wire digest/verification primitives (@ont/wire); no
+//     host I/O and no state mutation (#60). The external allowlist is pinned PER
+//     FILE, not tier-wide: da-verdict.ts rides nothing external; only
+//     value-record-authority.ts admits @ont/wire (see VERDICTS_ALLOWED_BY_FILE).
 const CORE_DECIDERS = ["engine.ts", "state.ts", "proof-bundle.ts"] as const;
 const CONSENSUS_SUPPORT = ["scanner.ts"] as const;
 const CONSENSUS_PARAMS = ["params.ts"] as const;
@@ -57,14 +60,24 @@ const CONSENSUS_VERDICTS = ["da-verdict.ts", "value-record-authority.ts"] as con
 // Deciders ride the legacy protocol/bitcoin primitives; consensus-support rides
 // the B1 normative wire grammar (@ont/wire) — B1 → B2 means @ont/consensus
 // consumes @ont/wire for what the active codec understands. The parameter surface
-// rides nothing external (values enter as inputs). The verdict predicates ride
-// only the audited B1 wire digest/verification primitives (@ont/wire) — NOT the
-// legacy @ont/protocol records, which are evidence-only — and never host I/O or
-// state mutation (b2-consensus-verdicts-wire-primitives (#60), amending #59).
+// rides nothing external (values enter as inputs).
 const DECIDER_ALLOWED_PACKAGES = new Set(["@ont/protocol", "@ont/bitcoin"]);
 const SUPPORT_ALLOWED_PACKAGES = new Set(["@ont/wire", "@ont/bitcoin"]);
 const PARAMS_ALLOWED_PACKAGES = new Set<string>([]);
-const VERDICTS_ALLOWED_PACKAGES = new Set(["@ont/wire"]);
+// The verdict allowlist is pinned PER FILE, not tier-wide. da-verdict.ts rides
+// nothing external — its verdict is computed from witnessed facts + the parameter
+// surface alone — so a tier-wide @ont/wire allowance would let it silently grow a
+// wire dependency on nothing but self-discipline. Only value-record-authority.ts
+// admits @ont/wire: it must verify a §8.1 Schnorr signature and recompute a §8.1
+// record digest, which are B1 wire primitives (NOT the legacy @ont/protocol v2
+// records, which WIRE §8.1 declares evidence-only). #60 permits the verdict tier
+// to admit audited B1 wire primitives where a specific verdict needs them; this
+// map records which file actually does and mechanically holds the others empty
+// (b2-consensus-verdicts-wire-primitives (#60), amending #59).
+const VERDICTS_ALLOWED_BY_FILE: Record<string, ReadonlySet<string>> = {
+  "da-verdict.ts": new Set<string>([]),
+  "value-record-authority.ts": new Set(["@ont/wire"]),
+};
 const ALL_MANIFEST = [...CORE_DECIDERS, ...CONSENSUS_SUPPORT, ...CONSENSUS_PARAMS, ...CONSENSUS_VERDICTS];
 const ALLOWED_RELATIVE = new Set(ALL_MANIFEST.map((file) => `./${file.replace(/\.ts$/, ".js")}`));
 
@@ -123,8 +136,20 @@ describe("sovereignty trust surface (docs/DESIGN.md (trust surface / sovereignty
   }
 
   for (const file of CONSENSUS_VERDICTS) {
-    it(`${file} (consensus verdict) depends only on @ont/wire B1 primitives and audited modules`, () => {
-      assertImportsAllowed(file, VERDICTS_ALLOWED_PACKAGES, "consensus verdict");
+    const allowed = VERDICTS_ALLOWED_BY_FILE[file];
+    const allowedDesc = !allowed
+      ? "(no per-file allowlist — manifest error)"
+      : allowed.size === 0
+        ? "no external package"
+        : `${[...allowed].join(", ")} B1 primitives`;
+    it(`${file} (consensus verdict) depends only on ${allowedDesc} and audited modules`, () => {
+      expect(
+        allowed,
+        `${file} is listed in CONSENSUS_VERDICTS but has no entry in VERDICTS_ALLOWED_BY_FILE. ` +
+          `Each verdict file's external allowlist is pinned individually (#60); add an explicit ` +
+          `entry (an empty set means empty-external).`
+      ).toBeDefined();
+      assertImportsAllowed(file, allowed as ReadonlySet<string>, "consensus verdict");
     });
   }
 

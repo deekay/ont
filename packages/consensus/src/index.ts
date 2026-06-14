@@ -8,8 +8,10 @@
 // the state/replay deciders ride @ont/protocol + @ont/bitcoin, the scanner
 // (consensus-support) rides the @ont/wire grammar + @ont/bitcoin, the parameter
 // surface rides nothing external, and the verdict predicates ride only the B1
-// @ont/wire digest/verification primitives (never the legacy @ont/protocol
-// records, never host I/O or state mutation). No tier may import allocation
+// @ont/wire digest/verification primitives where a specific verdict needs them
+// (pinned per file: da-verdict rides nothing external, only the value-record
+// authority predicate admits @ont/wire — never the legacy @ont/protocol records,
+// never host I/O or state mutation). No tier may import allocation
 // (auctions), the indexer/resolver, the website, or research/simulation code;
 // the per-tier allowlists freeze that, and the package boundary makes it
 // physically impossible to import the rest of the system in here.

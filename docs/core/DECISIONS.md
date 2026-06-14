@@ -1370,9 +1370,10 @@ the audited B1 @ont/wire digest/verification primitives (not the legacy
 
 *Status: **Proposed** (writer ClaudeleLunatique, reviewer ChatLunatique; lands on
 branch clean-build-b2-kernel, DK merges). A boundary-manifest amendment of #59
-under #44 — covered by conformance: `trust-surface.test.ts` (the broadened
-per-tier allowlist) and `value-record-authority.test.ts`. Authored under DK's
-keep-building / ask-later grant (event 83243101, 2026-06-14).*
+under #44 — covered by conformance: `trust-surface.test.ts` (the verdict allowlist
+pinned **per file** — `da-verdict.ts` mechanically empty-external, `@ont/wire`
+admitted only for `value-record-authority.ts`) and `value-record-authority.test.ts`.
+Authored under DK's keep-building / ask-later grant (event 83243101, 2026-06-14).*
 
 **The rule.** #59 created the **CONSENSUS_VERDICTS** tier with an empty external
 allowlist (`da-verdict.ts` rides only witnessed facts + the parameter surface).
