@@ -18,8 +18,10 @@
 > [`../spec/ONT_RECOVERY_INVOKE_SPEC.md`](../spec/ONT_RECOVERY_INVOKE_SPEC.md) and
 > [`../spec/WIRE_FORMAT.md`](../spec/WIRE_FORMAT.md) (both candidates amend
 > normative §8 text by named decision), entering the ledger as `candidate` per
-> normative-hardening. The normative §8.2/§8.3 amendments are **deferred to DK
-> ratification**; candidate/analysis-tier ripples carry provisional notes now.
+> normative-hardening. The normative §8.2a/§8.3 amendments **landed at ratification
+> (2026-06-14)** — see WIRE_FORMAT §8.2a/§8.3 and ONT_RECOVERY_INVOKE_SPEC item 2;
+> what remains is package support + conformance, not ratification (status-corrected
+> 2026-06-14, ChatLunatique review event `4316580`).
 
 ## 1. The question
 

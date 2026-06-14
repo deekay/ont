@@ -36,8 +36,9 @@ These are **not** restated here — see the matrix. The B2-kernel-relevant clust
   evidence deadline `W_r` + X13 transfer-vs-recovery), PR-35 (finalization). PR-17/34/35
   are flagged individual-review; PR-34 and PR-35 must be ruled together. Signer =
   recovery-auth (#50, RATIFIED b1; b2h reopens only on the custody-feedback trigger).
-- **Normative wire amendments** (deferred to DK): WIRE §8.2 descriptor v2
-  (`recoveryPubkey`), §8.3 proof → corroboration (RECOVERY_AUTH §6 ripples).
+- **Normative wire amendments — already LANDED** (2026-06-14): WIRE §8.2a descriptor v2
+  (`recoveryPubkey`) + §8.3 proof → corroboration. NOT pending DK; what remains is
+  package support (`@ont/protocol`/`@ont/wire` are still v1-only) + conformance.
 - Already ruled: the 5 P0 forks + PR-23 → DECISIONS #51–#56.
 
 ## 3. Implementation queue (ordered; each gated as noted)

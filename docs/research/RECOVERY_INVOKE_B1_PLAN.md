@@ -65,10 +65,12 @@ R11) are reusable mechanics. The **authorization core** is what changes:
 Concretely:
 
 1. **Add a witnessed `RecoveryDescriptorEvidence` input** (descriptor-v2 fields incl.
-   `recoveryPubkey`, the §8.2 digest, the owner arming signature, chain-head position)
-   to the kernel's evidence set, supplied like the other audited witnessed inputs.
-   The evidence layer (`@ont/evidence`, non-deciding) assembles and serves it; the
-   kernel consumes it.
+   `recoveryPubkey`, the §8.2a digest, the owner arming signature, chain-head position)
+   to the kernel's evidence set, supplied like the other audited witnessed inputs. The
+   evidence-supply layer is canon L3 `@ont/evidence` (a **proposed** package — it does
+   **not** exist yet; today's packages are architect/bitcoin/consensus/core/db/protocol/wire),
+   or, interim, the existing `@ont/core` indexer; the boundary is named explicitly in
+   the landing checklist (§5). The kernel only consumes the witnessed input.
 2. **Replace** the commitment-extraction + availability callback with the three
    verification conjuncts (R10 invoke BIP340 over W13, R2 owner-arming BIP340 over the
    §8.2 digest, R6 `recoveryDescriptorHash == digest(armed head)`), plus the R5
@@ -82,88 +84,108 @@ Concretely:
    the *meaning* of the existing normative `signature` field, the work WIRE §5 routes
    to B2.
 
-## 3. Spec ratifications this depends on (DK-gated)
+## 3. What this depends on — spec is RATIFIED; code + conformance remain
 
-The implementation cannot land as ratified law until these do. All are named,
-small, and already scoped in the hardening doc / RECOVERY_AUTH ripples:
+**Correction (per review): the spec amendments already landed.** On this branch
+WIRE_FORMAT **§8.2a** (descriptor v2: `recoveryPubkey(32)`, `descriptorVersion 2`, v2
+digest) and **§8.3** (wallet proof → corroboration, not the invoke authorizer) are
+**RATIFIED b1 (2026-06-14)**, consistent with DECISIONS #50 and
+[`ONT_RECOVERY_INVOKE_SPEC.md`](../spec/ONT_RECOVERY_INVOKE_SPEC.md) item 2. DK is
+**not** asked to re-approve them. What remains is implementation + conformance.
 
-1. **WIRE §8.2 descriptor v2** — add `recoveryPubkey(32)`, `descriptorVersion 2`,
-   digest under the lenPrefix/-v2 conventions; v1 kept as legacy-parse evidence. The
-   RECOVERY_AUTH header flags the §8.2/§8.3 normative amendments as **deferred to DK
-   ratification**.
-2. **WIRE §8.3 narrowing** — the wallet proof's invoke-field bindings narrow to an
-   evidence-layer corroboration object (resolver/watcher hygiene), not a kernel
-   acceptance input.
-3. **The recovery acceptance-rule cluster — already drafted as decision-ready spec-PRs
-   in [`B2_SPEC_PR_DECISION_MATRIX.md`](../core/B2_SPEC_PR_DECISION_MATRIX.md), NOT
-   undrafted.** DK ratifies them via the matrix (as-recommended or row-by-row); this
-   plan is their engine landing. Mapping:
-   - **PR-17** (state-head linkage + recovery interval-opening) + **PR-18**
-     (`ownershipRef` / interval rotation) → R5 (`prevStateTxid == head`) and R4
-     (descriptor binds the current interval). PR-17's interval-opening half is a flagged
-     individual-review row (recommended: open at finalization, not invocation).
-   - **PR-33** (descriptor chain) → R3/R6 (exactly-next sequence; armed = current-interval
-     head — closes the compromised-old-recovery-wallet attack).
-   - **PR-34** (RecoverOwner transaction-shape, refined post-#50-b1) → R8/R11/R12/R13/R15/R16/R19,
-     and it already carries the three things an earlier draft of this plan flagged as loose:
-     the **CANCEL flag-bit registry** (`0x01`, wire-normative), the **recovery-evidence
-     witnessing deadline** (`h_r + W_r`, with `W_r <= challengeWindowBlocks` — so the
-     evidence-timing rule is *drafted, not open*), and **X13 transfer-vs-recovery
-     precedence** (recommended: block in-window transfers, CANCEL-only veto). Flagged
-     individual-review; must be ruled together with PR-35.
-   - **PR-35** (recovery finalization) → R18.
+**3a. Code-package delta (prerequisite, currently missing).** Both `@ont/protocol`
+and `@ont/wire` still expose descriptor **v1 only** (`RECOVERY_DESCRIPTOR_VERSION = 1`;
+`parseRecoveryDescriptor` rejects v2; no `recoveryPubkey`). Before the engine can build
+`RecoveryDescriptorEvidence`, a package step must add v2 parse/digest/verify/sign per
+§8.2a, keep v1 parse-valid but **not invokable**, and carry v2 golden + negative
+(wrong-`recoveryPubkey`, v1-invoke) vectors. Reviewer-gated, no DK.
+
+**3b. The recovery acceptance-rule cluster — decision-ready in the matrix.** DK rules
+these via [`B2_SPEC_PR_DECISION_MATRIX.md`](../core/B2_SPEC_PR_DECISION_MATRIX.md); this
+plan is their engine landing. Mapping, with the review's critical-path calls:
+   - **PR-33** → R3/R6 (descriptor chain; armed = current-interval head). **Critical** —
+     required for the non-head-descriptor and stale-sequence negatives.
+   - **PR-18 `ownershipRef`** → R4. **Split:** the *minimum* current-interval
+     `ownershipRef` equality is **critical** — it stops old-interval descriptor replay
+     (the seller-reclaims-after-sale theft, Decision #40's exact target). Full
+     interval-rotation semantics may **trail** with PR-17/R18 if this slice's vectors
+     don't exercise them; the current-interval binding cannot be hand-waved.
+   - **PR-17 state-head** → R5 (`prevStateTxid == head`). Interval-opening half is a
+     flagged individual-review row (recommended: open at finalization).
+   - **PR-34** → R8/R11/R12/R13/R15/R16/R19, plus the **CANCEL flag-bit registry**
+     (`0x01` — `flags & CANCEL == 0` needs it to be normative) and **X13**
+     transfer-vs-recovery. **R11 stays explicit:** a non-cancel invoke rotates the live
+     bond to a successor output, so the bond-spend shape and the
+     `recoveryAddress`/successor-output binding are in-scope. Individual-review; ruled
+     with PR-35.
+   - **PR-35** → R18 (finalization).
+
+**3c. Evidence-timing observation rule — the real open design call (DK-ratified).**
+PR-34 carries the deadline *mechanism* (`h_r + W_r`, `W_r <= challengeWindowBlocks`).
+What is genuinely open is the fail-closed **observation rule**: by when must the
+**descriptor evidence** be witnessed for an invoke to be acceptable. Under b1 this
+applies to **descriptor evidence only** — the §8.3 wallet proof is corroboration and
+gets **no** kernel witnessing deadline. I will draft a fail-closed proposal; it is a
+**DK-ratified** call, not writer/reviewer-only.
 
 ## 4. What stays parked (interactions, not part of this slice)
 
-- **The cluster decisions themselves** (PR-17/18/33/34/35 + §8.2/§8.3) — ruled by DK
-  via the matrix; this plan does not pre-empt them. In particular the
-  transfer-during-recovery precedence is **PR-34's X13** (recommended block + CANCEL-only
-  veto), ruled together with PR-35.
+- **The matrix recovery-cluster rulings** (PR-17/18/33/34/35) — ruled by DK; this plan
+  does not pre-empt them. (§8.2a/§8.3 are already landed, not pending.) In particular
+  the transfer-during-recovery precedence is **PR-34's X13** (recommended block +
+  CANCEL-only veto), ruled together with PR-35.
 - **Decision #40 abort-only watcher credential** — relaxes the R15 cancel-signer
   exclusivity by named amendment; touches the cancel side, not invoke.
 - **PR-32 value-record interval rule** (records attach only to materialized intervals)
   — adjacent (shares PR-18 interval rotation), not in this slice.
 
-## 5. Recommendation & sequencing
+## 5. Sequencing & landing checklist
 
-The spec side is already batched in the decision matrix; implement the predicate as a
-single audited slice once it is ruled. Proposed order:
+Spec is ratified; the DK input needed is narrow (§6). Order:
 
-1. **DK rules the recovery cluster in the matrix** — PR-17/18/33/34/35 (the
-   individual-review rows PR-17/PR-34/PR-35 are flagged there) + the §8.2 v2 /
-   §8.3-narrowing amendments (RECOVERY_AUTH §6 ripples) + greenlights this slice.
-2. **Land any writer/reviewer-only matrix halves** once greenlit (no further DK input
-   on the non-individual-review portions).
-3. **Implement** `acceptRecoverOwner` per §2, witnessed descriptor-v2 evidence in,
-   callback out; negative battery from RECOVERY_AUTH §6:
-   replayed-arming-sig-as-invoke, descriptor-hash mismatch, non-head descriptor,
-   stale `prevStateTxid`, cancel-digest-as-invoke, v1-descriptor invoke,
-   wrong-pubkey signature — all rejected. (PR-34/PR-35's X13 settles the
-   `pendingRecovery` interaction before the path goes live.)
+1. **DK greenlights the slice** + rules the matrix individual-review rows
+   (PR-17/PR-34/PR-35; PR-34 & PR-35 together) + ratifies the §3c evidence-timing
+   proposal. §8.2a/§8.3 are already landed — no re-approval.
+2. **Package v2 (§3a)** — descriptor v2 in `@ont/protocol` + `@ont/wire`; reviewer-gated,
+   no DK. Prerequisite to building `RecoveryDescriptorEvidence`.
+3. **Engine + caller change** — implement `acceptRecoverOwner` (§2). This is a
+   **public-API change, not engine-internal**: `OntEventApplicationOptions` loses
+   `recoveryWalletProofAvailable`, and the caller `@ont/core` `indexer.ts`
+   (+ `indexer.test.ts`) switches to supplying witnessed descriptor evidence.
+4. Negative battery from RECOVERY_AUTH §6 (replayed-arming-sig-as-invoke,
+   descriptor-hash mismatch, non-head descriptor, stale `prevStateTxid`,
+   cancel-digest-as-invoke, v1-descriptor invoke, wrong-`recoveryPubkey`) — all rejected.
+
+**Landing checklist:** v2 package support (§3a) · `RecoveryDescriptorEvidence` input
+type · `OntEventApplicationOptions` callback removed · `@ont/core` indexer + indexer.test
+migrated to evidence-supply · evidence-supply boundary decided (new `@ont/evidence` vs
+interim `@ont/core` indexer) · acceptance predicate + negative battery · conformance
+vectors.
 
 **The one risk to name:** the b2h reopen-trigger. If expert custody feedback (the
 standing "raise with Max" item) says BIP340 recovery custody is impractical for the
 wallets that matter, #50 reopens toward b2h and this plan's authorization core is
-replaced (the bond/lifecycle mechanics and most spec deps survive). The plan is
-otherwise on fully-ratified ground.
+replaced (the bond/lifecycle mechanics survive). Otherwise on fully-ratified ground.
 
 ## 6. Open questions for DK
 
-1. **Greenlight the invoke-rewrite slice?** (b1 is ratified; the slice was parked on
-   the matrix recovery-cluster rulings, not on any undrafted design.)
-2. **Rule the recovery cluster** (PR-17/18/33/34/35) + the §8.2 v2 / §8.3-narrowing
-   amendments in the matrix? PR-34 and PR-35 must be ruled together (X13). The matrix
-   is the decision vehicle; this plan is the engine landing once they're ruled.
+1. **Greenlight the invoke-rewrite slice?** (b1 + §8.2a/§8.3 are ratified; the slice was
+   parked on the matrix individual-review rows + the evidence-timing call, not on any
+   undrafted design or un-landed spec.)
+2. **Rule the matrix individual-review rows** — PR-17, PR-34, PR-35 (PR-34 & PR-35
+   together, X13). The rest of the cluster (PR-18, PR-33) is batch-approvable.
+3. **Ratify the §3c evidence-timing fail-closed observation rule** (descriptor-evidence
+   only; §8.3 proof excluded) — I will draft it for your ratification.
 
 ### Ripples if greenlit
 
-- `ONT_RECOVERY_INVOKE_SPEC.md`: item 2 (signer) → resolved-and-implemented; gains the
-  acceptance sections from the ratified PR-17/18/33/34/35 cluster.
-- `WIRE_FORMAT.md`: §8.2 v2, §8.3 narrowing, §4.2 flags registry.
-- `B2_KERNEL_HARDENING.md`: R-invoke rows move `candidate-stays` → tested; R19 callback
+- `@ont/protocol` + `@ont/wire`: descriptor **v2** support (§8.2a) — currently v1-only.
+- `WIRE_FORMAT.md`: §4.2 flags-bit registry (PR-34). §8.2a/§8.3 already landed.
+- `@ont/consensus` `engine.ts` + `OntEventApplicationOptions`; `@ont/core` `indexer.ts`
+  + `indexer.test.ts` — callback removed, witnessed descriptor evidence supplied instead.
+- `B2_KERNEL_HARDENING.md`: R-invoke rows `candidate-stays` → tested; R19 callback
   violation closed.
-- `engine.ts`: `recoveryWalletProofAvailable` removed; `RecoveryDescriptorEvidence`
-  witnessed input added; `applyRecoverOwnerRequest` becomes the b1 predicate.
+- `ONT_RECOVERY_INVOKE_SPEC.md`: item 2 → resolved-and-implemented.
 
 ### Reopen triggers
 
