@@ -42,7 +42,7 @@
       "invariant": "no batch opens; kernel state byte-identical to pre-input; decode-reject precedes chain-fact/membership evaluation",
       "rationale": "This flag is about near-miss / almost-valid encodings being rejected by the spec decoder — exactly what A1's normative basis pins: decode EXACTLY per the wire spec, reject truncated/trailing/wrong-magic/wrong-version. A second implementer derives 'near-miss encodings are not anchor candidates' purely from normative WIRE_FORMAT §3/§4. Unlike the multi-output flag, this needs no missing rule — it is the byte-offset/near-miss sweep the rule already proposes as tests."
     },
-    "status": "proposed",
+    "status": "locked",
     "attackFlagRef": "A1-02",
     "flipMarker": null
   },
@@ -75,7 +75,7 @@
         "priorKernelState": "baseline; the post-input state MUST be byte-identical to it (zero state effect)"
       },
       "scopeNote": "Cited-now (candidate tier): DA §8b/§6b — verify fetched bytes against the on-chain (root + batchSize) commitment; fail-closed on a leaf-count contradiction (the 'fail-closed on absent/inconsistent evidence is vector-now even if witness format is B3' carve-out). DELIBERATELY EXCLUDES (spec-blocked, NOT asserted): (a) the served-bytes witness wire shape (typed hole, D-gaps / B3); (b) per-leaf membership-proof construction and what 'the bytes match the commitment' verifies (A4/A6 owner-binding, conflict C6 / B3). This vector asserts ONLY leaf-count vs anchored batchSize.",
-      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; the served-bytes witness FORMAT is a B3 hole, so the fixture pins only the count-vs-batchSize contradiction. status stays proposed pending reviewer sign-off."
+      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; the served-bytes witness FORMAT is a B3 hole, so the fixture pins only the count-vs-batchSize contradiction. reviewer sign-off complete; locked."
     },
     "expected": {
       "verdict": "reject",
@@ -83,7 +83,7 @@
       "invariant": "the served set does not satisfy the anchor's commitment; the authoritative N for Σ-gates comes from the commitment-checked batch (42), never the served/self-declared count; zero state effect",
       "rationale": "A4 is verdict 'cited' on candidate-tier DA agreement §8b/§6b: the anchor commits the batch via root + batchSize and a served byte set inconsistent with the commitment (including a leaf count contradicting batchSize) does not satisfy the anchor. The batchSize-consistency reject is directly derivable from this candidate authority (candidate text is acceptable where the verdict is candidate-stays/cited). No provisional decision and no invented rule: the served-bytes WITNESS FORMAT is B3, but the kernel's fail-closed posture on a batchSize-inconsistent leaf count is derivable now — this is the 'fail-closed on absent/inconsistent evidence is vector-now even if format is B3' carve-out."
     },
-    "status": "proposed",
+    "status": "locked",
     "attackFlagRef": "A4-01",
     "flipMarker": null
   },
@@ -114,7 +114,7 @@
         "priorKernelState": "baseline; the post-input state MUST be byte-identical to it (zero state effect)"
       },
       "scopeNote": "Cited-now (normative): WIRE_FORMAT §2 — 'a name inside any encoded payload appears only in canonical form; a decoder MUST reject a payload whose name bytes are non-canonical (e.g. A-Z)'; A6's leaf-SHAPE half is cited. DELIBERATELY EXCLUDES (A6 candidate-stays / spec-blocked, conflict C6, NOT asserted): the owner-binding construction (H(ownerPubkey) vs raw ownerPubkey). This vector asserts ONLY reject-don't-normalize of the leaf name bytes.",
-      "authoringStatus": "authored: predicate-input shape proposed; byte-pinned non-canonical name. status stays proposed pending reviewer sign-off."
+      "authoringStatus": "authored: predicate-input shape proposed; byte-pinned non-canonical name. reviewer sign-off complete; locked."
     },
     "expected": {
       "verdict": "reject",
@@ -122,7 +122,7 @@
       "invariant": "non-canonical name bytes are REJECTED, never normalized to 'alice'; the kernel/leaf boundary mirrors WIRE_FORMAT §2 reject-don't-normalize; zero state effect",
       "rationale": "A6's leaf-SHAPE half stays cited and this flag is squarely on it: reject-don't-normalize for non-canonical name bytes. The authority is normative WIRE_FORMAT §2 ('a name inside any encoded payload appears only in canonical form; a decoder MUST reject a payload whose name bytes are non-canonical'). A second implementer derives 'a leaf naming Alice (non-canonical bytes) is rejected, not normalized' directly from this normative law. No provisional decision, no missing rule — the kernel pins the wire's reject-don't-normalize law at the leaf boundary."
     },
-    "status": "proposed",
+    "status": "locked",
     "attackFlagRef": "A6-02",
     "flipMarker": null
   },
@@ -156,7 +156,7 @@
       "invariant": "an availability decision cannot be 'checked live' at verdict time; served-evidence must be a B3-witnessed input. The 'reject' is structural: the impure construction (mirror-poll / URL / callback / wall-clock in the predicate) is inexpressible at the boundary",
       "rationale": "A10 is verdict 'cited' on the ratified SOFTWARE_CANON boundary rule (the anchor-acceptance verdict is a pure predicate over witnessed inputs; 'No DB, no network, no clock, no UI'). This flag — that §6c must NOT be implemented as a live mirror-poll, the served-evidence must arrive as a witnessed input — is the fail-closed-purity posture, derivable now from ratified authority. The B3 evidence FORMAT is deferred, but the kernel's purity posture (no network fetch in the predicate, type signature admits no URL/callback) is exactly the vector-now carve-out: purity on absent-live-fetch is derivable even though the witness format is B3."
     },
-    "status": "proposed",
+    "status": "locked",
     "attackFlagRef": "A10-02",
     "flipMarker": null
   }

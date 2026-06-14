@@ -24,7 +24,7 @@
         "priorState": "baseline"
       },
       "scopeNote": "Cited-now (ratified marker-fold §6c uniform-exclusion + candidate DA §6c): the kernel-side fail-closed verdict — absent/insufficient served-evidence presented to the predicate yields ineligible, never trusted/provisional. DELIBERATELY EXCLUDES (B3/transport, NOT asserted): evidence-collection completeness and the under-collecting-adapter censorship concern (the flag's substance), plus the served-bytes witness FORMAT (B3). This vector asserts ONLY the no-evidence-in -> excluded-out predicate.",
-      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; status stays proposed pending reviewer sign-off."
+      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; reviewer sign-off complete; locked."
     },
     "expected": {
       "verdict": "reject",
@@ -32,7 +32,7 @@
       "invariant": "absent or insufficient served-evidence yields ineligible at every evaluation height past the challenge deadline; never a trusted or provisional include; the verdict fails closed",
       "rationale": "Per the gate protocol, a flag purely about the kernel's fail-closed posture on absent evidence is derivable now even though the evidence-collection completeness lives in B3/adapters. The kernel-side verdict — absent/insufficient served-evidence presented to the predicate yields ineligible, never a trusted or provisional include — is grounded in ratified marker-fold and candidate §6c uniform-exclusion. The adapter-censorship substance is a B3/transport concern, but the testable kernel predicate (no evidence in → excluded out) is fully derivable."
     },
-    "status": "proposed",
+    "status": "locked",
     "attackFlagRef": "D4-01",
     "flipMarker": null
   },
@@ -60,7 +60,7 @@
         "priorState": "baseline"
       },
       "scopeNote": "Cited-now (candidate): DA §4/§5 (delta only inserts; disjoint insertions commute) + state-machine ('exclusion only prevents the withheld data from counting'). The insert-only-batches invariant is a CROSS-AREA dependency owned by the batched-path (B) area — this vector ASSUMES it, does not re-derive it; the flag's coupling caveat is an invariant B must preserve, not a missing-spec gap for D7's own verdict.",
-      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; status stays proposed pending reviewer sign-off."
+      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; reviewer sign-off complete; locked."
     },
     "expected": {
       "verdict": "accept",
@@ -68,7 +68,7 @@
       "invariant": "excluding batch X removes only X's own leaves; all other batches' names register identically to the as-if-X-never-anchored world; exclusion alters no other name's owner and no remaining-leaf root",
       "rationale": "D7's verdict — excluding a batch removes only its own leaves and the resulting state equals the state as-if-that-batch-never-existed — is derivable today from candidate authority: DA agreement §4/§5 establish insert-only/commutative merge, and the state-machine pins that exclusion 'only prevents the withheld data from counting'. The flag is a scope-coupling caveat (it holds only while batched-path transitions stay insert-only), which is an invariant the batched-path (B) area must preserve, not a missing-spec gap for D7's own verdict. The state-equivalence property is testable now."
     },
-    "status": "proposed",
+    "status": "locked",
     "attackFlagRef": "D7-01",
     "flipMarker": null
   }

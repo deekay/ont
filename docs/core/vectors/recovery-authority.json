@@ -20,7 +20,7 @@
         "priorState": "a name; the recover event references a descriptor hash not present in the witnessed evidence set"
       },
       "scopeNote": "Verdict authority RATIFIED: SOFTWARE_CANON boundary rule (pure predicate over witnessed inputs, fail-closed) + DECISIONS #40 (recovery opt-in; no descriptor = owner-key-only, no recovery path). Fail-closed on absent witnessed descriptor — never 'verify none exists'. #50-INDEPENDENT: the existence/absence test PRECEDES the signer predicate (which key invokes recovery is the #50 recovery-auth question). DELIBERATELY EXCLUDES (B3): the served-evidence witness FORMAT.",
-      "authoringStatus": "authored: predicate-input shape proposed; status stays proposed pending reviewer sign-off."
+      "authoringStatus": "authored: predicate-input shape proposed; reviewer sign-off complete; locked."
     },
     "expected": {
       "verdict": "reject",
@@ -28,7 +28,7 @@
       "invariant": "a RecoverOwner referencing a descriptor hash not present in the witnessed evidence set is ignored: owner unchanged, no pendingRecovery; the rule is fail-closed (no witnessed descriptor => reject), never 'verify none exists'",
       "rationale": "This flag is purely about the kernel's fail-closed posture on absent evidence: 'no witnessed descriptor evidence => reject', never 'verify none exists'. Per the gate, a flag about fail-closed posture on absent evidence is derivable now even though the served-evidence format is a B3 deliverable. The verdict (RecoverOwner against a name with no witnessed armed descriptor => ignored, no pendingRecovery) derives from ratified SOFTWARE_CANON (pure predicate over witnessed inputs, fail closed) and DECISIONS #40 (no descriptor => owner-key-only, no recovery path). No dependency on #49/#50 (the existence/absence test precedes the signer predicate)."
     },
-    "status": "proposed",
+    "status": "locked",
     "attackFlagRef": "R1-01",
     "flipMarker": null
   },
@@ -54,7 +54,7 @@
         "priorState": "a name with a known currentOwnerKey"
       },
       "scopeNote": "Verdict authority NORMATIVE WIRE §5: the domain-separation rule ('a signature valid in one context MUST NOT verify in any other') is verdict-bearing (same family as V3/X2, both confirmed normative), and §5 routes authorization semantics to B2 while §8.2 fixes the descriptor digest. The B2 rule R2 binds arming to the CURRENT OWNER key. ARMING-SIDE ONLY (the owner arms by signing the descriptor) — explicitly NOT the invoke signer: #50 recovery-auth governs WHO INVOKES recovery (fresh recovery-key vs BIP322 cold-custody), which is #50-provisional and NOT touched here. Tier normative.",
-      "authoringStatus": "authored: predicate-input shape proposed; status stays proposed pending reviewer sign-off."
+      "authoringStatus": "authored: predicate-input shape proposed; reviewer sign-off complete; locked."
     },
     "expected": {
       "verdict": "reject",
@@ -62,7 +62,7 @@
       "invariant": "a descriptor arms recovery only if its 64-byte Schnorr signature verifies over the §8.2 digest under the descriptor's ownerPubkey AND that ownerPubkey equals the name's current owner key; a descriptor signed by any other key, or a cross-context signature, MUST NOT arm",
       "rationale": "The arming predicate — a descriptor arms only if its 64-byte Schnorr sig verifies over the §8.2 digest under the descriptor's ownerPubkey AND that ownerPubkey equals the name's current owner key — derives from normative WIRE_FORMAT §5 (which explicitly routes authorization semantics to B2 and defines the digest/verification primitives, incl. the cross-context domain-separation rule) plus §8.2 (descriptor digest). Verdict is 'cited'. This is arming-side, not the invoke signer (#50), so no provisional dependency. A second implementer can derive 'descriptor signed by a non-owner key MUST NOT arm' from the normative routing/domain-separation sentence and §8.2 digest definition."
     },
-    "status": "proposed",
+    "status": "locked",
     "attackFlagRef": "R2-01",
     "flipMarker": null
   },
@@ -87,7 +87,7 @@
         "priorState": "a pendingRecovery whose challenge window has elapsed"
       },
       "scopeNote": "Verdict authority RATIFIED: SOFTWARE_CANON L2 + boundary rule (pure deterministic predicate over witnessed inputs incl. chain facts; no clock; identical inputs => identical verdict). Tests ONLY the determinism property (completion = f(chain height, prior state), not refresh-invocation timing). DELIBERATELY EXCLUDES (R18 is candidate-stays for this): the precise completion-TRANSITION mechanics (new interval ref = request txid, prior-interval chain death per R4) — those are R18's separate needed-spec-work. #50-independent.",
-      "authoringStatus": "authored: predicate-input shape proposed; status stays proposed pending reviewer sign-off."
+      "authoringStatus": "authored: predicate-input shape proposed; reviewer sign-off complete; locked."
     },
     "expected": {
       "verdict": "accept",
@@ -95,7 +95,7 @@
       "invariant": "replaying the same blocks one-pass vs incrementally yields byte-identical post-completion state; the completion verdict is a function of (chain height, prior state) only, never of refresh-invocation timing",
       "rationale": "This flag is the determinism requirement: completion must be a deterministic function of chain height with no dependence on when the derived-state refresh is invoked (legacy keys it on a caller-supplied currentHeight). That purity/determinism verdict derives from ratified SOFTWARE_CANON (kernel = pure deterministic predicate over witnessed inputs incl. chain facts; no clock; identical inputs => identical verdict). It does not depend on the precise completion-transition spec gap (new interval ref etc., which is R18's separate needed-spec work) — the determinism property is testable now (replay same blocks in one pass vs incrementally => identical post-completion state). No #49/#50 dependency. Per the gate, determinism/purity posture is derivable now even where adjacent format work is deferred."
     },
-    "status": "proposed",
+    "status": "locked",
     "attackFlagRef": "R18-01",
     "flipMarker": null
   }

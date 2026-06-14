@@ -50,18 +50,25 @@ code is only mining material.
   `vector-now`, `provisional-vector`, `spec-blocked`, or
   `retired-with-reason`.
 - [docs/core/B2_VECTOR_NOW_DRAFT.json](../../docs/core/B2_VECTOR_NOW_DRAFT.json)
-  is the current proposed vector draft for the 68 flags legally authorable
-  today. These rows are intentionally `status: "proposed"` until
-  predicate-specific executable fixtures replace the draft input sketches.
+  is the regen-able vector-now seed (68 flags, kept `status: "proposed"` as a
+  draft scaffold). The reviewed vectors live in per-area files under
+  [docs/core/vectors/](../../docs/core/vectors/) (vector-now) and
+  `docs/core/vectors/provisional/` (provisional). A vector-now area file flips
+  to `status: "locked"` once its predicate-input shapes + expected verdicts
+  pass per-area adversarial review.
 - [scripts/b2-vector-now-draft.mjs](../../scripts/b2-vector-now-draft.mjs)
-  regenerates and checks the vector-now draft. Its `--check` mode proves
-  exact coverage: all 68 `vector-now` rows are present once, and no
-  provisional, spec-blocked, or retired row is included.
+  regenerates and checks. `--check` proves the seed covers all 68 `vector-now`
+  rows once; `--check-authored[-complete]` validates the per-area authored
+  files against the hardened schema + coverage; `--check-provisional[-partial]`
+  validates `docs/core/vectors/provisional/` (the 33 `provisional-vector` rows,
+  `authorityTier: "provisional"` + `decisionDeps` + `flipMarker`).
 - `src/b2-boundary.test.ts` is the first executable B2 gate: production
   `@ont/consensus` modules must not import filesystem, network, process,
   timer, or clock channels, and must not read host-time/browser/network
   globals such as `Date`, timers, `fetch`, or storage.
 - Future executable vector tests must trace doc citation -> vector id ->
   implementation path, using `attackFlagRef` from the hardened schema. A
-  vector may move from `proposed` to `locked` only after the executable input
-  shape and expected verdict have passed adversarial review.
+  vector moves from `proposed` to `locked` once its predicate-input shape and
+  expected verdict pass adversarial review (the per-area review gate); the
+  executable conformance suite then instantiates the locked vectors as test
+  fixtures in a later phase.

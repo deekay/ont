@@ -20,7 +20,7 @@
         "priorState": "baseline"
       },
       "scopeNote": "Cited-now (candidate ONT_ISSUANCE_FEE_MECHANICS §4 + the F6 compute-from-committed-contents core, CITED in step-3): the kernel's posture against self-declared totals — the fee verdict binds to Sigma g_i over committed batch contents, never a publisher-declared/withheld total. DELIBERATELY EXCLUDES (B3): the per-name g(name) schedule itself. This vector asserts ONLY no-self-declared-totals composition.",
-      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; status stays proposed pending reviewer sign-off."
+      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; reviewer sign-off complete; locked."
     },
     "expected": {
       "verdict": "reject",
@@ -28,7 +28,7 @@
       "invariant": "a fee verdict computed against a self-declared / pre-DA total is rejected; the gate binds to F >= Sigma g_i over the committed batch contents and composes with the DA verdict",
       "rationale": "The fail-closed composition requirement is derivable from the cited candidate text: F1 is a candidate-stays-grade rule whose core (fee verdict bound to F >= Sigma g_i over committed batch contents, no self-declared totals) is stated in ONT_ISSUANCE_FEE_MECHANICS §4/§8. A negative vector pinning that a fee verdict computed against a self-declared/withheld total is rejected (must compose with committed contents) is derivable now without inventing a rule. The g(name) schedule itself is B3, but the kernel's posture against self-declared totals is the F6 core, already CITED in step-3."
     },
-    "status": "proposed",
+    "status": "locked",
     "attackFlagRef": "F1-01",
     "flipMarker": null
   },
@@ -53,7 +53,7 @@
         "priorState": "baseline"
       },
       "scopeNote": "Cited-now (candidate ONT_ISSUANCE_FEE_MECHANICS §4/§5 — fee = Sigma in - Sigma out from witnessed Bitcoin facts, not asserted): the kernel's fail-closed posture on absent prevout-value evidence (a flag purely about fail-closed posture on absent evidence is vector-now per the gate carve-out). DELIBERATELY EXCLUDES (B3): the prevout-value witness wire FORMAT. This vector asserts ONLY no-fee-fact-on-absent-prevout -> reject.",
-      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; status stays proposed pending reviewer sign-off."
+      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; reviewer sign-off complete; locked."
     },
     "expected": {
       "verdict": "reject",
@@ -61,7 +61,7 @@
       "invariant": "when a prevout-value witness is absent, no intrinsic fee fact is derivable and the anchor is rejected; no asserted or zero fee is substituted",
       "rationale": "The flag's actionable claim is the kernel's fail-closed posture on absent prevout-value evidence. Per the gate rules, a flag purely about fail-closed posture on absent evidence IS derivable now even though the prevout-value witness FORMAT is a B3 deliverable. F2 itself is CITED (intrinsic fee = Sigma inputs - Sigma outputs from witnessed facts, no asserted value). The proposed negative test (a prevout witness missing yields no fee fact, anchor MUST NOT count) is derivable from the system's no-oracle / fail-closed posture stated in §4/§5."
     },
-    "status": "proposed",
+    "status": "locked",
     "attackFlagRef": "F2-01",
     "flipMarker": null
   },
@@ -85,7 +85,7 @@
         "priorState": "baseline"
       },
       "scopeNote": "Cited-now (candidate §4 'intrinsic to that one transaction'): only the anchor transaction's own intrinsic fee (Sigma of its own inputs minus its own outputs) counts toward the gate; CPFP child / package / out-of-band fees do not satisfy it. No invented rule.",
-      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; status stays proposed pending reviewer sign-off."
+      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; reviewer sign-off complete; locked."
     },
     "expected": {
       "verdict": "reject",
@@ -93,7 +93,7 @@
       "invariant": "a CPFP child's fee or any out-of-band payment cannot count toward the anchor's gate; only the anchor transaction's own intrinsic Sigma inputs - Sigma outputs satisfies F >= Sigma g_i",
       "rationale": "F2 is CITED and explicitly grounds F as the anchor transaction's INTRINSIC fee (Sigma of the anchor tx's own inputs minus its own outputs). A negative vector that a CPFP child's fee or out-of-band payment cannot count toward the anchor's gate follows directly: the computed value is over the one anchor transaction's intrinsic inputs/outputs, and §4 states the fee is intrinsic to that one transaction so it can't be reused. No invented rule needed."
     },
-    "status": "proposed",
+    "status": "locked",
     "attackFlagRef": "F2-02",
     "flipMarker": null
   },
@@ -118,7 +118,7 @@
         "priorState": "baseline"
       },
       "scopeNote": "Cited-now (candidate §2 C1 + acquisition state-machine): the gate is per-name and batch-invariant — claiming k names costs ~k*g whether k solo anchors or one batch of k; batching may amortize ONLY blockspace, never the gate. Any per-name discount as batch size grows is rejected. No provisional dependency.",
-      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; status stays proposed pending reviewer sign-off."
+      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; reviewer sign-off complete; locked."
     },
     "expected": {
       "verdict": "reject",
@@ -126,7 +126,7 @@
       "invariant": "any fee schedule giving a per-name discount as batch size grows is rejected; the minimum valid fee is N * g (linear, batch-invariant); batching amortizes only blockspace",
       "rationale": "F3 is CITED. Constraint C1 (claiming k names costs ~k*g whether k solo or one batch of k; batching may amortize only blockspace, never the gate) is explicit in §2 and the acquisition state machine. A negative vector that any fee schedule giving a per-name discount as batch size grows (bulk pricing) is rejected is directly derivable; the property test (min accepted fee == N*g, linear, no volume discount) is grounded. No provisional dependency, no missing rule."
     },
-    "status": "proposed",
+    "status": "locked",
     "attackFlagRef": "F3-01",
     "flipMarker": null
   },
@@ -152,7 +152,7 @@
         "priorState": "baseline"
       },
       "scopeNote": "Cited-now (candidate §5 N=1 un-censorable fallback / I5 + ratified SOFTWARE_CANON boundary rule via T1: pure predicate over witnessed inputs, zero-I/O): the gate predicate carries no publisher-identity/endpoint parameter; N=1 self-posted and publisher-batched anchors validate identically. Structural — discharged by the committed purity gate. DELIBERATELY EXCLUDES (B3): the g(name) schedule.",
-      "authoringStatus": "authored: structural vector; status stays proposed pending reviewer sign-off."
+      "authoringStatus": "authored: structural vector; reviewer sign-off complete; locked."
     },
     "expected": {
       "verdict": "accept",
@@ -160,7 +160,7 @@
       "invariant": "the gate-fee verdict is a function of (anchor facts, committed batch contents, fee) only; no publisher-identity/endpoint input can change it; publisher-batched and N=1 self-posted anchors validate by the identical rule (I5 censorship floor)",
       "rationale": "F8 is CITED: the self-sovereign N=1 anchor is the identical rule, and §5 ties N=1 to the un-censorable fallback / I5 self-sovereign invariant. The zero-I/O purity test (predicate signature carries no source-identity parameter) is derivable from the ratified-core T1 boundary rule (pure predicate over witnessed inputs; no adapter/source judgment) and the SOFTWARE_CANON zero-I/O lock. No provisional dependency, no missing rule — a vector asserting the predicate has no publisher-identity input channel is authorable now."
     },
-    "status": "proposed",
+    "status": "locked",
     "attackFlagRef": "F8-01",
     "flipMarker": null
   },
@@ -185,7 +185,7 @@
         "priorState": "baseline"
       },
       "scopeNote": "Cited-now (candidate STATUS line 53 + GLOSSARY bond-first): the RULE — a name at-or-below the threshold takes the mandatory bond-first path (no cheap claim), above it the cheap-claim path is available. The threshold INTEGER is launch-freeze (parameterized, two values so no baked-in constant passes). DELIBERATELY EXCLUDES (spec-blocked): the in-batch-handling flag (F15-01). This vector asserts ONLY the threshold-parameterized path boundary.",
-      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; threshold is launch-freeze param; status stays proposed pending reviewer sign-off."
+      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; threshold is launch-freeze param; reviewer sign-off complete; locked."
     },
     "expected": {
       "verdict": "accept",
@@ -193,7 +193,7 @@
       "invariant": "a name of length <= threshold T cannot finalize via the cheap-claim path (bond-first only); a name of length T+1 may finalize via cheap claim; T is a launch-freeze parameter, not a baked-in constant",
       "rationale": "The ≤4 threshold being a working baseline (not frozen) is a parameterization instruction, not a verdict ambiguity. The RULE (a name at-or-below the threshold takes the mandatory bond-first path; above it the cheap-claim path) is CITED and stable across the parameter; STATUS line 53 confirms the threshold semantics. A vector parameterized on the threshold (e.g. a name at length==threshold rejects the cheap path; length==threshold+1 may finalize via cheap claim) is authorable now, with the integer flagged as launch-freeze — no provisional decision, no missing rule. The behavior at the boundary (which side is bond-first) is determinate; only the integer value is open."
     },
-    "status": "proposed",
+    "status": "locked",
     "attackFlagRef": "F15-02",
     "flipMarker": null
   }

@@ -19,7 +19,7 @@
         "priorState": "a given interval + chain head"
       },
       "scopeNote": "Verdict authority is RATIFIED (SOFTWARE_CANON L2 'No DB, no network, no clock, no UI' + DECISIONS #17 timestamps-are-metadata): the value-record predicate is pure over (envelope, interval, head) and never reads wall-clock, so a future/past issuedAt is judged identically at any evaluation time. Structural purity vector in the A10/G7/F8 family.",
-      "authoringStatus": "authored: structural purity vector; status stays proposed pending reviewer sign-off."
+      "authoringStatus": "authored: structural purity vector; reviewer sign-off complete; locked."
     },
     "expected": {
       "verdict": "reject",
@@ -27,7 +27,7 @@
       "invariant": "a value-record predicate that compares issuedAt to current time is rejected; identical (record, interval, head) inputs yield identical verdicts at any host clock",
       "rationale": "The kernel-purity verdict (a value-record predicate must not read wall-clock time, so a future/past issuedAt is judged identically at any evaluation time) derives directly from the ratified L2 ownership-kernel canon ('No DB, no network, no clock, no UI') and from V11's ratified rule that issuedAt is metadata not ordering. No provisional decision and no missing spec text — a second implementer reaches the same verdict."
     },
-    "status": "proposed",
+    "status": "locked",
     "attackFlagRef": "V1-01",
     "flipMarker": null
   },
@@ -51,7 +51,7 @@
         "priorState": "a name with a value-record interval"
       },
       "scopeNote": "Verdict authority is NORMATIVE WIRE_FORMAT §5 ('A signature valid in one context MUST NOT verify in any other') + §8.1 (the 'ont-value-record' label-prefixed digest). The domain label, not field overlap, gates acceptance — a recovery-descriptor signature over the structurally identical prefix must not validate a value record. Here the normative source IS the verdict authority (domain separation is the rule), not merely encoding.",
-      "authoringStatus": "authored: predicate-input shape proposed; status stays proposed pending reviewer sign-off."
+      "authoringStatus": "authored: predicate-input shape proposed; reviewer sign-off complete; locked."
     },
     "expected": {
       "verdict": "reject",
@@ -59,7 +59,7 @@
       "invariant": "a signature produced under any domain label other than 'ont-value-record' (e.g. a recovery-descriptor signature over the structurally identical prefix) does not validate a value record",
       "rationale": "Cross-context domain separation is normative: WIRE_FORMAT §5 states 'A signature valid in one context MUST NOT verify in any other,' and §8.1 fixes the value-record digest with its 'ont-value-record' label prefix. A recovery-descriptor (§8.2) signature over the structurally identical field prefix must not validate a value record — derivable purely from normative wire text, no provisional dependency."
     },
-    "status": "proposed",
+    "status": "locked",
     "attackFlagRef": "V3-01",
     "flipMarker": null
   },
@@ -83,7 +83,7 @@
         "priorState": "two sibling names from one batch sharing ownershipRef"
       },
       "scopeNote": "Verdict authority is NORMATIVE WIRE_FORMAT §8.1 (the digest includes lenPrefix(name)) — the cross-name binding is a direct cryptographic consequence of the normative digest's name field, corroborated by ratified DECISIONS #17 (chain scoped to interval). Two names sharing ownershipRef bytes are separated by the name in the normative digest, so a record for name A cannot validate against name B.",
-      "authoringStatus": "authored: predicate-input shape proposed; status stays proposed pending reviewer sign-off."
+      "authoringStatus": "authored: predicate-input shape proposed; reviewer sign-off complete; locked."
     },
     "expected": {
       "verdict": "reject",
@@ -91,7 +91,7 @@
       "invariant": "a value record validly signed for name A does not validate for name B even when they share ownershipRef bytes (same anchor); the §8.1 digest binds the name",
       "rationale": "The cross-name replay reject derives from ratified Decision #17 (records form a chain scoped to the current interval; binding to interval prevents stale-record reuse) combined with the normative §8.1 digest that includes the name field. Two names finalized by one anchor share ownershipRef bytes, but the digest binds name, so a record for name A cannot validate against name B. No provisional dependency."
     },
-    "status": "proposed",
+    "status": "locked",
     "attackFlagRef": "V4-01",
     "flipMarker": null
   },
@@ -118,7 +118,7 @@
         "priorState": "empty value-record chain for the interval"
       },
       "scopeNote": "Verdict authority is RATIFIED (DECISIONS #17 'first record ... sequence 1 and no previous record hash'): a first record with sequence != 1 (incl. the wire-valid 0) or a non-null prev is rejected. WIRE_FORMAT §8 sequence-bound (normative) supplies only the wire SHAPE (sequence is a non-negative integer, so 0 is wire-valid) — that is why the kernel must reject 0 explicitly; it is encoding context, NOT the verdict authority. Tier ratified (corrected from the seed heuristic's normative, per the S9-class verdict-authority rule).",
-      "authoringStatus": "authored: predicate-input shape proposed; tier verified = ratified; status stays proposed pending reviewer sign-off."
+      "authoringStatus": "authored: predicate-input shape proposed; tier verified = ratified; reviewer sign-off complete; locked."
     },
     "expected": {
       "verdict": "reject",
@@ -126,7 +126,7 @@
       "invariant": "the first record of an interval must have sequence exactly 1 and null previousRecordHash; sequence 0 (wire-valid) or any other sequence, or a non-null prev on the first record, is rejected — the kernel does not assume the wire layer filtered 0",
       "rationale": "Ratified Decision #17 fixes 'The first record in an ownership interval should have sequence 1 and no previous record hash,' and §8 sequence-bound (wire-normative #48) admits non-negative integers including 0. The verdict (reject a wire-valid sequence-0 first record) is licensed by the ratified #17 rule; the normative §8 bound only establishes that 0 is wire-valid, so it is encoding context, not the verdict authority — hence tier ratified."
     },
-    "status": "proposed",
+    "status": "locked",
     "attackFlagRef": "V6-01",
     "flipMarker": null
   },
@@ -150,7 +150,7 @@
         "priorState": "chain head at sequence 2^53-1 (the §8 maximum)"
       },
       "scopeNote": "Verdict authority is NORMATIVE WIRE_FORMAT §8 sequence-bound ('values above 2^53−1 invalid, parser MUST reject'): the only +1 successor to a max-sequence head is itself wire-invalid, so the normative bound directly rejects it. V7's ratified +1 rule (DECISIONS #17) fixes that the successor must be head+1; the freeze is the normative-bound consequence. The 'should be stated in spec text' note is editorial, not a verdict gap.",
-      "authoringStatus": "authored: predicate-input shape proposed; status stays proposed pending reviewer sign-off."
+      "authoringStatus": "authored: predicate-input shape proposed; reviewer sign-off complete; locked."
     },
     "expected": {
       "verdict": "reject",
@@ -158,7 +158,7 @@
       "invariant": "a head at sequence 2^53-1 has no valid successor: the required head+1 = 2^53 exceeds the normative §8 sequence bound and is rejected; the chain freezes fail-closed",
       "rationale": "The verdict (no successor to a head at sequence 2^53−1 can be valid, because any +1 exceeds the §8 sequence-bound) derives from normative wire text (#48 sequence-bound, values above 2^53−1 MUST be rejected) plus V7's ratified +1 rule. The fail-closed freeze is a derivable consequence today; the flag's 'should be stated in spec text' is an editorial nicety, not a missing rule blocking the verdict."
     },
-    "status": "proposed",
+    "status": "locked",
     "attackFlagRef": "V7-02",
     "flipMarker": null
   },
@@ -182,7 +182,7 @@
         "priorState": "a chain head whose canonical §8.1 hash is the only valid previousRecordHash"
       },
       "scopeNote": "Verdict authority is RATIFIED (DECISIONS #17 'point to the canonical hash of the previous destination-record statement' + the ratified kernel-purity rule that the head hash is recomputed from bytes, never trusted as declared). WIRE_FORMAT §8.1 (normative) defines the digest MECHANISM (how the canonical hash is computed) — encoding, not the verdict authority. Tier ratified (corrected from the seed heuristic's normative, per the S9-class verdict-authority rule).",
-      "authoringStatus": "authored: predicate-input shape proposed; tier verified = ratified; status stays proposed pending reviewer sign-off."
+      "authoringStatus": "authored: predicate-input shape proposed; tier verified = ratified; reviewer sign-off complete; locked."
     },
     "expected": {
       "verdict": "reject",
@@ -190,7 +190,7 @@
       "invariant": "a successor's previousRecordHash must equal the head's recomputed canonical §8.1 hash; a declared hash pointing to a forged head is rejected — declared/stored hashes are never trusted",
       "rationale": "Ratified Decision #17 requires the successor 'point to the canonical hash of the previous destination-record statement,' and a verifier recomputing the head's hash (rather than trusting a declared value) is derivable from that plus the kernel-purity canon (inputs are record bytes, head is recomputed). The PB5 'don't trust declared hashes' lesson is legacy evidence, not the authority; the verdict stands on #17 + the §8.1 digest mechanism. No provisional dependency."
     },
-    "status": "proposed",
+    "status": "locked",
     "attackFlagRef": "V8-01",
     "flipMarker": null
   },
@@ -214,7 +214,7 @@
         "priorState": "an owned name with a prior-interval value-record chain, undergoing transfer"
       },
       "scopeNote": "Verdict authority is RATIFIED (DECISIONS #18 'does not automatically preserve ... preserve is not the default') + the fact that WIRE_FORMAT §4.1 assigns no preserve flag-bit. Fail-closed: every transfer is non-preserving; an unassigned Transfer flag-bit honored as 'preserve' is rejected. This vector OWNS the value-record interval-reset battery (per the X14 carry-forward); flag-bit assignment / transfer-trigger pass-vs-reject is the X* area's concern, NOT decided here.",
-      "authoringStatus": "authored: predicate-input shape proposed; status stays proposed pending reviewer sign-off."
+      "authoringStatus": "authored: predicate-input shape proposed; reviewer sign-off complete; locked."
     },
     "expected": {
       "verdict": "reject",
@@ -222,7 +222,7 @@
       "invariant": "every transfer is non-preserving: the prior interval's chain ceases to be current and the new owner begins a fresh sequence-1 / null-prev chain; an unassigned Transfer flag-bit honored as 'preserve' is rejected, since no preserve signal is specified",
       "rationale": "The fail-closed verdict (every transfer is non-preserving; an unassigned Transfer flag-bit honored as 'preserve' is rejected/ignored) derives from ratified Decision #18 ('does not automatically preserve ... preserve is not the default') plus the fact that WIRE_FORMAT §4.1 assigns no preserve bit. Because no preserve signal is specified, fail-closed is the only derivable reading — this is the kernel's fail-closed posture on an absent/unassigned signal, derivable now even though bit-assignment is X* area."
     },
-    "status": "proposed",
+    "status": "locked",
     "attackFlagRef": "V10-01",
     "flipMarker": null
   },
@@ -247,7 +247,7 @@
         "priorState": "a chain with a head record"
       },
       "scopeNote": "Verdict authority is RATIFIED (DECISIONS #17 'Owner-issued timestamps are metadata, not the canonical ordering rule'): chain order is established solely by sequence + previousRecordHash; issuedAt never orders, accepts, or rejects. WIRE_FORMAT §8 timestamp-form (normative) pins only the SHAPE (RFC 3339 UTC), not the verdict — encoding context, NOT the verdict authority. Tier ratified (corrected from the seed heuristic's normative, per the S9-class verdict-authority rule).",
-      "authoringStatus": "authored: predicate-input shape proposed; tier verified = ratified; status stays proposed pending reviewer sign-off."
+      "authoringStatus": "authored: predicate-input shape proposed; tier verified = ratified; reviewer sign-off complete; locked."
     },
     "expected": {
       "verdict": "accept",
@@ -255,7 +255,7 @@
       "invariant": "chain order is sequence + previousRecordHash only; a record with an earlier issuedAt than its predecessor is accepted when sequence/linkage are correct, and a later issuedAt with a stale sequence is rejected — issuedAt recency grants nothing and vetoes nothing",
       "rationale": "Ratified Decision #17 fixes 'Owner-issued timestamps are metadata, not the canonical ordering rule,' and the timestamp-form ruling (#48) pins issuedAt's shape, not its truth. So a record with an earlier issuedAt than its predecessor is accepted when sequence/linkage are correct, and a later issuedAt with a stale sequence is rejected. The kernel never compares issuedAt for ordering. The normative §8 timestamp-form is shape/encoding only, so the verdict authority is the ratified #17 — hence tier ratified."
     },
-    "status": "proposed",
+    "status": "locked",
     "attackFlagRef": "V11-01",
     "flipMarker": null
   }

@@ -7,6 +7,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const CLASSIFIED_PATH = join(ROOT, "docs/core/B2_STEP4_CLASSIFIED.json");
 const OUT_PATH = join(ROOT, "docs/core/B2_VECTOR_NOW_DRAFT.json");
 const AUTHORED_DIR = join(ROOT, "docs/core/vectors");
+const PROVISIONAL_DIR = join(AUTHORED_DIR, "provisional");
 
 const areaByPrefix = {
   A: "Anchor acceptance",
@@ -54,6 +55,8 @@ function classifiedRows() {
 
 function inferKind(row) {
   const sketch = row.vectorSketch ?? "";
+  if (/^\s*boundary\s+positive/i.test(sketch)) return "positive";
+  if (/^\s*boundary\s+negative/i.test(sketch)) return "negative";
   if (/^\s*(positive|\(\+\)|\+)/i.test(sketch)) return "positive";
   if (/^\s*(negative|\(\u2212\)|\(-\)|-)/i.test(sketch)) return "negative";
   throw new Error(`${row.attackFlagId}: cannot infer vector kind from vectorSketch`);
@@ -82,10 +85,10 @@ function reasonCode(row, kind) {
   return `${row.attackFlagId.toLowerCase()}-${kind === "negative" ? "reject" : "accept"}`;
 }
 
-function buildVectors(rows) {
-  const ordinals = new Map();
+function buildVectors(rows, { category = "vector-now", initialOrdinals = new Map() } = {}) {
+  const ordinals = new Map(initialOrdinals);
   return rows
-    .filter((row) => row.category === "vector-now")
+    .filter((row) => row.category === category)
     .map((row) => {
       const kind = inferKind(row);
       const countKey = `${row.ruleId}:${kind}`;
@@ -115,6 +118,18 @@ function buildVectors(rows) {
         flipMarker: null,
       };
     });
+}
+
+function ordinalsFromVectors(vectors) {
+  const ordinals = new Map();
+  for (const vector of vectors) {
+    const match = /^(?<ruleId>[A-Z]+[0-9]+[a-z]?)-(?<shortKind>neg|pos)-(?<ordinal>[0-9]{2})$/.exec(vector.id ?? "");
+    if (!match) continue;
+    const kind = match.groups.shortKind === "neg" ? "negative" : "positive";
+    const key = `${match.groups.ruleId}:${kind}`;
+    ordinals.set(key, Math.max(ordinals.get(key) ?? 0, Number(match.groups.ordinal)));
+  }
+  return ordinals;
 }
 
 function validateSchemaVector(vector) {
@@ -218,13 +233,21 @@ function validate(vectors, rows) {
   return problems;
 }
 
-function authoredFiles() {
-  if (!existsSync(AUTHORED_DIR)) return [];
-  return readdirSync(AUTHORED_DIR)
+function jsonFilesIn(dir) {
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir)
     .filter((file) => file.endsWith(".json"))
-    .map((file) => join(AUTHORED_DIR, file))
+    .map((file) => join(dir, file))
     .filter((path) => statSync(path).isFile())
     .sort();
+}
+
+function authoredFiles() {
+  return jsonFilesIn(AUTHORED_DIR);
+}
+
+function provisionalFiles() {
+  return jsonFilesIn(PROVISIONAL_DIR);
 }
 
 function checkAuthored({ requireComplete }) {
@@ -281,6 +304,86 @@ function checkAuthored({ requireComplete }) {
   return { problems, files, authoredCount: seenIds.size, seedCount: seedIds.size };
 }
 
+function expectedProvisionalVectors(rows, seed) {
+  return buildVectors(rows, {
+    category: "provisional-vector",
+    initialOrdinals: ordinalsFromVectors(seed),
+  });
+}
+
+function checkProvisional({ requireComplete }) {
+  const rows = classifiedRows();
+  const seed = readJson(OUT_PATH);
+  const expected = expectedProvisionalVectors(rows, seed);
+  const expectedById = new Map(expected.map((vector) => [vector.id, vector]));
+  const expectedByRef = new Map(expected.map((vector) => [vector.attackFlagRef, vector]));
+  const expectedIds = new Set(expectedById.keys());
+  const expectedRefs = new Set(expectedByRef.keys());
+  const problems = [];
+  const seenIds = new Set();
+  const seenRefs = new Set();
+  const files = provisionalFiles();
+
+  for (const file of files) {
+    const vectors = readJson(file);
+    if (!Array.isArray(vectors)) {
+      problems.push(`${file}: must contain an array`);
+      continue;
+    }
+
+    for (const vector of vectors) {
+      problems.push(...validateSchemaVector(vector).map((problem) => `${file}: ${problem}`));
+
+      if (vector.authorityTier !== "provisional") {
+        problems.push(`${file}: ${vector.id}: provisional vector must carry authorityTier=provisional`);
+      }
+      if (vector.inputs?.sourceCategory !== undefined && vector.inputs.sourceCategory !== "provisional-vector") {
+        problems.push(`${file}: ${vector.id}: inputs.sourceCategory ${vector.inputs.sourceCategory} != provisional-vector`);
+      }
+
+      const expectedForId = expectedById.get(vector.id);
+      if (!expectedForId) problems.push(`${file}: authored provisional id ${vector.id} not in expected provisional id set`);
+      if (seenIds.has(vector.id)) problems.push(`${file}: duplicate provisional id ${vector.id}`);
+      seenIds.add(vector.id);
+
+      const expectedForRef = expectedByRef.get(vector.attackFlagRef);
+      if (!expectedForRef) {
+        problems.push(`${file}: ${vector.id} attackFlagRef ${vector.attackFlagRef} not in provisional classified rows`);
+      } else {
+        if (vector.id !== expectedForRef.id) {
+          problems.push(`${file}: ${vector.id} id != expected ${expectedForRef.id} for ${vector.attackFlagRef}`);
+        }
+        if (vector.ruleId !== expectedForRef.ruleId) {
+          problems.push(`${file}: ${vector.id} ruleId ${vector.ruleId} != expected ${expectedForRef.ruleId}`);
+        }
+        if (vector.area !== expectedForRef.area) {
+          problems.push(`${file}: ${vector.id} area ${vector.area} != expected ${expectedForRef.area}`);
+        }
+        if (vector.kind !== expectedForRef.kind) {
+          problems.push(`${file}: ${vector.id} kind ${vector.kind} != expected ${expectedForRef.kind}`);
+        }
+      }
+
+      if (expectedForId && vector.attackFlagRef !== expectedForId.attackFlagRef) {
+        problems.push(`${file}: ${vector.id} attackFlagRef ${vector.attackFlagRef} != expected ${expectedForId.attackFlagRef}`);
+      }
+      if (seenRefs.has(vector.attackFlagRef)) problems.push(`${file}: duplicate provisional attackFlagRef ${vector.attackFlagRef}`);
+      seenRefs.add(vector.attackFlagRef);
+    }
+  }
+
+  if (requireComplete) {
+    for (const id of expectedIds) {
+      if (!seenIds.has(id)) problems.push(`missing provisional vector ${id}`);
+    }
+    for (const ref of expectedRefs) {
+      if (!seenRefs.has(ref)) problems.push(`missing provisional attackFlagRef ${ref}`);
+    }
+  }
+
+  return { problems, files, authoredCount: seenIds.size, expectedCount: expectedIds.size };
+}
+
 const mode = process.argv[2] ?? "--check";
 const rows = classifiedRows();
 
@@ -304,7 +407,15 @@ if (mode === "--write") {
   }
   const suffix = mode === "--check-authored-complete" ? "complete" : "partial";
   console.log(`B2 authored vectors OK (${suffix}): ${result.authoredCount}/${result.seedCount} seed ids covered across ${result.files.length} file(s)`);
+} else if (mode === "--check-provisional" || mode === "--check-provisional-partial") {
+  const result = checkProvisional({ requireComplete: mode === "--check-provisional" });
+  if (result.problems.length) {
+    console.error(result.problems.join("\n"));
+    process.exit(1);
+  }
+  const suffix = mode === "--check-provisional" ? "complete" : "partial";
+  console.log(`B2 provisional vectors OK (${suffix}): ${result.authoredCount}/${result.expectedCount} provisional ids covered across ${result.files.length} file(s)`);
 } else {
-  console.error("usage: node scripts/b2-vector-now-draft.mjs [--write|--check|--check-authored|--check-authored-complete]");
+  console.error("usage: node scripts/b2-vector-now-draft.mjs [--write|--check|--check-authored|--check-authored-complete|--check-provisional-partial|--check-provisional]");
   process.exit(1);
 }

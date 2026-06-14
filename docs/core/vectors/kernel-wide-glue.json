@@ -27,7 +27,7 @@
         "negativeCounterpart": "an impl that awards bidB (later tx order) OR treats the miner's self-placement as disallowed -> fails"
       },
       "scopeNote": "Cited-now (ratified): DECISIONS #25 — same-block tied AuctionBids resolved by block transaction order. SCOPED to AuctionBid ties only (the #25 domain). DELIBERATELY does NOT extend #25 to anchor ordering (A9 / PR-16 total-order, spec-blocked) and introduces NO miner-self-placement-detection rule. RISKS.md 'tie-break gaming low value' is merge-ordering-scoped analysis (lines 493-494, 504) — it neither blocks nor overrides #25.",
-      "authoringStatus": "authored: predicate-input shape proposed; status stays proposed pending reviewer sign-off."
+      "authoringStatus": "authored: predicate-input shape proposed; reviewer sign-off complete; locked."
     },
     "expected": {
       "verdict": "accept",
@@ -35,7 +35,7 @@
       "invariant": "the earlier-tx-order tied AuctionBid wins the name even when placed by the block's own miner; a later-ordered tied bid MUST NOT win; no self-placement-detection rule is applied",
       "rationale": "The verdict — the earlier-ordered tied bid (even a miner's own) wins the name — is directly stated by ratified Decision #25 ('the bid appearing earlier in the block's transaction order wins'). The attack flag's worry (that RISKS.md's 'tie-break gaming is low value' is mis-scoped to cheap-claim merge ties, not bonded bid ties) does not change the verdict: #25 governs same-block tied AuctionBids unconditionally. A vector pinning the earlier-ordered bonded tied bid as winner is legally derivable today, independent of any provisional decision. RISKS.md confirms the 'low value' analysis is explicitly merge-ordering-scoped (lines 493-494, 504), so it neither blocks nor overrides #25."
     },
-    "status": "proposed",
+    "status": "locked",
     "attackFlagRef": "G1-02",
     "flipMarker": null
   },
@@ -64,7 +64,7 @@
         "priorState": "baseline"
       },
       "scopeNote": "Cited-now (candidate + ratified gate): DA §5 commutativity claim (candidate) + SOFTWARE_CANON B2-gate permutation-invariance obligation (ratified). SCOPED to disjoint insertions ONLY — the order-sensitive (same-name conflict) half is pinned as documented order-sensitivity, never assumed invariant. DELIBERATELY EXCLUDES: same-name conflict resolution / priority ordering (first-anchor-wins, batched-path B area / spec). No #49/#50 dependency.",
-      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; status stays proposed pending reviewer sign-off."
+      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; reviewer sign-off complete; locked."
     },
     "expected": {
       "verdict": "accept",
@@ -72,7 +72,7 @@
       "invariant": "disjoint batched-path insertions are permutation-invariant (one identical derived root + name state regardless of arrival/merge order); order-independence is asserted ONLY where the spec claims it (disjoint), never on conflicting leaves",
       "rationale": "The order-independence verdict for disjoint batched-path insertions is claimed in DA §5 (candidate, 'Disjoint insertions commute ... the root is a function of the set of leaves, not the order or arrival time') and the permutation-invariance test obligation is mandated by the ratified B0 B2 gate ('property tests over event orderings (reorg/permutation invariance where the spec claims it)'), reinforced by GLOSSARY first-anchor-wins (candidate). A second implementer can derive 'disjoint-name batches produce one identical root regardless of permutation' from candidate+ratified text alone — the flag merely notes the proof currently sits in analysis-tier sim, which is exactly what the B2 property vector promotes to law. No dependency on #49/#50."
     },
-    "status": "proposed",
+    "status": "locked",
     "attackFlagRef": "G5-01",
     "flipMarker": null
   },
@@ -98,7 +98,7 @@
         "priorState": "baseline"
       },
       "scopeNote": "Cited-now (ratified): SOFTWARE_CANON boundary rule + L2 'No DB, no network, no clock' + ratified fail-closed DA verdict; DA §6e S4 (candidate) corroborates evidence-in / verdict-out / never-I/O. SCOPED to the fail-closed posture + provenance requirement, INDEPENDENT of the B3 witnessed-evidence FORMAT (spec-blocked, NOT asserted here — this vector does not define the witness shape, only that a provenance-less boolean is inadmissible and absent evidence fails closed).",
-      "authoringStatus": "authored: predicate-input shape proposed; status stays proposed pending reviewer sign-off."
+      "authoringStatus": "authored: predicate-input shape proposed; reviewer sign-off complete; locked."
     },
     "expected": {
       "verdict": "reject",
@@ -106,7 +106,7 @@
       "invariant": "an absent witness fails closed (against eligibility), identically for every honest evaluator; a provenance-less boolean witness is a conformance failure (it re-creates the evaluation-time-availability callback hole)",
       "rationale": "Although the witnessed-evidence FORMAT is a B3 deliverable, the verdict this flag demands is the kernel's fail-closed posture on absent/unverifiable evidence — per the task gate, a flag purely about fail-closed posture on absent evidence IS derivable now even though the evidence format is B3. Ratified SOFTWARE_CANON pins it: pure predicate over witnessed inputs, 'No DB, no network, no clock', evidence layer can never override a kernel verdict, and an absent witness must fail closed (DA §6e S4 candidate corroborates). A boolean (available: yes/no) whose provenance is unverifiable re-creates the callback hole and must be a conformance failure — derivable today."
     },
-    "status": "proposed",
+    "status": "locked",
     "attackFlagRef": "G7-01",
     "flipMarker": null
   }

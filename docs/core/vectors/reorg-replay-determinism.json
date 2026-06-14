@@ -20,7 +20,7 @@
         "priorState": "baseline"
       },
       "scopeNote": "Cited-now: SOFTWARE_CANON L2 (ratified, 'ordered, witnessed inputs in; name state out ... No DB, no network, no clock') + DA §6c fail-closed + §6e S4 evidence-in/verdict-out (candidate). SCOPED to the purity / no-local-receipt-time determinism verdict. CONTEXT-ONLY (NOT verdict authority): ONT.md 'two honest observers always get the same answer' (corroboration); the da-convergence-sim 'naive' rule (analysis-tier research sim — names the rejected variant, does not authorize the verdict). DELIBERATELY EXCLUDES (B3): served-evidence-set convergence / witness format — this vector asserts ONLY purity + arrival-order-independence keyed to canonical-chain view + witnessed evidence.",
-      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; status stays proposed pending reviewer sign-off."
+      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; reviewer sign-off complete; locked."
     },
     "expected": {
       "verdict": "reject",
@@ -28,7 +28,7 @@
       "invariant": "name state is a function of (canonical-chain view + served evidence) only; a variant consulting local receipt time or a per-node-assembled evidence set forks and is rejected; identical inputs yield identical state regardless of byte-arrival order",
       "rationale": "The flag's actual derivable predicate is the kernel's fail-closed posture on absent/unconverged evidence and its purity (no clock/network/receipt-time). Per the gate's carve-out, a flag purely about fail-closed behavior on absent evidence is vector-now even though the served-evidence WITNESS FORMAT is a B3 deliverable. SOFTWARE_CANON L2 (ratified, 'ordered, witnessed inputs in; name state out ... No DB, no network, no clock') plus DA §6c fail-closed and §6e S4 ('evidence in, verdict out; never asks did I receive the bytes') let a second implementer derive: a kernel variant that consults local receipt time (the da-convergence-sim 'naive' rule) MUST be rejected; the determinism property is accepted. The B3 part of the flag (witness-set convergence) is not the vector — the purity/fail-closed verdict is."
     },
-    "status": "proposed",
+    "status": "locked",
     "attackFlagRef": "Z1-01",
     "flipMarker": null
   },
@@ -54,7 +54,7 @@
         "priorState": "baseline"
       },
       "scopeNote": "Cited-now (candidate DA §5 + ratified SOFTWARE_CANON Item-5 B2 gate): permutation-invariance of the root over DISJOINT-leaf batch insertions only (root = f(leaf set)). DELIBERATELY EXCLUDES: same-name conflict resolution (owned by Z7 commit-priority / batched-path) — the negative companion pins that the commutativity claim must NOT be quoted onto same-name conflicts. No #49/#50 dependency.",
-      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; status stays proposed pending reviewer sign-off."
+      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; reviewer sign-off complete; locked."
     },
     "expected": {
       "verdict": "accept",
@@ -62,7 +62,7 @@
       "invariant": "the root over disjoint-leaf batch insertions is invariant under application-order permutation (root = f(leaf set)); order-independence is asserted ONLY for disjoint insertions, never same-name conflicts",
       "rationale": "Z6 (permutation-invariance of the root over DISJOINT-leaf batch insertions) is grounded in DA §5 ('Disjoint insertions commute ... the root is a function of the set of leaves, not the order') and SOFTWARE_CANON Item 5 B2 gate (ratified, 'property tests over event orderings (reorg/permutation invariance where the spec claims it)'). The flag is a SCOPE-pinning note, not a missing rule: the vector must test permutation-invariance ONLY for disjoint insertions and must NOT extend it to same-name conflicts (which Z7 resolves by commit priority). The scope boundary is fully derivable from the candidate text + ratified gate, with no dependence on #49/#50."
     },
-    "status": "proposed",
+    "status": "locked",
     "attackFlagRef": "Z6-01",
     "flipMarker": null
   },
@@ -87,7 +87,7 @@
         "note": "schedule integers are launch-freeze placeholders; the no-shrink rule is parameter-independent"
       },
       "scopeNote": "Cited-now (candidate AUCTION Decay Rule + Window Schedule Bottom Line): the extend-only / no-shrink invariant — market-derived characteristics MUST NOT shorten any window; reduce windows by passage of block height only. SCOPED to the parameter-INDEPENDENT no-shrink rule. NOT a #49/#50 dependency: this is the AUCTION decay schedule, not the K/W/C availability algebra. Only the schedule VALUES are launch-freeze; the rule is asserted parameterized on the schedule (no decisionDeps).",
-      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; status stays proposed pending reviewer sign-off."
+      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; reviewer sign-off complete; locked."
     },
     "expected": {
       "verdict": "reject",
@@ -95,7 +95,7 @@
       "invariant": "any computed window shorter than height_keyed_floor(anchor_height) driven by any market signal (bonded value / bidder count / key count / claim volume) is rejected; windows reduce only by passage of block height; adaptive behavior is extend-only",
       "rationale": "The EXTEND-ONLY / no-shrink invariant is fully stated in AUCTION.md Decay Rule (candidate): 'Use a frozen, monotonic, height-keyed schedule. Do not let market-derived system characteristics shrink windows,' and §Window Schedule Bottom Line 'Reduce windows by passage of block height only.' The named unsafe-shrink signals (bonded value, bidder count, key count, volumes) are precisely the rejects. A second implementer can derive: any computed window shorter than height_keyed_floor(anchor_height) driven by any market signal MUST be rejected. No dependency on #49/#50 (this is the AUCTION decay rule, not the K/W/C algebra); only the schedule VALUES are launch-freeze, and the rule is stated parameterized on the schedule."
     },
-    "status": "proposed",
+    "status": "locked",
     "attackFlagRef": "Z11-02",
     "flipMarker": null
   },
@@ -120,7 +120,7 @@
         "note": "forward-guard context: a future rule giving issuedAt freshness/expiry semantics would re-import wall-clock"
       },
       "scopeNote": "Cited-now (ratified SOFTWARE_CANON L2 'No DB, no network, no clock' + normative WIRE_FORMAT §8 'every issuedAt is the literal form'): no kernel predicate consumes wall-clock; off-chain timestamps (issuedAt) are opaque committed bytes, never compared to current time. The forward-guard (a future freshness/expiry rule re-importing wall-clock) is CONTEXT — the testable verdict today is the no-issuedAt-vs-now-comparison reject. No #49/#50 dependency.",
-      "authoringStatus": "authored: predicate-input shape proposed; ratified+normative basis; status stays proposed pending reviewer sign-off."
+      "authoringStatus": "authored: predicate-input shape proposed; ratified+normative basis; reviewer sign-off complete; locked."
     },
     "expected": {
       "verdict": "reject",
@@ -128,7 +128,7 @@
       "invariant": "a kernel rule that compares issuedAt (or any off-chain timestamp) to current time is rejected; issuedAt influences only digest bytes; replays at arbitrary real times yield byte-identical state",
       "rationale": "Z12 (no kernel predicate consumes wall-clock; off-chain timestamps like issuedAt are opaque committed bytes, never compared to 'now') is derivable from SOFTWARE_CANON L2 (ratified, 'No DB, no network, no clock') + WIRE_FORMAT §8 (normative, wire-normative #48: 'Every issuedAt is the literal form'). The flag is a forward-guard note (a future rule giving issuedAt freshness/expiry semantics would re-import wall-clock); the testable verdict today is: a value-record or recovery rule that accepts/rejects by comparing issuedAt to current time MUST fail; issuedAt influences only digest bytes. Fully grounded in ratified + normative text, no #49/#50 dependency."
     },
-    "status": "proposed",
+    "status": "locked",
     "attackFlagRef": "Z12-01",
     "flipMarker": null
   }
