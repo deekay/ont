@@ -41,6 +41,12 @@ import {
 } from "@ont/wire";
 import { valueRecordAccept, type OwnershipInterval, type ValueRecordEnvelope } from "./value-record-authority.js";
 import {
+  gateFeeValidation,
+  type CommittedBatchContents,
+  type GateFee,
+  type GateFeeAnchorFacts,
+} from "./gate-fee.js";
+import {
   createTransferPayload,
   deriveOwnerPubkey,
   encodeTransferPayload,
@@ -122,6 +128,8 @@ const LOCAL_BINDING_MANIFEST = new Set<string>([
   "V11-pos-01",
   // X-area vector realized via the value-record authority surface (post-transfer head)
   "X14-neg-01",
+  // gate-fee family (gateFeeValidation)
+  "F8-pos-01",
   // engine-transfer family (applyBlockTransactions)
   "X2-neg-01",
   "X6-neg-01",
@@ -283,6 +291,31 @@ describe("B2 vector bindings — params family (DA-window construction + h+K eli
     expect(confirmedRootEligible(H, H + params.K - 1, params)).toBe(accepts(vector)); // h+K-1 -> not eligible (accepts=false)
     expect(confirmedRootEligible(H, H + params.K, params)).toBe(true); // companion: eligible exactly at h+K
     expect(() => createDaWindowParams({ K: 4, W: 2, C: 3 })).toThrow(); // S6 companion: K<W+C can't be constructed
+  });
+});
+
+describe("B2 vector bindings — gate-fee family (gateFeeValidation)", () => {
+  it("F8-pos-01: the gate-fee verdict is a pure function of (anchor, batch, fee) with no publisher-identity channel", () => {
+    const vector = loadVector("gate-fee-validation.json", "F8-pos-01");
+    assertBindable(vector);
+    const feeAnchor: GateFeeAnchorFacts = { minedHeight: 1000, anchoredRoot: "abcd", batchSize: 4 };
+    const batch: CommittedBatchContents = { anchoredRoot: "abcd", batchSize: 4 };
+    const fee: GateFee = { amountSats: 1_000_000n };
+    // Primary -> expected.verdict: a structurally-valid, anchor-bound fee passes the B2 gate.
+    expect(gateFeeValidation(feeAnchor, batch, fee).accepted).toBe(accepts(vector)); // accept
+    // F8 structural assertion (the vector's actual claim): the predicate signature carries exactly
+    // three witnessed inputs and NO publisher-identity / endpoint / source parameter — so there is
+    // no channel by which a publisher-batched anchor and an N=1 self-posted anchor could validate
+    // differently (the I5 censorship-resistance floor). Arity is the mechanical no-extra-param pin.
+    expect(gateFeeValidation.length).toBe(3);
+    // determinism / no hidden channel: identical witnessed inputs -> byte-identical verdict.
+    expect(gateFeeValidation(feeAnchor, batch, fee)).toEqual(gateFeeValidation(feeAnchor, batch, fee));
+    // companions (fail-closed, structural — NOT economics): a malformed (negative) fee rejects, and
+    // a batch not bound to the anchor's (anchoredRoot, batchSize) commitment rejects.
+    expect(gateFeeValidation(feeAnchor, batch, { amountSats: -1n }).accepted).toBe(false);
+    expect(gateFeeValidation(feeAnchor, { anchoredRoot: "ffff", batchSize: 4 }, fee).accepted).toBe(false);
+    // NOTE: amount adequacy (fee >= Σ g(name), the g(name) schedule) and batchSize-vs-leaf-count are
+    // deliberately B3 per the vector scopeNote — not asserted here.
   });
 });
 

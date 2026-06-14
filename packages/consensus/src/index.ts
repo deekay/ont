@@ -33,3 +33,7 @@ export * from "./params.js";
 // (#60, amending #59).
 export * from "./da-verdict.js";
 export * from "./value-record-authority.js";
+// The gate-fee validation predicate (#62, riding #59's verdict tier): a pure structural
+// gate over witnessed (anchor, batch, fee) with no publisher-identity channel — rides
+// nothing external (the g(name) schedule is B3). See DECISIONS b2-gate-fee-boundary (#62).
+export * from "./gate-fee.js";

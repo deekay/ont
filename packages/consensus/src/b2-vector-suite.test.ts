@@ -41,6 +41,7 @@ const readyBindingTargetById: Record<string, string> = {
   "D9-neg-01": "params: reject K<W+C",
   "D12-neg-01": "params: no baked K/W/C constants",
   "D13-pos-01": "da-verdict: h+W and h+W+C inclusive boundaries",
+  "F8-pos-01": "gate-fee: pure structural gate over (anchor, batch, fee), no publisher-identity channel",
   "G7-neg-01": "b2-boundary: no provenance-less callback or host-I/O seam",
   "G9-neg-01": "params: no defaults and two-parameterization readiness",
   "V1-neg-01": "value-record-authority: issuedAt never compared to host clock (purity)",
@@ -211,8 +212,8 @@ describe("B2 executable vector suite inventory", () => {
 
     expect(countsBy(plans.map((plan) => plan.state))).toEqual({
       "pending-dk": 30,
-      "pending-predicate": 39,
-      "ready-for-binding": 25,
+      "pending-predicate": 38,
+      "ready-for-binding": 26,
     });
   });
 
@@ -222,7 +223,7 @@ describe("B2 executable vector suite inventory", () => {
       .map((plan) => plan.vector.id)
       .sort();
 
-    expect(pendingRequired).toHaveLength(39);
+    expect(pendingRequired).toHaveLength(38);
     expect(pendingRequired).toContain("R10-neg-01");
     expect(pendingRequired).toContain("B1-neg-02");
     expect(pendingRequired).toContain("T1-neg-01");

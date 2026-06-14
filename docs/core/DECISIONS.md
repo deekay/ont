@@ -1424,6 +1424,33 @@ guarantee is preserved). Spec: WIRE_FORMAT §5; DECISIONS #57/#59/#60; the
 all-auth-digests-ride-wire follow-up flagged at #60. This satisfies #44's "boundary may
 change only with a DECISIONS entry + conformance coverage"; the boundary freezes at launch.
 
+62. b2-gate-fee-boundary: the gate-fee validation predicate enters @ont/consensus as a
+pure CONSENSUS_VERDICTS decider riding nothing external — 2026-06-14
+
+*Status: **Proposed** (writer ClaudeleLunatique, reviewer ChatLunatique; lands on branch
+clean-build-b2-kernel, DK merges). A boundary-manifest addition under #44, riding the
+CONSENSUS_VERDICTS tier established by #59 — a new pure verdict module, NOT a
+tier-widening: its external allowlist is empty (the strictest, like `da-verdict.ts`). No
+new consensus law (the g(name) fee schedule is explicitly deferred to B3), no DK ruling
+required. Covered by conformance: `trust-surface.test.ts` (`gate-fee.ts` in
+CONSENSUS_VERDICTS with an empty `VERDICTS_ALLOWED_BY_FILE` entry), `b2-boundary.test.ts`
+(zero-I/O purity), and the F8-pos-01 binding in `b2-vector-bindings.test.ts`. Authored
+under DK's keep-going grant (event 62b47b5e, 2026-06-14).*
+
+**The rule.** `gateFeeValidation(anchorFacts, committedBatchContents, fee)` is a pure
+deterministic gate-fee verdict over witnessed inputs only — it carries NO publisher
+identity, endpoint, or source parameter, so an N=1 self-posted anchor and a
+publisher-batched anchor validate by the identical rule (the I5 censorship-resistance
+floor, fee mechanics §5; F8). It rides nothing external (empty allowlist) and mutates no
+state. SCOPE: this B2 slice pins the boundary SHAPE plus the structurally-derivable
+fail-closed checks — a non-negative fee amount, and the committed batch must bind to the
+anchor's (`anchoredRoot`, `batchSize`) commitment. It DELIBERATELY EXCLUDES the g(name)
+fee schedule, the fee-amount adequacy economics (fee >= Σ g), and batchSize-vs-leaf-count
+reconciliation — all B3, which fill in along this same identity-free signature. Spec:
+`ONT_ISSUANCE_FEE_MECHANICS.md` §5; `SOFTWARE_CANON.md` L2 boundary rule (pure predicate
+over witnessed inputs, zero-I/O); DECISIONS #59. This satisfies #44's "boundary may
+change only with a DECISIONS entry + conformance coverage"; the boundary freezes at launch.
+
 ## Fairness Principles To Carry Into The Launch Rewrite
 
 The rewritten launch draft should explicitly state:
