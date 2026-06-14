@@ -103,6 +103,7 @@ const LOCAL_BINDING_MANIFEST = new Set<string>([
   // DA-verdict family
   "D4-neg-01",
   "D3-pos-01",
+  "D3-neg-01",
   "D6-neg-01",
   "D13-pos-01",
   // params family (DA-window construction + h+K eligibility)
@@ -119,6 +120,8 @@ const LOCAL_BINDING_MANIFEST = new Set<string>([
   "V8-neg-01",
   "V10-neg-01",
   "V11-pos-01",
+  // X-area vector realized via the value-record authority surface (post-transfer head)
+  "X14-neg-01",
   // engine-transfer family (applyBlockTransactions)
   "X2-neg-01",
   "X6-neg-01",
@@ -186,6 +189,35 @@ describe("B2 vector bindings — DA-verdict family (includable / holdsPriority)"
     const vector = loadVector("da-verdict.json", "D3-pos-01");
     assertBindable(vector);
     expect(holdsPriority(anchor, servedAt(H + 2), params)).toBe(accepts(vector)); // h+W=1002, inclusive -> accept
+  });
+
+  it("D3-neg-01: the deadline clock re-derives from the anchor's containing block on reorg — a stale pre-reorg h is non-conformant", () => {
+    const vector = loadVector("da-verdict.json", "D3-neg-01");
+    assertBindable(vector);
+    // #49 S1: h is the mined height of the anchor's containing block in the evaluator's current
+    // best chain; on reorg h re-derives from the new containing block and every deadline (h+W)
+    // moves with it. The SAME served bytes (one absolute firstServableHeight) evaluated under the
+    // stale pre-reorg h vs the re-derived post-reorg h' must diverge — so a verdict keyed to the
+    // stale h is non-conformant (the reject this vector pins).
+    const root = "abcd";
+    const batchSize = 4;
+    const staleH = 1000; // pre-reorg containing-block height
+    const reorgH = staleH + 4; // the anchor re-mines 4 blocks deeper after the reorg
+    const firstServable = staleH + 5; // 1005: within h'+W (1006) but past the stale h+W (1002)
+    const staleAnchor: AnchorFacts = { minedHeight: staleH, anchoredRoot: root, batchSize };
+    const reorgAnchor: AnchorFacts = { minedHeight: reorgH, anchoredRoot: root, batchSize };
+    const evidenceAt = (anchorHeight: number): ServedEvidence => ({ anchorHeight, anchoredRoot: root, batchSize, firstServableHeight: firstServable });
+    const staleVerdict = holdsPriority(staleAnchor, evidenceAt(staleH), params); // 1005 <= 1002 -> false
+    const reorgVerdict = holdsPriority(reorgAnchor, evidenceAt(reorgH), params); // 1005 <= 1006 -> true
+    // Primary -> expected.verdict: the stale-clock verdict is conformant only if it equals the
+    // re-derived (correct) verdict. Here the re-derivation flips it, so "stale clock conformant" is
+    // false === the vector's reject.
+    const staleClockConformant = staleVerdict === reorgVerdict;
+    expect(staleClockConformant).toBe(accepts(vector)); // false === reject
+    // companions: the deadline moved with the re-derived h, and the post-reorg verdict is the correct one.
+    expect(availabilityDeadlineHeight(staleH, params)).not.toBe(availabilityDeadlineHeight(reorgH, params)); // 1002 vs 1006
+    expect(reorgVerdict).toBe(true); // re-derived h' -> holds priority
+    expect(staleVerdict).toBe(false); // stale h -> diverges (would forfeit)
   });
 
   it("D6-neg-01: served one block past h+W forfeits priority while staying includable", () => {
@@ -375,6 +407,30 @@ describe("B2 vector bindings — value-record family (valueRecordAccept)", () =>
     expect(valueRecordAccept(vrSign({ ownershipRef: VR_REF_2, sequence: 1 }), newInterval, null).accepted).toBe(true); // companion: fresh seq-1/null-prev under the new ref accepts
     // NOTE: the unassigned-"preserve"-flag-bit aspect of V10 is engine/Transfer-side (X-area); valueRecordAccept
     // only ever sees the post-transfer interval the engine supplies (new ref, null head) — a companion concern.
+  });
+
+  it("X14-neg-01: after transfer with no preserve carrier, a prior-owner record is cleared-by-default; the new owner's seq-1 record is the valid head", () => {
+    const vector = loadVector("transfer-authority.json", "X14-neg-01");
+    assertBindable(vector);
+    // X-area vector realized via the value-record authority surface. #18: with no spec-defined
+    // preserve carrier the prior record is cleared by default; #17: authority moves to the new
+    // owner key under a fresh interval. (DELIBERATELY EXCLUDED, per the vector scopeNote: the
+    // Transfer flag-bit registry / preserve-signal carrier — engine X-side, not asserted here.)
+    const NEW_OWNER_PRIV = "22".repeat(32);
+    const newOwnerPub = vrXonly(NEW_OWNER_PRIV);
+    const postTransferInterval: OwnershipInterval = { ownerPubkey: newOwnerPub, ownershipRef: VR_REF_2 };
+    // Primary -> expected.verdict: a record validly signed by the PRIOR owner (key A) is stale under
+    // the post-transfer interval — the prior record does not carry forward.
+    const priorOwnerRecord = vrSign({ ownershipRef: VR_REF_1, sequence: 1 }); // signed by VR_PRIV (owner A)
+    expect(valueRecordAccept(priorOwnerRecord, postTransferInterval, null).accepted).toBe(accepts(vector)); // reject
+    // the clearing is the authority-moved-to-the-new-owner-key check (#17), not merely the interval ref:
+    // even a prior-owner record carrying the NEW ref is stale because the owner key is checked first.
+    expect(valueRecordAccept(vrSign({ ownershipRef: VR_REF_2, sequence: 1 }), postTransferInterval, null).reason).toBe(
+      "v2-owner-key-mismatch"
+    );
+    // companion: the new owner's fresh seq-1/null-prev record is the valid head.
+    const newOwnerHead = vrSign({ priv: NEW_OWNER_PRIV, ownershipRef: VR_REF_2, sequence: 1 });
+    expect(valueRecordAccept(newOwnerHead, postTransferInterval, null).accepted).toBe(true);
   });
 
   it("V11-pos-01: issuedAt never orders the chain — an earlier-issuedAt successor on valid linkage is accepted", () => {

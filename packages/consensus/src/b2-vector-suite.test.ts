@@ -35,6 +35,7 @@ const readyBindingTargetById: Record<string, string> = {
   "A3-neg-01": "params: h+K eligibility and K>=W+C construction",
   "A10-neg-01": "b2-boundary: zero host-I/O purity gate",
   "D3-pos-01": "da-verdict: h+W inclusive priority boundary",
+  "D3-neg-01": "da-verdict: reorg re-derives the h deadline clock (#49 S1)",
   "D4-neg-01": "da-verdict: absent/insufficient evidence fails closed",
   "D6-neg-01": "da-verdict: h+W+1 forfeits priority",
   "D9-neg-01": "params: reject K<W+C",
@@ -50,6 +51,7 @@ const readyBindingTargetById: Record<string, string> = {
   "V8-neg-01": "value-record-authority: recomputed previous hash",
   "V10-neg-01": "value-record-authority: transfer-clears composition",
   "V11-pos-01": "value-record-authority: issuedAt ignored",
+  "X14-neg-01": "value-record: post-transfer authority moves to the new owner (cleared-by-default)",
   "X2-neg-01": "engine: current-owner transfer signature only",
   "X6-neg-01": "engine: successor bond amount threshold",
   "X6-neg-02": "wire/engine: successorBondVout u8 ceiling",
@@ -209,8 +211,8 @@ describe("B2 executable vector suite inventory", () => {
 
     expect(countsBy(plans.map((plan) => plan.state))).toEqual({
       "pending-dk": 30,
-      "pending-predicate": 41,
-      "ready-for-binding": 23,
+      "pending-predicate": 39,
+      "ready-for-binding": 25,
     });
   });
 
@@ -220,7 +222,7 @@ describe("B2 executable vector suite inventory", () => {
       .map((plan) => plan.vector.id)
       .sort();
 
-    expect(pendingRequired).toHaveLength(41);
+    expect(pendingRequired).toHaveLength(39);
     expect(pendingRequired).toContain("R10-neg-01");
     expect(pendingRequired).toContain("B1-neg-02");
     expect(pendingRequired).toContain("T1-neg-01");
