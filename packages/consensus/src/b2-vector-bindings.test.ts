@@ -14,7 +14,7 @@
 // (loaded from JSON), so a binding only passes if its realization faithfully matches the
 // ratified vector — not against a hand-copied expectation.
 
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -60,6 +60,7 @@ import {
   type NameRecord,
   type OntState,
 } from "./engine.js";
+import { classifyOutput } from "./scanner.js";
 
 const vectorsDir = join(dirname(fileURLToPath(import.meta.url)), "../../../docs/core/vectors");
 
@@ -123,6 +124,10 @@ const LOCAL_BINDING_MANIFEST = new Set<string>([
   "X6-neg-01",
   "X6-neg-02",
   "X8-pos-01",
+  // scanner / boundary-purity family (meta-shaped, not construct->predicate)
+  "A1-neg-01",
+  "A10-neg-01",
+  "G7-neg-01",
 ]);
 
 // A binding may only execute a vector that is (a) locked, (b) required-tier
@@ -557,5 +562,77 @@ describe("B2 vector bindings — engine-transfer family (applyBlockTransactions)
       })) === "applied";
     expect(applied).toBe(accepts(vector)); // accepts=true -> applied
     expect(state.names.get("alice")?.currentBondTxid).toBe(ET_OLD_BOND_TXID); // companion: bond fields untouched on the mature path
+  });
+});
+
+// The consensus package's own source dir, for the A10 purity re-scan. This file is a
+// .test.ts and so is itself excluded from the production-module gate (as in b2-boundary.test.ts).
+const consensusSrcDir = dirname(fileURLToPath(import.meta.url));
+const HOST_IO_IMPORT =
+  /^(node:|fs$|fs\/promises$|https?$|net$|tls$|dns$|dgram$|child_process$|worker_threads$|cluster$|readline$|process$|timers$|perf_hooks$|os$)/;
+const HOST_IO_GLOBAL =
+  /\b(Date|setTimeout|setInterval|fetch|XMLHttpRequest|WebSocket|localStorage|sessionStorage|indexedDB)\b|\bprocess\.env\b|\bMath\.random\b/;
+
+// Production @ont/consensus modules that admit a host-I/O / clock / network channel — the
+// seam a live-availability check would need. Mirrors b2-boundary.test.ts's import-surface scan.
+function productionModulesAdmittingHostIO(): string[] {
+  const offenders: string[] = [];
+  for (const file of readdirSync(consensusSrcDir).filter((f) => f.endsWith(".ts") && !f.endsWith(".test.ts")).sort()) {
+    const text = readFileSync(join(consensusSrcDir, file), "utf8");
+    const imports = [
+      ...text.matchAll(/\bfrom\s*["']([^"']+)["']/g),
+      ...text.matchAll(/\bimport\s*["']([^"']+)["']/g),
+    ].map((match) => match[1] as string);
+    if (imports.some((spec) => HOST_IO_IMPORT.test(spec)) || HOST_IO_GLOBAL.test(text)) {
+      offenders.push(file);
+    }
+  }
+  return offenders;
+}
+
+describe("B2 vector bindings — scanner / boundary-purity family (meta-shaped)", () => {
+  it("A1-neg-01: a one-byte near-miss of the golden RootAnchor frame opens no batch (scanner decode-reject)", () => {
+    const vector = loadVector("anchor-acceptance.json", "A1-neg-01");
+    assertBindable(vector);
+    const active = new Set([0x01]);
+    // The 0x0b RootAnchor golden (packages/wire/vectors/events.json) — the fixture's positive control.
+    const goldenHex =
+      "4f4e54010b24ba75b09004e044b254d238c53fa7c057111a65f4959335968970a70a75083e22d10d5ce4947e2f186d299a8f648f96032d0e22d3d4cc55930e7ac31e47ddc40000002a";
+    expect(classifyOutput(hexToBytes(goldenHex), active).class).toBe("valid"); // companion: positive control decodes valid
+    // primary: flip the version byte (index 3: 0x01 -> 0x02) — a near-miss that opens no batch.
+    const nearMiss = hexToBytes(goldenHex);
+    nearMiss[3] = 0x02;
+    const result = classifyOutput(nearMiss, active);
+    expect(result.class === "valid").toBe(accepts(vector)); // false === reject: no batch opens
+    expect(result.event).toBeNull(); // companion: no event materializes
+  });
+
+  it("A10-neg-01: the production kernel admits no live-availability seam (host I/O / clock / network)", () => {
+    const vector = loadVector("anchor-acceptance.json", "A10-neg-01");
+    assertBindable(vector);
+    // Meta/purity binding: re-scan the production modules for the host-I/O channel a live
+    // availability check would need. (b2-boundary.test.ts is the standing gate; this ties
+    // A10's verdict to that invariant.)
+    const admitsSeam = productionModulesAdmittingHostIO().length > 0;
+    expect(admitsSeam).toBe(accepts(vector)); // false === reject: no live-availability seam admitted
+  });
+
+  it("G7-neg-01: the evidence interface is fail-closed and admits no provenanceless boolean witness", () => {
+    const vector = loadVector("kernel-wide-glue.json", "G7-neg-01");
+    assertBindable(vector);
+    // caseB primary: absent witnessed evidence fails closed — the verdict goes against eligibility.
+    expect(includable(anchor, null, params)).toBe(accepts(vector)); // false === reject
+    // caseA companion: a present-but-unbound witness (wrong root — no verifier-checkable match to the
+    // anchored commitment) is also rejected; there is no bare-boolean "available:true" acceptance path.
+    const unbound: ServedEvidence = {
+      anchorHeight: anchor.minedHeight,
+      anchoredRoot: "ffff",
+      batchSize: anchor.batchSize,
+      firstServableHeight: anchor.minedHeight,
+    };
+    expect(includable(anchor, unbound, params)).toBe(false);
+    // positiveCompanion: determinism — two evaluations of identical inputs agree.
+    const bound = servedAt(anchor.minedHeight);
+    expect(includable(anchor, bound, params)).toBe(includable(anchor, bound, params));
   });
 });
