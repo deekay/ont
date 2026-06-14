@@ -53,9 +53,13 @@ code is only mining material.
   is the regen-able vector-now seed (68 flags, kept `status: "proposed"` as a
   draft scaffold). The reviewed vectors live in per-area files under
   [docs/core/vectors/](../../docs/core/vectors/) (vector-now) and
-  `docs/core/vectors/provisional/` (provisional). A vector-now area file flips
-  to `status: "locked"` once its predicate-input shapes + expected verdicts
-  pass per-area adversarial review.
+  `docs/core/vectors/provisional/` (provisional). A vector-now OR provisional
+  area file flips to `status: "locked"` once its predicate-input shapes +
+  expected verdicts pass per-area adversarial review. A locked *provisional*
+  vector keeps `authorityTier: "provisional"`: locking freezes its reviewed
+  shape + `flipMarker`, but the vector still flips / re-derives (per its
+  `flipMarker`) when DK ratifies or reverses da-windows (#49) / recovery-auth
+  (#50).
 - [scripts/b2-vector-now-draft.mjs](../../scripts/b2-vector-now-draft.mjs)
   regenerates and checks. `--check` proves the seed covers all 68 `vector-now`
   rows once; `--check-authored[-complete]` validates the per-area authored

@@ -21,7 +21,7 @@
         "priorState": "a name with an in-flight recovery; pre-recovery owner key still holds the stolen credential"
       },
       "scopeNote": "PROVISIONAL on recovery-auth (#50): the V2 predicate (reject unless ownerPubkey == the interval's CURRENT owner key) is ratified via #17, but WHICH key is current during an open recovery challenge window depends on #50's interval-opening point — whether the new interval opens at recovery invocation or only at challenge-window close. #50 is PROVISIONAL pending DK; note that #50-b1 resolves the recovery signer/evidence shape, NOT the interval-opening point, so this vector tests a distinct #50 axis. The R* area owns the recovery state shape; this predicate consumes it, so the verdict flips with the interval-opening ruling. Authored under the invocation-opening branch (pre-recovery owner not current during the window -> reject); flips per flipMarker. NOT vector-now.",
-      "authoringStatus": "authored: provisional vector with decisionDeps + flipMarker; status proposed pending reviewer sign-off; flips on DK's #50 interval-opening ruling."
+      "authoringStatus": "authored: provisional vector with decisionDeps + flipMarker; status locked (per-area adversarial review passed; authorityTier stays provisional — flips/re-derives on DK ratification of #49/#50); flips on DK's #50 interval-opening ruling."
     },
     "expected": {
       "verdict": "reject",
@@ -29,7 +29,7 @@
       "invariant": "a value record is authentic only if signed by the CURRENT owner key for the interval; under the invocation-opening branch of #50 (the new interval opens at recovery invocation) a record signed by the pre-recovery owner key during an open recovery challenge window is no longer current and is rejected — closing the mid-recovery record-race; identical on deterministic replay (Decision #17 fixes 'current owner key authenticates'; #50's interval-opening point fixes WHICH key is current mid-recovery)",
       "rationale": "The V2 predicate (reject unless ownerPubkey == current interval's owner key) is ratified (Decision #17), but WHICH key is 'current' during an open recovery challenge window depends on recovery-auth (#50): whether the new interval opens at invocation or only at window-close determines whose key is current. #50 is PROVISIONAL pending DK. The R* area owns the state shape; this predicate consumes it, so the verdict flips with the interval-opening ruling."
     },
-    "status": "proposed",
+    "status": "locked",
     "attackFlagRef": "V2-01",
     "flipMarker": {
       "decision": "recovery-auth (#50)",
@@ -59,7 +59,7 @@
         "priorState": "a name with an in-flight recovery; two candidate ownershipRefs (pre-recovery interval vs recovery-invocation txid)"
       },
       "scopeNote": "PROVISIONAL on recovery-auth (#50): V5 is candidate-stays and explicitly 'Blocked on decision: recovery-auth.' Which interval reference is 'current' mid-recovery is fixed only once #50 rules whether the new interval opens at invocation or at window-close (the interval-opening axis — distinct from #50-b1's signer/evidence-shape resolution). The candidate-tier authority for the interval-reference shape (WIRE §8.1 ownershipRef) exists, so the verdict is derivable once the interval-opening point is fixed; until then provisional. Authored under the invocation-opening branch (current ref = recovery-invocation txid -> pre-recovery ref stale -> reject); the neg/pos pair swaps per flipMarker. NOT vector-now.",
-      "authoringStatus": "authored: provisional vector with decisionDeps + flipMarker; status proposed pending reviewer sign-off; the neg/pos pair swaps on DK's #50 interval-opening ruling."
+      "authoringStatus": "authored: provisional vector with decisionDeps + flipMarker; status locked (per-area adversarial review passed; authorityTier stays provisional — flips/re-derives on DK ratification of #49/#50); the neg/pos pair swaps on DK's #50 interval-opening ruling."
     },
     "expected": {
       "verdict": "reject",
@@ -67,7 +67,7 @@
       "invariant": "a value record's ownershipRef must equal the CURRENT interval reference; under the invocation-opening branch of #50 the current ref mid-recovery is the recovery-invocation txid, so a record carrying the pre-recovery interval ref is stale and is rejected; identical on deterministic replay (#50's interval-opening point fixes which ref is current mid-recovery; WIRE §8.1 fixes the ownershipRef encoding)",
       "rationale": "V5 is candidate-stays and explicitly 'Blocked on decision: recovery-auth.' Which interval reference is 'current' mid-recovery is determined only once recovery-auth (#50, PROVISIONAL) rules whether the new interval opens at invocation or at window-close. The candidate-tier authority for the interval-reference shape exists, so the verdict is derivable once the ruling is fixed; until then it is provisional."
     },
-    "status": "proposed",
+    "status": "locked",
     "attackFlagRef": "V5-01",
     "flipMarker": {
       "decision": "recovery-auth (#50)",

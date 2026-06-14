@@ -21,7 +21,7 @@
         "priorState": "a provisional-utility name whose DA verdict subsequently flips"
       },
       "scopeNote": "PROVISIONAL on da-windows (#49): the verdict (state is re-derived from the witnessed DA verdict, never cached; eligibility verdicts are pure-predicate INPUTS) is derivable, but the DA-eligibility verdict the state consumes is governed by #49 S2/S3/S4 (includable/holdsPriority, evidence-in/verdict-out), PROVISIONAL pending DK. This is a DA-validity-CONSUMER (it counts/recomputes from the DA verdict), not a non-DA boundary edge. Depends on #49 ⇒ provisional-vector.",
-      "authoringStatus": "authored: provisional vector with decisionDeps + flipMarker; status proposed pending reviewer sign-off; re-pins on DK's #49 window-algebra ruling."
+      "authoringStatus": "authored: provisional vector with decisionDeps + flipMarker; status locked (per-area adversarial review passed; authorityTier stays provisional — flips/re-derives on DK ratification of #49/#50); re-pins on DK's #49 window-algebra ruling."
     },
     "expected": {
       "verdict": "reject",
@@ -29,7 +29,7 @@
       "invariant": "batched-path state is recomputed from the witnessed DA verdict and never cached across a flipped verdict (DA-eligibility verdicts are pure-predicate inputs, #49 S4); an implementation serving cached state across a flip desynchronizes and is rejected; identical on deterministic replay",
       "rationale": "The verdict (state must be re-derived, never cached across a flipped DA verdict; eligibility verdicts are pure-predicate inputs) is derivable, but the DA-eligibility verdict the state caches is governed by the da-windows algebra (#49 S2/S3/S4), which is provisional pending DK. The vector that pins 'state is recomputed from the witnessed DA verdict, never cached' depends on the #49 includable/holdsPriority semantics."
     },
-    "status": "proposed",
+    "status": "locked",
     "attackFlagRef": "B1-02",
     "flipMarker": {
       "decision": "da-windows (#49)",
@@ -59,7 +59,7 @@
         "priorState": "a name with one cheap claim and one DA-excluded colliding claim near window close"
       },
       "scopeNote": "PROVISIONAL on da-windows (#49): the 'exactly one eligible claim' verdict is from ratified #37 + candidate state machine, but the HEIGHT at which DA-eligibility is evaluated for the count rides on #49 S1/S3 (one clock, includable/holdsPriority), PROVISIONAL. DA-validity-COUNTING consumer. Tests the one-clock height-uniformity (honest-node-invariant count), explicitly NOT the exact at-close edge (that non-DA edge is PR-13, cf. A13). Depends on #49 ⇒ provisional-vector.",
-      "authoringStatus": "authored: provisional vector with decisionDeps + flipMarker; status proposed pending reviewer sign-off; re-pins on DK's #49 eligibility-evaluation-height ruling."
+      "authoringStatus": "authored: provisional vector with decisionDeps + flipMarker; status locked (per-area adversarial review passed; authorityTier stays provisional — flips/re-derives on DK ratification of #49/#50); re-pins on DK's #49 eligibility-evaluation-height ruling."
     },
     "expected": {
       "verdict": "reject",
@@ -67,7 +67,7 @@
       "invariant": "the 'exactly one eligible claim' count evaluates every claim's DA-eligibility at the same one-clock height (#49 S1), so it is honest-node-invariant; evaluating any claim's eligibility at a different height desynchronizes the count and is rejected; identical on deterministic replay. (Tests height-uniformity, not the exact at-close inclusivity, which is PR-13.)",
       "rationale": "The 'exactly one eligible claim' count must be evaluated at the same height (window close) on every honest node, and the DA-eligibility verdict component is governed by the da-windows algebra (#49 S1/S3, one clock, includable/holdsPriority). The verdict is derivable from ratified #37 plus candidate state machine, but the height at which DA-eligibility is evaluated for the count rides on the provisional #49 semantics."
     },
-    "status": "proposed",
+    "status": "locked",
     "attackFlagRef": "B3-01",
     "flipMarker": {
       "decision": "da-windows (#49)",
@@ -96,7 +96,7 @@
         "priorState": "a victim name with one withheld colliding claim"
       },
       "scopeNote": "PROVISIONAL on da-windows (#49): the verdict (only DA-eligible claims count toward a collision; a withheld/excluded colliding claim does NOT nullify) resolves the CONTESTED_AUCTION_REFERENCE-vs-state-machine doc conflict in favor of 'DA-valid', derivable, but 'DA-valid/eligible' is defined by #49 S3 includable/holdsPriority, PROVISIONAL. DA-validity-COUNTING consumer (the #49 class ChatLunatique confirmed, alongside F11). Depends on #49 ⇒ provisional-vector.",
-      "authoringStatus": "authored: provisional vector with decisionDeps + flipMarker; status proposed pending reviewer sign-off; re-pins on DK's #49 includable/holdsPriority threshold ruling."
+      "authoringStatus": "authored: provisional vector with decisionDeps + flipMarker; status locked (per-area adversarial review passed; authorityTier stays provisional — flips/re-derives on DK ratification of #49/#50); re-pins on DK's #49 includable/holdsPriority threshold ruling."
     },
     "expected": {
       "verdict": "reject",
@@ -104,7 +104,7 @@
       "invariant": "only DA-eligible claims count toward a name collision (#49 S3); a withheld / DA-excluded colliding claim does NOT nullify the victim's name (rejecting the nullification) — closing the free-denial-by-withholding weapon; two DA-valid bondless colliding claims do nullify; identical on deterministic replay",
       "rationale": "The verdict resolves the apparent doc conflict in favor of 'DA-valid' (an ineligible/withheld colliding claim must NOT nullify, else withholding becomes free denial), which is derivable: only DA-eligible claims count toward the collision per the B3 'exactly one eligible' framing. But 'DA-valid/eligible' is defined by the da-windows includable/holdsPriority algebra (#49 S3), which is provisional, so the vector that an excluded colliding claim does not nullify depends on #49."
     },
-    "status": "proposed",
+    "status": "locked",
     "attackFlagRef": "B4-02",
     "flipMarker": {
       "decision": "da-windows (#49)",
@@ -134,7 +134,7 @@
         "priorState": "a kernel state with a final owner on one name and an in-flight batch D on others"
       },
       "scopeNote": "PROVISIONAL on da-windows (#49): the rule (a DA-excluded batch's claims vanish uniformly; exclusion removes only the batch's own leaves and unseats no final owner) is cited and final in shape, but the trigger heights W/C/K are exactly the #49 decision (B10 marked 'Blocked on decision: da-windows'). The verdict is a parameterized function; the parameters come from provisional #49 and the fixtures run at two parameterizations (S7). Depends on #49 ⇒ provisional-vector.",
-      "authoringStatus": "authored: provisional vector with decisionDeps + flipMarker; status proposed pending reviewer sign-off; re-instantiates trigger heights on DK's #49 parameterization ruling."
+      "authoringStatus": "authored: provisional vector with decisionDeps + flipMarker; status locked (per-area adversarial review passed; authorityTier stays provisional — flips/re-derives on DK ratification of #49/#50); re-instantiates trigger heights on DK's #49 parameterization ruling."
     },
     "expected": {
       "verdict": "accept",
@@ -142,7 +142,7 @@
       "invariant": "a DA-excluded batch's claims vanish from the counts uniformly; exclusion removes only that batch's own leaves, every other name is byte-identical, and no final owner is unseated; the verdict is a function of the (K,W,C) inputs (#49 S5) and holds at two parameterizations (S7); identical on deterministic replay",
       "rationale": "The rule (DA-excluded batch's claims vanish uniformly; exclusion removes only the batch's own leaves, unseats no final owner) is cited and its shape is final, but the trigger heights W/C/K are exactly the da-windows decision. The hardening doc marks B10 'Blocked on decision: da-windows'. The verdict is derivable as a parameterized function; the parameters come from provisional #49."
     },
-    "status": "proposed",
+    "status": "locked",
     "attackFlagRef": "B10-01",
     "flipMarker": {
       "decision": "da-windows (#49)",

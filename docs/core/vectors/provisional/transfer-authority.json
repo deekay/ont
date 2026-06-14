@@ -22,7 +22,7 @@
         "priorState": "a name with an in-flight recovery; the (possibly stolen) owner key authorizes a transfer-away during the window"
       },
       "scopeNote": "PROVISIONAL on recovery-auth (#50): X13 is candidate-stays and explicitly 'Blocked on decision: recovery-auth' (#50 PROVISIONAL pending DK). The legacy behavior (withoutPendingRecovery on every applied transfer) is the only complete statement, and the flag warns that extracting it must NOT pre-decide whether transfers are restricted during a challenge window — that is the #50 transfer-vs-recovery precedence axis (distinct from #50-b1's signer/evidence-shape resolution). The verdict is derivable conditional on that #50 axis; under the gate it is provisional-vector, never vector-now. Authored under the transfer-supersedes branch (owner-keyed transfer supersedes in-flight recovery -> accept-transfer / stale-recovery-no-op); flips per flipMarker. The transfer-resets-arming rule is also named still-to-spec in DESIGN §10.13 item 1.",
-      "authoringStatus": "authored: provisional vector with decisionDeps + flipMarker; status proposed pending reviewer sign-off; flips on DK's #50 transfer-vs-recovery precedence ruling."
+      "authoringStatus": "authored: provisional vector with decisionDeps + flipMarker; status locked (per-area adversarial review passed; authorityTier stays provisional — flips/re-derives on DK ratification of #49/#50); flips on DK's #50 transfer-vs-recovery precedence ruling."
     },
     "expected": {
       "verdict": "accept",
@@ -30,7 +30,7 @@
       "invariant": "under the transfer-supersedes branch of #50, an owner-key-authorized Transfer applied during an open recovery challenge window supersedes the in-flight recovery: it cancels the pending recovery (withoutPendingRecovery) and the voided recovery later completes as a no-op; the transfer is accepted; identical on deterministic replay (extracting the legacy withoutPendingRecovery behavior must not pre-decide whether transfers are restricted during the window — that is the #50 transfer-vs-recovery precedence axis; the transfer-resets-arming rule is still-to-spec per DESIGN §10.13 item 1)",
       "rationale": "X13 is candidate-stays and explicitly 'Blocked on decision: recovery-auth' (#50, verified PROVISIONAL — pending DK ratification). The legacy behavior (withoutPendingRecovery on every applied transfer) is the only complete statement, and the flag warns extracting it must not pre-decide whether transfers are restricted during a challenge window — that is recovery-auth (#50) transfer-vs-recovery precedence territory. So a verdict is derivable conditional on #50, but it depends on the provisional decision; under the gate it is provisional-vector, never vector-now. The transfer-resets-arming spec PR is also named as still-to-spec in DESIGN §10.13 item 1."
     },
-    "status": "proposed",
+    "status": "locked",
     "attackFlagRef": "X13-01",
     "flipMarker": {
       "decision": "recovery-auth (#50)",

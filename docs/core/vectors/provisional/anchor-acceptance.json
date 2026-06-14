@@ -22,7 +22,7 @@
         "priorState": "baseline; a single witnessed evidence set, no qualifying bond"
       },
       "scopeNote": "PROVISIONAL on da-windows (#49): the A3 rule SHAPE (the §6c challenge outcome restated as a pure predicate decidable at a fixed height over the witnessed evidence set — S2 eligibleAt H>=h+K, S3 includable/holdsPriority, S4 evidence-in/verdict-out, identical on replay) is derivable, but the h+K eligibility boundary and the K >= W + C strong-form invariant are governed by #49 (PROVISIONAL — S2/S5/S6/S7). A3 is the precise concern #49 resolves; per the gate, depends-on-#49 ⇒ provisional-vector, never vector-now. Authored with provisional W=2, C=3, K=6; the verdict re-derives per flipMarker if DK rules #49 differently.",
-      "authoringStatus": "authored: provisional vector with decisionDeps + flipMarker; status proposed pending reviewer sign-off; flips/re-derives on DK's #49 ruling."
+      "authoringStatus": "authored: provisional vector with decisionDeps + flipMarker; status locked (per-area adversarial review passed; authorityTier stays provisional — flips/re-derives on DK ratification of #49/#50); flips/re-derives on DK's #49 ruling."
     },
     "expected": {
       "verdict": "reject",
@@ -30,7 +30,7 @@
       "invariant": "the DA challenge outcome is a pure predicate decidable at a fixed height over the witnessed evidence set (S2 eligibleAt H>=h+K, S3 includable/holdsPriority, S4 evidence-in/verdict-out): below h+K the claim is not yet eligible and confers no award, and the windows must satisfy the strong form K >= W + C; identical on every deterministic replay",
       "rationale": "This flag is the precise concern da-windows (#49) resolves: §6c's 'eventually-consistent' phrasing is restated as a decidable predicate over witnessed evidence at a fixed height. A3's verdict (decidable from witnessed inputs alone, identical on every replay, K >= W + C) is derivable, but it rides on #49 which is PROVISIONAL pending DK (S2 eligibleAt, S6 strong form, S7 provisional W=2/C=3/K=6). Per the gate, depends-on-#49 ⇒ provisional-vector, never vector-now."
     },
-    "status": "proposed",
+    "status": "locked",
     "attackFlagRef": "A3-01",
     "flipMarker": {
       "decision": "da-windows (#49)",
@@ -60,7 +60,7 @@
         "scopeExclusion": "this vector does NOT assert the first-anchor-wins (earliest-VALID-anchor) merge or same-(name,owner) idempotency — those are PR-5 / PR-6 definition-block claims, not #49; it tests only post-DA-verdict occupancy"
       },
       "scopeNote": "PROVISIONAL on da-windows (#49): A11 (anchors are insertion-only; a claim must not take an already-FINAL name) is cited on ratified #26 + candidate DA §5, but the flag's demand — insertion-uniqueness must be defined over the POST-DA-verdict state so a later-forfeited batch does not block honest re-claiming — consumes the eligibility verdict pinned by #49 S3 (includable/holdsPriority). What this vector tests is exactly that: a forfeited earlier batch is ABSENT from post-DA-verdict occupancy and so does not block a fresh honest claim. Depends-on-#49 ⇒ provisional-vector, never vector-now. The broader first-anchor-wins (earliest-VALID-anchor) definition and same-(name,owner) idempotency are PR-5 / PR-6 territory and are NOT asserted here (context only). Authored with provisional W=2/C=3/K=6; re-derives per flipMarker.",
-      "authoringStatus": "authored: provisional vector with decisionDeps + flipMarker; status proposed pending reviewer sign-off; re-derives on DK's #49 ruling."
+      "authoringStatus": "authored: provisional vector with decisionDeps + flipMarker; status locked (per-area adversarial review passed; authorityTier stays provisional — flips/re-derives on DK ratification of #49/#50); re-derives on DK's #49 ruling."
     },
     "expected": {
       "verdict": "accept",
@@ -68,7 +68,7 @@
       "invariant": "insertion-uniqueness is evaluated over the post-DA-verdict kernel state: a name whose only prior insertion came from a batch that later forfeits DA is ABSENT from post-DA-verdict occupancy, so it does not block an honest re-claim at a fresh valid anchor; identical on deterministic replay. (The broader first-anchor-wins / same-(name,owner)-idempotency definition is PR-5 / PR-6 territory and is NOT asserted by this vector.)",
       "rationale": "A11 (anchors are insertion-only; a claim must not take an already-final name) is cited on ratified DECISIONS #26 and candidate DA §5. The flag's specific demand — insertion-uniqueness must be defined over POST-DA-verdict state so a later-forfeited batch does not block honest re-claiming — is derivable, but the post-DA-verdict occupancy IS the eligibility verdict pinned by da-windows (#49) S3 (includable/holdsPriority). The forfeited-batch-confers-no-occupancy / re-claim-allowed verdict depends on the #49 eligibility algebra. Depends on #49 ⇒ provisional-vector. (First-anchor-wins / idempotency are PR-5 / PR-6, not asserted here.)"
     },
-    "status": "proposed",
+    "status": "locked",
     "attackFlagRef": "A11-01",
     "flipMarker": {
       "decision": "da-windows (#49)",

@@ -22,7 +22,7 @@
         "priorState": "baseline"
       },
       "scopeNote": "PROVISIONAL on da-windows (#49): the F9 rule SHAPE (the gate keys to the anchor at K-deep confirmation; reorged-out-before-K -> no fee fact; a re-mined replacement is gated on its own new intrinsic fee; deterministic replay over reorgs) is derivable, but the confirmation-depth K and the h+K eligibility boundary are governed by #49 (PROVISIONAL — S2/S5/S7). F9's rule is explicitly 'Blocked on decision: da-windows'. Authored now with the provisional K=6; the verdict re-pins per flipMarker if DK rules #49 differently. NOT vector-now (depends on the provisional decision).",
-      "authoringStatus": "authored: provisional vector with decisionDeps + flipMarker; status proposed pending reviewer sign-off; flips/retires on DK's #49 ruling."
+      "authoringStatus": "authored: provisional vector with decisionDeps + flipMarker; status locked (per-area adversarial review passed; authorityTier stays provisional — flips/re-derives on DK ratification of #49/#50); flips/retires on DK's #49 ruling."
     },
     "expected": {
       "verdict": "reject",
@@ -30,7 +30,7 @@
       "invariant": "an anchor reorged out before reaching K-deep confirmation contributes no fee fact and no name; a re-mined replacement is gated on its own intrinsic fee (Sigma in - Sigma out of the replacement tx), never the orphaned tx's; verdict is identical on deterministic replay over the reorg",
       "rationale": "F9's rule shape (gate verdict keys to the anchor at K-deep confirmation; reorged-out-before-K -> no fee fact; re-mined replacement uses its new intrinsic fee; deterministic replay) is derivable, and the rule is explicitly 'Blocked on decision: da-windows'. K is governed by da-windows (#49), which is PROVISIONAL pending DK ratification (S2 eligibleAt(anchor,H,K):=H>=h+K; S5 K is a consensus parameter; S7 provisional value 6). The verdict derives from #49's pinned algebra but depends on the provisional decision -> provisional-vector (authored with decisionDeps + flipMarker, not vector-now)."
     },
-    "status": "proposed",
+    "status": "locked",
     "attackFlagRef": "F9-01",
     "flipMarker": {
       "decision": "da-windows (#49)",
@@ -61,7 +61,7 @@
         "priorState": "a name with competing in-window claims, no qualifying bond"
       },
       "scopeNote": "PROVISIONAL on da-windows (#49): the F11 escalation-trigger half (a qualifying bond opens the auction; a bare collision denies-never-awards; two+ DA-valid bondless claims nullify) is RATIFIED via #37 — but the claim-counting INPUT ('which claims are DA-valid') consumes the DA-verdict, whose W (holdsPriority) window is governed by #49 (PROVISIONAL, S3). So whether a borderline claim qualifies — and thus nullify-vs-single-survivor-finalize — depends on #49's W boundary. Authored with provisional W=2; the escalation-trigger half is stable, only the DA-validity counting flips. NOT vector-now.",
-      "authoringStatus": "authored: provisional vector with decisionDeps + flipMarker; status proposed pending reviewer sign-off; the #37 escalation-trigger half is ratified, only the #49-bounded DA-validity counting is provisional."
+      "authoringStatus": "authored: provisional vector with decisionDeps + flipMarker; status locked (per-area adversarial review passed; authorityTier stays provisional — flips/re-derives on DK ratification of #49/#50); the #37 escalation-trigger half is ratified, only the #49-bounded DA-validity counting is provisional."
     },
     "expected": {
       "verdict": "reject",
@@ -69,7 +69,7 @@
       "invariant": "the bare-collision-nullify verdict's claim-counting consumes the DA-verdict (W-window-bounded): two DA-valid bondless claims nullify the name (no owner, never an award); a borderline claim's DA-validity — and thus nullify-vs-finalize — is determined by #49's W boundary",
       "rationale": "The F11 rule shape (qualifying bond is the escalation trigger; bare collision denies, never awards; two+ bondless DA-valid claims nullify) is CITED and ratified via #37. But the claim-counting input — 'two or more DA-valid claims' (CONTESTED_AUCTION_REFERENCE) — consumes the DA-verdict, whose windows (W for holdsPriority) are governed by da-windows (#49, provisional). The verdict's claim-counting input does not finalize until #49 ratifies -> provisional-vector. The escalation-trigger half is ratified; only the in-window DA-validity counting depends on #49's W boundary."
     },
-    "status": "proposed",
+    "status": "locked",
     "attackFlagRef": "F11-02",
     "flipMarker": {
       "decision": "da-windows (#49)",
