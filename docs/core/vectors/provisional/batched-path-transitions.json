@@ -20,7 +20,7 @@
         "priorState": "a provisional-utility name whose DA verdict subsequently flips"
       },
       "scopeNote": "Originated provisional on da-windows (#49, RATIFIED 2026-06-14): the verdict (state is re-derived from the witnessed DA verdict, never cached; eligibility verdicts are pure-predicate INPUTS) is derivable, but the DA-eligibility verdict the state consumes is governed by #49 S2/S3/S4 (includable/holdsPriority, evidence-in/verdict-out), RATIFIED 2026-06-14. This is a DA-validity-CONSUMER (it counts/recomputes from the DA verdict), not a non-DA boundary edge. Originated as a provisional-vector under #49 (now ratified).",
-      "authoringStatus": "authored from a provisional vector (decisionDeps + flipMarker shed on ratification); status locked (per-area adversarial review passed; authorityTier RATIFIED 2026-06-14 (DK ratified da-windows #49 O1 / recovery-auth #50 b1); lineage in DECISIONS #49/#50, registry Part B, decision papers, git); re-pins on DK's #49 window-algebra ruling."
+      "authoringStatus": "authored from a provisional vector (decisionDeps + flipMarker shed on ratification); status locked (per-area adversarial review passed; authorityTier RATIFIED 2026-06-14 (DK ratified da-windows #49 O1 / recovery-auth #50 b1); lineage in DECISIONS #49/#50, registry Part B, decision papers, git)."
     },
     "expected": {
       "verdict": "reject",
@@ -54,7 +54,7 @@
         "priorState": "a name with one cheap claim and one DA-excluded colliding claim near window close"
       },
       "scopeNote": "Originated provisional on da-windows (#49, RATIFIED 2026-06-14): the 'exactly one eligible claim' verdict is from ratified #37 + candidate state machine, but the HEIGHT at which DA-eligibility is evaluated for the count rides on #49 S1/S3 (one clock, includable/holdsPriority), RATIFIED 2026-06-14. DA-validity-COUNTING consumer. Tests the one-clock height-uniformity (honest-node-invariant count), explicitly NOT the exact at-close edge (that non-DA edge is PR-13, cf. A13). Originated as a provisional-vector under #49 (now ratified).",
-      "authoringStatus": "authored from a provisional vector (decisionDeps + flipMarker shed on ratification); status locked (per-area adversarial review passed; authorityTier RATIFIED 2026-06-14 (DK ratified da-windows #49 O1 / recovery-auth #50 b1); lineage in DECISIONS #49/#50, registry Part B, decision papers, git); re-pins on DK's #49 eligibility-evaluation-height ruling."
+      "authoringStatus": "authored from a provisional vector (decisionDeps + flipMarker shed on ratification); status locked (per-area adversarial review passed; authorityTier RATIFIED 2026-06-14 (DK ratified da-windows #49 O1 / recovery-auth #50 b1); lineage in DECISIONS #49/#50, registry Part B, decision papers, git)."
     },
     "expected": {
       "verdict": "reject",
@@ -87,7 +87,7 @@
         "priorState": "a victim name with one withheld colliding claim"
       },
       "scopeNote": "Originated provisional on da-windows (#49, RATIFIED 2026-06-14): the verdict (only DA-eligible claims count toward a collision; a withheld/excluded colliding claim does NOT nullify) resolves the CONTESTED_AUCTION_REFERENCE-vs-state-machine doc conflict in favor of 'DA-valid', derivable, but 'DA-valid/eligible' is defined by #49 S3 includable/holdsPriority, RATIFIED 2026-06-14. DA-validity-COUNTING consumer (the #49 class ChatLunatique confirmed, alongside F11). Originated as a provisional-vector under #49 (now ratified).",
-      "authoringStatus": "authored from a provisional vector (decisionDeps + flipMarker shed on ratification); status locked (per-area adversarial review passed; authorityTier RATIFIED 2026-06-14 (DK ratified da-windows #49 O1 / recovery-auth #50 b1); lineage in DECISIONS #49/#50, registry Part B, decision papers, git); re-pins on DK's #49 includable/holdsPriority threshold ruling."
+      "authoringStatus": "authored from a provisional vector (decisionDeps + flipMarker shed on ratification); status locked (per-area adversarial review passed; authorityTier RATIFIED 2026-06-14 (DK ratified da-windows #49 O1 / recovery-auth #50 b1); lineage in DECISIONS #49/#50, registry Part B, decision papers, git)."
     },
     "expected": {
       "verdict": "reject",
