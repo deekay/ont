@@ -1156,6 +1156,110 @@ wallets that matter — reopens toward b2h, whose full skeleton is paper
 §4; the abort-only watcher credential (OPEN_QUESTIONS §4.1) landing with
 invoke-side field needs — touches the predicate by named amendment.
 
+51. served-evidence-interface: the B2 DA-eligibility predicate consumes
+`servedEvidence` as an opaque verifier-checkable interface; concrete bytes are B3 — 2026-06-14
+
+*Status: **RATIFIED (DK, event 38369933, 2026-06-14).** Writer ClaudeleLunatique,
+reviewer ChatLunatique. Spec-PR PR-1.*
+
+**The rule.** `eligible(anchor, servedEvidence, W, C)` consumes `servedEvidence` as
+an opaque interface satisfying: (i) cryptographically bound to its anchor;
+(ii) determines a single first-servable height comparable to `h+W`;
+(iii) independently verifiable from the `servedEvidence` object plus
+confirmed-chain facts (no external I/O, no submitter trust), so two verifiers with
+the same chain AND the same evidence derive the same verdict. The concrete byte
+layout is the B3 deliverable (P2). Detail + amendment text:
+[B2_SPEC_PR_PACKETS.md](./B2_SPEC_PR_PACKETS.md) PR-1.
+
+52. commitment-match: committed leaf = `H(ownerPubkey)`; a malformed leaf is
+dropped (not batch-poison), with claimant-verifiable own-leaf inclusion — 2026-06-14
+
+*Status: **RATIFIED (DK, events 38369933 + 9b0c380a, 2026-06-14).** Writer
+ClaudeleLunatique, reviewer ChatLunatique. Spec-PR PR-2 (conflicts C5, C6).*
+
+**The rule.** (1) The committed leaf value is `H(ownerPubkey)` (docs-win over the
+legacy raw-pubkey code). (2) A leaf-level well-formedness failure **drops only that
+leaf**; the rest of the batch stands (not batch-poison) — **conditioned on** the
+leaf-drop being non-silent: a claimant can verify its own committed leaf from the
+available batch (which the ratified DA rules supply), so a drop is observable and
+remediable before cheap finality (the leaf-drop *timing* invariant — ChatLunatique
+guardrail). Fee/DA-deadline failures stay whole-batch. `Σ gᵢ` is summed over the
+full committed leaf set regardless of drops. The contested-name case escalates to
+the bonded auction (bond-opens (#37)), so a silent drop cannot steal a contested
+name. Detail: [B2_SPEC_PR_PACKETS.md](./B2_SPEC_PR_PACKETS.md) PR-2.
+
+53. root-chain-linkage: an accepted anchor's `prevRoot` equals the K-deep confirmed
+root `R_{h−K}` (delta-merge), not the live chain tip — 2026-06-14
+
+*Status: **RATIFIED (DK, event 38369933, 2026-06-14).** Writer ClaudeleLunatique,
+reviewer ChatLunatique. Spec-PR PR-3 (conflict C2).*
+
+**The rule.** `prevRoot` must equal the confirmed root `R_{h−K}` (K-deep below the
+anchor); anchors are **not** tip-linked (strict tip-linkage is the A7-01 grief
+surface — a tiny first anchor invalidates every concurrent honest publisher). A
+structurally-valid but ineligible (fee/DA-failing) anchor consumes no
+`prevRoot→newRoot` position; a re-anchor of an existing `newRoot` or a
+`prevRoot==newRoot` no-op is rejected; the earliest valid instance in the
+same-block order (#55) owns the deadline clock + proof-bundle txid. `K` is the
+da-windows (#49) parameter. Detail: [B2_SPEC_PR_PACKETS.md](./B2_SPEC_PR_PACKETS.md) PR-3.
+
+54. one-anchor-per-tx: a Bitcoin tx carries at most one valid RootAnchor; >1 valid
+anchor rejects the whole tx — 2026-06-14
+
+*Status: **RATIFIED (DK, events 38369933 + 9b0c380a, 2026-06-14).** Writer
+ClaudeleLunatique, reviewer ChatLunatique. Spec-PR PR-4 (conflict C7).*
+
+**The rule.** At most one valid decodable RootAnchor per transaction; a tx carrying
+more than one valid RootAnchor is **rejected in whole** (fail-closed, no partial
+fee attribution). Malformed / non-ONT OP_RETURN outputs are ignored — they neither
+count toward the one-anchor limit nor poison it (the skip-bad disposition, coupled
+to same-block-order (#55)). The tx's intrinsic fee `F` attributes to the single
+anchor, so no fee can satisfy more than one anchor's gate. Detail + byte-level
+classification: [B2_SPEC_PR_PACKETS.md](./B2_SPEC_PR_PACKETS.md) PR-4 +
+[B2_SKIP_BAD_CLASSIFICATION.md](./B2_SKIP_BAD_CLASSIFICATION.md).
+
+55. same-block-order: ONT events apply in ascending (block height, intra-block
+tx-index, output index); a junk output is skipped (skip-bad), never poisons siblings — 2026-06-14
+
+*Status: **RATIFIED (DK, events 38369933 + 9b0c380a, 2026-06-14).** Writer
+ClaudeleLunatique, reviewer ChatLunatique. Spec-PR PR-16 (conflict C20; gaps G2/G3).*
+
+**The rule.** Within a confirmed block, ONT events apply in ascending
+`(height, tx-index, vout)` — the commit-priority tuple, consistent with ratified
+Decision #25 (the publisher-spec txid tiebreak is superseded). Multiple ONT events
+per tx apply in vout order; **skip-bad** — undecodable / non-ONT / inactive-version
+outputs are ignored with **zero partial side effects** and never poison sibling
+events. Earliest-in-order consumes a contested outpoint; later contenders reject.
+Accepted bids reset the min-increment basis for later same-block bids. A
+height-`h`-triggered transition evaluates after all height-`h` events apply.
+Ordering governs determinism/grief only — **a contested name is awarded solely by
+the qualifying bond (bond-opens (#37))**, never by ordering. The "real ONT event vs
+ignorable output" boundary is a hard byte-level definition with a future-version
+**activation-height gate** (a future-version payload is invalid + zero-side-effects
+before its named activation, so v1-skips-but-v2-processes cannot silently hardfork):
+[B2_SKIP_BAD_CLASSIFICATION.md](./B2_SKIP_BAD_CLASSIFICATION.md). Detail:
+[B2_SPEC_PR_PACKETS.md](./B2_SPEC_PR_PACKETS.md) PR-16.
+
+56. settlement-bond-continuity: a winning bond spent before settlement materializes
+no owner (the name reopens); the runner-up is not promoted — 2026-06-14
+
+*Status: **RATIFIED (DK, event 9b0c380a, 2026-06-14).** Writer ClaudeleLunatique,
+reviewer ChatLunatique. Spec-PR PR-23.*
+
+**The rule.** A winning bid materializes ownership only if its winning bond is
+unspent from confirmation through the settlement evaluation point. If the bond is
+spent before settlement, the auction materializes **no owner** and the name reopens
+under a release-height rule keyed to the breaking spend; **no runner-up is
+promoted** (a runner-up has no obligation to keep a bond alive after losing —
+runner-up-wins is fragile and collusion-prone). A losing bid whose bond is spent
+pre-settlement is removed from future auction-state effects after the spend is
+observed. **Accepted residual (named, not hidden):** a bidder can pay fees + lock
+capital to win, break continuity, and force a reopen — a *denial loop*, observable
+and bounded by the auction's bid/finality economics. No cooldown / higher reopen
+floor / failed-winner exclusion is a default B2 rule unless launch-parameter
+modeling or external review shows the loop is too cheap (then a later named
+decision adds one). Model: [PR23_DENIAL_LOOP.md](../research/PR23_DENIAL_LOOP.md).
+
 ## Fairness Principles To Carry Into The Launch Rewrite
 
 The rewritten launch draft should explicitly state:

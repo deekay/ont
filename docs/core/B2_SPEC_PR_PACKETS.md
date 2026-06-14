@@ -1,12 +1,23 @@
 # B2 Spec-PR Decision Packets — decision-ready for DK
 
-> **Normativity: `analysis`** — advisory recommendations, NOT ratified law.
-> The neutral gap catalog is [B2_SPEC_PR_REGISTRY.md](./B2_SPEC_PR_REGISTRY.md)
-> Part A (36 PRs); this file augments each with **Options → Recommendation →
-> Ripple** so DK can rule a batch fast on return. A recommendation here is
-> ClaudeleLunatique's advisory call (writer/reviewer/DK protocol); **DK
-> decides**, ChatLunatique reviews the packet. Per the parking rule, no
-> consensus law is agent-decided — these only make the choices legible.
+> **Normativity: `analysis`** — advisory recommendations. The neutral gap catalog
+> is [B2_SPEC_PR_REGISTRY.md](./B2_SPEC_PR_REGISTRY.md) Part A (36 PRs); this file
+> augments each with **Options → Recommendation → Ripple**. A recommendation here is
+> ClaudeleLunatique's advisory call (writer/reviewer/DK protocol); **DK decides**,
+> ChatLunatique reviews. Per the parking rule, no consensus law is agent-decided —
+> these only make the choices legible.
+>
+> **RATIFICATION STATUS (2026-06-14): the 5 P0 forks are RULED.** DK ratified PR-1
+> → served-evidence-interface (#51); PR-2 → commitment-match (#52, `H(ownerPubkey)`
+> + leaf-drop); PR-3 → root-chain-linkage (#53, delta-merge); PR-4 →
+> one-anchor-per-tx (#54); PR-16 → same-block-order (#55, skip-bad). PR-23 →
+> settlement-bond-continuity (#56, no-owner). See [DECISIONS.md](./DECISIONS.md)
+> #51–#56 for the ratified rules. The byte-level skip-bad classification behind
+> PR-16/PR-4 is [B2_SKIP_BAD_CLASSIFICATION.md](./B2_SKIP_BAD_CLASSIFICATION.md);
+> the PR-23 denial-loop residual is
+> [PR23_DENIAL_LOOP.md](../research/PR23_DENIAL_LOOP.md). The remaining ~30 PRs
+> (PR-5..15, 17..22, 24..36) await DK's eyes-open batch-approval via
+> [B2_SPEC_PR_DECISION_MATRIX.md](./B2_SPEC_PR_DECISION_MATRIX.md).
 
 Each packet keys to a registry PR by number and lists its flags. "Ratify as
 recommended" = adopt the recommended option as a named spec decision (and, where
