@@ -27,12 +27,12 @@
 //   - X11 "transfer only affects owned names" — soft authority ("once a name is
 //     final" + state diagram, no MUST sentence). Documented as candidate, not gate.
 //
-// X2 TIER (DECISIONS #60-adjacent, ChatLunatique-ruled): the engine keeps riding
-// @ont/protocol verifyTransferAuthorization (CORE_DECIDERS allowlist). The
-// equivalence pin below is the justification — it fails the build if the
-// @ont/protocol transfer digest ever drifts from the B1 @ont/wire §5 normative
-// transferAuthDigest. The broader "all auth digests ride @ont/wire directly"
-// migration is parked as its own boundary-amendment slice.
+// X2 TIER (DECISIONS #60/#61, ChatLunatique-ruled): the engine verifies the B1 §5
+// owner-key signature via @ont/wire (verifySchnorr over transferAuthDigest) in a local
+// fail-closed wrapper — the all-auth-digests-ride-wire migration landed as #61 (engine.ts
+// gets a per-file @ont/wire allowance in CORE_DECIDERS). The equivalence pin below is the
+// standing guard: it fails the build if the @ont/protocol transfer digest ever drifts from
+// the B1 @ont/wire §5 normative transferAuthDigest.
 
 import { describe, expect, it } from "vitest";
 
@@ -278,8 +278,8 @@ describe("X3 — failed conjuncts mutate nothing; adversarial signatures yield f
     const state = createEmptyState();
     const before = { ...seedOwnedName(state, { name: "alice", maturityHeight: 1000 }) };
     // 64-byte all-zero signature — shape-valid (the parser would accept the bytes),
-    // not a valid Schnorr signature. verifyTransferAuthorization catches internally
-    // and returns false (never aborts).
+    // not a valid Schnorr signature. The local verifyTransferSignature wrapper (#61)
+    // catches internally and returns false (never aborts; verifySchnorr does not catch).
     const payload = createTransferPayload({ ...fields, signature: "00".repeat(64) });
     expect(() => apply(state, block({ txid: "30".repeat(32), blockHeight: 2000, payload }))).not.toThrow();
     expect(state.names.get("alice")).toEqual(before);
