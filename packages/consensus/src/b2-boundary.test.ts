@@ -37,6 +37,7 @@ const BANNED_GLOBALS = [
   /\bsessionStorage\b/,
   /\bindexedDB\b/,
   /\bprocess\.env\b/,
+  /\bMath\.random\b/,
 ];
 
 function productionFiles(): string[] {

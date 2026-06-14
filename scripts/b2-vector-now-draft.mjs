@@ -1,11 +1,12 @@
 #!/usr/bin/env node
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const CLASSIFIED_PATH = join(ROOT, "docs/core/B2_STEP4_CLASSIFIED.json");
 const OUT_PATH = join(ROOT, "docs/core/B2_VECTOR_NOW_DRAFT.json");
+const AUTHORED_DIR = join(ROOT, "docs/core/vectors");
 
 const areaByPrefix = {
   A: "Anchor acceptance",
@@ -39,9 +40,16 @@ const allowedRootKeys = new Set([
 ]);
 
 const authorityTiers = new Set(["normative", "candidate", "ratified", "provisional"]);
+const statuses = new Set(["proposed", "locked", "flipped", "retired"]);
+const kinds = new Set(["negative", "positive"]);
+const areaNames = new Set(Object.values(areaByPrefix));
+
+function readJson(path) {
+  return JSON.parse(readFileSync(path, "utf8"));
+}
 
 function classifiedRows() {
-  return JSON.parse(readFileSync(CLASSIFIED_PATH, "utf8"));
+  return readJson(CLASSIFIED_PATH);
 }
 
 function inferKind(row) {
@@ -109,6 +117,71 @@ function buildVectors(rows) {
     });
 }
 
+function validateSchemaVector(vector) {
+  const problems = [];
+  const prefix = vector?.id ?? "<missing id>";
+
+  if (typeof vector !== "object" || vector === null || Array.isArray(vector)) return ["vector must be an object"];
+
+  const required = ["id", "ruleId", "area", "authorityTier", "sources", "kind", "inputs", "expected", "status", "attackFlagRef"];
+  for (const key of required) {
+    if (!(key in vector)) problems.push(`${prefix}: missing ${key}`);
+  }
+
+  for (const key of Object.keys(vector)) {
+    if (!allowedRootKeys.has(key)) problems.push(`${prefix}: unknown root key ${key}`);
+  }
+
+  if (!/^[A-Z]+[0-9]+[a-z]?-(neg|pos)-[0-9]{2}$/.test(vector.id ?? "")) problems.push(`${prefix}: bad id`);
+  if (!/^(A|D|F|T|B|V|Z|S|R|X|Q|G)[0-9]+[a-z]?$/.test(vector.ruleId ?? "")) problems.push(`${prefix}: bad ruleId ${vector.ruleId}`);
+  if (!areaNames.has(vector.area)) problems.push(`${prefix}: bad area ${vector.area}`);
+  if (!authorityTiers.has(vector.authorityTier)) problems.push(`${prefix}: bad authorityTier ${vector.authorityTier}`);
+  if (!Array.isArray(vector.sources) || vector.sources.length === 0 || vector.sources.some((s) => typeof s !== "string" || s.length === 0)) {
+    problems.push(`${prefix}: sources must be a non-empty string array`);
+  }
+  if (!kinds.has(vector.kind)) problems.push(`${prefix}: bad kind ${vector.kind}`);
+  if (typeof vector.inputs !== "object" || vector.inputs === null || Array.isArray(vector.inputs)) problems.push(`${prefix}: inputs must be an object`);
+  if (!statuses.has(vector.status)) problems.push(`${prefix}: bad status ${vector.status}`);
+  if (!(typeof vector.attackFlagRef === "string" || vector.attackFlagRef === null)) problems.push(`${prefix}: attackFlagRef must be string or null`);
+
+  if (typeof vector.expected !== "object" || vector.expected === null || Array.isArray(vector.expected)) {
+    problems.push(`${prefix}: expected must be an object`);
+  } else {
+    if (!["accept", "reject"].includes(vector.expected.verdict)) problems.push(`${prefix}: bad expected.verdict ${vector.expected.verdict}`);
+    if (typeof vector.expected.reason !== "string" || vector.expected.reason.length === 0) problems.push(`${prefix}: expected.reason must be non-empty string`);
+    if (vector.kind === "negative" && vector.expected.verdict !== "reject") problems.push(`${prefix}: negative vector must expect reject`);
+    if (vector.kind === "positive" && vector.expected.verdict !== "accept") problems.push(`${prefix}: positive vector must expect accept`);
+  }
+
+  if (vector.authorityTier === "provisional") {
+    if (!Array.isArray(vector.decisionDeps) || vector.decisionDeps.length === 0 || vector.decisionDeps.some((d) => typeof d !== "string" || d.length === 0)) {
+      problems.push(`${prefix}: provisional vector requires non-empty decisionDeps`);
+    }
+    if (typeof vector.flipMarker !== "object" || vector.flipMarker === null || Array.isArray(vector.flipMarker)) {
+      problems.push(`${prefix}: provisional vector requires object flipMarker`);
+    } else {
+      const keys = Object.keys(vector.flipMarker);
+      for (const key of keys) {
+        if (!["decision", "flipsTo"].includes(key)) problems.push(`${prefix}: flipMarker has unknown key ${key}`);
+      }
+      if (typeof vector.flipMarker.decision !== "string" || vector.flipMarker.decision.length === 0) problems.push(`${prefix}: flipMarker.decision must be non-empty string`);
+      if (typeof vector.flipMarker.flipsTo !== "string" || vector.flipMarker.flipsTo.length === 0) problems.push(`${prefix}: flipMarker.flipsTo must be non-empty string`);
+    }
+  } else {
+    if (vector.flipMarker !== null) problems.push(`${prefix}: non-provisional flipMarker must be null`);
+    if ("decisionDeps" in vector) problems.push(`${prefix}: non-provisional vector carries decisionDeps`);
+  }
+
+  if (vector.kind === "negative" && (typeof vector.attackFlagRef !== "string" || vector.attackFlagRef.length === 0)) {
+    problems.push(`${prefix}: negative vector requires non-empty attackFlagRef`);
+  }
+
+  const expectedArea = areaByPrefix[(vector.ruleId ?? "")[0]];
+  if (expectedArea && vector.area !== expectedArea) problems.push(`${prefix}: area ${vector.area} != ${expectedArea} for ruleId ${vector.ruleId}`);
+
+  return problems;
+}
+
 function validate(vectors, rows) {
   const problems = [];
   const byFlag = new Map(rows.map((row) => [row.attackFlagId, row]));
@@ -117,10 +190,7 @@ function validate(vectors, rows) {
   const seenIds = new Set();
 
   for (const vector of vectors) {
-    for (const key of Object.keys(vector)) {
-      if (!allowedRootKeys.has(key)) problems.push(`${vector.id ?? "<missing id>"}: unknown root key ${key}`);
-    }
-    if (!/^[A-Z]+[0-9]+[a-z]?-(neg|pos)-[0-9]{2}$/.test(vector.id ?? "")) problems.push(`${vector.id}: bad id`);
+    problems.push(...validateSchemaVector(vector));
     if (seenIds.has(vector.id)) problems.push(`${vector.id}: duplicate id`);
     seenIds.add(vector.id);
 
@@ -133,16 +203,6 @@ function validate(vectors, rows) {
     if (vector.ruleId !== row.ruleId) problems.push(`${vector.id}: ruleId ${vector.ruleId} != ${row.ruleId}`);
     if (vector.area !== areaByPrefix[row.area]) problems.push(`${vector.id}: area ${vector.area} != ${areaByPrefix[row.area]}`);
     if (vector.kind !== inferKind(row)) problems.push(`${vector.id}: kind ${vector.kind} != inferred ${inferKind(row)}`);
-    if (vector.expected?.verdict !== (vector.kind === "negative" ? "reject" : "accept")) {
-      problems.push(`${vector.id}: expected verdict does not match kind`);
-    }
-    if (!Array.isArray(vector.sources) || vector.sources.length === 0) problems.push(`${vector.id}: missing sources`);
-    if (!authorityTiers.has(vector.authorityTier)) problems.push(`${vector.id}: bad authorityTier ${vector.authorityTier}`);
-    if (vector.authorityTier !== "provisional" && vector.flipMarker !== null) problems.push(`${vector.id}: non-provisional flipMarker must be null`);
-    if (vector.authorityTier !== "provisional" && "decisionDeps" in vector) problems.push(`${vector.id}: non-provisional vector carries decisionDeps`);
-    if (vector.kind === "negative" && (!vector.attackFlagRef || typeof vector.attackFlagRef !== "string")) {
-      problems.push(`${vector.id}: negative vector requires attackFlagRef`);
-    }
     if (seenRefs.has(vector.attackFlagRef)) problems.push(`${vector.id}: duplicate attackFlagRef ${vector.attackFlagRef}`);
     seenRefs.add(vector.attackFlagRef);
   }
@@ -156,6 +216,69 @@ function validate(vectors, rows) {
   if (vectors.length !== vectorNow.size) problems.push(`vector count ${vectors.length} != vector-now count ${vectorNow.size}`);
 
   return problems;
+}
+
+function authoredFiles() {
+  if (!existsSync(AUTHORED_DIR)) return [];
+  return readdirSync(AUTHORED_DIR)
+    .filter((file) => file.endsWith(".json"))
+    .map((file) => join(AUTHORED_DIR, file))
+    .filter((path) => statSync(path).isFile())
+    .sort();
+}
+
+function checkAuthored({ requireComplete }) {
+  const rows = classifiedRows();
+  const seed = readJson(OUT_PATH);
+  const seedById = new Map(seed.map((vector) => [vector.id, vector]));
+  const seedIds = new Set(seedById.keys());
+  const seedRefs = new Set(seed.map((vector) => vector.attackFlagRef));
+  const byFlag = new Map(rows.map((row) => [row.attackFlagId, row]));
+  const problems = [];
+  const seenIds = new Set();
+  const seenRefs = new Set();
+  const files = authoredFiles();
+
+  for (const file of files) {
+    const vectors = readJson(file);
+    if (!Array.isArray(vectors)) {
+      problems.push(`${file}: must contain an array`);
+      continue;
+    }
+    for (const vector of vectors) {
+      problems.push(...validateSchemaVector(vector).map((problem) => `${file}: ${problem}`));
+      const seedVector = seedById.get(vector.id);
+      if (!seedVector) problems.push(`${file}: ${vector.id} is not in ${OUT_PATH}`);
+      if (!seedIds.has(vector.id)) problems.push(`${file}: authored id ${vector.id} not in vector-now seed`);
+      if (seenIds.has(vector.id)) problems.push(`${file}: duplicate authored id ${vector.id}`);
+      seenIds.add(vector.id);
+
+      if (!seedRefs.has(vector.attackFlagRef)) problems.push(`${file}: ${vector.id} attackFlagRef ${vector.attackFlagRef} not in vector-now seed`);
+      if (seedVector && vector.attackFlagRef !== seedVector.attackFlagRef) {
+        problems.push(`${file}: ${vector.id} attackFlagRef ${vector.attackFlagRef} != seed ${seedVector.attackFlagRef}`);
+      }
+      if (seenRefs.has(vector.attackFlagRef)) problems.push(`${file}: duplicate authored attackFlagRef ${vector.attackFlagRef}`);
+      seenRefs.add(vector.attackFlagRef);
+
+      const row = byFlag.get(vector.attackFlagRef);
+      if (!row) {
+        problems.push(`${file}: ${vector.id} references missing flag ${vector.attackFlagRef}`);
+      } else if (row.category !== "vector-now") {
+        problems.push(`${file}: ${vector.id} references ${row.category} flag ${vector.attackFlagRef}`);
+      }
+    }
+  }
+
+  if (requireComplete) {
+    for (const id of seedIds) {
+      if (!seenIds.has(id)) problems.push(`missing authored vector ${id}`);
+    }
+    for (const ref of seedRefs) {
+      if (!seenRefs.has(ref)) problems.push(`missing authored attackFlagRef ${ref}`);
+    }
+  }
+
+  return { problems, files, authoredCount: seenIds.size, seedCount: seedIds.size };
 }
 
 const mode = process.argv[2] ?? "--check";
@@ -173,7 +296,15 @@ if (mode === "--write") {
     process.exit(1);
   }
   console.log(`B2 vector-now draft OK: ${vectors.length}/${rows.filter((row) => row.category === "vector-now").length} vector-now flags covered exactly once`);
+} else if (mode === "--check-authored" || mode === "--check-authored-complete") {
+  const result = checkAuthored({ requireComplete: mode === "--check-authored-complete" });
+  if (result.problems.length) {
+    console.error(result.problems.join("\n"));
+    process.exit(1);
+  }
+  const suffix = mode === "--check-authored-complete" ? "complete" : "partial";
+  console.log(`B2 authored vectors OK (${suffix}): ${result.authoredCount}/${result.seedCount} seed ids covered across ${result.files.length} file(s)`);
 } else {
-  console.error("usage: node scripts/b2-vector-now-draft.mjs [--write|--check]");
+  console.error("usage: node scripts/b2-vector-now-draft.mjs [--write|--check|--check-authored|--check-authored-complete]");
   process.exit(1);
 }
