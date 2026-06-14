@@ -1,0 +1,1780 @@
+[
+  {
+    "id": "A1-neg-01",
+    "ruleId": "A1",
+    "area": "Anchor acceptance",
+    "authorityTier": "normative",
+    "sources": [
+      "docs/core/B2_KERNEL_HARDENING.md A1 (lines 96-105), proposed tests (−): 'A 0x0b payload truncated at every byte offset, and one with a single trailing byte ... no batch opens'",
+      "docs/spec/WIRE_FORMAT.md §4 Event layouts (normative) — 'a decoder MUST reject truncated payloads (at any byte offset) and trailing bytes'; §3 Event frame (normative) — 'A decoder MUST reject any event type byte not in the registry'",
+      "docs/core/B2_VECTOR_SCHEMA.json authorityTier normative→vector-now"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "Silent-skip means an almost-valid anchor is invisible rather than invalidating: an attacker can craft a payload that decodes under a buggy lenient decoder but not under the spec decoder — conformance must sweep near-miss encodings.",
+      "scenario": "sweep of near-miss 0x0b payloads (truncated at each offset, single trailing byte, off-by-one batchSize width) mined in a confirmed tx: expected verdict reject (no batch opens, state byte-identical). Pins the spec decoder against a lenient one.",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "a1-02-reject",
+      "rationale": "This flag is about near-miss / almost-valid encodings being rejected by the spec decoder — exactly what A1's normative basis pins: decode EXACTLY per the wire spec, reject truncated/trailing/wrong-magic/wrong-version. A second implementer derives 'near-miss encodings are not anchor candidates' purely from normative WIRE_FORMAT §3/§4. Unlike the multi-output flag, this needs no missing rule — it is the byte-offset/near-miss sweep the rule already proposes as tests."
+    },
+    "status": "proposed",
+    "attackFlagRef": "A1-02",
+    "flipMarker": null
+  },
+  {
+    "id": "A4-neg-01",
+    "ruleId": "A4",
+    "area": "Anchor acceptance",
+    "authorityTier": "candidate",
+    "sources": [
+      "docs/core/B2_KERNEL_HARDENING.md A4 (lines 132-140), proposed test (−): 'A served byte set whose leaf count contradicts the anchored batchSize does not satisfy the anchor's commitment'",
+      "docs/spec/ONT_DATA_AVAILABILITY_AGREEMENT.md §8b (candidate) — 'The anchor commits the batch (root + batchSize); every node verifies fetched bytes against that on-chain commitment'; §6b (candidate)",
+      "docs/core/B2_VECTOR_SCHEMA.json authorityTier candidate→vector-now"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "Legacy code records batchSize for observability only and never cross-checks it against served leaves (indexer.ts:762) — a publisher can understate batchSize to shrink the Σ-gates the fee check requires while the root commits more leaves. The batchSize-consistency check must be stated explicitly at B2 hardening because the gate-fee rule's N must come from the commitment-checked batch, not the publisher's self-declared field.",
+      "scenario": "a served byte set whose leaf count contradicts the anchored batchSize: expected verdict reject (does not satisfy the commitment, cannot feed Σ-gates). Pins batchSize as commitment-checked, not publisher-self-declared.",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "a4-01-reject",
+      "rationale": "A4 is verdict 'cited' on candidate-tier DA agreement §8b/§6b: the anchor commits the batch via root + batchSize and a served byte set inconsistent with the commitment (including a leaf count contradicting batchSize) does not satisfy the anchor. The batchSize-consistency reject is directly derivable from this candidate authority (candidate text is acceptable where the verdict is candidate-stays/cited). No provisional decision and no invented rule: the served-bytes WITNESS FORMAT is B3, but the kernel's fail-closed posture on a batchSize-inconsistent leaf count is derivable now — this is the 'fail-closed on absent/inconsistent evidence is vector-now even if format is B3' carve-out."
+    },
+    "status": "proposed",
+    "attackFlagRef": "A4-01",
+    "flipMarker": null
+  },
+  {
+    "id": "A6-neg-01",
+    "ruleId": "A6",
+    "area": "Anchor acceptance",
+    "authorityTier": "normative",
+    "sources": [
+      "docs/core/B2_KERNEL_HARDENING.md A6 (lines 153-162) — 'The leaf-shape half stays cited'; proposed test (−): 'A leaf naming Alice (non-canonical bytes) is rejected, not normalized'",
+      "docs/spec/WIRE_FORMAT.md §2 Names (normative) — 'A decoder MUST reject a payload whose name bytes are non-canonical'",
+      "docs/core/B2_VECTOR_SCHEMA.json authorityTier normative→vector-now"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "Legacy normalizes leaf names instead of rejecting non-canonical input (indexer.ts:804-809) — direct conflict with the wire's reject-don't-normalize law; the witness format must mandate canonical name bytes.",
+      "scenario": "a batched-claim leaf whose name bytes are non-canonical (e.g. uppercase 'Alice'): expected verdict reject (not normalized), pinning reject-don't-normalize at the kernel/leaf boundary exactly as WIRE_FORMAT §2 pins it on the wire.",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "a6-02-reject",
+      "rationale": "A6's leaf-SHAPE half stays cited and this flag is squarely on it: reject-don't-normalize for non-canonical name bytes. The authority is normative WIRE_FORMAT §2 ('a name inside any encoded payload appears only in canonical form; a decoder MUST reject a payload whose name bytes are non-canonical'). A second implementer derives 'a leaf naming Alice (non-canonical bytes) is rejected, not normalized' directly from this normative law. No provisional decision, no missing rule — the kernel pins the wire's reject-don't-normalize law at the leaf boundary."
+    },
+    "status": "proposed",
+    "attackFlagRef": "A6-02",
+    "flipMarker": null
+  },
+  {
+    "id": "A10-neg-01",
+    "ruleId": "A10",
+    "area": "Anchor acceptance",
+    "authorityTier": "ratified",
+    "sources": [
+      "docs/core/B2_KERNEL_HARDENING.md A10 (lines 199-208), proposed test (−): 'The predicate's type signature admits no wall-time, URL, or callback parameter ... the legacy batchDataProvider seam MUST NOT reappear inside the kernel'",
+      "docs/core/SOFTWARE_CANON.md The boundary rule (ratified) — 'pure predicate over witnessed inputs'; L2 ownership kernel 'No DB, no network, no clock, no UI'",
+      "docs/core/B2_VECTOR_SCHEMA.json authorityTier ratified→vector-now"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "DA §6c's challenge phrasing tempts an implementation to poll mirrors at verdict time; the served-evidence must arrive as a B3-witnessed input or purity is silently broken.",
+      "scenario": "assert the anchor-acceptance/DA predicate's type signature admits no URL/callback/wall-clock parameter and zero I/O imports in @ont/consensus (boundary-quarantine test): expected verdict the predicate cannot 'poll mirrors at verdict time'; pins served-evidence-as-witnessed-input purity.",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "a10-02-reject",
+      "rationale": "A10 is verdict 'cited' on the ratified SOFTWARE_CANON boundary rule (the anchor-acceptance verdict is a pure predicate over witnessed inputs; 'No DB, no network, no clock, no UI'). This flag — that §6c must NOT be implemented as a live mirror-poll, the served-evidence must arrive as a witnessed input — is the fail-closed-purity posture, derivable now from ratified authority. The B3 evidence FORMAT is deferred, but the kernel's purity posture (no network fetch in the predicate, type signature admits no URL/callback) is exactly the vector-now carve-out: purity on absent-live-fetch is derivable even though the witness format is B3."
+    },
+    "status": "proposed",
+    "attackFlagRef": "A10-02",
+    "flipMarker": null
+  },
+  {
+    "id": "D4-neg-01",
+    "ruleId": "D4",
+    "area": "DA verdict",
+    "authorityTier": "candidate",
+    "sources": [
+      "docs/core/B2_KERNEL_HARDENING.md D4 (lines 293-302)",
+      "docs/spec/ONT_DATA_AVAILABILITY_AGREEMENT.md §6c (lines 147-153) — 'uniformly excluded — every honest node drops it'",
+      "docs/core/DECISIONS.md 47. marker-fold The rule (lines 974-975) — '§6c uniform-exclusion rule ... unchanged' [ratified]",
+      "docs/GLOSSARY.md data availability [candidate] — 'a batch whose bytes don't surface in time is excluded, never trusted'"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "'Bytes can't be produced by anyone' quantifies over an open server set — a pure predicate sees only the evidence presented to it, so evidence-gathering completeness is silently delegated to B3/adapters; an under-collecting adapter turns fail-closed exclusion into censorship of honest batches.",
+      "scenario": "negative: anchored batch with empty/absent servedEvidence → reject (excluded), at every evaluation height past the challenge deadline; fail-closed default (missing/empty evidence) never yields pending-include or fail-open. Positive companion: commitment-matching service inside the window → accept.",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "d4-01-reject",
+      "rationale": "Per the gate protocol, a flag purely about the kernel's fail-closed posture on absent evidence is derivable now even though the evidence-collection completeness lives in B3/adapters. The kernel-side verdict — absent/insufficient served-evidence presented to the predicate yields ineligible, never a trusted or provisional include — is grounded in ratified marker-fold and candidate §6c uniform-exclusion. The adapter-censorship substance is a B3/transport concern, but the testable kernel predicate (no evidence in → excluded out) is fully derivable."
+    },
+    "status": "proposed",
+    "attackFlagRef": "D4-01",
+    "flipMarker": null
+  },
+  {
+    "id": "D7-pos-01",
+    "ruleId": "D7",
+    "area": "DA verdict",
+    "authorityTier": "candidate",
+    "sources": [
+      "docs/core/B2_KERNEL_HARDENING.md D7 (lines 325-332)",
+      "docs/spec/ONT_DATA_AVAILABILITY_AGREEMENT.md §5 (lines 102-123) [candidate] — delta only inserts; disjoint insertions commute; §4 (lines 91-100) — 'a hidden delta only fails to register its own names'",
+      "docs/spec/ONT_ACQUISITION_STATE_MACHINE.md Data Availability [candidate] — 'exclusion cannot take someone else's name; it only prevents the withheld data from counting'"
+    ],
+    "kind": "positive",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "The guarantee leans on the insert-only/commutative merge fact (§5): if batched-path transitions ever admit non-insert operations inside batches, exclusion stops being self-contained — a scope coupling the batched-path area must hold.",
+      "scenario": "positive: with batch X excluded, every other batch's names register identically to a world where X was never anchored (state-equivalence property). negative companion: an exclusion implementation that perturbs an unrelated name's owner or the root over remaining leaves → reject. (Cross-area note: the insert-only-batches invariant is owned by the batched-path B area; this vector assumes it.)",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "accept",
+      "reason": "d7-01-accept",
+      "rationale": "D7's verdict — excluding a batch removes only its own leaves and the resulting state equals the state as-if-that-batch-never-existed — is derivable today from candidate authority: DA agreement §4/§5 establish insert-only/commutative merge, and the state-machine pins that exclusion 'only prevents the withheld data from counting'. The flag is a scope-coupling caveat (it holds only while batched-path transitions stay insert-only), which is an invariant the batched-path (B) area must preserve, not a missing-spec gap for D7's own verdict. The state-equivalence property is testable now."
+    },
+    "status": "proposed",
+    "attackFlagRef": "D7-01",
+    "flipMarker": null
+  },
+  {
+    "id": "F1-neg-01",
+    "ruleId": "F1",
+    "area": "Gate-fee validation",
+    "authorityTier": "candidate",
+    "sources": [
+      "docs/spec/ONT_ISSUANCE_FEE_MECHANICS.md §4 Recommended mechanics — 'F >= Sigma g_i' / 'mechanical from the batch contents'",
+      "docs/core/B2_KERNEL_HARDENING.md F1 + F6 step-2/step-3 correction (compute-from-committed-contents core is CITED)",
+      "docs/core/SOFTWARE_INVENTORY.md line 85 (ONT_ISSUANCE_FEE_MECHANICS = candidate, B2)"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "Sigma g_i is only computable once the batch contents are known: a fee verdict issued before the DA window resolves can be gamed by withholding bytes — the fee predicate must compose with the DA verdict, never run on self-declared totals.",
+      "scenario": "negative: an anchor whose gate is evaluated against a self-declared/pre-DA total rather than committed batch contents → reject (fee predicate must compose with committed contents, never self-declared totals). Pins the divergence of trusting a declared total over the served leaf set.",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "f1-01-reject",
+      "rationale": "The fail-closed composition requirement is derivable from the cited candidate text: F1 is a candidate-stays-grade rule whose core (fee verdict bound to F >= Sigma g_i over committed batch contents, no self-declared totals) is stated in ONT_ISSUANCE_FEE_MECHANICS §4/§8. A negative vector pinning that a fee verdict computed against a self-declared/withheld total is rejected (must compose with committed contents) is derivable now without inventing a rule. The g(name) schedule itself is B3, but the kernel's posture against self-declared totals is the F6 core, already CITED in step-3."
+    },
+    "status": "proposed",
+    "attackFlagRef": "F1-01",
+    "flipMarker": null
+  },
+  {
+    "id": "F2-neg-01",
+    "ruleId": "F2",
+    "area": "Gate-fee validation",
+    "authorityTier": "candidate",
+    "sources": [
+      "docs/spec/ONT_ISSUANCE_FEE_MECHANICS.md §4 ('Sigma inputs - Sigma outputs') / §5 ('the fee is checked from Bitcoin, not asserted by anyone')",
+      "docs/core/B2_KERNEL_HARDENING.md F2 (verdict cited; proposed −test: missing prevout witness → no fee fact → MUST NOT count)",
+      "docs/core/SOFTWARE_INVENTORY.md line 85"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "The spec grounds the check in 'a full verifier already replays Bitcoin and holds the UTXO set' — that is I/O outside the pure kernel; B3 must deliver prevout-value witnesses as chain facts, and the predicate's behavior when a prevout witness is absent is specified nowhere (fail-closed is implied, not stated).",
+      "scenario": "negative: anchor with one prevout-value witness absent → no fee fact derivable → anchor rejected (fail-closed). Pins that the kernel does not substitute an asserted/zero fee when prevout evidence is missing. Evidence wire FORMAT remains B3 but the absent-evidence posture is derivable.",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "f2-01-reject",
+      "rationale": "The flag's actionable claim is the kernel's fail-closed posture on absent prevout-value evidence. Per the gate rules, a flag purely about fail-closed posture on absent evidence IS derivable now even though the prevout-value witness FORMAT is a B3 deliverable. F2 itself is CITED (intrinsic fee = Sigma inputs - Sigma outputs from witnessed facts, no asserted value). The proposed negative test (a prevout witness missing yields no fee fact, anchor MUST NOT count) is derivable from the system's no-oracle / fail-closed posture stated in §4/§5."
+    },
+    "status": "proposed",
+    "attackFlagRef": "F2-01",
+    "flipMarker": null
+  },
+  {
+    "id": "F2-neg-02",
+    "ruleId": "F2",
+    "area": "Gate-fee validation",
+    "authorityTier": "candidate",
+    "sources": [
+      "docs/spec/ONT_ISSUANCE_FEE_MECHANICS.md §4 ('compute the anchor tx's exact fee (Sigma inputs - Sigma outputs)' / 'intrinsic to that one transaction')",
+      "docs/core/B2_KERNEL_HARDENING.md F2 verdict cited",
+      "docs/core/SOFTWARE_INVENTORY.md line 85"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "Out-of-band miner payment or CPFP child fees are not part of Sigma inputs − Sigma outputs of the anchor tx; the spec never states explicitly that only the anchor transaction's own intrinsic fee counts, leaving a lobbying surface ('the package paid enough').",
+      "scenario": "negative: anchor with intrinsic fee < Sigma g_i but a CPFP child / package paying the difference → rejected (only the anchor tx's own intrinsic Sigma inputs - Sigma outputs counts). Pins that package/child fees do not satisfy the gate.",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "f2-02-reject",
+      "rationale": "F2 is CITED and explicitly grounds F as the anchor transaction's INTRINSIC fee (Sigma of the anchor tx's own inputs minus its own outputs). A negative vector that a CPFP child's fee or out-of-band payment cannot count toward the anchor's gate follows directly: the computed value is over the one anchor transaction's intrinsic inputs/outputs, and §4 states the fee is intrinsic to that one transaction so it can't be reused. No invented rule needed."
+    },
+    "status": "proposed",
+    "attackFlagRef": "F2-02",
+    "flipMarker": null
+  },
+  {
+    "id": "F3-neg-01",
+    "ruleId": "F3",
+    "area": "Gate-fee validation",
+    "authorityTier": "candidate",
+    "sources": [
+      "docs/spec/ONT_ISSUANCE_FEE_MECHANICS.md §2 C1 ('Claiming k names must cost ~k*g, whether done as k solo claims or one batch of k')",
+      "docs/spec/ONT_ACQUISITION_STATE_MACHINE.md Claim ('Batching saves blockspace; it must not discount the anti-spam gate')",
+      "docs/core/B2_KERNEL_HARDENING.md F3 verdict cited"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "A squatter batching a million names under one tx fee is the precise attack this kills; any future 'bulk pricing' parameter proposal violates constraint C1 by construction and must be unrepresentable in the predicate.",
+      "scenario": "negative: an anchor whose accepted fee = g + epsilon for N>1 ('one gate covers the batch') → rejected; positive: min accepted fee == N*g exactly. Pins batch-invariance (no volume discount on the gate).",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "f3-01-reject",
+      "rationale": "F3 is CITED. Constraint C1 (claiming k names costs ~k*g whether k solo or one batch of k; batching may amortize only blockspace, never the gate) is explicit in §2 and the acquisition state machine. A negative vector that any fee schedule giving a per-name discount as batch size grows (bulk pricing) is rejected is directly derivable; the property test (min accepted fee == N*g, linear, no volume discount) is grounded. No provisional dependency, no missing rule."
+    },
+    "status": "proposed",
+    "attackFlagRef": "F3-01",
+    "flipMarker": null
+  },
+  {
+    "id": "F8-pos-01",
+    "ruleId": "F8",
+    "area": "Gate-fee validation",
+    "authorityTier": "ratified",
+    "sources": [
+      "docs/spec/ONT_ISSUANCE_FEE_MECHANICS.md §5 ('N=1 is the un-censorable fallback'; self-sovereign I5)",
+      "docs/core/SOFTWARE_CANON.md Layer vocabulary / boundary rule ('pure predicate over witnessed inputs'; 'No DB, no network, no clock'; zero-I/O quarantine test) [ratified core, cited via T1]",
+      "docs/core/B2_KERNEL_HARDENING.md F8 verdict cited + proposed +test (no publisher-identity input in signature)"
+    ],
+    "kind": "positive",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "If the predicate ever takes a publisher identity or endpoint as input, the censorship-resistance floor (invariant I5) silently breaks — the zero-I/O purity test should assert the predicate signature carries no source-identity parameter.",
+      "scenario": "positive/structural: the gate predicate's verdict is a function of (anchor facts, batch contents, fee) only — a swapped publisher-identity/endpoint input cannot change the verdict (no source-identity channel). Pins I5 censorship-resistance floor via the zero-I/O signature property.",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "accept",
+      "reason": "f8-01-accept",
+      "rationale": "F8 is CITED: the self-sovereign N=1 anchor is the identical rule, and §5 ties N=1 to the un-censorable fallback / I5 self-sovereign invariant. The zero-I/O purity test (predicate signature carries no source-identity parameter) is derivable from the ratified-core T1 boundary rule (pure predicate over witnessed inputs; no adapter/source judgment) and the SOFTWARE_CANON zero-I/O lock. No provisional dependency, no missing rule — a vector asserting the predicate has no publisher-identity input channel is authorable now."
+    },
+    "status": "proposed",
+    "attackFlagRef": "F8-01",
+    "flipMarker": null
+  },
+  {
+    "id": "F15-pos-01",
+    "ruleId": "F15",
+    "area": "Gate-fee validation",
+    "authorityTier": "candidate",
+    "sources": [
+      "docs/core/STATUS.md line 53 ('Short-name opening bond (≤4 chars, mandatory bond-first — no cheap-claim path) ... 5+ chars use gate + contention', working baseline)",
+      "docs/GLOSSARY.md bond-first ('mandatory ... for names of 4 characters or fewer'); docs/core/B2_KERNEL_HARDENING.md F15 verdict cited + neededSpecWork ('threshold value confirms at launch-parameter freeze; parameterize the predicate on the threshold')"
+    ],
+    "kind": "positive",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "The 4-char threshold is 'working baseline' (STATUS), not frozen — parameterize the predicate on the threshold.",
+      "scenario": "positive/negative parameterized on threshold T: a name of length <= T cannot finalize via the cheap-claim path (must be bond-first); a name of length T+1 finalizes via cheap claim (boundary). Pins threshold-parameterization so no baked-in constant passes; integer T flagged launch-freeze. (Distinct from the in-batch-handling flag, which is spec-blocked.)",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "accept",
+      "reason": "f15-02-accept",
+      "rationale": "The ≤4 threshold being a working baseline (not frozen) is a parameterization instruction, not a verdict ambiguity. The RULE (a name at-or-below the threshold takes the mandatory bond-first path; above it the cheap-claim path) is CITED and stable across the parameter; STATUS line 53 confirms the threshold semantics. A vector parameterized on the threshold (e.g. a name at length==threshold rejects the cheap path; length==threshold+1 may finalize via cheap claim) is authorable now, with the integer flagged as launch-freeze — no provisional decision, no missing rule. The behavior at the boundary (which side is bond-first) is determinate; only the integer value is open."
+    },
+    "status": "proposed",
+    "attackFlagRef": "F15-02",
+    "flipMarker": null
+  },
+  {
+    "id": "T1-neg-01",
+    "ruleId": "T1",
+    "area": "Transcript completeness",
+    "authorityTier": "candidate",
+    "sources": [
+      "docs/core/SOFTWARE_CANON.md Layer vocabulary — the boundary rule [ratified core]",
+      "docs/core/SOFTWARE_CANON.md Layer vocabulary, L2 row [ratified core] 'No DB, no network, no clock, no UI'",
+      "docs/spec/ONT_ACQUISITION_STATE_MACHINE.md Design Rule [candidate]"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "Any rule below whose source implies the indexer/resolver 'recognizes' or 'accepts' something is server-authority leakage bait; the kernel restatement must strip the actor.",
+      "scenario": "expect reject/invariance: a hostile evidence-layer stub supplying identical witnessed facts cannot alter the verdict (kernel has no other input channel); pins that no actor 'recognizes/accepts' input exists.",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "t1-01-reject",
+      "rationale": "The no-actor / pure-deterministic-predicate posture is grounded in ratified core canon (no DB/network/clock/UI; the completeness verdict lives in the kernel as a pure predicate). A swapped/hostile evidence-layer stub cannot change a verdict — this is the kernel's fail-closed boundary posture, derivable today with no provisional dependency."
+    },
+    "status": "proposed",
+    "attackFlagRef": "T1-01",
+    "flipMarker": null
+  },
+  {
+    "id": "T2-neg-01",
+    "ruleId": "T2",
+    "area": "Transcript completeness",
+    "authorityTier": "ratified",
+    "sources": [
+      "docs/core/SOFTWARE_CANON.md Item 4 — Tests before implementation [ratified core] 'a forged summary must provably be unable to ... falsely finalize a name'",
+      "docs/core/STATUS.md Known-incomplete [canonical status] 'does not prove the listed set is the complete set'",
+      "docs/core/SOFTWARE_CANON.md Item 5, B3 gate [ratified core]"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "The sufficient completeness witness is undefined (B3 deliverable): a kernel that accepts any producer-asserted completeness claim recreates the STATUS-disclosed omitted-bid hole even while this rule reads as satisfied.",
+      "scenario": "expect reject: a transcript asserting completeness (producer flag) with no enumeration evidence over the lot's block range MUST be ruled incomplete (fail-closed on absent witness, even though the witness format is B3).",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "t2-01-reject",
+      "rationale": "Although the completeness witness FORMAT is a B3 deliverable, the gate carve-out applies: a flag purely about the kernel's fail-closed posture on absent/producer-asserted evidence is derivable now. STATUS discloses the omitted-bid hole and canon Item 4 forbids a forged summary from finalizing — a transcript asserting completeness without enumeration evidence MUST be rejected."
+    },
+    "status": "proposed",
+    "attackFlagRef": "T2-01",
+    "flipMarker": null
+  },
+  {
+    "id": "T2-neg-02",
+    "ruleId": "T2",
+    "area": "Transcript completeness",
+    "authorityTier": "candidate",
+    "sources": [
+      "docs/core/B2_KERNEL_HARDENING.md T2 [rule text] 'over the auction's full block range (including soft-close extensions)'",
+      "docs/spec/AUCTION.md Auction Timing [candidate] soft-close extension",
+      "docs/core/SOFTWARE_CANON.md Item 4 [ratified core] omission cannot finalize"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "If 'the auction's block range' excludes soft-close extension blocks, a late extension-window bid can be omitted while the transcript still looks complete — the range definition must be close-after-extensions, not the initial close.",
+      "scenario": "expect reject: a transcript omitting a witnessed bid confirmed in a soft-close extension block (post-initial-close, pre-extended-close) MUST fail completeness; pins range = close-after-extensions.",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "t2-02-reject",
+      "rationale": "Rule T2 itself states the range is 'the auction's full block range (including soft-close extensions)'. The structural property — a bid in an extension block must be inside the completeness range — is derivable from the rule's own text plus AUCTION candidate soft-close mechanism, independent of the unfrozen W/C parameter VALUES (the omission-after-extension vector pins the range definition, not the numeric window)."
+    },
+    "status": "proposed",
+    "attackFlagRef": "T2-02",
+    "flipMarker": null
+  },
+  {
+    "id": "T7-neg-01",
+    "ruleId": "T7",
+    "area": "Transcript completeness",
+    "authorityTier": "candidate",
+    "sources": [
+      "docs/core/DECISIONS.md Entry 37 — bond-opens [decision record, RATIFIED]",
+      "docs/spec/AUCTION.md Real Mechanism Choices [candidate] 'a valid bonded opening bid is what creates the auction'",
+      "docs/spec/ONT_ACQUISITION_STATE_MACHINE.md Contested Auction [candidate]"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "AUCTION.md still carries the legacy scheduled-catalog compatibility path as an open question — old-model leakage bait for B2: the kernel must not inherit an 'unopened catalog entry' state machine from quarantined fixtures.",
+      "scenario": "expect reject: a transcript with only below-floor attempts / zero accepted bids MUST resolve to no auction and no owner (no inherited 'unopened catalog' state awards or persists a lot).",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "t7-01-reject",
+      "rationale": "Rule T7 is cited and rests on bond-opens (#37, RATIFIED): a name is acquired only by an uncontested finalizing claim or a winning auction bond. Zero-accepted-bids ⇒ no auction / no owner is derivable from #37 plus the candidate state-machine; the legacy 'unopened catalog entry' must not be inherited (a no-old-model-leakage negative)."
+    },
+    "status": "proposed",
+    "attackFlagRef": "T7-01",
+    "flipMarker": null
+  },
+  {
+    "id": "T9-neg-01",
+    "ruleId": "T9",
+    "area": "Transcript completeness",
+    "authorityTier": "candidate",
+    "sources": [
+      "docs/spec/CONTESTED_AUCTION_REFERENCE.md Basic Flow [candidate] 'the highest valid bonded bidder wins'",
+      "docs/spec/ONT_ACQUISITION_STATE_MACHINE.md Contested Auction [candidate] 'the largest bond wins'",
+      "docs/core/STATUS.md Components — Contested-auction bonded bid [canonical status] 'enforces highest-bid-wins'"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "'Highest accepted' is only sound after T2 completeness and T8 acceptance filtering — stating this rule without those two lets a producer manufacture 'highest' by omission or by mislabeling rejected bids as accepted.",
+      "scenario": "expect reject: a transcript declaring a winner whose amount is lower than another accepted bid in the set MUST fail (and a declared-winner txid referencing no accepted bid MUST fail).",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "t9-01-reject",
+      "rationale": "T9 is cited: highest-accepted-qualifying-bonded-bid wins is stated in candidate AUCTION/state-machine and STATUS confirms the bundle enforces highest-bid-wins. The verdict 'a lower accepted bid declared winner MUST be rejected' is derivable today. The flag's dependency on T2/T8 is a composition note, not a missing-rule for T9's own highest-wins predicate."
+    },
+    "status": "proposed",
+    "attackFlagRef": "T9-01",
+    "flipMarker": null
+  },
+  {
+    "id": "T20-neg-01",
+    "ruleId": "T20",
+    "area": "Transcript completeness",
+    "authorityTier": "candidate",
+    "sources": [
+      "docs/spec/AUCTION.md Window Schedule — Decay Rule [candidate] 'frozen, monotonic, height-keyed schedule'",
+      "docs/spec/WIRE_FORMAT.md 8. Off-chain owner-signed shapes [normative] (issuedAt is off-chain only)",
+      "docs/core/SOFTWARE_CANON.md Layer vocabulary, L2 row [ratified core] 'no clock'"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "Wire events carry an issuedAt timestamp in off-chain shapes (§8): any transcript rule that ever consults issuedAt instead of mined height reintroduces wall-clock into consensus — flag for the B2 hunting list.",
+      "scenario": "expect reject/invariance: a transcript whose deadline outcome would vary with an injected issuedAt/timestamp MUST be unaffected; the verdict function admits only heights and event bytes (no wall-clock input channel).",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "t20-01-reject",
+      "rationale": "issuedAt lives only in §8 off-chain owner-signed shapes (verified — §8 heading 'Off-chain owner-signed shapes'); it is never a consensus transcript input. T20's rule already mandates heights-only, monotonic, height-keyed deadlines and forbids non-height inputs, grounded in AUCTION candidate + canon's ratified no-clock layer rule. The fail-closed 'verdict function exposes no timestamp input' posture is derivable today, independent of the unfrozen decay-schedule values."
+    },
+    "status": "proposed",
+    "attackFlagRef": "T20-01",
+    "flipMarker": null
+  },
+  {
+    "id": "T21-neg-01",
+    "ruleId": "T21",
+    "area": "Transcript completeness",
+    "authorityTier": "ratified",
+    "sources": [
+      "docs/core/STATUS.md Components — Contested-auction bonded bid [canonical status] 'enforces ... distinct-bid well-formedness (was a gap)'",
+      "docs/core/SOFTWARE_CANON.md Item 4 — Tests before implementation [ratified core] 'a forged summary must provably be unable to ... falsely finalize a name'"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "The rule's prescriptive home is a STATUS component capability note plus canon's test mandate, not a spec/ MUST sentence — restate it in the B2 kernel spec section during hardening so the authority is not a status table.",
+      "scenario": "expect reject: a transcript listing the same bid txid twice, or padding with duplicate/malformed (non-32-byte-hex) txids, MUST be rejected (not silently deduplicated); all-distinct valid-txid set passes (positive).",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "t21-01-reject",
+      "rationale": "T21 is cited; the distinct-L1-transaction verdict (reject duplicate-stuffed or malformed txids, no silent dedupe) is derivable from STATUS's canonical-status note ('enforces distinct-bid well-formedness') plus canon Item 4 ratified ('a forged summary must provably be unable to ... falsely finalize'). The flag only asks that the rule be restated in the B2 kernel spec section during hardening — a documentation-home concern; the verdict itself is legally derivable now."
+    },
+    "status": "proposed",
+    "attackFlagRef": "T21-01",
+    "flipMarker": null
+  },
+  {
+    "id": "T22-neg-01",
+    "ruleId": "T22",
+    "area": "Transcript completeness",
+    "authorityTier": "candidate",
+    "sources": [
+      "docs/core/SOFTWARE_CANON.md Layer vocabulary — the boundary rule [ratified core] (kernel verdict is a pure predicate over witnessed inputs)",
+      "docs/spec/AUCTION.md Bond Breaks And Reauction [candidate] 'the indexer recognizing a reopened auction only if its anchor equals the latest recorded bond-break release block'",
+      "docs/core/B2_KERNEL_HARDENING.md T22 attack flag (server-authority leakage)"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "The cited sentence names 'the indexer' as the recognizer — server-authority leakage as written; the kernel restatement must make release-block matching a pure predicate over witnessed bond-spend facts.",
+      "scenario": "expect reject/invariance: a hostile evidence-layer/'indexer' stub cannot change the reopen verdict; release-block matching is decided purely over witnessed bond-spend facts (no actor input channel), parallel to T1's no-actor posture.",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "t22-01-reject",
+      "rationale": "Like T1, the actor-stripping / pure-predicate posture is derivable from ratified canon (the verdict is a pure predicate over witnessed chain facts; no actor 'recognizes'). The release-block matching must be a pure predicate over witnessed bond-spend facts — a swapped-evidence-stub / no-actor-channel vector pins this without needing the (separately spec-blocked) reopen auctionId grammar."
+    },
+    "status": "proposed",
+    "attackFlagRef": "T22-01",
+    "flipMarker": null
+  },
+  {
+    "id": "T22-neg-02",
+    "ruleId": "T22",
+    "area": "Transcript completeness",
+    "authorityTier": "candidate",
+    "sources": [
+      "docs/core/SOFTWARE_CANON.md Item 4 — Tests before implementation [ratified core] 'an omitted auction bid ... must provably be unable to mint, steal, or falsely finalize a name'",
+      "docs/spec/AUCTION.md Bond Breaks And Reauction [candidate] 'Reauction identity | Anchored to the release block'",
+      "docs/core/B2_KERNEL_HARDENING.md T22 attack flag (witness completeness, cf. T2)"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "'Latest recorded bond-break release block' presumes a witnessed bond-continuity history; if that witness is incomplete the reopen gate is decided on partial facts — the release-block witness needs the same completeness treatment as the bid set (T2).",
+      "scenario": "expect reject: a reopen lot whose anchor cannot be witnessed as the latest recorded bond-break release block (incomplete/partial bond-continuity evidence) MUST NOT open an auction (fail-closed on absent witness, mirroring T2's witness posture; witness format itself is B3).",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "t22-02-reject",
+      "rationale": "Parallel to the T2-witness carve-out: the bond-continuity/release-block witness FORMAT is B3, but the kernel's fail-closed posture on an incomplete bond-continuity witness is derivable now from canon Item 4 ratified (omission cannot mint/steal) — a reopen gate decided on partial facts MUST fail-closed rather than open an auction on unproven release-block facts."
+    },
+    "status": "proposed",
+    "attackFlagRef": "T22-02",
+    "flipMarker": null
+  },
+  {
+    "id": "B1-neg-01",
+    "ruleId": "B1",
+    "area": "Batched-path transitions",
+    "authorityTier": "candidate",
+    "sources": [
+      "docs/spec/ONT_ACQUISITION_STATE_MACHINE.md Implementation Status [candidate] — 'the notice-window lifecycle (provisional -> final | nullified)'",
+      "docs/spec/AUCTION.md Provisional Utility [candidate] — 'quiet | no contest after an early sub-window'",
+      "docs/core/B2_KERNEL_HARDENING.md B1 lines 848-857"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "AUCTION.md's Provisional Utility table is explicitly 'product posture'; if the kernel imports 'quiet' it creates a state the chain does not witness",
+      "scenario": "negative; expected reject/no-op; pins that no input combination yields a state outside {provisional,collided,contested,final,nullified} and that the product 'quiet' threshold produces byte-identical kernel state (quiet has zero kernel effect).",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "b1-01-reject",
+      "rationale": "The rule's verdict is candidate-stays (B1 was downgraded), but the candidate state machine [candidate] pins the five-element kernel state set with no 'quiet' state, and the canon's pure-predicate posture means a product-tier 'quiet' label has zero kernel effect. A negative vector pinning that elapsing the product 'quiet' threshold produces byte-identical kernel state is derivable from existing candidate authority; it depends on no provisional decision. candidate-stays authority is acceptable here."
+    },
+    "status": "proposed",
+    "attackFlagRef": "B1-01",
+    "flipMarker": null
+  },
+  {
+    "id": "B6-neg-01",
+    "ruleId": "B6",
+    "area": "Batched-path transitions",
+    "authorityTier": "candidate",
+    "sources": [
+      "docs/core/DECISIONS.md §37 bond-opens [ratified] — 'a bond — not a bare claim — opens the auction'; '₿50,000 escalation floor... graduates from placeholder to a launch decision'",
+      "docs/GLOSSARY.md bond [candidate] — 'A qualifying bond (at or above the bond floor) is the only thing that opens an auction'",
+      "docs/core/B2_KERNEL_HARDENING.md B6 lines 903-912"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "'qualifying' is doing all the work: dust-bond griefing (posting a sub-floor bond to confuse adapters) must be a no-op in the kernel predicate",
+      "scenario": "negative; expected reject (no contest / no-op); a sub-floor (dust) bond inside the window does not escalate, the single claim finalizes (or collision nullifies) exactly as if no bond existed. bondFloor parameterized as a launch-freeze input.",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "b6-01-reject",
+      "rationale": "The verdict is directly derivable: #37 (ratified) makes a qualifying bond at-or-above the bond floor the only escalation trigger; a sub-floor bond is a no-op. The bondFloor is a launch-freeze parameter (parameterized, not provisional), and the rule is cited. A negative vector that a sub-floor bond does not contest (single claim finalizes as if no bond existed) is derivable from ratified #37 plus candidate state machine, with no #49/#50 dependency."
+    },
+    "status": "proposed",
+    "attackFlagRef": "B6-01",
+    "flipMarker": null
+  },
+  {
+    "id": "B7-neg-01",
+    "ruleId": "B7",
+    "area": "Batched-path transitions",
+    "authorityTier": "candidate",
+    "sources": [
+      "docs/spec/ONT_ACQUISITION_STATE_MACHINE.md Public Notice [candidate] — 'claims that arrive after a name is already final are already-owned attempts, not contests'",
+      "docs/core/DECISIONS.md §37 bond-opens [ratified] — bond posted inside the notice window opens the auction (in-window phrasing)",
+      "docs/GLOSSARY.md first-anchor-wins [candidate]",
+      "docs/core/B2_KERNEL_HARDENING.md B7 lines 915-923"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "spec covers post-final claims but is silent on post-final bonds — the only doc ground is the in-window phrasing of #37; an explicit negative test must pin that a rich attacker cannot bond-open against a final name",
+      "scenario": "negative; expected reject (already-owned); a qualifying bond posted after finality opens no auction, cannot evict the final owner, reopens/extends nothing; the incumbent record is byte-unchanged.",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "b7-01-reject",
+      "rationale": "Derivable from existing candidate authority plus ratified #37. The state machine [candidate] says post-final claims are already-owned attempts, and #37's in-window phrasing (a qualifying bond opens an auction only when posted inside the notice window) grounds that a post-final bond opens no auction and cannot evict the final owner. first-anchor-wins [candidate] confirms ordering/bonds never touch a final name. No provisional/#49/#50 dependency: the verdict is about a final (already-settled) name, not a boundary or DA-eligibility question."
+    },
+    "status": "proposed",
+    "attackFlagRef": "B7-01",
+    "flipMarker": null
+  },
+  {
+    "id": "B10-neg-01",
+    "ruleId": "B10",
+    "area": "Batched-path transitions",
+    "authorityTier": "ratified",
+    "sources": [
+      "docs/core/DECISIONS.md §47 marker-fold [ratified] Implications — 'The B2 DA verdict is the pure predicate eligible(anchor, servedEvidence, W, C)'",
+      "docs/core/SOFTWARE_CANON.md L2 ownership kernel [ratified] — 'pure deterministic predicates... No DB, no network, no clock, no UI'",
+      "docs/core/B2_KERNEL_HARDENING.md B10 line 956"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "uniformity depends on every verifier evaluating the same verdict input; if served-bytes evidence (B3 witness) differs between nodes, 'uniform' silently fails — kernel must take the verdict as an explicit witnessed input, never compute it from local fetch success",
+      "scenario": "negative; expected reject (impurity); a kernel that derives the DA verdict from local fetch success rather than the witnessed served-bytes input is rejected — pins fail-closed pure-predicate posture, witnessed-verdict-in. (Witness byte format itself is B3, not needed for this posture vector.)",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "b10-02-reject",
+      "rationale": "This flag is purely about the kernel's fail-closed/pure-predicate posture: the kernel MUST take the DA verdict as an explicit witnessed input and MUST NOT compute it from local fetch success. Per the gate note, a flag purely about the kernel's posture on evidence is derivable now even though the served-bytes witness format is a B3 deliverable. The ratified marker-fold (#47) Implications state the DA verdict is the pure predicate eligible(anchor, servedEvidence, W, C) — no local I/O — which directly grounds 'never compute from local fetch success'."
+    },
+    "status": "proposed",
+    "attackFlagRef": "B10-02",
+    "flipMarker": null
+  },
+  {
+    "id": "B12-neg-01",
+    "ruleId": "B12",
+    "area": "Batched-path transitions",
+    "authorityTier": "candidate",
+    "sources": [
+      "docs/spec/AUCTION.md Real Mechanism Choices [candidate] — 'a valid bonded opening bid is what creates the auction'",
+      "docs/LAUNCH.md Legacy Scheduled-Catalog Compatibility State [narrative, supplementary] — 'no auction exists until a valid bonded opening bid confirms'",
+      "docs/core/B2_KERNEL_HARDENING.md B12 lines 968-977"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "the lot commitment binds (auctionId, name, unlockBlock) — a bid whose recomputed lot commitment mismatches its claimed lot must be refused or attackers mint parallel lots for one name (legacy checks this at indexer.ts:1043-1045; the kernel predicate must own it)",
+      "scenario": "negative; expected reject; a bid whose recomputed lot commitment (auctionId, name, unlockBlock) mismatches its claimed lot is refused, no parallel lot minted. floor(nameLength) parameterized as launch-freeze input.",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "b12-01-reject",
+      "rationale": "Derivable from candidate AUCTION.md (a valid bonded opening bid is what creates the auction; lot commitment recomputes from (auctionId, name, unlockBlock)) and LAUNCH.md (no auction exists until a valid bonded opening bid confirms). The opening-floor curve values are explicit placeholders, parameterized on floor(nameLength) — a launch-freeze parameter, not a provisional decision. A negative vector that a bid whose recomputed lot commitment mismatches its claimed lot is refused is derivable now; no #49/#50 dependency."
+    },
+    "status": "proposed",
+    "attackFlagRef": "B12-01",
+    "flipMarker": null
+  },
+  {
+    "id": "B14-neg-01",
+    "ruleId": "B14",
+    "area": "Batched-path transitions",
+    "authorityTier": "candidate",
+    "sources": [
+      "docs/spec/AUCTION.md Real Mechanism Choices [candidate] — soft-close extension on acceptance",
+      "docs/core/B2_KERNEL_HARDENING.md B14 rule lines 989-998 — 'a below-minimum bid MUST be rejected without changing leader, close height, or required minimum'",
+      "docs/spec/AUCTION.md Auction Timing [candidate] — extension on bid acceptance"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "whether a rejected late bid extends the close is unstated in spec text; legacy extends only on acceptance — if rejection extended, free close-griefing with dust bids",
+      "scenario": "negative; expected reject + no extension; a below-minimum bid inside the soft-close window is rejected and the close height is byte-identical before/after (extension is acceptance-only); extension/window block counts parameterized as launch-freeze inputs.",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "b14-02-reject",
+      "rationale": "Derivable from candidate AUCTION.md: extension is a consequence of acceptance ('Bid inside the final blocks moves close to bid block + extension'), and B15 makes close-extension monotone and acceptance-driven. A rejected below-minimum bid 'MUST be rejected without changing leader, close height, or required minimum' is the cited B14 rule text itself. So the negative vector (rejected late bid does NOT extend close) is derivable from the cited rule, independent of the rounding ambiguity in the sibling flag and independent of #49/#50. Block-count placeholders are launch-freeze parameters."
+    },
+    "status": "proposed",
+    "attackFlagRef": "B14-02",
+    "flipMarker": null
+  },
+  {
+    "id": "B15-pos-01",
+    "ruleId": "B15",
+    "area": "Batched-path transitions",
+    "authorityTier": "candidate",
+    "sources": [
+      "docs/spec/AUCTION.md Auction Timing [candidate] — 'Hard cap on extensions | None'",
+      "docs/spec/CONTESTED_AUCTION_REFERENCE.md Auction Family [candidate] — 'no hard extension cap in the current design'",
+      "docs/core/B2_KERNEL_HARDENING.md B15 lines 1002-1011"
+    ],
+    "kind": "positive",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "no hard cap means a capital-rich griefer can hold an auction open forever at escalating cost — AUCTION.md accepts this; the kernel must not import any 'eventually force-end' heuristic that text does not grant",
+      "scenario": "positive/negative; expected: chained late accepted bids extend close indefinitely (no transcript length terminates the auction other than blocks passing the latest close); a kernel importing any 'eventually force-end' heuristic is rejected. extension count parameterized.",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "accept",
+      "reason": "b15-01-accept",
+      "rationale": "Derivable from candidate authority: AUCTION.md Auction Timing 'Hard cap on extensions | None' and CONTESTED_AUCTION_REFERENCE 'no hard extension cap in the current design'. The rule (close monotone non-decreasing, no hard cap, kernel must not import any 'eventually force-end' heuristic) is cited. A negative vector that any 'force-end after N extensions' heuristic is rejected and a positive that chained late bids extend indefinitely are derivable now; the no-hard-cap design is an accepted posture, not a provisional decision. Block-count placeholders are launch-freeze parameters."
+    },
+    "status": "proposed",
+    "attackFlagRef": "B15-01",
+    "flipMarker": null
+  },
+  {
+    "id": "B19-neg-01",
+    "ruleId": "B19",
+    "area": "Batched-path transitions",
+    "authorityTier": "candidate",
+    "sources": [
+      "docs/spec/AUCTION.md Bond Breaks And Reauction [candidate] — 'Reauction identity | Anchored to the release block'",
+      "docs/core/DECISIONS.md §42 settlement-into-core [ratified] — 'the audited trust surface determines all ownership transitions' (no adapter authority)",
+      "docs/core/B2_KERNEL_HARDENING.md release height glossary line 85; B19 lines 1047-1056"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "the rule depends on 'latest recorded bond-break release block' being itself a kernel-derived chain fact; if release recording stays adapter-side, a lying adapter mints reopen generations",
+      "scenario": "negative; expected reject; a reopen whose anchor is an adapter-asserted release height not equal to the kernel-derived latest canonical-chain bond-break height creates no auction (no adapter can mint reopen generations) — pins release-recording as a kernel chain fact, fail-closed.",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "b19-01-reject",
+      "rationale": "The flag's concern — release recording must be a kernel-derived chain fact, not an adapter-side assertion that a lying adapter could mint — is derivable now as the kernel's fail-closed/no-adapter-authority posture, which is ratified canon (#42 settlement-into-core: the audited boundary determines all ownership transitions; pure predicate, no adapter). The B19 rule is cited; the neededSpecWork is only to restate the adapter-voiced LAUNCH text as a kernel predicate, which the vector itself pins. The release-height definition is a tranche-2 chain fact (release height = canonical-chain breaking-spend height). No #49/#50 dependency."
+    },
+    "status": "proposed",
+    "attackFlagRef": "B19-01",
+    "flipMarker": null
+  },
+  {
+    "id": "B22-neg-01",
+    "ruleId": "B22",
+    "area": "Batched-path transitions",
+    "authorityTier": "candidate",
+    "sources": [
+      "docs/spec/AUCTION.md Decay Rule [candidate] — 'Use a frozen, monotonic, height-keyed schedule. Do not let market-derived system characteristics shrink windows'; 'extend-only'",
+      "docs/core/SOFTWARE_CANON.md L2 ownership kernel [ratified] — pure predicate, no I/O",
+      "docs/core/B2_KERNEL_HARDENING.md B22 lines 1078-1086 (rule shape 'final now')"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "this is the kernel-purity rule that keeps the window predicate I/O-free — any implementation reading 'market maturity' is the exact adversary-distortable input the spec names unsafe",
+      "scenario": "negative; expected reject; any state/market-derived input (claim volume, bond totals, distinct keys, 'market maturity') that would shorten a window is rejected by construction — the window function's only inputs are anchor height and frozen constants; schedule integers parameterized as launch-freeze.",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "b22-01-reject",
+      "rationale": "Derivable from cited candidate AUCTION.md Decay Rule ('Use a frozen, monotonic, height-keyed schedule. Do not let market-derived system characteristics shrink windows'; 'extend-only') and the ratified kernel-purity canon (no I/O, pure predicate). The rule's shape (pure function of anchor height, extend-only) is explicitly noted as 'final now'. A negative vector that injecting any market-derived/state-derived signal that would shorten a window is rejected-by-construction is derivable; the concrete schedule integers are launch-freeze, not provisional. No #49/#50 dependency (this is the schedule-function purity, distinct from the W/C/K window-close algebra)."
+    },
+    "status": "proposed",
+    "attackFlagRef": "B22-01",
+    "flipMarker": null
+  },
+  {
+    "id": "V1-neg-01",
+    "ruleId": "V1",
+    "area": "Value-record authority",
+    "authorityTier": "ratified",
+    "sources": [
+      "docs/core/SOFTWARE_CANON.md Layer vocabulary L2 ownership kernel (ratified): 'pure deterministic predicates ... No DB, no network, no clock, no UI'",
+      "docs/core/B2_KERNEL_HARDENING.md V1 (cited)",
+      "docs/core/DECISIONS.md #17: 'Owner-issued timestamps are metadata, not the canonical ordering rule.'"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "issuedAt is the only time-shaped field in the envelope; any implementation comparing it to 'now' breaks purity and yields observer-dependent verdicts — must be explicitly tested against.",
+      "scenario": "negative purity probe: same (record,interval,head) with issuedAt far-future vs far-past yields identical verdict regardless of host clock; expected verdict identical (the I/O-free predicate). Pins that issuedAt is never compared to 'now'.",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "v1-01-reject",
+      "rationale": "The kernel-purity verdict (a value-record predicate must not read wall-clock time, so a future/past issuedAt is judged identically at any evaluation time) derives directly from the ratified L2 ownership-kernel canon ('No DB, no network, no clock, no UI') and from V11's ratified rule that issuedAt is metadata not ordering. No provisional decision and no missing spec text — a second implementer reaches the same verdict."
+    },
+    "status": "proposed",
+    "attackFlagRef": "V1-01",
+    "flipMarker": null
+  },
+  {
+    "id": "V3-neg-01",
+    "ruleId": "V3",
+    "area": "Value-record authority",
+    "authorityTier": "normative",
+    "sources": [
+      "docs/spec/WIRE_FORMAT.md §5 (normative): 'A signature valid in one context MUST NOT verify in any other'",
+      "docs/spec/WIRE_FORMAT.md §8.1 (normative) digest with lenPrefix('ont-value-record') domain label",
+      "docs/core/B2_KERNEL_HARDENING.md V3 (cited)"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "The §8.1 and §8.2 digests share an identical structural prefix (version ‖ name ‖ ownerPubkey ‖ ownershipRef ‖ sequence ‖ nullFlag(prev)); domain separation by label is the only thing preventing cross-object signature replay — the cross-context negative vector is load-bearing.",
+      "scenario": "negative cross-context: a valid ont-recovery-descriptor BIP340 signature over the shared name/ownerPubkey/ownershipRef/sequence/nullFlag-prev prefix is presented as a value-record signature; expected reject (only the domain label differs). Pins that domain separation, not field overlap, gates acceptance.",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "v3-01-reject",
+      "rationale": "Cross-context domain separation is normative: WIRE_FORMAT §5 states 'A signature valid in one context MUST NOT verify in any other,' and §8.1 fixes the value-record digest with its 'ont-value-record' label prefix. A recovery-descriptor (§8.2) signature over the structurally identical field prefix must not validate a value record — derivable purely from normative wire text, no provisional dependency."
+    },
+    "status": "proposed",
+    "attackFlagRef": "V3-01",
+    "flipMarker": null
+  },
+  {
+    "id": "V4-neg-01",
+    "ruleId": "V4",
+    "area": "Value-record authority",
+    "authorityTier": "normative",
+    "sources": [
+      "docs/core/DECISIONS.md #17 (ratified): 'Destination records form a signed append-only chain scoped to the current ownership interval'",
+      "docs/spec/WIRE_FORMAT.md §8.1 (normative) digest includes lenPrefix(name)",
+      "docs/core/B2_KERNEL_HARDENING.md V4 (cited)"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "Batched-rail names finalized by one anchor share the same ownershipRef bytes (the anchor txid keys many names' intervals); only the digest's name field separates them — the cross-name replay negative test is required.",
+      "scenario": "negative cross-name replay within one batch: two names share interval-reference bytes from the same anchor txid; a validly-signed record for name A is replayed against name B; expected reject (digest binds name). Pins that ownershipRef shared bytes do not let a sibling-name record validate.",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "v4-01-reject",
+      "rationale": "The cross-name replay reject derives from ratified Decision #17 (records form a chain scoped to the current interval; binding to interval prevents stale-record reuse) combined with the normative §8.1 digest that includes the name field. Two names finalized by one anchor share ownershipRef bytes, but the digest binds name, so a record for name A cannot validate against name B. No provisional dependency."
+    },
+    "status": "proposed",
+    "attackFlagRef": "V4-01",
+    "flipMarker": null
+  },
+  {
+    "id": "V6-neg-01",
+    "ruleId": "V6",
+    "area": "Value-record authority",
+    "authorityTier": "normative",
+    "sources": [
+      "docs/core/DECISIONS.md #17 (ratified): first record sequence 1 and no previous record hash",
+      "docs/spec/WIRE_FORMAT.md §8 sequence-bound (wire-normative #48): 'non-negative integer ... bounded at 2^53−1'",
+      "docs/core/B2_KERNEL_HARDENING.md V6 (cited)"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "Wire admits sequence 0 ('non-negative integer' per the §8 sequence-bound ruling) but the chain rule starts at 1 — the kernel must reject 0 explicitly rather than assume the wire layer filtered it.",
+      "scenario": "negative: empty chain + first record with sequence 0 (wire-valid) and null prev is rejected by the kernel; plus first record sequence 2 / sequence 1 with non-null prev rejected. Pins kernel does not assume the wire layer filtered 0.",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "v6-01-reject",
+      "rationale": "Ratified Decision #17 fixes 'The first record in an ownership interval should have sequence 1 and no previous record hash,' and §8 sequence-bound (wire-normative #48) admits non-negative integers including 0. The kernel must reject a first record with sequence 0 (wire-shape-valid) explicitly. Both authorities are ratified/normative; no provisional dependency."
+    },
+    "status": "proposed",
+    "attackFlagRef": "V6-01",
+    "flipMarker": null
+  },
+  {
+    "id": "V7-neg-01",
+    "ruleId": "V7",
+    "area": "Value-record authority",
+    "authorityTier": "normative",
+    "sources": [
+      "docs/spec/WIRE_FORMAT.md §8 sequence-bound (#48, normative): values above 2^53−1 invalid, parser MUST reject",
+      "docs/core/DECISIONS.md #17 (ratified): increment sequence exactly by one",
+      "docs/core/B2_KERNEL_HARDENING.md V7 (cited) edge test"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "At head sequence 2^53−1 the chain freezes permanently — fail-closed but should be stated in spec text.",
+      "scenario": "negative edge: head at sequence 2^53−1, a record with sequence 2^53 (the only valid +1) exceeds the §8 bound and is rejected; chain extension fails closed. Pins the permanent freeze as a fail-closed consequence of the wire bound.",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "v7-02-reject",
+      "rationale": "The verdict (no successor to a head at sequence 2^53−1 can be valid, because any +1 exceeds the §8 sequence-bound) derives from normative wire text (#48 sequence-bound, values above 2^53−1 MUST be rejected) plus V7's ratified +1 rule. The fail-closed freeze is a derivable consequence today; the flag's 'should be stated in spec text' is an editorial nicety, not a missing rule blocking the verdict."
+    },
+    "status": "proposed",
+    "attackFlagRef": "V7-02",
+    "flipMarker": null
+  },
+  {
+    "id": "V8-neg-01",
+    "ruleId": "V8",
+    "area": "Value-record authority",
+    "authorityTier": "normative",
+    "sources": [
+      "docs/core/DECISIONS.md #17 (ratified): 'point to the canonical hash of the previous destination-record statement'",
+      "docs/spec/WIRE_FORMAT.md §8.1 (normative) digest definition",
+      "docs/core/B2_KERNEL_HARDENING.md V8 (cited)"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "Verifiers must recompute the head's hash from its fields, never trust a stored/declared recordHash — the legacy proof-bundle PB5 gap was exactly trusting declared hashes and skipping signatures.",
+      "scenario": "negative: a successor whose previousRecordHash is a valid 32-byte hex but corresponds to a forged head (wrong content) is rejected; the verifier recomputes the actual head's §8.1 digest. Pins that declared/stored hashes are never trusted.",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "v8-01-reject",
+      "rationale": "Ratified Decision #17 requires the successor 'point to the canonical hash of the previous destination-record statement,' and a verifier recomputing the head's hash (rather than trusting a declared value) is derivable from that plus the kernel-purity canon (inputs are record bytes, head is recomputed). The PB5 'don't trust declared hashes' lesson is legacy evidence, not the authority; the verdict stands on #17 + the §8.1 digest. No provisional dependency."
+    },
+    "status": "proposed",
+    "attackFlagRef": "V8-01",
+    "flipMarker": null
+  },
+  {
+    "id": "V10-neg-01",
+    "ruleId": "V10",
+    "area": "Value-record authority",
+    "authorityTier": "ratified",
+    "sources": [
+      "docs/core/DECISIONS.md #18 (ratified): 'Ownership transfer does not automatically preserve ... preserve is not the default behavior'",
+      "docs/spec/WIRE_FORMAT.md §4.1 (no assigned Transfer preserve flag-bit semantics)",
+      "docs/core/B2_KERNEL_HARDENING.md V10 (cited)"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "Decision #18 permits 'an explicit preserve signal' but WIRE_FORMAT §4.1 assigns no Transfer flag-bit semantics — an implementation honoring an unassigned bit as 'preserve' would smuggle unsigned semantics past the spec. Fail closed: all transfers clear. (Flag-bit assignment is X* area.)",
+      "scenario": "negative: a Transfer event with an unassigned flags bit set does not preserve the prior chain; the prior interval's chain is still not current and the new owner's fresh sequence-1/null-prev chain is required. Pins fail-closed against invented preserve bits.",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "v10-01-reject",
+      "rationale": "The fail-closed verdict (every transfer is non-preserving; an unassigned Transfer flag-bit honored as 'preserve' is rejected/ignored) derives from ratified Decision #18 ('does not automatically preserve ... preserve is not the default') plus the fact that WIRE_FORMAT §4.1 assigns no preserve bit. Because no preserve signal is specified, fail-closed is the only derivable reading — this is the kernel's fail-closed posture on an absent/unassigned signal, derivable now even though bit-assignment is X* area."
+    },
+    "status": "proposed",
+    "attackFlagRef": "V10-01",
+    "flipMarker": null
+  },
+  {
+    "id": "V11-pos-01",
+    "ruleId": "V11",
+    "area": "Value-record authority",
+    "authorityTier": "normative",
+    "sources": [
+      "docs/core/DECISIONS.md #17 (ratified): 'Owner-issued timestamps are metadata, not the canonical ordering rule'",
+      "docs/spec/WIRE_FORMAT.md §8 timestamp-form (#48, normative): pins shape (RFC 3339 UTC), not truth",
+      "docs/core/B2_KERNEL_HARDENING.md V11 (cited)"
+    ],
+    "kind": "positive",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "Owners can freely backdate or future-date issuedAt (the wire timestamp-form ruling pins shape, not truth); surfaces must not present issuedAt as verified recency — presentation is adapter/B5 concern, but a kernel that secretly compares timestamps would import this lie into consensus.",
+      "scenario": "positive + negative pair: record with issuedAt earlier than predecessor but correct sequence/linkage is accepted; record with later issuedAt but stale sequence is rejected. Pins that timestamp recency grants nothing and never vetoes chain order.",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "accept",
+      "reason": "v11-01-accept",
+      "rationale": "Ratified Decision #17 fixes 'Owner-issued timestamps are metadata, not the canonical ordering rule,' and the timestamp-form ruling (#48) pins issuedAt's shape, not its truth. So a record with an earlier issuedAt than its predecessor is accepted when sequence/linkage are correct, and a later issuedAt with a stale sequence is rejected. The kernel never compares issuedAt for ordering. No provisional dependency."
+    },
+    "status": "proposed",
+    "attackFlagRef": "V11-01",
+    "flipMarker": null
+  },
+  {
+    "id": "Z1-neg-01",
+    "ruleId": "Z1",
+    "area": "Reorg re-derivation and replay determinism",
+    "authorityTier": "candidate",
+    "sources": [
+      "docs/core/SOFTWARE_CANON.md Layer vocabulary, L2 ownership kernel (ratified) — 'ordered, witnessed inputs in; name state out ... No DB, no network, no clock, no UI'",
+      "docs/spec/ONT_DATA_AVAILABILITY_AGREEMENT.md §6c Fail closed (candidate); §6e S4 evidence-in-verdict-out (candidate)",
+      "docs/ONT.md Nobody decides — 'two honest observers always get the same answer'"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "Determinism is only relative to the servedEvidence input; DA agreement §3 admits honest verifiers cannot prove non-availability, so convergence of the servedEvidence set itself is the open B3 witness question — a spec reading where each node assembles its own evidence set quietly reintroduces the fork Z1 forbids.",
+      "scenario": "negative: a kernel whose verdict consults local receipt time / per-node assembled evidence set forks across differing local views -> expected reject; pins the divergence that determinism is keyed only to canonical-chain view + witnessed evidence, never node-local receipt. Plus positive: byte-identical state under randomized arrival schedules -> accept.",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "z1-01-reject",
+      "rationale": "The flag's actual derivable predicate is the kernel's fail-closed posture on absent/unconverged evidence and its purity (no clock/network/receipt-time). Per the gate's carve-out, a flag purely about fail-closed behavior on absent evidence is vector-now even though the served-evidence WITNESS FORMAT is a B3 deliverable. SOFTWARE_CANON L2 (ratified, 'ordered, witnessed inputs in; name state out ... No DB, no network, no clock') plus DA §6c fail-closed and §6e S4 ('evidence in, verdict out; never asks did I receive the bytes') let a second implementer derive: a kernel variant that consults local receipt time (the da-convergence-sim 'naive' rule) MUST be rejected; the determinism property is accepted. The B3 part of the flag (witness-set convergence) is not the vector — the purity/fail-closed verdict is."
+    },
+    "status": "proposed",
+    "attackFlagRef": "Z1-01",
+    "flipMarker": null
+  },
+  {
+    "id": "Z6-pos-01",
+    "ruleId": "Z6",
+    "area": "Reorg re-derivation and replay determinism",
+    "authorityTier": "candidate",
+    "sources": [
+      "docs/spec/ONT_DATA_AVAILABILITY_AGREEMENT.md §5 The key decomposition (candidate) — disjoint insertions commute, root is function of leaf set",
+      "docs/core/SOFTWARE_CANON.md Item 5 B2 gate (ratified) — permutation/reorg invariance property tests where the spec claims it",
+      "docs/core/B2_KERNEL_HARDENING.md Z6 attack flag — scope to disjoint only"
+    ],
+    "kind": "positive",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "The invariance claim is scoped to disjoint insertions only; quoting it unscoped would 'prove' order-independence exactly where order decides ownership (same-name conflicts) — tests must pin the scope.",
+      "scenario": "positive: random sets of disjoint batches in every sampled permutation yield one identical root -> accept; negative: batches that conflict on a name resolved by application order (last-write/first-applied) instead of commit priority -> reject (pins the scope so the commutativity claim is never quoted unscoped onto same-name conflicts). authorityTier candidate, no decisionDeps.",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "accept",
+      "reason": "z6-01-accept",
+      "rationale": "Z6 (permutation-invariance of the root over DISJOINT-leaf batch insertions) is grounded in DA §5 ('Disjoint insertions commute ... the root is a function of the set of leaves, not the order') and SOFTWARE_CANON Item 5 B2 gate (ratified, 'property tests over event orderings (reorg/permutation invariance where the spec claims it)'). The flag is a SCOPE-pinning note, not a missing rule: the vector must test permutation-invariance ONLY for disjoint insertions and must NOT extend it to same-name conflicts (which Z7 resolves by commit priority). The scope boundary is fully derivable from the candidate text + ratified gate, with no dependence on #49/#50."
+    },
+    "status": "proposed",
+    "attackFlagRef": "Z6-01",
+    "flipMarker": null
+  },
+  {
+    "id": "Z11-neg-01",
+    "ruleId": "Z11",
+    "area": "Reorg re-derivation and replay determinism",
+    "authorityTier": "candidate",
+    "sources": [
+      "docs/spec/AUCTION.md Decay Rule (candidate) — 'frozen, monotonic, height-keyed schedule. Do not let market-derived system characteristics shrink windows'",
+      "docs/spec/AUCTION.md Window Schedule Bottom Line (candidate) — 'Reduce windows by passage of block height only'",
+      "docs/core/B2_KERNEL_HARDENING.md Z11 negative test — window shorter than height_keyed_floor (volume/bonded-value/bidder-count driven) rejected"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "The spec's own unsafe-shrink list (bonded value, bidder count, key count, volumes) is the attack catalogue: every listed signal is adversary-manufacturable at launch.",
+      "scenario": "negative: a computed window shorter than height_keyed_floor(anchor_height) driven by bonded value / bidder count / key count / claim volume -> reject (shrink forbidden in every state); positive: window depends only on the frozen height-keyed schedule of anchor height -> accept. authorityTier candidate; schedule integers are launch-freeze placeholders but the no-shrink rule is parameter-independent; no decisionDeps.",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "z11-02-reject",
+      "rationale": "The EXTEND-ONLY / no-shrink invariant is fully stated in AUCTION.md Decay Rule (candidate): 'Use a frozen, monotonic, height-keyed schedule. Do not let market-derived system characteristics shrink windows,' and §Window Schedule Bottom Line 'Reduce windows by passage of block height only.' The named unsafe-shrink signals (bonded value, bidder count, key count, volumes) are precisely the rejects. A second implementer can derive: any computed window shorter than height_keyed_floor(anchor_height) driven by any market signal MUST be rejected. No dependency on #49/#50 (this is the AUCTION decay rule, not the K/W/C algebra); only the schedule VALUES are launch-freeze, and the rule is stated parameterized on the schedule."
+    },
+    "status": "proposed",
+    "attackFlagRef": "Z11-02",
+    "flipMarker": null
+  },
+  {
+    "id": "Z12-neg-01",
+    "ruleId": "Z12",
+    "area": "Reorg re-derivation and replay determinism",
+    "authorityTier": "normative",
+    "sources": [
+      "docs/core/SOFTWARE_CANON.md L2 ownership kernel (ratified) — 'No DB, no network, no clock, no UI'",
+      "docs/spec/WIRE_FORMAT.md §8 Off-chain owner-signed shapes (normative, wire-normative #48) — 'Every issuedAt is the literal form'",
+      "docs/core/B2_KERNEL_HARDENING.md Z12 negative test — reject any rule comparing issuedAt to 'now'"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "issuedAt is normative wire content but semantically untethered: any future rule that gives it meaning (freshness, expiry) re-imports wall-clock into the audited boundary — the V* and R* extractors must keep ordering on sequence/predecessor links, with issuedAt as display metadata only.",
+      "scenario": "negative: a value-record / recovery predicate that accepts or rejects a payload by comparing issuedAt to current time -> reject (issuedAt is opaque committed bytes, influences only the digest); positive: replays at arbitrary real-world times/speeds yield byte-identical state -> accept. authorityTier ratified+normative; no decisionDeps.",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "z12-01-reject",
+      "rationale": "Z12 (no kernel predicate consumes wall-clock; off-chain timestamps like issuedAt are opaque committed bytes, never compared to 'now') is derivable from SOFTWARE_CANON L2 (ratified, 'No DB, no network, no clock') + WIRE_FORMAT §8 (normative, wire-normative #48: 'Every issuedAt is the literal form'). The flag is a forward-guard note (a future rule giving issuedAt freshness/expiry semantics would re-import wall-clock); the testable verdict today is: a value-record or recovery rule that accepts/rejects by comparing issuedAt to current time MUST fail; issuedAt influences only digest bytes. Fully grounded in ratified + normative text, no #49/#50 dependency."
+    },
+    "status": "proposed",
+    "attackFlagRef": "Z12-01",
+    "flipMarker": null
+  },
+  {
+    "id": "S4-neg-01",
+    "ruleId": "S4",
+    "area": "Settlement consequences (bond release)",
+    "authorityTier": "candidate",
+    "sources": [
+      "docs/core/STATUS.md Launch parameters lines 54,76 [candidate, placeholder]",
+      "docs/spec/AUCTION.md Winner Bond And Maturity / Prototype constant to resolve lines 179-183 [candidate]",
+      "docs/core/DECISIONS.md 13. Prototype maturity schedule status lines 187-199",
+      "docs/core/B2_KERNEL_HARDENING.md S4 lines 1475-1484"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "STATUS marks the value 'placeholder / test override' — a test override path leaking into the kernel would make maturity environment-dependent; the CONSENSUS_PARAMS surface must carry the only value.",
+      "scenario": "negative: a fixture using the legacy epoch-halving maturity-helper output, or any test-override path supplying maturity, must mismatch the fixed MATURITY_BLOCKS parameter and be rejected; expected verdict reject (parameterized on MATURITY_BLOCKS as a launch-freeze placeholder, not on its value). Pins the divergence: kernel must source maturity solely from CONSENSUS_PARAMS, never an environment/test override or variable schedule.",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "s4-01-reject",
+      "rationale": "S4 was downgraded to candidate-stays (value is a placeholder), but this flag is about the fail-closed posture against a test-override / epoch-halving maturity input leaking into the kernel. The kernel-purity duty (uniform fixed MATURITY_BLOCKS parameter, no environment-dependent or epoch-halving schedule) is derivable now from AUCTION.md and STATUS (epoch-halving = 'prototype residue to remove or quarantine') and DECISIONS #13; the parameter VALUE staying a placeholder does not block a negative vector asserting no test-override/epoch-halving input exists."
+    },
+    "status": "proposed",
+    "attackFlagRef": "S4-01",
+    "flipMarker": null
+  },
+  {
+    "id": "S5-neg-01",
+    "ruleId": "S5",
+    "area": "Settlement consequences (bond release)",
+    "authorityTier": "normative",
+    "sources": [
+      "docs/core/DECISIONS.md 12. Maturity duration binding [decision log] lines 170-185",
+      "docs/spec/WIRE_FORMAT.md 4.3 AuctionBid settlementLockBlocks [normative]",
+      "docs/core/DECISIONS.md 37. Bond opens the auction [ratified] line 575",
+      "docs/core/B2_KERNEL_HARDENING.md S5 Step-2 correction lines 1486-1489"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "Without this rule a bidder picks its own maturity (settlementLockBlocks=1 -> instant mature owner, gutting the year-locked-capital deterrent of bond-opens (#37)).",
+      "scenario": "negative: a winning bid with settlementLockBlocks=1 (or any value != MATURITY_BLOCKS) must not settle into ownership with a shortened maturity; expected reject. The deterministic-from-launch-rules clause (#12) makes the verdict legally derivable without inventing a rule.",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "s5-01-reject",
+      "rationale": "S5 was upgraded to cited per DECISIONS #12 (deterministic maturity from launch rules; 'cannot be adjusted discretionarily'). A winning bid carrying settlementLockBlocks != MATURITY_BLOCKS must not settle with a shortened maturity. This negative verdict is derivable from #12 plus the normative WIRE_FORMAT field; the deterrent reference to bond-opens (#37) is RATIFIED, not provisional."
+    },
+    "status": "proposed",
+    "attackFlagRef": "S5-01",
+    "flipMarker": null
+  },
+  {
+    "id": "S6-neg-01",
+    "ruleId": "S6",
+    "area": "Settlement consequences (bond release)",
+    "authorityTier": "candidate",
+    "sources": [
+      "docs/LAUNCH.md Bond Continuity Consequences / Bonds And Maturity",
+      "docs/spec/AUCTION.md Winner Bond And Maturity [candidate]",
+      "docs/spec/ONT_ACQUISITION_STATE_MACHINE.md Bonded Ownership [candidate]",
+      "docs/core/DECISIONS.md 41. One user secret [ratified] line 701",
+      "docs/GLOSSARY.md maturity lines 85-88",
+      "docs/core/B2_KERNEL_HARDENING.md S6 lines 1498-1505"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "Continuity is an ONT rule, not a Bitcoin timelock (GLOSSARY) — the kernel can only assign consequences to observed spends; the bond is spendable by whoever holds the funding wallet key, which is distinct from the owner key (Decision #41), so a funding-wallet compromise releases the name without any owner-key signature.",
+      "scenario": "negative: a pre-maturity bond-outpoint spend with no same-tx valid successor releases the name regardless of which key signed the Bitcoin spend (property: no owner-signature exemption path); expected reject/release. Pins that continuity is an observed-spend consequence, not a key-authorized event.",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "s6-01-reject",
+      "rationale": "S6 is cited. The flag's substance — that release fires on a bond-outpoint spend with no same-tx valid successor regardless of which key (funding-wallet, owner) signed it (DECISIONS #41 keeps the funding key distinct from the owner key) — is exactly the rule: the kernel assigns consequences to observed spends, with no owner-signature exemption. This verdict is derivable now from LAUNCH Bond Continuity + AUCTION + ONT_ACQUISITION_STATE_MACHINE + GLOSSARY. #41 is ratified, not provisional. The funding-key 'compromise' is an accepted property of bond continuity, not a missing rule."
+    },
+    "status": "proposed",
+    "attackFlagRef": "S6-01",
+    "flipMarker": null
+  },
+  {
+    "id": "S9-neg-01",
+    "ruleId": "S9",
+    "area": "Settlement consequences (bond release)",
+    "authorityTier": "normative",
+    "sources": [
+      "docs/LAUNCH.md Released-Name Reauction Path",
+      "docs/spec/WIRE_FORMAT.md 6. Auction commitments auctionLotCommitment [normative]",
+      "docs/spec/AUCTION.md Bond Breaks And Reauction lot-identity note lines 204-207",
+      "docs/core/B2_KERNEL_HARDENING.md S9 lines 1529-1536"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "The doc states the rule in adapter voice ('The indexer only recognizes') — promotion must restate it as a pure kernel predicate over (bid bytes, recorded release facts), or an indexer remains the deciding party.",
+      "scenario": "negative: a bid whose lot commitment binds an anchor != the latest recorded release height (stale earlier height, fabricated future height, or unlockBlock=0 after a release) MUST NOT open or join the live generation; expected reject. Positive: unlockBlock == release height opens the new generation. Pins the predicate over (bid bytes, recorded release facts), removing indexer-as-decider.",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "s9-01-reject",
+      "rationale": "The reopen-anchor verdict (a reopened auction is recognized only if its lot anchor unlockBlock equals the latest recorded release height, lot identity reopen-{name}-after-{release_height}; first-gen anchor 0) is cited from LAUNCH Released-Name Reauction Path + the normative WIRE_FORMAT auctionLotCommitment. The flag is only about restating adapter voice ('the indexer recognizes') as a pure kernel predicate over (bid bytes, recorded release facts) — the verdict itself is unchanged and derivable; the predicate restatement is the standard promotion the vector already exercises."
+    },
+    "status": "proposed",
+    "attackFlagRef": "S9-01",
+    "flipMarker": null
+  },
+  {
+    "id": "S12-pos-01",
+    "ruleId": "S12",
+    "area": "Settlement consequences (bond release)",
+    "authorityTier": "candidate",
+    "sources": [
+      "docs/spec/AUCTION.md Winner Bond And Maturity (Maturity reset on transfer | No) line 172 [candidate]",
+      "docs/LAUNCH.md Transfers (maturity clock does not reset)",
+      "docs/core/B2_KERNEL_HARDENING.md S12 lines 1562-1569"
+    ],
+    "kind": "positive",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "No-reset means a buyer near maturity inherits an almost-free name lock — combined with S3's bid-height anchor ambiguity, transfer timing games could shave the effective lock; the X* extraction should cross-check.",
+      "scenario": "positive: chain of pre-maturity transfers keeps maturityHeight byte-identical after each hop; negative: a state transition emitting a later/earlier maturityHeight after transfer fails. Pins the no-reset/no-extend invariant; the near-maturity 'almost-free lock' is the intended (derivable) behavior, not a divergence.",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "accept",
+      "reason": "s12-01-accept",
+      "rationale": "S12 is cited: a pre-maturity transfer MUST NOT reset/extend the maturity clock; the successor inherits the original maturityHeight unchanged (AUCTION 'Maturity reset on transfer | No' + LAUNCH 'maturity clock does not reset'). The no-reset verdict is fully derivable. The flag's substance (buyer near maturity inherits an almost-free lock, X* cross-check, combined-with-S3 shaving) is a corroborating extraction note that re-confirms the no-reset rule, not a verdict divergence; the S3 anchor ambiguity is its own (S3) spec-blocked item, not a defect in S12's verdict."
+    },
+    "status": "proposed",
+    "attackFlagRef": "S12-01",
+    "flipMarker": null
+  },
+  {
+    "id": "S15-neg-01",
+    "ruleId": "S15",
+    "area": "Settlement consequences (bond release)",
+    "authorityTier": "ratified",
+    "sources": [
+      "docs/LAUNCH.md Legacy Scheduled-Catalog Compatibility State",
+      "docs/core/DECISIONS.md 37. Bond opens the auction [ratified] lines 575-598",
+      "docs/core/B2_KERNEL_HARDENING.md S15 lines 1593-1601"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "The legacy scheduled-catalog 'unopened' path is explicitly not the launch story — old-model leakage risk if any catalog-driven materialization survives into the kernel (ChatLunatique hunting-list item).",
+      "scenario": "negative: an auction window passing with zero accepted bids, or a transcript asserting phase=settled with no accepted winning bid, materializes no NameRecord (rejected by the settlement predicate); expected reject. Positive: a lot with one qualifying settling bid materializes ownership. Pins no catalog/compat materialization without a real settled winning bond.",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "s15-01-reject",
+      "rationale": "S15 is cited: no auction ownership materializes without an actual settled winning bid; a lot that closes/expires/exists only as catalog/compat state with no accepted bid yields no owner (LAUNCH Legacy Scheduled-Catalog Compatibility State + ratified DECISIONS #37 'acquired only by (a) uncontested cheap claim that finalizes, or (b) the winning bond in an auction'). The fail-closed posture against catalog-driven materialization leakage is derivable now. #37 (bond-opens) is RATIFIED."
+    },
+    "status": "proposed",
+    "attackFlagRef": "S15-01",
+    "flipMarker": null
+  },
+  {
+    "id": "R1-neg-01",
+    "ruleId": "R1",
+    "area": "Recovery authority (arming + cross-object)",
+    "authorityTier": "ratified",
+    "sources": [
+      "docs/core/SOFTWARE_CANON.md The boundary rule / L2 ownership kernel row (ratified) — pure predicate over witnessed inputs, fail closed",
+      "docs/core/DECISIONS.md 40 (ratified) — a name with no recovery descriptor is one key, nothing to monitor; no recovery path",
+      "docs/core/B2_KERNEL_HARDENING.md R1 (verdict cited)"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "Absence of a descriptor is unprovable from served evidence alone — the rule is only sound stated fail-closed (no witnessed descriptor evidence ⇒ reject), never as 'verify none exists'.",
+      "scenario": "negative: RecoverOwner whose recoveryDescriptorHash matches no descriptor in the witnessed evidence set => reject (ignored, owner unchanged, no pendingRecovery). Pins the divergence between fail-closed 'no witnessed descriptor => reject' and the unsound 'verify none exists' framing.",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "r1-01-reject",
+      "rationale": "This flag is purely about the kernel's fail-closed posture on absent evidence: 'no witnessed descriptor evidence => reject', never 'verify none exists'. Per the gate, a flag about fail-closed posture on absent evidence is derivable now even though the served-evidence format is a B3 deliverable. The verdict (RecoverOwner against a name with no witnessed armed descriptor => ignored, no pendingRecovery) derives from ratified SOFTWARE_CANON (pure predicate over witnessed inputs, fail closed) and DECISIONS #40 (no descriptor => owner-key-only, no recovery path). No dependency on #49/#50 (the existence/absence test precedes the signer predicate)."
+    },
+    "status": "proposed",
+    "attackFlagRef": "R1-01",
+    "flipMarker": null
+  },
+  {
+    "id": "R2-neg-01",
+    "ruleId": "R2",
+    "area": "Recovery authority (arming + cross-object)",
+    "authorityTier": "normative",
+    "sources": [
+      "docs/spec/WIRE_FORMAT.md §5 Keys and owner-key Schnorr digests (normative) — authorization semantics are kernel rules (B2); wire defines digests/verification only",
+      "docs/spec/WIRE_FORMAT.md §8.2 Recovery descriptor — digest",
+      "docs/core/B2_KERNEL_HARDENING.md R2 (verdict cited)"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "WIRE_FORMAT §5 explicitly routes authorization semantics to B2 — the wire only verifies (sig, key, digest); without this kernel rule any keyholder could arm a descriptor for any name.",
+      "scenario": "negative: descriptor self-consistently signed by key K != current owner key => reject (owner_mismatch / does not arm). Also cross-context negative: a transfer/recover signature over overlapping fields must not verify as a descriptor signature (domain separation). Pins that arming authorization is a kernel rule, not satisfiable by any keyholder.",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "r2-01-reject",
+      "rationale": "The arming predicate — a descriptor arms only if its 64-byte Schnorr sig verifies over the §8.2 digest under the descriptor's ownerPubkey AND that ownerPubkey equals the name's current owner key — derives from normative WIRE_FORMAT §5 (which explicitly routes authorization semantics to B2 and defines the digest/verification primitives) plus §8.2 (descriptor digest). Verdict is 'cited'. This is arming-side, not the invoke signer (#50), so no provisional dependency. A second implementer can derive 'descriptor signed by a non-owner key MUST NOT arm' from the normative routing sentence and §8.2 digest definition."
+    },
+    "status": "proposed",
+    "attackFlagRef": "R2-01",
+    "flipMarker": null
+  },
+  {
+    "id": "R18-pos-01",
+    "ruleId": "R18",
+    "area": "Recovery authority (arming + cross-object)",
+    "authorityTier": "ratified",
+    "sources": [
+      "docs/core/SOFTWARE_CANON.md L2 ownership kernel row (ratified) — pure deterministic predicates; no clock; identical inputs => identical verdict",
+      "docs/core/SOFTWARE_CANON.md The boundary rule (ratified) — pure predicate over witnessed inputs",
+      "docs/core/B2_KERNEL_HARDENING.md R18 Attack flag — completion must be deterministic over chain height, not refresh-invocation time"
+    ],
+    "kind": "positive",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "Legacy completion happens in a derived-state refresh keyed on a caller-supplied currentHeight, not on event application — if the new kernel keeps that shape, completion must still be a deterministic function of chain height with no dependence on when the refresh is invoked.",
+      "scenario": "positive (determinism/permutation property): replaying the same blocks in one pass vs incrementally yields byte-identical post-completion state; completion verdict is a function of (chain height, prior state) only, not of refresh-invocation timing. Pins that a caller-supplied currentHeight cannot make completion non-deterministic.",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "accept",
+      "reason": "r18-01-accept",
+      "rationale": "This flag is the determinism requirement: completion must be a deterministic function of chain height with no dependence on when the derived-state refresh is invoked (legacy keys it on a caller-supplied currentHeight). That purity/determinism verdict derives from ratified SOFTWARE_CANON (kernel = pure deterministic predicate over witnessed inputs incl. chain facts; no clock; identical inputs => identical verdict). It does not depend on the precise completion-transition spec gap (new interval ref etc., which is R18's separate Needed spec work) — the determinism property is testable now (replay same blocks in one pass vs incrementally => identical post-completion state). No #49/#50 dependency. Per the gate, determinism/purity posture is derivable now even where adjacent format work is deferred."
+    },
+    "status": "proposed",
+    "attackFlagRef": "R18-01",
+    "flipMarker": null
+  },
+  {
+    "id": "X2-neg-01",
+    "ruleId": "X2",
+    "area": "Transfer authority",
+    "authorityTier": "normative",
+    "sources": [
+      "docs/spec/WIRE_FORMAT.md §5 Keys and owner-key Schnorr digests (normative) — ont-transfer-owner digest + 'Authorization semantics ... are kernel rules (B2), not wire'",
+      "docs/core/DECISIONS.md Decision Log #1 Ownership model"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "The §5 digest excludes both the name and the carrying txid: authorization binds to a name only through prevStateTxid (ambiguity risk flagged on X4) and to no particular carrying transaction (extraction risk flagged on X10).",
+      "scenario": "negative: a valid ont-recover-owner signature over the shared prefix presented inside a Transfer event -> reject (no state change); plus negative recipient/random/prior-owner self-auth -> reject. Pins that authority binds to the current state owner key over the exact §5 digest fields and to nothing else.",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "x2-01-reject",
+      "rationale": "The flag observes that the §5 digest binds a name only via prevStateTxid and binds no carrying txid; the cross-context guard it implies (a non-owner key, or a recover-owner digest presented inside a Transfer, authorizes nothing) is directly derivable from normative WIRE_FORMAT §5 ('which key must have produced a signature ... are kernel rules') plus DECISIONS #1 ('authorized by signatures from the corresponding private key'). The downstream ambiguity (X4) and extraction (X10) risks are tracked separately; for X2 itself the reject verdicts are normatively pinned."
+    },
+    "status": "proposed",
+    "attackFlagRef": "X2-01",
+    "flipMarker": null
+  },
+  {
+    "id": "X6-neg-01",
+    "ruleId": "X6",
+    "area": "Transfer authority",
+    "authorityTier": "ratified",
+    "sources": [
+      "docs/core/DECISIONS.md Decision Log #5 Bond continuity — 'at least the required bond amount'",
+      "docs/core/DECISIONS.md Decision Log #4 Transfer semantics — pre-maturity must move the bonded UTXO",
+      "docs/core/STATUS.md params table — min bond ₿50,000 (placeholder/launch-freeze)"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "Fee erosion: #5 notes fees should be funded separately; a successor output that slips below threshold simply invalidates the transfer — the kernel must not round or forgive, and wallet layers must guard it.",
+      "scenario": "negative: pre-maturity transfer whose successor output is one sat below the required (parameterized) bond amount -> reject (no rounding/forgiveness); paired positive at exactly the threshold -> accept. Parameterized vectors at two bond values so a baked-in constant cannot pass.",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "x6-01-reject",
+      "rationale": "The fee-erosion flag is the fail-closed posture on a below-threshold successor bond: a successor output one sat below the required amount simply invalidates the transfer with no rounding or forgiveness. That reject verdict is directly derivable from DECISIONS #5 ('The successor bond output must contain at least the required bond amount') — the amount itself is a launch-freeze parameter carried as a vector input (params), not a spec gap. The kernel-must-not-round verdict needs no invented rule."
+    },
+    "status": "proposed",
+    "attackFlagRef": "X6-01",
+    "flipMarker": null
+  },
+  {
+    "id": "X6-neg-02",
+    "ruleId": "X6",
+    "area": "Transfer authority",
+    "authorityTier": "normative",
+    "sources": [
+      "docs/spec/WIRE_FORMAT.md §4.1 Transfer + §5 digest — successorBondVout(1) (normative, u8)",
+      "docs/core/DECISIONS.md Decision Log #27 Pre-maturity transfer linkage — successor bond output index (vout)",
+      "docs/core/DECISIONS.md Decision Log #5 Bond continuity"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "successorBondVout is u8: outputs at index >255 can never be successor bonds — a wire bound with kernel consequence the spec should state explicitly.",
+      "scenario": "negative: pre-maturity transfer requiring a successor bond at output index >255 (unrepresentable in the u8 successorBondVout) -> reject; positive: same with a valid in-range vout designating an adequate output -> accept. Pins the u8 ceiling as a kernel reject boundary.",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "x6-02-reject",
+      "rationale": "successorBondVout is a u8 in the normative §4.1/§5 layout (one byte), so a successor bond can never be designated at an output index >255; a pre-maturity transfer that would need such an output cannot satisfy the X6 bond conjunct and rejects. This is a wire-bound-with-kernel-consequence derivable from the normative one-byte field plus DECISIONS #27 ('the signed transfer payload includes the successor bond output index (vout)') and #5 — no invented rule needed."
+    },
+    "status": "proposed",
+    "attackFlagRef": "X6-02",
+    "flipMarker": null
+  },
+  {
+    "id": "X8-pos-01",
+    "ruleId": "X8",
+    "area": "Transfer authority",
+    "authorityTier": "ratified",
+    "sources": [
+      "docs/core/DECISIONS.md Decision Log #4 Transfer semantics — 'Post-maturity transfers do not require bond continuity.'",
+      "docs/core/DECISIONS.md Decision Log #27 — 'mature transfers do not require successor bond output linkage'",
+      "docs/LAUNCH.md Transfers — 'no successor bond is required'"
+    ],
+    "kind": "positive",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "The dead-but-signed successorBondVout byte in mature transfers admits arbitrary values; harmless under this rule, but the spec should explicitly say 'ignored' (or require 0) so implementations do not invent semantics.",
+      "scenario": "positive: mature transfer with arbitrary (incl. nonsense/out-of-range) successorBondVout byte and no bond inputs/outputs -> accept (byte ignored, owner+head update, bond fields untouched). Pins that the mature path reads no bond conjunct. (Pairs with the maturity-boundary spec-block; bodies of these vectors use a height comfortably past maturity to avoid the boundary question.)",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "accept",
+      "reason": "x8-02-accept",
+      "rationale": "This flag is the benign mature-path posture: under X8 the kernel MUST NOT impose any bond conjunct on a mature transfer, so the signed successorBondVout byte carries no semantic effect and any value (including out-of-range) is ignored. The 'ignored' verdict is directly derivable from DECISIONS #4/#27 and the candidate state-machine ('mature transfers do not require successor bond continuity') plus LAUNCH ('no successor bond is required') — the flag's note that the spec 'should say ignored' is a wording recommendation, not a verdict gap."
+    },
+    "status": "proposed",
+    "attackFlagRef": "X8-02",
+    "flipMarker": null
+  },
+  {
+    "id": "X11-neg-01",
+    "ruleId": "X11",
+    "area": "Transfer authority",
+    "authorityTier": "candidate",
+    "sources": [
+      "docs/spec/ONT_ACQUISITION_STATE_MACHINE.md Owner-Key Control (candidate) — 'Once a name is final, the owner key is the stable authority layer'",
+      "docs/spec/ONT_ACQUISITION_STATE_MACHINE.md State Model (candidate) — owner-key transfer reachable only from Final/Bonded/Mature owner states",
+      "docs/DESIGN.md §6 Economics — owner can transfer the moment the auction settles"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "The only authority is the state diagram plus 'once a name is final' — no MUST sentence prohibits transferring provisional claims; pre-trading claims during the notice window is excluded only by inference and must be stated at promotion.",
+      "scenario": "negative battery: Transfer against a provisional batched claim in its notice window / a name in a live auction / a nullified name / a name invalidated by broken bond continuity / a nonexistent name -> reject (no state change) for each; positive: transfer in the block after auction settlement -> accept. Pins owned-state-only transfer authority.",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "x11-01-reject",
+      "rationale": "The flag notes the only authority is the candidate state diagram plus 'once a name is final', with no explicit MUST forbidding transfer of a provisional claim. But X11 is candidate-stays and candidate text is acceptable authority for a candidate-stays verdict; the state model is unambiguous that transfer authority attaches only in an owned/final state, and DESIGN §6 ('owner ... can transfer the name the moment the auction settles') confirms the boundary. The negatives (provisional-in-notice, live-auction, nullified, broken-bond, nonexistent -> no state change) are derivable as fail-closed: only an owned state has a transferable owner key. The 'must be restated as MUST at promotion' is a wording note, not a verdict gap."
+    },
+    "status": "proposed",
+    "attackFlagRef": "X11-01",
+    "flipMarker": null
+  },
+  {
+    "id": "X14-neg-01",
+    "ruleId": "X14",
+    "area": "Transfer authority",
+    "authorityTier": "ratified",
+    "sources": [
+      "docs/core/DECISIONS.md Decision Log #18 Destination behavior on transfer — 'cleared by default'; 'preserve is not the default behavior'",
+      "docs/core/DECISIONS.md Decision Log #17 — 'destination authority moves to the new owner key'",
+      "docs/core/B2_KERNEL_HARDENING.md X14 Gaps — Transfer flags bit registry (no spec text -> fail-closed)"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "#18's 'explicit preserve signal' has no defined carrier — the Transfer flags byte is the obvious slot but no flag registry exists (see gaps); until a named decision defines one, every flag bit must mean no-preserve, fail-closed.",
+      "scenario": "negative: any Transfer with a flags byte bit set (no spec-defined preserve carrier) does NOT preserve the prior owner's value record -> reject preserve (record cleared); negative: any prior-owner-signed value record after transfer -> reject (stale); positive: new owner's fresh record (seq 1, no prev hash) is the valid head. Pins fail-closed no-preserve default regardless of flag bits.",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "x14-01-reject",
+      "rationale": "The flag notes DECISIONS #18 names an 'explicit preserve signal' with no defined carrier and no flag-bit registry exists. But the derivable verdict is the fail-closed default: with no spec-defined preserve carrier, every Transfer flag bit MUST mean no-preserve, so value-record authority moves to the new owner and the prior record is cleared. This is exactly the kernel's fail-closed posture on absent spec (preserve is explicitly NOT the default per #18), which the gate guidance marks derivable now even though the eventual carrier format is future work. DECISIONS #17/#18 pin the cleared-by-default and preserve-not-default verdicts."
+    },
+    "status": "proposed",
+    "attackFlagRef": "X14-01",
+    "flipMarker": null
+  },
+  {
+    "id": "Q1-pos-01",
+    "ruleId": "Q1",
+    "area": "Winner selection and bid acceptance",
+    "authorityTier": "normative",
+    "sources": [
+      "docs/spec/AUCTION.md Opening Bond Floors",
+      "docs/spec/AUCTION.md Real Mechanism Choices (normative shape)",
+      "docs/core/DECISIONS.md Decision Log #37 Bond opens the auction",
+      "docs/GLOSSARY.md bond",
+      "docs/LAUNCH.md Legacy Scheduled-Catalog Compatibility State"
+    ],
+    "kind": "positive",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "AUCTION.md's floor sentence read alone suggests floor satisfaction suffices; the acceptance predicate is a conjunction (floor AND bond binding AND lot binding AND timing AND rebid mechanics) and must be stated as one predicate in one place, or an implementer will accept a floor-meeting bid with a phantom bond output",
+      "scenario": "positive: at-floor opening bid satisfying all clauses -> accept (auction exists from confirmation height). negative: one-sat-below-floor opening bid -> reject, no auction created. Pins the conjunction: floor satisfaction alone is insufficient; floor is necessary-not-sufficient. authorityTier=candidate (AUCTION) + ratified (#37).",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "accept",
+      "reason": "q1-01-accept",
+      "rationale": "The acceptance predicate as a conjunction (qualifying bond opens the auction; floor met; other clauses satisfied) is derivable from normative/ratified authority: AUCTION.md Opening Bond Floors + Real Mechanism Choices, Decision #37 (largest bond wins / qualifying bond opens), GLOSSARY bond, and LAUNCH 'no auction exists until a valid bonded opening bid confirms'. The positive (at-floor opening bid accepted) and negative (one-sat-below opening bid does not open) verdicts need no invented rule. The flag is about stating the conjunction in one place, but each conjunct already has authority, so a second implementer derives the same accept/reject."
+    },
+    "status": "proposed",
+    "attackFlagRef": "Q1-01",
+    "flipMarker": null
+  },
+  {
+    "id": "Q2-pos-01",
+    "ruleId": "Q2",
+    "area": "Winner selection and bid acceptance",
+    "authorityTier": "ratified",
+    "sources": [
+      "docs/spec/WIRE_FORMAT.md 2. Names",
+      "docs/spec/WIRE_FORMAT.md 4.3 AuctionBid",
+      "docs/core/DECISIONS.md 11. Auction bond curve status",
+      "docs/core/B2_KERNEL_HARDENING.md Q2 Step-3 restatement"
+    ],
+    "kind": "positive",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "The floor must key off canonical name byte length; this is only unambiguous because WIRE_FORMAT §2 rejects non-canonical name bytes — cite, do not re-derive",
+      "scenario": "positive: length-4 name uses curve floor; length-5 uses flat long-name minimum -> the <=4/5+ clamp boundary is invariant under two distinct (openingPriceAt1Char, longNameMinimum) parameterizations (parameters-as-inputs, launch-freeze placeholders). Pins floor keys off canonical byte length, citing WIRE_FORMAT §2 for canonicality rather than re-deriving. authorityTier=normative (WIRE_FORMAT §2) + ratified (#11).",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "accept",
+      "reason": "q2-02-accept",
+      "rationale": "Keying the floor off canonical name byte length is derivable: WIRE_FORMAT §2 normatively rejects non-canonical name bytes (decoder MUST reject A-Z etc.), and §4.3 carries nameLength and canonical name bytes; the floor function floor(name) keys off canonical byte length per Decision #11's structurally-scarce <=4 clamp. The instruction is to cite WIRE_FORMAT §2, not re-derive canonicality. The verdict (floor computed from canonical byte length; boundary invariant at length 4 vs 5) is derivable now."
+    },
+    "status": "proposed",
+    "attackFlagRef": "Q2-02",
+    "flipMarker": null
+  },
+  {
+    "id": "Q3-neg-01",
+    "ruleId": "Q3",
+    "area": "Winner selection and bid acceptance",
+    "authorityTier": "candidate",
+    "sources": [
+      "docs/LAUNCH.md Implementation And Validation Status (bond value = bid at bondVout)",
+      "docs/spec/WIRE_FORMAT.md 4.3 AuctionBid",
+      "docs/spec/CONTESTED_AUCTION_REFERENCE.md Core Rule"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "If 'at least' replaced 'equals exactly', a bidder could post one oversized output and later claim the same output backs a larger rebid without new capital; exact equality plus one-bond-output-per-bid closes this — the spec text must say 'equals exactly'",
+      "scenario": "negatives: bidAmountSats one sat above bondVout value -> reject; one sat below -> reject; bondVout index with no corresponding output -> reject. positive: output value exactly equals bidAmountSats -> passes this clause. Pins equals-exactly (not at-least) and the missing-output case. authorityTier=candidate (LAUNCH) + normative (WIRE_FORMAT §4.3).",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "q3-01-reject",
+      "rationale": "The exact-equality rule (bond output value at bondVout equals bidAmountSats exactly) is derivable: LAUNCH.md Implementation/Validation status states 'bond value = bid at bondVout', and WIRE_FORMAT §4.3 normatively fixes the bondVout and bidAmountSats fields. The negatives (one sat above, one sat below, missing output at bondVout) all reject; positive (exact equality) passes this clause. No invented rule needed — the equality is stated in LAUNCH and the field shape is normative. The needed-spec-work is only to promote the sentence into AUCTION.md, but the verdict is already legally derivable."
+    },
+    "status": "proposed",
+    "attackFlagRef": "Q3-01",
+    "flipMarker": null
+  },
+  {
+    "id": "Q4-neg-01",
+    "ruleId": "Q4",
+    "area": "Winner selection and bid acceptance",
+    "authorityTier": "candidate",
+    "sources": [
+      "docs/GLOSSARY.md bond (returnable; locked, not spent; ONT-level designation over a plain output)",
+      "docs/LAUNCH.md Implementation And Validation Status (Returnable bond output)",
+      "docs/core/B2_KERNEL_HARDENING.md Q4 verdict candidate-stays"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "A bid whose bondVout points at the OP_RETURN payload output itself (or any unspendable script) passes a naive 'output exists with matching value' check while posting a bond that can never be released, moved, or spent for a rebid — breaking the returnability premise and the S* bond-continuity rules downstream",
+      "scenario": "negative: bondVout pointing at the OP_RETURN data output (value = bid) -> reject; bondVout pointing at a provably-unspendable script (value = bid) -> reject. Verdict reject is derivable from 'returnable' (GLOSSARY) — an unspendable output cannot be returnable, fail-closed. The positive (which payment classes accept) is the candidate-stays enumeration not vectorized here. authorityTier=candidate (GLOSSARY/LAUNCH).",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "q4-01-reject",
+      "rationale": "Although Q4's verdict is candidate-stays and no spec text enumerates which script classes QUALIFY as a bond output, the NEGATIVE direction this flag targets is derivable now: GLOSSARY defines a bond as 'locked, not spent — returnable after release' — an OP_RETURN/provably-unspendable output can never be released, moved, or spent, so it cannot satisfy the returnability premise. This is the kernel's fail-closed posture on a non-returnable bond output (reject), derivable without inventing the positive enumeration. The triage rule explicitly makes a fail-closed-on-bad-evidence flag vector-now even when the full format (here the qualifying-class enumeration) is later spec work."
+    },
+    "status": "proposed",
+    "attackFlagRef": "Q4-01",
+    "flipMarker": null
+  },
+  {
+    "id": "Q7-neg-01",
+    "ruleId": "Q7",
+    "area": "Winner selection and bid acceptance",
+    "authorityTier": "ratified",
+    "sources": [
+      "docs/spec/AUCTION.md Auction Timing (bid inside final 144 blocks moves close to bid block + 144; hard cap None)",
+      "docs/core/DECISIONS.md Decision Log #35 (no hard extension cap)",
+      "docs/core/STATUS.md Launch parameters (soft-close window 144 blocks)"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "Only accepted bids may extend: if rejected bids extended the close, a griefer could hold an auction open forever with below-minimum dust bids at zero bond cost — the negative test is mandatory",
+      "scenario": "negative: a rejected (below-soft-close-minimum) bid inside the window -> close height unchanged (the mandatory negative). positive: accepted bid at close-1 moves close to (close-1)+SOFT_CLOSE_BLOCKS; property: close heights non-decreasing over any sequence. SOFT_CLOSE_BLOCKS as launch-freeze parameter input. authorityTier=candidate (AUCTION) + ratified (#35 no cap).",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "q7-01-reject",
+      "rationale": "The accepted-only extension rule and the negative (a rejected/below-minimum bid inside the window does NOT move the close height) are derivable: AUCTION.md Auction Timing states a bid inside the final 144 blocks moves close to bid block + 144, and the extension applies on the accepted path; only an accepted bid (one that clears the increment) can be 'inside the final 144 blocks' as a real bonded bid. The non-extension-by-rejected-bid verdict follows because a rejected bid contributes nothing (composing with Q11), and extend-only is the stated 'moves close to bid block + 144' with no cap. The SOFT_CLOSE_BLOCKS value is a launch-freeze parameter-as-input. No invented rule for this negative."
+    },
+    "status": "proposed",
+    "attackFlagRef": "Q7-01",
+    "flipMarker": null
+  },
+  {
+    "id": "Q9-pos-01",
+    "ruleId": "Q9",
+    "area": "Winner selection and bid acceptance",
+    "authorityTier": "ratified",
+    "sources": [
+      "docs/core/DECISIONS.md Decision Log #37 (largest bond wins)",
+      "docs/LAUNCH.md Auction Settlement Becomes Ownership (highest accepted bid becomes the winner)",
+      "docs/spec/ONT_ACQUISITION_STATE_MACHINE.md Contested Auction (largest bond wins)",
+      "docs/core/DECISIONS.md 25. Same-block auction tie-break rule"
+    ],
+    "kind": "positive",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "Under open-ascending with enforced increments the largest accepted bid is necessarily the last accepted bid, so 'largest' and 'latest' coincide; if any future rule admits an accepted bid at or below the leader, the two selection rules diverge — the spec must state 'largest, ties per Decision #25' as the normative form and treat last-accepted as a derived property, not the definition",
+      "scenario": "positive: among accepted bids the largest amount wins (txid/bondVout/ownerPubkey handed to S*). negative: a larger-amount bid rejected at acceptance time (rebid not spending prior bond outpoint) does not win — the largest ACCEPTED bid does. Pins 'largest, ties per #25' as the normative form, last-accepted as derived. authorityTier=ratified (#37, #25) + candidate (LAUNCH).",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "accept",
+      "reason": "q9-01-accept",
+      "rationale": "The normative form 'largest accepted bid wins, ties per Decision #25' is derivable from ratified/normative authority: Decision #37 'largest bond wins', LAUNCH 'the highest accepted bid becomes the winner', ONT_ACQUISITION_STATE_MACHINE 'the largest bond wins', and Decision #25 for the same-block tie-break (extracted as Z3, consumed here). The verdicts (largest accepted wins; a rejected larger-amount bid does not win) need no invented rule — 'largest' is the definition and 'last-accepted' is a derived property. The tie-break is ratified (#25). Vector-now."
+    },
+    "status": "proposed",
+    "attackFlagRef": "Q9-01",
+    "flipMarker": null
+  },
+  {
+    "id": "Q9-neg-01",
+    "ruleId": "Q9",
+    "area": "Winner selection and bid acceptance",
+    "authorityTier": "candidate",
+    "sources": [
+      "docs/core/STATUS.md Components — Contested-auction bonded bid (highest-bid-wins + distinct-bid well-formedness enforced)",
+      "docs/core/B2_KERNEL_HARDENING.md Q9 statement (complete transcript precondition) + cross-area note (T* precondition; omitted bid is a T* failure)",
+      "docs/LAUNCH.md Auction Settlement Becomes Ownership"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "Winner selection is only defined over a transcript T* has judged complete; the kernel predicate must take the T* completeness verdict as a precondition so an omitted-bid transcript can never award the next-lower bid",
+      "scenario": "negative (cross-area with T*): removing one accepted bid from the transcript -> completeness predicate fails (reject/undefined verdict), NOT a selection of the next-lower bid. positive: over a T*-complete transcript the largest accepted bid is selected. Pins T* completeness as a Q9 precondition (fail-closed on incomplete transcript). authorityTier=ratified (#37) + candidate (STATUS/LAUNCH).",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "q9-02-reject",
+      "rationale": "That winner selection takes T* completeness as a precondition is derivable from the kernel composition: Q9 selects among accepted bids in the auction's COMPLETE transcript; STATUS notes the proof bundle enforces highest-bid-wins + distinct-bid well-formedness. The cross-area note states an omitted accepted bid is a T* failure, never a Q re-selection. The verdict (removing an accepted bid makes the completeness predicate fail rather than awarding the next-lower bid) is derivable now as a fail-closed precondition — it does not invent a rule; it composes Q9 over a T*-complete transcript. T*'s own format work is separate, but the kernel posture (selection undefined absent a complete transcript) is derivable."
+    },
+    "status": "proposed",
+    "attackFlagRef": "Q9-02",
+    "flipMarker": null
+  },
+  {
+    "id": "Q10-neg-01",
+    "ruleId": "Q10",
+    "area": "Winner selection and bid acceptance",
+    "authorityTier": "ratified",
+    "sources": [
+      "docs/GLOSSARY.md bond (qualifying bond is the only thing that opens an auction, #37)",
+      "docs/core/DECISIONS.md Decision Log #37 (one cheap claim no bond -> finalizes; zero qualifying bonds -> nullify; bare collision can deny never award)",
+      "docs/LAUNCH.md Legacy Scheduled-Catalog Compatibility State (no auction until valid bonded opening bid)"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "A non-qualifying AuctionBid is neither a qualifying bond nor a claim — no doc states which bucket it falls into; without the explicit null-effect clause an implementer could count it as a colliding claim (wrongly nullifying a single honest claim) or as a weak contest — both are denial vectors cheaper than the floor",
+      "scenario": "negative: single cheap claim + one below-floor bid inside notice window -> the claim finalizes exactly as if the bid never existed (bid does NOT count as a colliding claim -> no nullification; does NOT open a contest). negative: below-floor bond-first with no prior claim -> name remains unowned/unclaimed. positive contrast: at-floor qualifying bond -> contested + auction exists. authorityTier=ratified (#37) + normative (GLOSSARY).",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "q10-01-reject",
+      "rationale": "The null-effect of a below-floor/non-qualifying bid is derivable from ratified authority: GLOSSARY 'a qualifying bond (at or above the bond floor) is the only thing that opens an auction (#37)' and Decision #37 'One cheap claim, no bond by the deadline -> finalizes' and 'zero qualifying bonds' nullification rule, plus LAUNCH 'no auction exists until a valid bonded opening bid confirms.' A below-floor bid is not a qualifying bond and is not a claim, so the notice-window outcome is computed as if it never confirmed. The verdicts (single cheap claim + below-floor bid -> claim finalizes; below-floor bond-first -> unowned/unclaimed) follow directly — a non-qualifying bid neither opens an auction nor counts as a collision. No invention."
+    },
+    "status": "proposed",
+    "attackFlagRef": "Q10-01",
+    "flipMarker": null
+  },
+  {
+    "id": "G1-pos-01",
+    "ruleId": "G1",
+    "area": "Kernel-wide glue (ordering, evidence deadlines, parameter surface)",
+    "authorityTier": "ratified",
+    "sources": [
+      "docs/core/DECISIONS.md Decision Log entry 25 (lines 374-384)",
+      "docs/RISKS.md lines 504, 493-494 (Tie-break gaming = Low value, scoped to cheap-claim merge ties)",
+      "docs/core/B2_KERNEL_HARDENING.md G1 (line 2241)"
+    ],
+    "kind": "positive",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "A miner can place its own tied bid earlier in a block it mines; #25 accepts this for determinism/legibility, but the spec should say so explicitly — RISKS.md's 'tie-break gaming is low value' analysis (analysis tier) is argued for cheap-claim merge ties, not for bonded bid ties, where the tie winner does win the name.",
+      "scenario": "positive: two same-block tied AuctionBids for one name (one placed by the block's miner at the lower tx index); expected accept of the lower-tx-index bid as winner -> derived owner = that bidder. Negative counterpart: an impl that awards the later-ordered bid (or treats miner self-placement as disallowed) rejects -> fails. Pins that #25 resolves bonded bid ties by tx order, not by self-placement detection. authorityTier=ratified.",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "accept",
+      "reason": "g1-02-accept",
+      "rationale": "The verdict — the earlier-ordered tied bid (even a miner's own) wins the name — is directly stated by ratified Decision #25 ('the bid appearing earlier in the block's transaction order wins'). The attack flag's worry (that RISKS.md's 'tie-break gaming is low value' is mis-scoped to cheap-claim merge ties, not bonded bid ties) does not change the verdict: #25 governs same-block tied AuctionBids unconditionally. A vector pinning the earlier-ordered bonded tied bid as winner is legally derivable today, independent of any provisional decision. RISKS.md confirms the 'low value' analysis is explicitly merge-ordering-scoped (lines 493-494, 504), so it neither blocks nor overrides #25."
+    },
+    "status": "proposed",
+    "attackFlagRef": "G1-02",
+    "flipMarker": null
+  },
+  {
+    "id": "G5-pos-01",
+    "ruleId": "G5",
+    "area": "Kernel-wide glue (ordering, evidence deadlines, parameter surface)",
+    "authorityTier": "candidate",
+    "sources": [
+      "docs/spec/ONT_DATA_AVAILABILITY_AGREEMENT.md §5 The key decomposition (disjoint insertions commute)",
+      "docs/core/SOFTWARE_CANON.md Item 5 B2 gate (lines 140-141, property tests over event orderings)",
+      "docs/GLOSSARY.md first-anchor-wins lines 76-79 (ordering inside a window never awards a contested name)",
+      "docs/core/B2_KERNEL_HARDENING.md G5 (lines 2283-2290)"
+    ],
+    "kind": "positive",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "The commutativity claim's proof lives in a research simulation (analysis-tier evidence, packages/core/src/research/delta-merge-sim.ts); the B2 property test is what turns the claim into law — if any conflicting-leaf edge falsifies it, the spec text must change by named PR, not the test soften.",
+      "scenario": "positive: N batches inserting pairwise-disjoint names, evaluated in every permutation of arrival/merge order; expected accept with one identical derived root + name state across all permutations. Negative: an impl whose derived root for disjoint-name batches depends on arrival order rejects (fails the permutation sweep). Pins commutativity-where-claimed as law (and order-sensitivity confined to conflicting leaves). authorityTier=candidate (commutativity claim) anchored to ratified B2-gate obligation.",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "accept",
+      "reason": "g5-01-accept",
+      "rationale": "The order-independence verdict for disjoint batched-path insertions is claimed in DA §5 (candidate, 'Disjoint insertions commute ... the root is a function of the set of leaves, not the order or arrival time') and the permutation-invariance test obligation is mandated by the ratified B0 B2 gate ('property tests over event orderings (reorg/permutation invariance where the spec claims it)'), reinforced by GLOSSARY first-anchor-wins (candidate). A second implementer can derive 'disjoint-name batches produce one identical root regardless of permutation' from candidate+ratified text alone — the flag merely notes the proof currently sits in analysis-tier sim, which is exactly what the B2 property vector promotes to law. No dependency on #49/#50."
+    },
+    "status": "proposed",
+    "attackFlagRef": "G5-01",
+    "flipMarker": null
+  },
+  {
+    "id": "G7-neg-01",
+    "ruleId": "G7",
+    "area": "Kernel-wide glue (ordering, evidence deadlines, parameter surface)",
+    "authorityTier": "ratified",
+    "sources": [
+      "docs/core/SOFTWARE_CANON.md L2 ownership-kernel row (line 29) and boundary rule (lines 34-42); B2 gate zero-I/O imports test (line 142); ratified fail-closed DA verdict (line 134)",
+      "docs/spec/ONT_DATA_AVAILABILITY_AGREEMENT.md §6e S4 (lines 182-184, evidence in/verdict out, format = B3, never does I/O)",
+      "docs/core/B2_KERNEL_HARDENING.md G7 (lines 2308-2316)"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "The witnessed-evidence input format is a B3 deliverable that does not exist yet; until it is specified, any 'witnessed' parameter is a placeholder shape — a kernel API that types it as a boolean (available: yes/no) quietly re-creates the callback hole, because the boolean's provenance is unverifiable.",
+      "scenario": "negative: a kernel API that types the witnessed-evidence input as a bare boolean (available:true/false) with no verifier-checkable provenance fails the zero-I/O / referential-transparency gate; and absent-witness must yield reject (fail-closed) -> any impl that accepts on a provenance-less boolean, or returns accept on absent evidence, fails. positive: two evaluators with the same opaque verifier-checkable witness emit identical verdicts. Pins fail-closed-on-absent-evidence + provenance requirement, independent of the B3 format. authorityTier=ratified (canon).",
+      "authoringStatus": "draft: executable fixtures and predicate-specific input shape must be completed before locking"
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "g7-01-reject",
+      "rationale": "Although the witnessed-evidence FORMAT is a B3 deliverable, the verdict this flag demands is the kernel's fail-closed posture on absent/unverifiable evidence — per the task gate, a flag purely about fail-closed posture on absent evidence IS derivable now even though the evidence format is B3. Ratified SOFTWARE_CANON pins it: pure predicate over witnessed inputs, 'No DB, no network, no clock', evidence layer can never override a kernel verdict, and an absent witness must fail closed (DA §6e S4 candidate corroborates). A boolean (available: yes/no) whose provenance is unverifiable re-creates the callback hole and must be a conformance failure — derivable today."
+    },
+    "status": "proposed",
+    "attackFlagRef": "G7-01",
+    "flipMarker": null
+  }
+]
