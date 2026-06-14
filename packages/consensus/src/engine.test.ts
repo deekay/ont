@@ -382,6 +382,9 @@ describe("X6 — pre-maturity transfer requires a bond spend and an adequate suc
     expect(events[0]?.validationStatus).toBe("ignored");
     expect(events[0]?.reason).toBe("transfer_invalid_successor_bond");
     expect(state.names.get("alice")?.currentOwnerPubkey).toBe(OWNER_PUB);
+    // #5 continuity: the immature bond was spent without a valid successor taking
+    // effect → the name is invalidated (same interaction as the one-sat-short case).
+    expect(state.names.get("alice")?.status).toBe("invalid");
   });
 });
 
@@ -415,7 +418,11 @@ describe("X7 (base) — successor outpoint already reserved by another live name
     expect(events[0]?.validationStatus).toBe("ignored");
     expect(events[0]?.reason).toBe("transfer_successor_bond_conflict");
     expect(state.names.get("alice")?.currentOwnerPubkey).toBe(OWNER_PUB); // X7 held: ownership unchanged
+    // #5 continuity: alice's immature bond was spent but no successor took effect
+    // (the outpoint was reserved) → alice is invalidated, same interaction as X6.
+    expect(state.names.get("alice")?.status).toBe("invalid");
     expect(state.names.get("bob")?.currentBondTxid).toBe(TXID); // bob's reservation untouched
+    expect(state.names.get("bob")?.status).not.toBe("invalid"); // bob's bond was not spent
   });
 });
 
@@ -527,7 +534,11 @@ describe("X10 — transfer acceptance does not depend on payment outputs", () =>
 // Soft authority ("once a name is final" + state diagram, no MUST). Documents
 // engine behavior; NOT part of the ratified green gate.
 // ===========================================================================
-describe("X11 (advisory — candidate authority, not the ratified gate)", () => {
+// describe.skip: X11's authority is soft ("once a name is final" + state diagram,
+// no MUST). Per the scope ruling it stays candidate/advisory and MUST NOT be an
+// enforced CI assertion — skipped so it documents engine behavior without freezing
+// transfer_name_not_found_or_invalid as required law.
+describe.skip("X11 (advisory — candidate authority, not the ratified gate)", () => {
   it("a transfer referencing the head of a name invalidated by broken bond continuity does not move it", () => {
     const state = createEmptyState();
     seedOwnedName(state, { name: "alice", status: "invalid", maturityHeight: 1000 });
