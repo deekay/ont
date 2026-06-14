@@ -15,6 +15,44 @@ packet says "pairs with PR-n".
 
 ---
 
+## PR-1. B3 served-bytes / servedEvidence witness format (DA-predicate interface) — EXPANDED
+
+**Flags (6):** D1-01, D2-01, D14-01, B8-01, B11-01, Z5-02. **Registry priority:** P0 for the interface stub (the kernel DA predicate is a typed hole without it); P2 for the concrete byte format (B3-gated). **Blocking dependency:** the B3 evidence layer for the concrete bytes (deferred deliverable; DA agreement §10 item 2, OPEN_QUESTIONS §1 item 1) — but the interface is definable now. Independent of #49/#50.
+
+**Decision surface (the sub-rulings DK makes):**
+1. Whether B2 defines `servedEvidence` as an opaque, verifier-checkable interface NOW (so the DA predicate is well-typed), deferring the concrete bytes to B3 — or waits for B3's full format.
+2. The interface contract: the properties the kernel requires of `servedEvidence` independent of its byte layout.
+3. The honest-verifier convergence property (every honest verifier with the same chain + evidence derives the same DA verdict).
+
+**Options:**
+- **(A) define the opaque interface now, defer bytes to B3** — `eligible(anchor, servedEvidence, W, C)` consumes `servedEvidence` as an abstract verifier-checkable type with a stated contract; B3 later fills the concrete byte format without changing the predicate signature.
+- **(B) wait for B3's concrete format** — leave the DA predicate untyped until B3 lands.
+
+**Recommendation (advisory, for DK ratification): (A).**
+Define `servedEvidence` now as an opaque interface with a three-property contract: (i) **anchor binding** — the evidence is cryptographically bound to the anchor it serves (evidence for one anchor is not valid for another); (ii) **first-servable-height** — it determines a single first-servable height comparable to the `h+W` deadline; (iii) **independent chain-checkable verifiability** — any party can verify it against the confirmed chain alone (no trust in the submitter), so honest verifiers converge on the verdict. The B2 DA predicate `eligible(anchor, servedEvidence, W, C)` consumes this abstract type today; the concrete byte layout is B3's deliverable (P2). Option (B) leaves the entire D-area DA predicate a typed hole, so the whole DA-verdict family cannot be written or conformance-tested — unacceptable for B2.
+
+**Minimal amendment text (one block, for the DA agreement / B2 kernel spec):**
+> servedEvidence interface (B2). The DA-eligibility predicate `eligible(anchor, servedEvidence, W, C)` consumes `servedEvidence` as an opaque, verifier-checkable value satisfying: (i) it is cryptographically bound to `anchor` (evidence for one anchor is not valid for another); (ii) it determines a single first-servable height comparable to the `h+W` deadline; (iii) it is independently verifiable against the confirmed chain by any party, so two honest verifiers with the same chain derive the same verdict. The concrete byte encoding is defined by the B3 evidence layer; B2 depends only on this interface.
+
+**Ripple:**
+- Unblocks the witness-CONSUMING halves of D1, D2, D14, B11 once the interface is defined (they author as vectors against the abstract type); likewise the witness-dependent halves of A2/A10, F6 (Σ gᵢ over committed leaves), and B10.
+- The CONCRETE-format halves stay B3-gated (P2) — vectors asserting specific byte layouts wait for B3.
+- **Pairs with PR-2** (commitment-match / B3 leaf format): the served bytes prove membership against the committed leaf PR-2 defines; the two B3 deliverables share the leaf/evidence shape.
+- No new attack surface from the interface; it closes the typed hole.
+
+**Non-goals / dependencies:**
+- **Non-goal:** specifying the B3 byte format (deferred to B3; P2).
+- **Dependency:** the B3 evidence layer for the concrete format; B2 depends only on the interface contract.
+- **Independent of #49/#50** (the evidence interface is orthogonal to the window algebra and recovery authority).
+- **Overlaps PR-2** (leaf format) — coordinate the leaf/evidence shape.
+
+**Attack if rejected (what breaks without PR-1):**
+- The B2 DA predicate `eligible(anchor, servedEvidence, W, C)` is a **typed hole** — it cannot be written, so the entire D-area (DA verdict) and the witness-dependent halves of A/F/B/Z cannot be conformance-tested (D1-01, D2-01, D14-01, B8-01, B11-01).
+- "Demonstrably servable by `h+W`" stays undefined, so honest verifiers cannot be shown to **converge** — the §3 boundary/convergence hazard reopens on contested names.
+- Reorg re-derivation of served evidence (Z5-02) has no defined input to re-check against the current chain.
+
+---
+
 ## PR-5. First-anchor-wins = earliest-VALID-anchor (conflict C1)
 
 **Flags (4):** A12-01, D5-01, B8-01, B11-01. **Registry priority:** P1. **Blocking dependency:** new one-sentence named spec decision; no open named decision implicated (the recommended amendment is writable now and independent of #49 and PR-1, but is not ratified law until DK rules).
@@ -36,7 +74,7 @@ Option (b) lets a withheld or DA-failed anchor resurrect priority simply by bein
 
 ## PR-16. Kernel evaluation-order / intra-block + intra-transaction total order (conflict C20; gaps G2/G3) — EXPANDED
 
-**Flags (13):** A9-01, F12-02, T10-01, Z7-02, S13-02, X5-01, X7-01, G1-03, G2-01, G2-02, G3-01, G3-02, G4-01. **Registry priority:** P0 (broad fork surface — without a pinned total order two honest replayers derive different owners). **Blocking dependency:** new named evaluation-order spec decision (ONT_ACQUISITION_STATE_MACHINE merge section or a new B2 kernel spec); independent of #49, with one #50-parameterized facet (G4 recovery-finalization).
+**Flags (13):** A9-01, F12-02, T10-01, Z7-02, S13-02, X5-01, X7-01, G1-03, G2-01, G2-02, G3-01, G3-02, G4-01. **Registry priority:** P0 (broad fork surface — without a pinned total order two honest replayers derive different owners). **Blocking dependency:** new named evaluation-order spec decision (ONT_ACQUISITION_STATE_MACHINE merge section or a new B2 kernel spec); independent of #49; the G4 recovery facets split across #50 (transfer-vs-recovery precedence), PR-35 (recovery-finalization transition point + cancel-at-finalizeHeight), and PR-13 (boundary convention) — PR-16 supplies only the common same-block order, not the recovery-finalization rule.
 
 **Decision surface (the sub-rulings DK makes):**
 1. The canonical same-block total-order tuple.
@@ -69,15 +107,15 @@ Option (b) lets a withheld or DA-failed anchor resurrect priority simply by bein
 > Same-block total order. Within a confirmed block, ONT events apply in ascending order of (block height, intra-block transaction index, output index). Multiple ONT events in one transaction apply in ascending output-index order; undecodable or non-ONT outputs are ignored and do not poison sibling events. When two events would consume the same successor outpoint, the earliest in this order consumes it and later contenders are rejected. Accepted bids reset the minimum-increment basis for later same-block bids in this order. A transition triggered at height h is evaluated after all height-h events apply. This order governs chain-extension determinism and grief resistance only; it never awards a contested name — a contested name is awarded solely by the qualifying bond (Decision #37).
 
 **Ripple:**
-- Locks the priority/ordering halves of A9, T10, X5, X7, S13, Z7, G1, G2 (all three flags), G3 (both flags), and the same-block touchpoints of G4 once ratified.
+- Locks the priority/ordering halves of A9, T10, X5, X7, S13, Z7, G1, G2 (all three flags), G3 (both flags), and the same-block-ORDER touchpoint of G4 (the common order only — NOT G4's recovery-finalization rule, which is PR-35) once ratified.
 - Retires the publisher-spec txid-tiebreak sentence and supersedes any "txid" ordering language repo-wide.
 - **Pairs with PR-17** (state-head linkage / replay-immunity — X5's head-advance rests on this apply order) and **overlaps PR-13** (any height-boundary in the eval-point rule uses PR-13's convention).
-- The **G4 recovery-finalization same-block facet is #50-parameterized**: transfer-vs-recovery precedence inside a challenge window is recovery-auth territory (cf. X13). PR-16 fixes the *ordering*; #50 fixes the *precedence rule* the ordering applies.
+- **G4 recovery facets are split — PR-16 + #50 do NOT close them alone:** (a) transfer-vs-recovery *precedence* inside a challenge window is **#50**-parameterized (cf. X13); (b) the **G4-01 cancel-at-finalizeHeight off-by-one** and the **G4-03 recovery-finalization transition point / which-key-authorizes-a-same-block-transfer** are **PR-35** territory, with the boundary edge itself under **PR-13**. PR-16 supplies ONLY the common same-block order; it does not by itself resolve the recovery-finalization deadline/transition rules unless DK deliberately folds PR-35 into PR-16. The separate PR-35 registry entry stands.
 
 **Non-goals / dependencies:**
 - **Non-goal:** deciding contested ownership (that is #37 bonds, not ordering) — the #37 bound is stated precisely so ordering is never read as an award mechanism.
 - **Independent of #49** (DA windows are orthogonal to same-block apply order).
-- **One #50 facet:** the G4 transfer-vs-recovery same-block precedence (see Ripple).
+- **G4 recovery facets (multi-PR, not collapsible into PR-16):** transfer-vs-recovery precedence is **#50**; the cancel-at-finalizeHeight boundary (G4-01) and the recovery-finalization transition point / same-block-transfer authorizing key (G4-03) are **PR-35** + **PR-13**. PR-16 supplies only the common order — it does NOT subsume the PR-35 entry.
 - **Overlaps** PR-13 (boundary convention) and PR-17 (head linkage); neither blocks PR-16's core tuple.
 
 **Attack if rejected (what breaks without PR-16):**
