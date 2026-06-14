@@ -1331,6 +1331,39 @@ deliberately not modeled yet; it joins this surface as those rulings land. Spec:
 "boundary may change only with a DECISIONS entry + conformance coverage"; the
 boundary freezes permanently at launch.
 
+59. b2-consensus-verdicts-boundary: the DA-verdict predicate enters @ont/consensus
+as a fourth audited tier (CONSENSUS_VERDICTS) — pure, consensus-deciding but
+state-mutating nothing — 2026-06-14
+
+*Status: **Proposed** (writer ClaudeleLunatique, reviewer ChatLunatique; lands on
+branch clean-build-b2-kernel, DK merges). A boundary-manifest change under #44 —
+the new tier is covered by conformance: `trust-surface.test.ts` (fourth-tier split
++ per-tier import allowlist) and `da-verdict.test.ts`. Authored under DK's
+keep-building / ask-later grant (event 83243101, 2026-06-14).*
+
+**The rule.** @ont/consensus now has four audited tiers, and "consensus-deciding"
+is no longer synonymous with "state-mutating." **CORE_DECIDERS** (`engine.ts`,
+`state.ts`, `proof-bundle.ts`) are the **state/replay deciders** — they mutate
+name state, and a name's owner moves only if these say so; they ride
+@ont/protocol + @ont/bitcoin. **CONSENSUS_SUPPORT** (`scanner.ts`, #57) and
+**CONSENSUS_PARAMS** (`params.ts`, #58) are unchanged. The new
+**CONSENSUS_VERDICTS** tier (`da-verdict.ts`) holds **pure verdict deciders** —
+consensus-deciding predicates that compute a verdict the state deciders consume
+but mutate no state themselves. The DA-verdict predicate decides a batch's
+data-availability verdict (`includable` at the challenge deadline h+W+C,
+`holdsPriority` at the availability deadline h+W) from the anchor's witnessed
+facts plus an opaque, already-B3-verified served-bytes witness and nothing else
+(da-windows (#49) S2/S3/S4; B2_KERNEL_HARDENING.md D1–D8). A claim counts only if
+this verdict says so (D10), so it is consensus-deciding and must be audited — but
+it performs no state mutation, so it is listed separately from CORE_DECIDERS
+rather than expanding that set. The tier is pure: empty external allowlist,
+depending only on node builtins and the audited parameter surface (`./params.js`).
+Byte→root witness construction is the B3 deliverable (D8), not part of this
+predicate. Spec: [B2_KERNEL_HARDENING.md](./B2_KERNEL_HARDENING.md) D1–D8;
+da-windows (#49) S2/S3/S4. This satisfies #44's "boundary may change only with a
+DECISIONS entry + conformance coverage"; the boundary freezes permanently at
+launch.
+
 ## Fairness Principles To Carry Into The Launch Rewrite
 
 The rewritten launch draft should explicitly state:

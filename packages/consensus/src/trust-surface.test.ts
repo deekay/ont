@@ -24,10 +24,12 @@ const srcDir = dirname(fileURLToPath(import.meta.url));
 // at public/mainnet launch (a launch-gate checklist item). If you are editing
 // this list, write the decision entry first.
 //
-// The audited B2 package splits into three tiers (DECISIONS b2-scanner-boundary
-// (#57), b2-consensus-params-boundary (#58)):
-//   - CORE_DECIDERS: owner-key authority + replay/state deciders. A name moves
-//     only if these say so.
+// The audited B2 package splits into four tiers (DECISIONS b2-scanner-boundary
+// (#57), b2-consensus-params-boundary (#58), b2-consensus-verdicts-boundary
+// (#59)). "Consensus-deciding" is NOT synonymous with "state-mutating":
+//   - CORE_DECIDERS: the state/replay deciders. They MUTATE name state — a
+//     name's owner moves only if these say so — via owner-key authority and
+//     deterministic Bitcoin replay.
 //   - CONSENSUS_SUPPORT: non-mutating but consensus-bearing input normalization
 //     (the scanner: skip-bad, future-version gating, same-block-order, and the
 //     >1-RootAnchor whole-tx reject decide which bytes ever reach the deciders,
@@ -40,18 +42,27 @@ const srcDir = dirname(fileURLToPath(import.meta.url));
 //     are evaluated against, so the deciders depend on it, not the reverse. It
 //     takes values as caller inputs and depends on nothing outside the audited
 //     modules (no external package, no host I/O).
+//   - CONSENSUS_VERDICTS: pure verdict deciders (the DA-verdict predicate). They
+//     ARE consensus-deciding — a claim counts only if the DA verdict says so
+//     (D10) — but they compute a verdict the state deciders consume rather than
+//     mutating state themselves, so they are listed separately from
+//     CORE_DECIDERS. Pure: they consume only witnessed facts plus the audited
+//     parameter surface, no external package and no host I/O.
 const CORE_DECIDERS = ["engine.ts", "state.ts", "proof-bundle.ts"] as const;
 const CONSENSUS_SUPPORT = ["scanner.ts"] as const;
 const CONSENSUS_PARAMS = ["params.ts"] as const;
+const CONSENSUS_VERDICTS = ["da-verdict.ts"] as const;
 
 // Deciders ride the legacy protocol/bitcoin primitives; consensus-support rides
 // the B1 normative wire grammar (@ont/wire) — B1 → B2 means @ont/consensus
 // consumes @ont/wire for what the active codec understands; the parameter
-// surface rides nothing external (values enter as inputs).
+// surface and the verdict predicates ride nothing external (witnessed facts and
+// parameters enter as inputs).
 const DECIDER_ALLOWED_PACKAGES = new Set(["@ont/protocol", "@ont/bitcoin"]);
 const SUPPORT_ALLOWED_PACKAGES = new Set(["@ont/wire", "@ont/bitcoin"]);
 const PARAMS_ALLOWED_PACKAGES = new Set<string>([]);
-const ALL_MANIFEST = [...CORE_DECIDERS, ...CONSENSUS_SUPPORT, ...CONSENSUS_PARAMS];
+const VERDICTS_ALLOWED_PACKAGES = new Set<string>([]);
+const ALL_MANIFEST = [...CORE_DECIDERS, ...CONSENSUS_SUPPORT, ...CONSENSUS_PARAMS, ...CONSENSUS_VERDICTS];
 const ALLOWED_RELATIVE = new Set(ALL_MANIFEST.map((file) => `./${file.replace(/\.ts$/, ".js")}`));
 
 function importSpecifiers(file: string): readonly string[] {
@@ -105,6 +116,12 @@ describe("sovereignty trust surface (docs/DESIGN.md (trust surface / sovereignty
   for (const file of CONSENSUS_PARAMS) {
     it(`${file} (consensus params) depends on no external package — only audited modules`, () => {
       assertImportsAllowed(file, PARAMS_ALLOWED_PACKAGES, "consensus params");
+    });
+  }
+
+  for (const file of CONSENSUS_VERDICTS) {
+    it(`${file} (consensus verdict) depends on no external package — only audited modules`, () => {
+      assertImportsAllowed(file, VERDICTS_ALLOWED_PACKAGES, "consensus verdict");
     });
   }
 

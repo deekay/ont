@@ -18,3 +18,6 @@ export * from "./scanner.js";
 // Consensus-parameter surface (pure, non state-deciding) — the validated
 // (K, W, C) DA-window triple; see DECISIONS b2-consensus-params-boundary (#58).
 export * from "./params.js";
+// Consensus-verdict predicates (pure, consensus-deciding, non state-mutating) —
+// the DA-verdict predicate; see DECISIONS b2-consensus-verdicts-boundary (#59).
+export * from "./da-verdict.js";
