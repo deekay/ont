@@ -20,7 +20,12 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
-import { createDaWindowParams } from "./params.js";
+import {
+  availabilityDeadlineHeight,
+  challengeDeadlineHeight,
+  confirmedRootEligible,
+  createDaWindowParams,
+} from "./params.js";
 import { holdsPriority, includable, type AnchorFacts, type ServedEvidence } from "./da-verdict.js";
 
 const vectorsDir = join(dirname(fileURLToPath(import.meta.url)), "../../../docs/core/vectors");
@@ -66,6 +71,11 @@ const LOCAL_BINDING_MANIFEST = new Set<string>([
   "D3-pos-01",
   "D6-neg-01",
   "D13-pos-01",
+  // params family (DA-window construction + h+K eligibility)
+  "A3-neg-01",
+  "D9-neg-01",
+  "D12-neg-01",
+  "G9-neg-01",
 ]);
 
 // A binding may only execute a vector that is (a) locked, (b) required-tier
@@ -127,5 +137,48 @@ describe("B2 vector bindings — DA-verdict family (includable / holdsPriority)"
     const accept = accepts(vector);
     expect(holdsPriority(anchor, servedAt(H + 2), params)).toBe(accept); // h+W inclusive
     expect(includable(anchor, servedAt(H + 5), params)).toBe(accept); // h+W+C inclusive
+  });
+});
+
+describe("B2 vector bindings — params family (DA-window construction + h+K eligibility)", () => {
+  // A second valid parameterization, distinct from the module-level (6, 2, 3): (10, 3, 4)
+  // gives availability deadline h+3 and challenge deadline h+7 — used to detect a kernel
+  // that has baked the (6, 2, 3) constants.
+  const altParams = createDaWindowParams({ K: 10, W: 3, C: 4 });
+
+  it("D9-neg-01: a weak-form triple K < W+C is rejected at kernel construction (#49 S6 strong form)", () => {
+    const vector = loadVector("da-verdict.json", "D9-neg-01");
+    assertBindable(vector);
+    // reject = construction refuses the weak-form triple.
+    expect(() => createDaWindowParams({ K: 4, W: 2, C: 3 })).toThrow(); // K=4 < W+C=5
+    expect(() => createDaWindowParams({ K: 5, W: 2, C: 3 })).not.toThrow(); // companion: K=W+C boundary is valid
+  });
+
+  it("D12-neg-01: invalid params are rejected; the predicate is total at two distinct parameterizations (no baked constant)", () => {
+    const vector = loadVector("da-verdict.json", "D12-neg-01");
+    assertBindable(vector);
+    // reject = invalid params refused at construction.
+    expect(() => createDaWindowParams({ K: 2, W: 2, C: 3 })).toThrow(); // K < W+C
+    expect(() => createDaWindowParams({ K: 6.5, W: 2, C: 3 })).toThrow(); // non-integer
+    // companion (no baked constant): a (6,2,3)-baked deadline cannot also be correct at (10,3,4).
+    expect(challengeDeadlineHeight(H, params)).toBe(H + 5); // (6,2,3)
+    expect(challengeDeadlineHeight(H, altParams)).toBe(H + 7); // (10,3,4)
+  });
+
+  it("G9-neg-01: a true parametric kernel produces different windows per parameterization (baked default would fail the second)", () => {
+    const vector = loadVector("kernel-wide-glue.json", "G9-neg-01");
+    assertBindable(vector);
+    // The two-parameterization detector: a kernel with K/W/C baked to (6,2,3) would return
+    // identical deadlines for altParams; a genuinely parametric one returns different ones.
+    expect(availabilityDeadlineHeight(H, params)).not.toBe(availabilityDeadlineHeight(H, altParams)); // h+2 vs h+3
+    expect(challengeDeadlineHeight(H, params)).not.toBe(challengeDeadlineHeight(H, altParams)); // h+5 vs h+7
+  });
+
+  it("A3-neg-01: an anchor at tip = h+K-1 is not yet eligible (inclusive boundary at h+K)", () => {
+    const vector = loadVector("anchor-acceptance.json", "A3-neg-01");
+    assertBindable(vector);
+    expect(confirmedRootEligible(H, H + params.K - 1, params)).toBe(accepts(vector)); // h+K-1 -> not eligible (accepts=false)
+    expect(confirmedRootEligible(H, H + params.K, params)).toBe(true); // companion: eligible exactly at h+K
+    expect(() => createDaWindowParams({ K: 4, W: 2, C: 3 })).toThrow(); // S6 companion: K<W+C can't be constructed
   });
 });
