@@ -125,8 +125,11 @@ PR-34 carries the deadline *mechanism* (`h_r + W_r`, `W_r <= challengeWindowBloc
 What is genuinely open is the fail-closed **observation rule**: by when must the
 **descriptor evidence** be witnessed for an invoke to be acceptable. Under b1 this
 applies to **descriptor evidence only** — the §8.3 wallet proof is corroboration and
-gets **no** kernel witnessing deadline. I will draft a fail-closed proposal; it is a
-**DK-ratified** call, not writer/reviewer-only.
+gets **no** kernel witnessing deadline. Drafted as a DK-ratified decision paper:
+[`RECOVERY_EVIDENCE_TIMING.md`](./RECOVERY_EVIDENCE_TIMING.md) — fail-closed (descriptor
+evidence witnessed by `h_r + W_r` or the invoke forfeits, reusing the DA agreement §6
+pattern), §8.3 proof excluded, recommending finalization-gating with the veto window
+keyed off `h_r`.
 
 ## 4. What stays parked (interactions, not part of this slice)
 
