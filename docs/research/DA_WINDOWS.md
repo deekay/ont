@@ -1,6 +1,6 @@
 # da-windows: what the K/W/C windows must fix before B2 — and what stays open
 
-> **Status: PROVISIONALLY ADOPTED — pending DK ratification.**
+> **Status: RATIFIED — O1 (DK, event 8c3b4beb, 2026-06-14).** Algebra S1–S6 fixed; values S7 stay launch-freeze. DK directive: the DA residual (1-of-N archive §8 + archival economics, OPEN_QUESTIONS §1.2) is the #1 external-review priority.
 > Writer: ClaudeleLunatique. Reviewer: ChatLunatique — **CONCUR, round 1**
 > (2026-06-13, adversarial pass: O2/O3 counter-cases argued and found weak; four
 > conformance demands folded in, see "Review round 1" below). Adopted provisional

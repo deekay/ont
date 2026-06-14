@@ -1040,11 +1040,15 @@ Implications:
 49. da-windows: the K/W/C window algebra is pinned pre-B2; the values stay
 launch-freeze work — 2026-06-13
 
-*Status: **PROVISIONAL — pending DK ratification.** Adopted under the
-autonomous-session protocol (DK grant, event 9c1e1ba7): writer
-ClaudeleLunatique, reviewer ChatLunatique CONCUR round 1 (adversarial
-pass; O2/O3 counter-cases argued and found weak). DK ratifies or flips on
-return.*
+*Status: **RATIFIED — O1 (DK, event 8c3b4beb, 2026-06-14).** Adopted
+provisional under the autonomous-session protocol (DK grant, event
+9c1e1ba7): writer ClaudeleLunatique, reviewer ChatLunatique CONCUR round 1
+(adversarial pass; O2/O3 counter-cases argued and found weak). DK ratified
+O1 — the algebra (S1–S6) is fixed; the values (S7) stay launch-freeze.
+**DK directive (event 8c3b4beb): the DA residual — the 1-of-N archive
+assumption (DA agreement §8) + the unfunded long-term archival economics
+(OPEN_QUESTIONS §1.2) — is surfaced as the #1 external-review priority, not
+buried as paperwork; an archival-economics research note is owed.***
 
 *Short name: **da-windows**. Pre-B2 named decision (OPEN_QUESTIONS §1
 item 2; DA agreement §10 item 1). Paper:
@@ -1086,15 +1090,20 @@ C3): the weaker `W ≤ K` form permits include-then-retract at `W = K`,
 50. recovery-auth: the on-chain RecoverOwner invoke is authorized by a fresh
 BIP340 recovery-key signature under a v2 descriptor — 2026-06-13
 
-*Status: **PROVISIONAL — pending DK ratification.** Adopted under the
-autonomous-session protocol (DK grant, event 9c1e1ba7): writer
-ClaudeleLunatique, reviewer ChatLunatique — round 1 COUNTER (wallet-proof
-role misstated; the BIP322-evidence path engaged as the strongest
-counter-design), round 2 CONCUR on audited-kernel/minimal-surface
-grounds. **The values call is DK's on return: smallest audited kernel
-(b1) vs cold-hardware recovery custody (b2h). b2h stays the standing
-counter-design** — paper §4 is its complete spec skeleton. DK ratifies
-or flips.*
+*Status: **RATIFIED — b1 (DK, event 3edddac1, 2026-06-14).** Adopted
+provisional under the autonomous-session protocol (DK grant, event
+9c1e1ba7): writer ClaudeleLunatique, reviewer ChatLunatique — round 1
+COUNTER (wallet-proof role misstated; the BIP322-evidence path engaged as
+the strongest counter-design), round 2 CONCUR on
+audited-kernel/minimal-surface grounds. **DK ruled b1** (smallest audited
+kernel): "the recovery key doesn't need to be usable via a generic non-ONT
+wallet." Clarification recorded at ratification: 12-word/seed
+recoverability holds under both b1 and b2h, so it did not decide the call;
+b1's marginal kernel surface is zero, and the ONT-aware signing it needs is
+no more than a normal transfer already requires. **b2h remains the standing
+counter-design** (paper §4) — reopens only on the custody-feedback trigger
+below. **Product copy must not imply generic-wallet recovery; an ONT-aware
+recovery-signer / custody story is owed (B5).***
 
 *Short name: **recovery-auth**. Pre-B2 named decision (B1 routed item;
 WIRE_FORMAT §9 routing row; invoke-spec "What's missing" item 2). Paper:
@@ -1129,13 +1138,13 @@ distinction is **descriptor-only evidence + one fixed BIP340 digest**
 (b1) versus **descriptor + wallet-proof evidence + BIP322/script/text
 verification inside the audited kernel** (b2h).
 
-**Deferred ripples (await DK ratification — normative text):** the
-WIRE_FORMAT §8.2 descriptor-v2 amendment and the §8.3 wallet-proof
-narrowing (invoke-authorization object → evidence-layer corroboration)
-are named amendments to normative §8 and land only when DK ratifies.
-Until then, B2 hardening drafts against this decision citing it as
-provisional; the invoke-spec item-2 note and the §9 routing row
-(candidate/analysis tier) carry provisional notes now.
+**Ripples (now landing — DK ratified b1):** the WIRE_FORMAT §8.2
+descriptor-v2 amendment and the §8.3 wallet-proof narrowing
+(invoke-authorization object → evidence-layer corroboration) are named
+amendments to normative §8 and land in this ratification pass; the
+invoke-spec item-2 note and the §9 routing row resolve to b1. The 10
+#50-keyed provisional vectors flip provisional→ratified (b2h flipMarkers
+retire).
 
 **Negative tests B2 must carry:** replayed-arming-sig-as-invoke,
 descriptor-hash mismatch, non-head descriptor, stale `prevStateTxid`,

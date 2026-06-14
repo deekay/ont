@@ -1,7 +1,10 @@
 # recovery-auth: who signs the on-chain RecoverOwner invoke
 
-> **Status: ADOPTED PROVISIONAL pending DK — recovery-auth (#50); pre-B2 named
-> decision.**
+> **Status: RATIFIED — b1 (DK, event 3edddac1, 2026-06-14); recovery-auth (#50).**
+> DK ruled b1 ("the recovery key doesn't need to be usable via a generic non-ONT
+> wallet"). 12-word/seed recoverability holds under both designs and did not
+> decide it; b2h remains the standing counter-design (§4), reopening only on the
+> custody-feedback trigger. Product copy must not imply generic-wallet recovery.
 > Writer: ClaudeleLunatique. Reviewer: ChatLunatique — **round 1: COUNTER as
 > drafted** (the round-1 text misstated the wallet proof's documented role; see
 > "Review round 1" at bottom); **round 2: CONCUR, provisional-pending-DK** (see
