@@ -1,0 +1,211 @@
+[
+  {
+    "id": "S4-neg-01",
+    "ruleId": "S4",
+    "area": "Settlement consequences (bond release)",
+    "authorityTier": "candidate",
+    "sources": [
+      "docs/core/STATUS.md Launch parameters lines 54,76 [candidate, placeholder]",
+      "docs/spec/AUCTION.md Winner Bond And Maturity / Prototype constant to resolve lines 179-183 [candidate]",
+      "docs/core/DECISIONS.md 13. Prototype maturity schedule status lines 187-199",
+      "docs/core/B2_KERNEL_HARDENING.md S4 lines 1475-1484"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "STATUS marks the value 'placeholder / test override' — a test override path leaking into the kernel would make maturity environment-dependent; the CONSENSUS_PARAMS surface must carry the only value.",
+      "predicateSignature": "settlement(winningBid, MATURITY_BLOCKS[launch-freeze CONSENSUS_PARAM], witnessedChainFacts, priorKernelState) -> {verdict, maturityHeight}",
+      "fixture": {
+        "params": { "MATURITY_BLOCKS": "launch-freeze placeholder (STATUS = 52,560), carried as the sole CONSENSUS_PARAMS input" },
+        "caseEpochHalvingOrOverride": "a fixture deriving maturity from the legacy epoch-halving maturity-helper, or from any test-override path, so that it differs from the fixed MATURITY_BLOCKS parameter -> reject",
+        "positiveControl": "maturity sourced solely from MATURITY_BLOCKS, uniform for every settled name -> accept",
+        "note": "parameterized on MATURITY_BLOCKS as a launch-freeze placeholder, NOT on its value"
+      },
+      "scopeNote": "Cited-now (candidate AUCTION + STATUS 'epoch-halving = prototype residue to remove/quarantine' + DECISIONS #13): the kernel sources maturity SOLELY from the fixed MATURITY_BLOCKS CONSENSUS_PARAM — no environment/test-override input and no epoch-halving/variable schedule. The parameter VALUE staying a placeholder does not block this fail-closed-against-override vector. The value itself is launch-freeze (parameterized, two values), NOT asserted.",
+      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; MATURITY_BLOCKS launch-freeze; status stays proposed pending reviewer sign-off."
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "s4-01-no-override-no-epoch-halving-maturity",
+      "invariant": "maturity is the single fixed MATURITY_BLOCKS parameter applied uniformly; a maturity derived from a test-override path or an epoch-halving/variable schedule is rejected",
+      "rationale": "S4 was downgraded to candidate-stays (value is a placeholder), but this flag is about the fail-closed posture against a test-override / epoch-halving maturity input leaking into the kernel. The kernel-purity duty (uniform fixed MATURITY_BLOCKS parameter, no environment-dependent or epoch-halving schedule) is derivable now from AUCTION.md and STATUS (epoch-halving = 'prototype residue to remove or quarantine') and DECISIONS #13; the parameter VALUE staying a placeholder does not block a negative vector asserting no test-override/epoch-halving input exists."
+    },
+    "status": "proposed",
+    "attackFlagRef": "S4-01",
+    "flipMarker": null
+  },
+  {
+    "id": "S5-neg-01",
+    "ruleId": "S5",
+    "area": "Settlement consequences (bond release)",
+    "authorityTier": "normative",
+    "sources": [
+      "docs/core/DECISIONS.md 12. Maturity duration binding [decision log] lines 170-185",
+      "docs/spec/WIRE_FORMAT.md 4.3 AuctionBid settlementLockBlocks [normative]",
+      "docs/core/DECISIONS.md 37. Bond opens the auction [ratified] line 575",
+      "docs/core/B2_KERNEL_HARDENING.md S5 Step-2 correction lines 1486-1489"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "Without this rule a bidder picks its own maturity (settlementLockBlocks=1 -> instant mature owner, gutting the year-locked-capital deterrent of bond-opens (#37)).",
+      "predicateSignature": "settlement(winningBid{settlementLockBlocks}, MATURITY_BLOCKS, witnessedChainFacts, priorKernelState) -> {verdict}",
+      "fixture": {
+        "caseShortLock": "a winning bid carrying settlementLockBlocks=1 (or any value != MATURITY_BLOCKS) -> reject (MUST NOT settle into ownership with a shortened maturity)",
+        "positiveControl": "settlementLockBlocks == MATURITY_BLOCKS -> settles (the field is a commitment validated against the protocol parameter, not a bidder-chosen override)",
+        "priorState": "live auction with this as the winning bid"
+      },
+      "scopeNote": "Cited-now (DECISIONS #12 deterministic maturity 'cannot be adjusted discretionarily' + normative WIRE_FORMAT §4.3 settlementLockBlocks field): a winning bid whose settlementLockBlocks != MATURITY_BLOCKS must not settle with a shortened maturity; the per-bid field is a commitment to validate, never a bidder-chosen override. The bond-opens (#37) year-locked-capital deterrent referenced is RATIFIED, not provisional.",
+      "authoringStatus": "authored: predicate-input shape proposed; status stays proposed pending reviewer sign-off."
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "s5-01-settlementlockblocks-must-equal-maturity-param",
+      "invariant": "a winning bid whose settlementLockBlocks differs from the protocol MATURITY_BLOCKS parameter does not settle into ownership; settlementLockBlocks is a validated commitment, not a bidder-chosen maturity override",
+      "rationale": "S5 was upgraded to cited per DECISIONS #12 (deterministic maturity from launch rules; 'cannot be adjusted discretionarily'). A winning bid carrying settlementLockBlocks != MATURITY_BLOCKS must not settle with a shortened maturity. This negative verdict is derivable from #12 plus the normative WIRE_FORMAT field; the deterrent reference to bond-opens (#37) is RATIFIED, not provisional."
+    },
+    "status": "proposed",
+    "attackFlagRef": "S5-01",
+    "flipMarker": null
+  },
+  {
+    "id": "S6-neg-01",
+    "ruleId": "S6",
+    "area": "Settlement consequences (bond release)",
+    "authorityTier": "candidate",
+    "sources": [
+      "docs/LAUNCH.md Bond Continuity Consequences / Bonds And Maturity",
+      "docs/spec/AUCTION.md Winner Bond And Maturity [candidate]",
+      "docs/spec/ONT_ACQUISITION_STATE_MACHINE.md Bonded Ownership [candidate]",
+      "docs/core/DECISIONS.md 41. One user secret [ratified] line 701",
+      "docs/GLOSSARY.md maturity lines 85-88",
+      "docs/core/B2_KERNEL_HARDENING.md S6 lines 1498-1505"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "Continuity is an ONT rule, not a Bitcoin timelock (GLOSSARY) — the kernel can only assign consequences to observed spends; the bond is spendable by whoever holds the funding wallet key, which is distinct from the owner key (Decision #41), so a funding-wallet compromise releases the name without any owner-key signature.",
+      "predicateSignature": "bondContinuity(bondOutpointSpend, sameTxSuccessor?, witnessedChainFacts{pre-maturity}, priorKernelState) -> {verdict, released?}",
+      "fixture": {
+        "casePreMaturitySpendNoSuccessor": "a pre-maturity spend of the name's bond outpoint with NO same-tx valid successor bond releases the name -> reject (ownership continuity broken), regardless of which key (funding-wallet, owner, attacker) signed the Bitcoin spend",
+        "property": "no owner-signature exemption path exists; continuity is a consequence of an OBSERVED spend, not a key-authorized event",
+        "acceptPath": "the sole exception (not this vector): a spend by a kernel-validated transfer/recovery that creates a valid successor bond in the same transaction",
+        "priorState": "settled name, pre-maturity, bond outpoint unspent"
+      },
+      "scopeNote": "Cited-now (candidate LAUNCH Bond Continuity + AUCTION + ONT_ACQUISITION_STATE_MACHINE + GLOSSARY 'continuity is an ONT rule not a Bitcoin timelock'): release fires on a bond-outpoint spend with no same-tx valid successor, regardless of signing key — the kernel assigns consequences to observed spends with no owner-signature exemption. DECISIONS #41 (funding key distinct from owner key) is RATIFIED; the funding-key-compromise-releases-the-name is an ACCEPTED PROPERTY of bond continuity, not a missing rule.",
+      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; status stays proposed pending reviewer sign-off."
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "s6-01-bond-spend-no-successor-releases-regardless-of-key",
+      "invariant": "a pre-maturity bond-outpoint spend with no same-tx valid successor releases the name (ownership continuity broken) regardless of which key signed the spend; there is no owner-signature exemption; release is an observed-spend consequence",
+      "rationale": "S6 is cited. The flag's substance — that release fires on a bond-outpoint spend with no same-tx valid successor regardless of which key (funding-wallet, owner) signed it (DECISIONS #41 keeps the funding key distinct from the owner key) — is exactly the rule: the kernel assigns consequences to observed spends, with no owner-signature exemption. This verdict is derivable now from LAUNCH Bond Continuity + AUCTION + ONT_ACQUISITION_STATE_MACHINE + GLOSSARY. #41 is ratified, not provisional. The funding-key 'compromise' is an accepted property of bond continuity, not a missing rule."
+    },
+    "status": "proposed",
+    "attackFlagRef": "S6-01",
+    "flipMarker": null
+  },
+  {
+    "id": "S9-neg-01",
+    "ruleId": "S9",
+    "area": "Settlement consequences (bond release)",
+    "authorityTier": "normative",
+    "sources": [
+      "docs/LAUNCH.md Released-Name Reauction Path",
+      "docs/spec/WIRE_FORMAT.md 6. Auction commitments auctionLotCommitment [normative]",
+      "docs/spec/AUCTION.md Bond Breaks And Reauction lot-identity note lines 204-207",
+      "docs/core/B2_KERNEL_HARDENING.md S9 lines 1529-1536"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "The doc states the rule in adapter voice ('The indexer only recognizes') — promotion must restate it as a pure kernel predicate over (bid bytes, recorded release facts), or an indexer remains the deciding party.",
+      "predicateSignature": "reauctionOpen(bidBytes{lotCommitment, unlockBlock}, recordedReleaseFacts{latestReleaseHeight}, priorKernelState) -> {verdict}",
+      "fixture": {
+        "caseStaleAnchor": "a bid whose lot commitment binds unlockBlock = a stale earlier release height -> reject (does not open/join the live generation)",
+        "caseFabricatedFuture": "a bid binding a fabricated future release height -> reject",
+        "caseZeroAfterRelease": "a bid with unlockBlock=0 (first-gen anchor) presented after a release -> reject",
+        "positiveControl": "unlockBlock == the latest recorded release height -> opens the new generation, lot identity reopen-{name}-after-{release_height}; a genuine first-generation auction carries anchor 0 with identity opening-{name}",
+        "priorState": "a name with a recorded bond-break release height"
+      },
+      "scopeNote": "Cited-now (LAUNCH Released-Name Reauction Path + normative WIRE_FORMAT §6 auctionLotCommitment + AUCTION lot-identity note): a reopened auction is recognized ONLY if its lot anchor unlockBlock equals the latest recorded release height. The flag is only about restating adapter voice ('the indexer recognizes') as a pure kernel predicate over (bid bytes, recorded release facts) — the verdict is unchanged; the predicate restatement is the standard promotion this vector exercises (removes indexer-as-decider).",
+      "authoringStatus": "authored: predicate-input shape proposed; status stays proposed pending reviewer sign-off."
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "s9-01-reauction-anchor-must-equal-latest-release-height",
+      "invariant": "a bid whose lot commitment binds any anchor other than the latest recorded release height (stale, fabricated-future, or unlockBlock=0 after a release) does not open or join the live generation; only unlockBlock == release height opens reopen-{name}-after-{release_height}",
+      "rationale": "The reopen-anchor verdict (a reopened auction is recognized only if its lot anchor unlockBlock equals the latest recorded release height, lot identity reopen-{name}-after-{release_height}; first-gen anchor 0) is cited from LAUNCH Released-Name Reauction Path + the normative WIRE_FORMAT auctionLotCommitment. The flag is only about restating adapter voice ('the indexer recognizes') as a pure kernel predicate over (bid bytes, recorded release facts) — the verdict itself is unchanged and derivable; the predicate restatement is the standard promotion the vector already exercises."
+    },
+    "status": "proposed",
+    "attackFlagRef": "S9-01",
+    "flipMarker": null
+  },
+  {
+    "id": "S12-pos-01",
+    "ruleId": "S12",
+    "area": "Settlement consequences (bond release)",
+    "authorityTier": "candidate",
+    "sources": [
+      "docs/spec/AUCTION.md Winner Bond And Maturity (Maturity reset on transfer | No) line 172 [candidate]",
+      "docs/LAUNCH.md Transfers (maturity clock does not reset)",
+      "docs/core/B2_KERNEL_HARDENING.md S12 lines 1562-1569"
+    ],
+    "kind": "positive",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "No-reset means a buyer near maturity inherits an almost-free name lock — combined with S3's bid-height anchor ambiguity, transfer timing games could shave the effective lock; the X* extraction should cross-check.",
+      "predicateSignature": "transfer(preMaturity, priorKernelState{maturityHeight}) -> {verdict, successorMaturityHeight}",
+      "fixture": {
+        "caseTransferChain": "a chain of pre-maturity transfers (owner A -> B -> C) keeps maturityHeight byte-identical after each hop -> accept (successor inherits the original maturity height unchanged)",
+        "negativeCompanion": "a state transition emitting a later OR earlier maturityHeight after a transfer -> fails",
+        "priorState": "settled name, pre-maturity, with an original maturityHeight"
+      },
+      "scopeNote": "Cited-now (candidate AUCTION 'Maturity reset on transfer | No' + LAUNCH 'maturity clock does not reset'): a pre-maturity transfer MUST NOT reset or extend the maturity clock; the successor inherits the original maturityHeight unchanged. The near-maturity 'almost-free lock' is the INTENDED, derivable behavior, not a divergence. DELIBERATELY EXCLUDES: S3's bid-height anchor ambiguity (its own spec-blocked item) and the X* transfer-trigger mechanics (cross-checked there, not re-derived here).",
+      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; status stays proposed pending reviewer sign-off."
+    },
+    "expected": {
+      "verdict": "accept",
+      "reason": "s12-01-pre-maturity-transfer-no-maturity-reset",
+      "invariant": "a pre-maturity transfer leaves maturityHeight byte-identical across every hop; the successor inherits the original maturity height; no reset and no extend",
+      "rationale": "S12 is cited: a pre-maturity transfer MUST NOT reset/extend the maturity clock; the successor inherits the original maturityHeight unchanged (AUCTION 'Maturity reset on transfer | No' + LAUNCH 'maturity clock does not reset'). The no-reset verdict is fully derivable. The flag's substance (buyer near maturity inherits an almost-free lock, X* cross-check, combined-with-S3 shaving) is a corroborating extraction note that re-confirms the no-reset rule, not a verdict divergence; the S3 anchor ambiguity is its own (S3) spec-blocked item, not a defect in S12's verdict."
+    },
+    "status": "proposed",
+    "attackFlagRef": "S12-01",
+    "flipMarker": null
+  },
+  {
+    "id": "S15-neg-01",
+    "ruleId": "S15",
+    "area": "Settlement consequences (bond release)",
+    "authorityTier": "ratified",
+    "sources": [
+      "docs/LAUNCH.md Legacy Scheduled-Catalog Compatibility State",
+      "docs/core/DECISIONS.md 37. Bond opens the auction [ratified] lines 575-598",
+      "docs/core/B2_KERNEL_HARDENING.md S15 lines 1593-1601"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "The legacy scheduled-catalog 'unopened' path is explicitly not the launch story — old-model leakage risk if any catalog-driven materialization survives into the kernel (ChatLunatique hunting-list item).",
+      "predicateSignature": "settlement(auctionTranscript, acceptedWinningBid?, priorKernelState) -> {verdict, nameRecord?}",
+      "fixture": {
+        "caseZeroBids": "an auction window passing with zero accepted bids -> materializes no NameRecord (reject)",
+        "casePhantomSettled": "a transcript asserting phase=settled with no accepted winning bid -> materializes no NameRecord (reject)",
+        "positiveControl": "a lot with one qualifying settling winning bid -> materializes ownership",
+        "priorState": "an auction lot, possibly carrying legacy catalog/compat state"
+      },
+      "scopeNote": "Cited-now (LAUNCH Legacy Scheduled-Catalog Compatibility State + ratified DECISIONS #37 'acquired only by (a) an uncontested cheap claim that finalizes, or (b) the winning bond in an auction'): no auction ownership materializes without an actual settled winning bid; a lot that closes/expires or exists only as catalog/compat state with no accepted bid yields no owner. Fail-closed against catalog-driven materialization leakage (a ChatLunatique hunting-list item). #37 is RATIFIED.",
+      "authoringStatus": "authored: predicate-input shape proposed; status stays proposed pending reviewer sign-off."
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "s15-01-no-ownership-without-settled-winning-bid",
+      "invariant": "an auction window with zero accepted bids, or a transcript claiming phase=settled with no accepted winning bid, materializes no NameRecord; ownership materializes only from an actual settled winning bid (or an uncontested cheap claim that finalizes)",
+      "rationale": "S15 is cited: no auction ownership materializes without an actual settled winning bid; a lot that closes/expires/exists only as catalog/compat state with no accepted bid yields no owner (LAUNCH Legacy Scheduled-Catalog Compatibility State + ratified DECISIONS #37 'acquired only by (a) uncontested cheap claim that finalizes, or (b) the winning bond in an auction'). The fail-closed posture against catalog-driven materialization leakage is derivable now. #37 (bond-opens) is RATIFIED."
+    },
+    "status": "proposed",
+    "attackFlagRef": "S15-01",
+    "flipMarker": null
+  }
+]
