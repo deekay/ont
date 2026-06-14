@@ -353,7 +353,7 @@
       "docs/core/DECISIONS.md entry 37 bond-opens (ratified) — 'currentHeight ≥ anchorHeight + W_notice'",
       "docs/spec/ONT_DATA_AVAILABILITY_AGREEMENT.md §6e S2 da-windows (provisional) — 'Inclusive deadlines ... a witness at the deadline height exactly is in-window'"
     ],
-    "vectorSketch": "negative+positive boundary triple at close−1 / close / close+1: at close−1 provisional, at close (= anchorHeight + W_notice) finalizes with no qualifying bond, a bond exactly at close is in-window (escalates). flipMarker: if DK flips #49's inclusive-deadline S2 to exclusive, the boundary-block bond/collision verdict at close flips (the half-open interval edge moves).",
+    "vectorSketch": "spec-blocked on PR-13 (kernel-wide non-DA window-boundary convention): the exact notice-window close edge — a bond/collision landing exactly at the close height — is a non-DA boundary. Expected verdict is undecidable today and must NOT be derived from #49 S2 by analogy (#49 S2 covers only DA h+W / h+W+C). Once PR-13 pins ONE half-open-interval (or inclusive) convention for non-DA windows, this becomes the close-1/close/close+1 boundary triple under that ruling.",
     "area": "A",
     "attackFlagId": "A13-01",
     "attackFlagText": "Boundary off-by-one: legacy uses height ≥ closeHeight for finality (indexer.ts:517) but blockHeight ≤ closeHeight for in-window collision (indexer.ts:828) — events landing exactly at the close height are simultaneously 'in-window' and 'window-closed'; the hardening pass must pin one half-open interval or two implementations disagree on boundary-block bonds and collisions.",
@@ -1605,7 +1605,7 @@
       "docs/core/DECISIONS.md §49 da-windows [PROVISIONAL pending DK]",
       "docs/core/B2_KERNEL_HARDENING.md B2 lines 859-868"
     ],
-    "vectorSketch": "negative/boundary; expected: bond mined at exactly h+W_notice is in-window (contested), one block later is out (final). flipMarker: if DK rules deadlines exclusive ('< h+X'), the in-window boundary vector flips to reject (out-of-window) and the +1 block vector becomes the in-window case.",
+    "vectorSketch": "spec-blocked on PR-13 (kernel-wide non-DA window-boundary convention): the exact bond-landing edge at h+W_notice is a non-DA boundary. Expected verdict undecidable today; not derivable from #49 S2 by analogy. Resolves to in-window-at-h+W_notice vs out-one-block-later once PR-13 pins the non-DA window-boundary convention.",
     "area": "B",
     "attackFlagId": "B2-01",
     "attackFlagText": "boundary inclusivity is unstated: whether a qualifying bond mined exactly at height h + W_notice is in-window (#37 writes the verifier check as ≥ but never the bond-side comparison) — one block of ambiguity decides contested vs final",
@@ -1714,7 +1714,7 @@
       "docs/core/DECISIONS.md §49 da-windows [PROVISIONAL]",
       "docs/core/B2_KERNEL_HARDENING.md B6 line 913 / gaps line 1110"
     ],
-    "vectorSketch": "boundary negative; expected: bond at exactly the close height contests (in-window). flipMarker: an exclusive-deadline #49 ruling flips it to out-of-window (claim finalizes, no contest).",
+    "vectorSketch": "spec-blocked on PR-13 (kernel-wide non-DA window-boundary convention): a bond mined in the same block as the window close (collision / notice-window close edge) is a non-DA boundary. Expected verdict undecidable today; not derivable from #49 S2 by analogy. Resolves to contest-at-close vs finalize once PR-13 pins the non-DA window-boundary convention.",
     "area": "B",
     "attackFlagId": "B6-02",
     "attackFlagText": "a bond posted in the same block as window close hits the B2 boundary ambiguity",
@@ -2033,7 +2033,7 @@
       "docs/core/B2_KERNEL_HARDENING.md Gaps line 1110 — 'an event mined exactly at... the maturity/auction-close height... every deadline rule (B2, B6, B13, B15, B20) inherits the off-by-one'",
       "docs/spec/AUCTION.md Winner Bond And Maturity [candidate]; docs/core/B2_KERNEL_HARDENING.md B20 lines 1058-1066"
     ],
-    "vectorSketch": "boundary positive/negative; expected: bond spent at exactly maturity height keeps the name owned (mature owner, no release), one block before releases it. flipMarker: an exclusive-boundary #49 ruling moves the inclusive edge to strictly-after, flipping the at-maturity-height vector to release.",
+    "vectorSketch": "spec-blocked on PR-13 (kernel-wide non-DA window-boundary convention): the maturity boundary — a bond spent exactly at the maturity height — is a non-DA boundary explicitly in PR-13 scope. Expected verdict undecidable today; not derivable from #49 S2 by analogy. Resolves to mature-owner-at-maturity-height vs released once PR-13 pins the non-DA window-boundary convention.",
     "area": "B",
     "attackFlagId": "B20-01",
     "attackFlagText": "maturity boundary inclusivity (at maturity height vs strictly after) is unstated — same class of off-by-one as B2",
