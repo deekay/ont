@@ -378,3 +378,64 @@ so a hostile evidence impl is provably unable to move them (E-ND1).
   reports: `verifyProofBundleAgainstBitcoin` / membership checks may return
   different failed check IDs, and those diagnostics should stay useful. This is
   the executable form of the §1 contract.
+
+## §10 — Second FREE slice: D-CV canonical-root derivation design
+
+Design-first (per CL's `b89c8df` directive). **Classification: FREE** — every E-CV
+invariant (§3) cites a ratified rule (#53 delta-merge linkage; #54/#55 anchor order;
+PR-5 / PR-9 via #66) or the convergence-doc conformance obligation (E-CV5 / E-CV6). **No
+new consensus law** — the one decision-adjacent line is fenced by E-CV6 and flagged below.
+
+**What it productionizes (mining map §6).** The ratified "Model B" leaderless delta-merge:
+`packages/core/src/research/delta-merge-sim.ts` (binary sparse-Merkle tree keyed by
+`H(name)`, incremental insert) + `da-convergence-sim.ts` (`mergeBlock` /
+`confirmedStateForNode` / `convergenceReport`, commit-priority ordering, `DaWindows`). The
+Model-A (sequencer / leader) paths are **quarantined, not productionized** — #53 names
+delta-merge as the mechanism. The resolver's `runBatchRail` / `mergeBlock` was **never wired**
+(§6); the sim is the source of truth.
+
+**Surface it adds — and what it composes with.** `@ont/consensus` already has
+`deriveBatchedInsertions` (`batch-exclusion.ts`): the pure per-name *insertion provenance*
+projection (excluded batches removed, prior-final names preserved-never-unseated, fail-closed,
+sorted-deterministic). That is the exclusion-locality / preservation half (E-CV2 skip-bad +
+E-CV5 "a malicious delta cannot unseat a finalized name"). D-CV adds the **root-derivation**
+half on top: a pure `deriveCanonicalRoot(prevRoot, insertions) → { newRoot, derived, reason }`
+that folds the provenance into one deterministic SMT root. Pure / total over witnessed +
+current-chain inputs — no I/O, no `Date` / `Math.random` (the `@ont/consensus` purity gate, the
+same one the b2 vector suite enforces).
+
+**Base-root provisioning (CL's framing — D-SB-bind's "verified base state / root snapshot").**
+D-CV pins `prevRoot = R_{h−K}`: the canonical root *after* applying every **valid** RootAnchor
+up to and including height `h−K`, in `(height, tx-index, vout)` order, skip-bad
+(E-CV1 / E-CV2 / E-CV3). So `R_{h−K}` is itself a `deriveCanonicalRoot` fixpoint over the
+K-deep-confirmed prefix — exactly the base snapshot D-SB-bind binds the served delta against
+(`prevRoot + servedDelta → newRoot`). D-CV is therefore the slice that pins how that base is
+derived / provisioned.
+
+**Tests-first red battery** (instantiated against the resident verdicts so a hostile merge
+cannot move them, E-ND1):
+- `cv.prevroot-k-deep`: `prevRoot` must be `R_{h−K}`, not the tip; a tip-root input ⇒ fail (E-CV1).
+- `cv.no-op-anchor`: `prevRoot == newRoot` (empty / no-effect anchor) ⇒ reject (E-CV1).
+- `cv.same-block-order`: two same-block RootAnchors apply in `(height, tx-index, vout)` order;
+  reordering the inputs yields the **same** root; an invalid one is skipped, not fatal (E-CV2).
+- `cv.earliest-valid-governs`: the earliest VALID anchor governs the deadline clock + bundle
+  txid; a post-exclusion re-anchor starts a fresh window (E-CV3).
+- `cv.reorg-rederive`: a delta valid pre-reorg whose anchor is reorged out re-derives to
+  **excluded**; no first-seen / old-chain height as authority (E-CV4).
+- `cv.commute`: order-independent convergence — the same canonical root for any processing
+  order of distinct-leaf deltas; a malicious delta cannot unseat a finalized name (E-CV5; the
+  sim's commutativity + miner-reorder-immunity properties).
+- `cv.no-contest-decision` **(the anti-overreach guard, E-CV6).** Two competing
+  **distinct-owner** deltas for the same name produce a **contested provenance** the kernel
+  notice-window consumes — D-CV surfaces the merge + provenance and **never** declares a
+  contest winner.
+- `cv.malformed`: a malformed delta / base ⇒ fail closed (`derived:false`), never throws.
+
+**The one decision-adjacent line — flagged for CL's adversarial pass.** The sim's `mergeBlock`
+resolves same-name conflicts "by Bitcoin commit priority." Is commit-priority part of the
+*canonical-root derivation* (deterministic, allowed in B3) or the *contested-claim decision*
+(kernel-only, E-CV6)? My read: commit-priority may order **which delta occupies an SMT leaf** to
+get a deterministic root + provenance, but it must **not** decide **ownership** of a contested
+name — the notice-window does. So D-CV may use commit-priority to derive a deterministic root
+and emit `contested` provenance, but must not declare an owner. This is the single place B3
+could smuggle a consensus decision; confirm the boundary before the red→green slice.
