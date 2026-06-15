@@ -790,3 +790,16 @@ it); **no-opener / two-openers / update-before-opener** fail closed;
 `cw.effect-forgery-hidden-extension` (a bid whose supplied `effect="none"` but recomputation accepts
 it in soft close ⇒ fail, not shrink the range); params carry every `acceptAuctionBid` input and
 malformed/overflow values fail closed.
+
+**§13 red-battery round 2 (CL).** Added: `cw.canonical-order` (fold sorts by `(minedHeight, txIndex)`,
+not input order) + `cw.duplicate-chain-position` (same `(minedHeight, txIndex)` ⇒ fail, ordering
+underdetermined); `cw.duplicate-witness-txid` (dup txid in the witness ⇒ fail, no silent set collapse);
+`cw.bare-placeholder-rejected` (`{kind}` without `lot`/`bids` ⇒ `cw-witness-malformed`);
+`cw.malformed-params` widened to zero / negative / overflow (`baseWindow=0`, `softCloseWindow=0/-1`,
+`baseWindow=MAX_SAFE` close-height overflow); `cw.effect-forgery-impossible-opener` (a later update or
+below-floor bid asserting `opens-auction` ⇒ fail — ANY asserted-effect mismatch, not only the
+hidden-extension direction); `cw.invalid-lot-binding` (a witness bid whose `lotBinding.kind` ≠ the
+resident verified binding ⇒ fail — the named foreign-lot boundary; a counted txid simply absent from
+the witness is `cw.unwitnessed-padding`). 23 cw.* total (21 red, `producer-asserted` +
+`bare-placeholder-rejected` green shape-guards). `softCloseWindow > 0` is D-CW-strict (stronger than
+`acceptAuctionBid`'s `>= 0`).

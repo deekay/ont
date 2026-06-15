@@ -198,13 +198,70 @@ describe("D-CW completeness witness + soft-close range (B3 §13; PR-19/PR-29 ove
     expect(v.reason).toBe("t2-completeness-not-verifier-checkable");
   });
 
-  it("cw.malformed-params: a non-positive base window / soft-close window fails closed, never throws", () => {
-    const badParams: AuctionParams = { ...PARAMS, softCloseWindowBlocks: -1 };
-    let v: ReturnType<typeof transcriptCompleteness>;
-    expect(() => {
-      v = transcriptCompleteness(transcript([1, 2, 3]), witness([OPENER, RAISE, LATE], { params: badParams }));
-    }).not.toThrow();
-    expect(v!.complete).toBe(false);
-    expect(v!.reason).toBe("cw-witness-malformed");
+  it("cw.malformed-params: zero / negative / overflow base or soft-close window fail closed, never throws", () => {
+    // CL r1: zero + overflow, not only negative. baseWindow must be positive; softCloseWindow must be > 0
+    // (D-CW-strict, stronger than acceptAuctionBid's >= 0); an overflowing close height fails closed.
+    const cases: AuctionParams[] = [
+      { ...PARAMS, baseWindowBlocks: 0 },
+      { ...PARAMS, softCloseWindowBlocks: 0 },
+      { ...PARAMS, softCloseWindowBlocks: -1 },
+      { ...PARAMS, baseWindowBlocks: Number.MAX_SAFE_INTEGER }, // openHeight + baseWindow overflows
+    ];
+    for (const params of cases) {
+      let v: ReturnType<typeof transcriptCompleteness>;
+      expect(() => {
+        v = transcriptCompleteness(transcript([1, 2, 3]), witness([OPENER, RAISE, LATE], { params }));
+      }).not.toThrow();
+      expect(v!.complete).toBe(false);
+      expect(v!.reason).toBe("cw-witness-malformed");
+    }
+  });
+
+  it("cw.canonical-order: witness bids out of input order yield the same verdict (the fold sorts by (minedHeight, txIndex))", () => {
+    // The fold must not trust input order: LATE, RAISE, OPENER must derive the same complete verdict.
+    const v = transcriptCompleteness(transcript([1, 2, 3]), witness([LATE, RAISE, OPENER]));
+    expect(v).toEqual({ complete: true, reason: "transcript-complete" });
+  });
+
+  it("cw.duplicate-chain-position: two witness bids with the same (minedHeight, txIndex) fail closed", () => {
+    // Same-height ordering would be underdetermined; reject so the fold order is deterministic.
+    const collision = wbid(5, 100, 1000n, { txIndex: 0 }); // same (100, 0) as OPENER
+    const v = transcriptCompleteness(transcript([1, 5, 2, 3]), witness([OPENER, collision, RAISE, LATE]));
+    expect(v.complete).toBe(false);
+    expect(v.reason).toBe("cw-duplicate-chain-position");
+  });
+
+  it("cw.duplicate-witness-txid: a duplicate txid inside the witness fails closed (no silent set collapse)", () => {
+    const dupTxid: CompletenessWitnessBid = { ...wbid(99, 106, 1100n), txid: txidFor(1) }; // txid 1 again, different height
+    const v = transcriptCompleteness(transcript([1, 2, 3]), witness([OPENER, RAISE, LATE, dupTxid]));
+    expect(v.complete).toBe(false);
+    expect(v.reason).toBe("cw-duplicate-witness-txid");
+  });
+
+  it("cw.bare-placeholder-rejected: a b3-verified witness without lot/bids (the retired placeholder) is malformed", () => {
+    const bare = { kind: "b3-verified-completeness-witness" } as unknown as CompletenessWitness;
+    const v = transcriptCompleteness(transcript([1]), bare);
+    expect(v.complete).toBe(false);
+    expect(v.reason).toBe("cw-witness-malformed");
+  });
+
+  it("cw.effect-forgery-impossible-opener: an asserted opens-auction on a later update fails closed (any mismatch)", () => {
+    // RAISE recomputes to updates-leading-bid; forging effect:"opens-auction" (a second opener) ⇒ fail.
+    const forgedOpener = wbid(2, 105, 1100n, { effect: "opens-auction" });
+    const v = transcriptCompleteness(transcript([1, 2, 3]), witness([OPENER, forgedOpener, LATE]));
+    expect(v.complete).toBe(false);
+    expect(v.reason).toBe("cw-effect-forgery");
+  });
+
+  it("cw.invalid-lot-binding: a witness bid whose lotBinding is not the resident verified binding fails closed", () => {
+    // foreign-lot via a forged lot binding (the named boundary; a counted txid simply absent from the
+    // witness is the cw.unwitnessed-padding case instead).
+    const badBinding: CompletenessWitnessBid = {
+      ...OPENER,
+      bidFacts: { ...OPENER.bidFacts, lotBinding: { kind: "forged-lot-binding" } as unknown as typeof LOT_BINDING },
+    };
+    const v = transcriptCompleteness(transcript([1, 2, 3]), witness([badBinding, RAISE, LATE]));
+    expect(v.complete).toBe(false);
+    expect(v.reason).toBe("cw-witness-malformed");
   });
 });
