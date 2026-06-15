@@ -1,8 +1,11 @@
 # B3 evidence-layer hardening — steps 1–2: rule extraction and source check
 
-> **Status: DRAFT rev 5 — steps 1–2 (invariant extraction + source check).
-> ChatLunatique review rounds 1–3 addressed; rev 4 cleared the §52/§5.3 blockers,
-> rev 5 adds the D-RC timing-witness + D-BC tie guards — see §8.**
+> **Status: DECOMPOSITION SIGNED OFF (ChatLunatique, rev 5 `e98460c`,
+> 2026-06-15). rev 6 = freeze: 3 non-blocking source-hygiene fixes folded.**
+> Steps 1–2 (invariant extraction + source check) for the L3 evidence layer.
+> Decomposition: B3 is witness construction, no open DK consensus docket beyond
+> the `g(name)` launch-freeze parameter (§5). D-BI / D-AM cleared to build.
+> See §8 for the review record.
 > Branch `clean-build-b3`, stacked on `main` @ the B2 buildable-complete merge
 > (`03495bd`). Produced 2026-06-15 on DK's "continue the adversarial build
 > process" greenlight (event `d031752d`). Steps-1–2 output for the L3 evidence
@@ -73,8 +76,9 @@ must satisfy; B3 supplies the construction + concrete bytes, never a new rule.
 
 ## §3 — Evidence-layer invariants (E-series) + source check
 
-All tags now resolve to **ratified** or **cited**; the work is construction +
-concrete bytes, DK-ratified at promotion.
+Tags resolve to **ratified** / **cited** (consensus law) or **[B3-impl-req]** (a
+B3 implementation requirement that is *not* consensus law — e.g. closing a STATUS
+gap); the work is construction + concrete bytes, DK-ratified at promotion.
 
 ### Bitcoin inclusion — D-BI
 - **E-BI1 — PoW + Merkle inclusion (what the verifier proves today).** Header is
@@ -87,7 +91,7 @@ concrete bytes, DK-ratified at promotion.
   headerSource** so wrong-chain / orphan headers reject. *[cited].* Test:
   orphan-but-valid-PoW header ⇒ reject only with headerSource.
 - **E-BI3 — producers MUST emit `bitcoinInclusion`.** Closes the STATUS gap.
-  *[candidate-stays — proposed B3 rule].*
+  *[B3-impl-req — closes the STATUS `bitcoinInclusion` emit gap; not consensus law].*
 
 ### Accumulator membership — D-AM
 - **E-AM1 — membership verifies against the anchored root** (`verifyAccumulator-
@@ -165,8 +169,14 @@ consensus decision.*
   old-chain height as authority. *[ratified: PR-9 (#66); #49 S1].* Test: witness
   valid pre-reorg whose anchor is reorged out re-derives to invalid.
 - **E-CV5 — order-independent convergence** (same canonical root, any processing
-  order); a malicious delta cannot unseat a finalized name. *[cited: convergence
-  doc; proven in `da-convergence-sim.test.ts`].* Test (§4.1).
+  order); a malicious delta cannot unseat a finalized name. **This is a B3
+  conformance obligation** productionized from the sim — distinct from #53, which
+  ratifies the delta-merge *linkage/envelope*. *[cited: convergence doc; proven
+  in `da-convergence-sim.test.ts`].* Test (§4.1).
+- **E-CV6 — contested-claim policy consumes `runBatchRail`, not raw
+  `mergeBlock`.** The merge primitive is not the contested-claims policy; the
+  kernel's notice-window decides contests. B3 surfaces the merge; it never
+  resolves a contest. *[cited: convergence doc].*
 
 ### Gate-fee fact witness — D-GF
 - **E-GF1 — prevout/intrinsic-fee witness + Σ g over the FULL committed leaf
@@ -178,9 +188,11 @@ consensus decision.*
   fail closed.
 
 ### Cross-cutting (the §1 contract)
-- **E-ND1 — swapping evidence cannot make the kernel accept** (forged ⇒
-  fail-closed ≡ no-witness; missing valid evidence may reject — by design).
-  *[ratified: canon B3 gate].* Test: §4.2.
+- **E-ND1 — swapping evidence cannot make the kernel accept.** Forged evidence
+  yields the same **acceptance/ownership effect** as no-witness (`valid === false`,
+  no false accept, no state movement); the *diagnostics* (failed check IDs) may
+  legitimately differ and should stay useful. Missing valid evidence may reject —
+  by design. *[ratified: canon B3 gate].* Test: §4.2.
 - **E-ND2 — zero ownership logic in B3** (quarantine-style import + surface test).
   *[ratified: canon L3].*
 - **E-ND3 — transport affects liveness, not integrity** ("trust me, I saw it" is
@@ -259,6 +271,14 @@ under the standing rule — but none is open today.
   reworded to a **timing** witness given engine-resolved head/interval (E-RC1);
   D-BC must not emit a canonical release on **tied** same-height facts (E-BC1,
   #70). CL cleared the first FREE slice (D-BI / D-AM) to start.
+- **Sign-off (CL, rev 5 `e98460c`).** Decomposition **signed**: B3 is witness
+  construction, no open DK consensus docket beyond `g(name)`; delta-merge⇒Model-B
+  read confirmed (no Model-A/B decision remains; "retire Model A" = cleanup). rev
+  6 freeze folds 3 non-blocking edits: E-BI3 retagged `[B3-impl-req]` (+ §3 tag
+  key); E-CV5/E-CV6 sharpen the #53-linkage vs B3-convergence-obligation split and
+  restore the `runBatchRail`-not-`mergeBlock` guard; E-ND1 + §9 hostile comparison
+  assert **acceptance-effect equivalence** (`valid===false`, no false accept, no
+  state movement), not byte-identical diagnostics.
 
 ## §9 — First FREE slice: D-BI / D-AM conformance-suite design
 
@@ -280,5 +300,8 @@ so a hostile evidence impl is provably unable to move them (E-ND1).
   - `am.non-membership`: proof for a name not in the root ⇒ fail (E-AM3).
   - `am.malformed`: a structurally malformed proof ⇒ fail closed, never throw.
 - **Hostile-evidence comparison (E-ND1).** For each forged D-BI / D-AM witness,
-  assert the kernel verdict is byte-identical to the no-witness, fail-closed
-  outcome — the executable form of the §1 contract.
+  assert the same **acceptance/ownership effect** as the no-witness case
+  (`valid === false`, no false accept, no state movement) — **not** byte-identical
+  reports: `verifyProofBundleAgainstBitcoin` / membership checks may return
+  different failed check IDs, and those diagnostics should stay useful. This is
+  the executable form of the §1 contract.
