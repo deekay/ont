@@ -308,10 +308,9 @@ conflated:
    input — a lying source is caught by verification, a missing one is
    fail-closed. (Product/UX paths *do* consume resolvers operationally — value-
    history fanout, the owner→names convenience endpoint — but only for liveness /
-   display, never as authority. **Cleanup ripple:** the "authoritative,
-   cross-publisher" wording on the `apps/claim` resolver endpoint (`README.md`,
-   `src/index.ts`, `src/client.ts`) must be requalified as a convenience, not
-   authority.)
+   display, never as authority. The `apps/claim` resolver endpoint wording is
+   requalified accordingly: chain-derived cross-publisher convenience, not
+   ownership authority.)
 2. **Checkpoints are out-of-band, never a consensus input.** A completeness /
    availability checkpoint (gossip *or* an L1 post) is a falsifiable reputation
    signal only. The kernel MUST NOT treat "a checkpoint attests availability" as

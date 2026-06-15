@@ -20,8 +20,9 @@ const publisherUrl = (process.env.CLAIM_PUBLISHER_URL ?? process.env.ONT_WEB_PUB
 const networkLabel = (process.env.CLAIM_NETWORK_LABEL ?? "signet").trim();
 const rateLimitPerMinute = parseRate(process.env.CLAIM_RATE_LIMIT_PER_MINUTE ?? "10");
 const esploraUrl = (process.env.CLAIM_ESPLORA_URL ?? "http://127.0.0.1:3010").replace(/\/$/, "");
-// Optional: the resolver's owner→names endpoint (authoritative, cross-publisher) for
-// the gap-scan to union with the publisher's local view. Unset → publisher-only.
+// Optional: the resolver's owner→names endpoint (chain-derived, cross-publisher
+// convenience) for the gap-scan to union with the publisher's local view. This
+// is liveness/display help, not ownership authority. Unset → publisher-only.
 const resolverUrl = (process.env.CLAIM_RESOLVER_URL ?? "").replace(/\/$/, "");
 // Faucet (signet only): fixed amount, server-side; mines a block, so rate-limited hard.
 const faucetCmd = process.env.CLAIM_FAUCET_CMD ?? "ont-private-signet-fund";
@@ -104,8 +105,9 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
     return;
   }
 
-  // Authoritative, cross-publisher reverse lookup via the resolver (if configured).
-  // Unset → return empty so the client's union degrades to publisher-only.
+  // Chain-derived, cross-publisher reverse lookup via the resolver (if configured).
+  // This is liveness/display help, not ownership authority. Unset → return empty
+  // so the client's union degrades to publisher-only.
   const resolverOwnerMatch = pathname.match(/^\/api\/resolver\/owner\/([0-9a-fA-F]{64})$/);
   if (method === "GET" && resolverOwnerMatch && resolverOwnerMatch[1]) {
     if (resolverUrl === "") {

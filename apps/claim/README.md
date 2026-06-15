@@ -22,8 +22,8 @@ content shares no origin with the code that generates an owner key.
   with only your phrase, and add a second name under the same wallet at the right key. The scan
   **unions two sources**: the **publisher** (`/api/owner/{pubkey}` → its anchored claims, local + fast)
   and, when `CLAIM_RESOLVER_URL` is set, the **resolver** (`/api/resolver/owner/{pubkey}` → chain-derived,
-  authoritative, cross-publisher — also picks up names you claimed in the app under the same seed). With
-  no resolver configured it degrades to publisher-only. A **wallet backup** (`{ mnemonic, names,
+  cross-publisher convenience, not ownership authority — also picks up names you claimed in the app
+  under the same seed). With no resolver configured it degrades to publisher-only. A **wallet backup** (`{ mnemonic, names,
   nextIndex }`) still imports instantly without a scan and is handy for moving to the app.
 - **To unify names already under two different phrases:** there's no merge primitive — you **transfer**
   each name from the old phrase's key to the next index under your main phrase (owner-key → owner-key,

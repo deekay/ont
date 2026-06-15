@@ -2136,8 +2136,8 @@ gate (DK ruling, event b90b66bf). Normative invariants: DA agreement §8c (candi
 ChatLunatique adversarial pass (event 7932d882) confirmed NO new consensus mechanism after three
 precision-narrowings, applied here: value-records scoped out of DA consensus (validity pure given
 inputs, freshness = resolver liveness); "resolvers never decide" scoped to consensus/kernel verifiers
-(product/UX paths consume resolvers for liveness only — `apps/claim` "authoritative" wording flagged
-for cleanup); zero-theft scoped post-gate (a structure-only client is exposed until
+(product/UX paths consume resolvers for liveness only — `apps/claim` owner→names wording is now
+requalified as convenience, not authority); zero-theft scoped post-gate (a structure-only client is exposed until
 `verifyProofBundleAgainstBitcoin` is enforced).*
 
 **The four invariants.** (1) **No consensus verifier consumes resolver output** — no `@ont/consensus`

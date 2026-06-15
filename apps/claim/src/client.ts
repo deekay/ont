@@ -361,8 +361,9 @@ function extractNames(payload: OwnerNamesResponse): string[] {
 
 /**
  * Names owned by one derived key, unioning the publisher (local/fast) and the
- * resolver (authoritative/cross-publisher, if configured). `reachable` is true if
- * either source responded — so the scan can stop cleanly when fully offline.
+ * resolver (chain-derived/cross-publisher convenience, if configured). This is
+ * liveness/display help, not ownership authority. `reachable` is true if either
+ * source responded — so the scan can stop cleanly when fully offline.
  */
 async function ownedNamesFor(ownerPubkey: string): Promise<{ names: string[]; reachable: boolean }> {
   const names = new Set<string>();
