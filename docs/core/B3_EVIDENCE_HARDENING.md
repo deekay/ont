@@ -803,3 +803,10 @@ resident verified binding ⇒ fail — the named foreign-lot boundary; a counted
 the witness is `cw.unwitnessed-padding`). 23 cw.* total (21 red, `producer-asserted` +
 `bare-placeholder-rejected` green shape-guards). `softCloseWindow > 0` is D-CW-strict (stronger than
 `acceptAuctionBid`'s `>= 0`).
+
+**§13 red-battery round 3 (CL).** Two final pins: `cw.canonical-order-txindex` (same-height bids,
+different `txIndex`, supplied reversed, asserted effects force the canonical `(minedHeight, txIndex)`
+order — a height-only/input-order fold opens the wrong bid and mismatches its asserted effect), and
+`cw.malformed-witness-bid` (a malformed witness-bid envelope — negative `txIndex` — ⇒ no throw +
+`cw-witness-malformed`, forcing total fail-closed validation of the bid envelope before the fold).
+25 cw.* total (23 red, `producer-asserted` + `bare-placeholder-rejected` green shape-guards).

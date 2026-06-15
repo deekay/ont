@@ -264,4 +264,25 @@ describe("D-CW completeness witness + soft-close range (B3 §13; PR-19/PR-29 ove
     expect(v.complete).toBe(false);
     expect(v.reason).toBe("cw-witness-malformed");
   });
+
+  it("cw.canonical-order-txindex: same-height bids sort by txIndex as the second key (asserted effects force it)", () => {
+    // CL r2: cw.canonical-order varies height (proves sort-by-height only). Here both bids are at height
+    // 100; only a canonical (minedHeight, txIndex) fold processes high (txIndex 0) FIRST, making the
+    // asserted effects hold. A height-only / input-order fold opens `low` and mismatches its asserted none.
+    const high = wbid(1, 100, 1100n, { txIndex: 0, effect: "opens-auction" });
+    const low = wbid(2, 100, 1000n, { txIndex: 1, effect: "none" });
+    const v = transcriptCompleteness(transcript([1, 2]), witness([low, high]));
+    expect(v).toEqual({ complete: true, reason: "transcript-complete" });
+  });
+
+  it("cw.malformed-witness-bid: a malformed witness-bid envelope (negative txIndex) fails closed, never throws", () => {
+    // Total fail-closed validation of the witness-bid envelope BEFORE the fold (not only via lot binding).
+    const badBid = wbid(2, 105, 1100n, { txIndex: -1 });
+    let v: ReturnType<typeof transcriptCompleteness>;
+    expect(() => {
+      v = transcriptCompleteness(transcript([1, 2, 3]), witness([OPENER, badBid, LATE]));
+    }).not.toThrow();
+    expect(v!.complete).toBe(false);
+    expect(v!.reason).toBe("cw-witness-malformed");
+  });
 });
