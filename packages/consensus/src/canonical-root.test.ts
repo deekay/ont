@@ -27,8 +27,11 @@ const LEAF_B = "bb".repeat(32);
 const BIND_A = "a0".repeat(32); // owner-A committed value binding (folded into the SMT)
 const BIND_A2 = "a2".repeat(32); // a SECOND, conflicting owner-A binding/value
 const BIND_B = "b0".repeat(32); // owner-B committed value binding
+const LEAF_C = "c1".repeat(32);
+const BIND_C = "c0".repeat(32); // owner-C committed value binding (used by the mixed-anchor-height vector)
 const OWNER_A = "a1".repeat(32);
 const OWNER_B = "b1".repeat(32);
+const OWNER_C = "c2".repeat(32);
 
 const baseLeaves = [{ keyHex: BASE_KEY, valueHex: BASE_VAL }];
 const PREV_ROOT = accumulatorRootOf(new Map([[BASE_KEY, BASE_VAL]]));
@@ -102,6 +105,22 @@ describe("D-CV canonical-root derivation (B3 §10; #53 delta-merge, root-derivat
     // prefix, so it is not the pinned D-SB-bind base snapshot. Exact relation, both directions.
     const tooOld = { prevRoot: PREV_ROOT, baseRootHeight: 103 };
     const v = deriveCanonicalRoot(input({ base: tooOld, leaves: [leaf({ base: tooOld })] }));
+    expect(v.derived).toBe(false);
+    expect(v.reason).toBe("dcv-base-mismatch");
+  });
+
+  it("cv.mixed-anchor-height-base-exactness: base exactness is checked PER included priority leaf", () => {
+    // CL r2 #last: the single base at 104 is exact for the anchor-A leaf (110-6) but NOT for an
+    // includable priority leaf whose anchor is at 111 (its exact base would be 105). Validating the
+    // base against only the first/min anchor height would re-admit an already-K-deep anchor through a
+    // multi-leaf input — so the exactness MUST hold per included priority leaf; otherwise the input
+    // (mixed anchor heights under one base) is malformed for this surface. Fail closed.
+    const laterAnchor = { txid: "dd".repeat(32), minedHeight: ANCHOR_HEIGHT + 1, txIndex: 0, vout: 0, anchorInstance: 0 };
+    const laterLeaf = leaf(
+      { name: "carol", leafKeyHex: LEAF_C, owner: { kind: "owner-key", ownerKeyHex: OWNER_C }, ownerValueBindingHex: BIND_C, batchId: "batch-4", anchor: laterAnchor },
+      BIND_C,
+    );
+    const v = deriveCanonicalRoot(input({ leaves: [leaf(), laterLeaf] }));
     expect(v.derived).toBe(false);
     expect(v.reason).toBe("dcv-base-mismatch");
   });

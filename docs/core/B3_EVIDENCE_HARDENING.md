@@ -500,9 +500,12 @@ The §6c deadline-clock / `cv.earliest-valid-governs` windows aspect is **scoped
 (#49) — D-CV owns the canonical root + provenance, not the timing; `cv.same-block-order` folds into
 `cv.commute` (order-independence). CL agreed the deadline-clock stays outside D-CV but ruled base
 exactness + duplicate/value coherence ARE on this surface (review round 1):
-- **Exact base horizon.** `base.baseRootHeight === minedHeight - K` (matches #83's exact relation and
-  the pinned D-SB-bind snapshot) — a too-recent OR too-old base fails closed (`<= h-K` would re-admit
-  already-K-deep anchors, a design change we are NOT making).
+- **Exact base horizon, per included priority leaf.** `base.baseRootHeight === minedHeight - K`
+  (matches #83's exact relation and the pinned D-SB-bind snapshot) — a too-recent OR too-old base
+  fails closed (`<= h-K` would re-admit already-K-deep anchors, a design change we are NOT making).
+  The exactness is checked for EACH included priority leaf, not once against the first/min anchor
+  height (CL r2): a multi-leaf input mixing anchor heights (e.g. one leaf at 110, another at 111,
+  under a single 104 base) is malformed for this surface and fails closed.
 - **Contest preserves the signal.** A contest-only delta derives with `contested-no-owner` provenance
   and `newRoot === prevRoot`; it must NOT collapse to `dcv-no-op` (that would erase the nullify/reopen
   signal). `dcv-no-op` fires only when nothing inserted AND nothing contested.
@@ -514,8 +517,9 @@ exactness + duplicate/value coherence ARE on this surface (review round 1):
   closed; an includable-but-`holdsPriority:false` duplicate is skipped with no nullify (#69 counts only
   priority-bearing claims, not only `excluded`).
 
-Authored cv.* battery (21, RED vs the stub): `derives-canonical-root` · `prevroot-k-deep` ·
-`base-too-old` · `base-root-binding` · `duplicate-base-key` · `no-op-anchor` · `commute` ·
+Authored cv.* battery (22, RED vs the stub): `derives-canonical-root` · `prevroot-k-deep` ·
+`base-too-old` · `mixed-anchor-height-base-exactness` · `base-root-binding` · `duplicate-base-key` ·
+`no-op-anchor` · `commute` ·
 `no-contest-decision` · `no-contest-only-no-op` (contest-only ⇒ derive, not no-op) ·
 `winner-leakage-guard` · `false-contest-claim` · `same-owner-coalesce` · `same-owner-conflicting-value`
 · `value-binding-mismatch` · `excluded-duplicate-no-nullify` · `non-priority-no-nullify` ·
