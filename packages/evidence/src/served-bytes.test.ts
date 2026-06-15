@@ -92,7 +92,7 @@ describe("D-SB-bind served-bytes binding (B3)", () => {
     ).toThrow();
     // Empty served delta.
     expect(() => bindServedBytes(BASE, [], BINDING)).toThrow();
-    // Delta key already in the base — not insert-only (#54).
+    // Delta key already in the base — not insert-only (DA agreement §5 / D7).
     expect(() =>
       bindServedBytes(BASE, [{ keyHex: KEY_A, valueHex: VAL_A }], { ...BINDING, anchoredRoot: PREV_ROOT }),
     ).toThrow();

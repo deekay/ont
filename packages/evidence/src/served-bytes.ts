@@ -9,7 +9,8 @@
 // `newRoot` as the result of applying THIS batch's delta leaves onto `prevRoot`
 // (= R_{h-K}, #53). So the binding takes the verified base accumulator state, checks
 // its root equals `prevRoot`, requires the served delta to be insert-only (keys
-// disjoint from the base, #54 insertion-unique), recomputes
+// disjoint from the base, per the batched-path insert-only merge — DA agreement
+// §5 / D7), recomputes
 // `newRoot = root(base ∪ servedDelta)` and requires it equals `anchoredRoot`.
 // `batchSize` = the served delta's distinct-key count. This is PR-2's full-batch
 // recomputation from prevRoot; a from-empty recompute would reject every valid
