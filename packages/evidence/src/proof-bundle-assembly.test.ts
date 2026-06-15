@@ -12,6 +12,7 @@ import {
   type BitcoinHeaderSource,
 } from "@ont/consensus";
 import {
+  accumulatorRootOf,
   computeValueRecordHash,
   deriveOwnerPubkey,
   normalizeName,
@@ -23,9 +24,11 @@ import { describe, expect, it } from "vitest";
 
 import { buildBitcoinInclusion } from "./bitcoin-inclusion.js";
 import { buildMembershipProof } from "./membership.js";
+import { verifyAvailabilityHeight, type VerifiedAvailability } from "./served-availability.js";
 import {
   buildAccumulatorBatchClaimBundle,
-  type BuildBatchClaimBundleInput,
+  type CoupledBatchClaimInput,
+  type UncoupledBatchClaimInput,
 } from "./proof-bundle-assembly.js";
 
 // --- The real Bitcoin anchor (mainnet block 170, the first BTC payment): a real header with
@@ -86,7 +89,7 @@ const rec2 = signValueRecord({
   issuedAt: "2026-06-02T00:00:00.000Z",
 });
 
-const baseInput = (over: Partial<BuildBatchClaimBundleInput> = {}): BuildBatchClaimBundleInput => ({
+const baseInput = (over: Partial<UncoupledBatchClaimInput> = {}): UncoupledBatchClaimInput => ({
   name: NAME,
   assuranceTier: "accumulator-batched",
   verificationGoal: "Verify alice's batched accumulator claim is Bitcoin-anchored.",
@@ -94,6 +97,33 @@ const baseInput = (over: Partial<BuildBatchClaimBundleInput> = {}): BuildBatchCl
   membership,
   anchor: ANCHOR,
   inclusion,
+  valueRecords: [rec1, rec2],
+  ...over,
+});
+
+// --- §12 coupled fixtures: a verified D-SB-avail witness whose bound anchoredRoot is the
+// membership root (FULL) and whose firstServableHeight is the block-170 anchor height. ---
+const COUPLE_BASE = new Map([[OTHER_KEY, OTHER_VAL]]);
+const availability: VerifiedAvailability = verifyAvailabilityHeight({
+  baseLeaves: COUPLE_BASE,
+  servedDelta: [{ keyHex: LEAF, valueHex: OWNER }],
+  binding: {
+    anchorHeight: ANCHOR_HEIGHT,
+    prevRoot: accumulatorRootOf(COUPLE_BASE),
+    anchoredRoot: accumulatorRootOf(FULL), // === membership.rootHex
+  },
+  confirmedAnchorMinedHeight: ANCHOR_HEIGHT,
+});
+
+const coupledInput = (over: Partial<CoupledBatchClaimInput> = {}): CoupledBatchClaimInput => ({
+  name: NAME,
+  assuranceTier: "accumulator-batched",
+  verificationGoal: "Verify alice's batched accumulator claim, coupled to the verified availability.",
+  ownership: { currentOwnerPubkey: OWNER, ownershipRef: REF },
+  membership,
+  anchor: { anchorTxid: PAYMENT_TXID }, // coupled: NO height — it comes from the brand
+  inclusion,
+  availability,
   valueRecords: [rec1, rec2],
   ...over,
 });
@@ -225,5 +255,63 @@ describe("D-PB proof-bundle assembly (B3; structural, conforms to the kernel ver
     const report = verifyProofBundleStructure(bundle);
     expect(report.valid).toBe(false);
     expect(report.checks.some((c) => c.id === "valueRecords.0.signature" && c.status === "failed")).toBe(true);
+  });
+});
+
+describe("D-PB branded verified-anchor-height coupling (B3 §12; CL ruling B — discriminated)", () => {
+  it("pb.coupling-binds-brand (E-PB7): the coupled bundle's height is the branded firstServableHeight; round-trips green", () => {
+    const bundle = buildAccumulatorBatchClaimBundle(coupledInput());
+    // The ONLY height source on the coupled surface is the minted brand — the caller passed no height.
+    expect(bundle.batchAnchor.anchorHeight).toBe(availability.firstServableHeight);
+    expect(bundle.batchAnchor.anchorHeight).toBe(ANCHOR_HEIGHT);
+    expect(bundle.accumulatorProof.root).toBe(availability.bound.anchoredRoot); // served-root binding
+
+    expect(verifyProofBundleStructure(bundle).valid).toBe(true);
+    const report = verifyProofBundleAgainstBitcoin(bundle, { headerSource });
+    expect(report.valid).toBe(true);
+    expect(report.checks.some((c) => c.id === "btc.0.chain" && c.status === "passed")).toBe(true);
+  });
+
+  it("pb.coupling-served-root (E-PB8): a membership root that is not the served anchoredRoot fails closed", () => {
+    // A proof folding to a DIFFERENT root than availability.bound.anchoredRoot does not bind the
+    // served bytes — the coupling rejects it even though the proof itself is internally valid.
+    const otherFull = new Map([
+      [OTHER_KEY, OTHER_VAL],
+      [LEAF, OWNER],
+      ["cc".repeat(32), "44".repeat(32)],
+    ]);
+    const otherMembership = buildMembershipProof(otherFull, LEAF); // rootHex != bound.anchoredRoot
+    expect(() => buildAccumulatorBatchClaimBundle(coupledInput({ membership: otherMembership }))).toThrow(
+      /served|anchoredRoot|root/,
+    );
+  });
+
+  it("pb.coupling-anchor-height (E-PB9): an inclusion height that disagrees with the bound anchor height fails closed", () => {
+    const wrongHeightInclusion = { ...inclusion, height: 171 }; // != availability.bound.anchorHeight (170)
+    expect(() => buildAccumulatorBatchClaimBundle(coupledInput({ inclusion: wrongHeightInclusion }))).toThrow(
+      /height|inclusion|bound/,
+    );
+  });
+
+  it("pb.coupling-inconsistent-brand (E-PB10): a contradictory VerifiedAvailability object fails closed before stamping", () => {
+    // CL r2 add: D-SB-avail never mints bound.anchorHeight !== firstServableHeight, but D-PB must
+    // not blindly trust a forged/cast object if it is the coupling gate.
+    const inconsistent = {
+      ...availability,
+      bound: { ...availability.bound, anchorHeight: 999 },
+    } as VerifiedAvailability;
+    expect(() => buildAccumulatorBatchClaimBundle(coupledInput({ availability: inconsistent }))).toThrow(
+      /inconsistent|firstServableHeight|bound|VerifiedAvailability/,
+    );
+  });
+
+  it("pb.coupling-no-overclaim (E-PB11): the coupling makes no OP_RETURN/root-commit claim — the residual is intentional", () => {
+    // The coupling binds height (brand) + root (served) but does NOT prove the on-chain anchor tx
+    // committed that root. The assembled bundle carries no root-commitment field, and neither the
+    // builder nor the resident verifier checks one — the linkage stays publisher/D-CV (documented).
+    const bundle = buildAccumulatorBatchClaimBundle(coupledInput());
+    expect(Object.keys(bundle.batchAnchor).sort()).toEqual(["anchorHeight", "anchorTxid"]); // no root-commit field
+    // It still round-trips green: the verifier likewise makes no OP_RETURN/root-commitment check.
+    expect(verifyProofBundleAgainstBitcoin(bundle, { headerSource }).valid).toBe(true);
   });
 });

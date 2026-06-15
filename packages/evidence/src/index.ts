@@ -30,6 +30,8 @@ export {
 export {
   buildAccumulatorBatchClaimBundle,
   type BuildBatchClaimBundleInput,
+  type UncoupledBatchClaimInput,
+  type CoupledBatchClaimInput,
   type BundleAnchorRef,
   type BundleOwnership,
   type BundleValueRecord,

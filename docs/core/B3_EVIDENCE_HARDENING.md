@@ -593,23 +593,29 @@ still does **not** prove the anchor txid committed that root (the OP_RETURN/root
 publisher/D-CV). So the claim is precisely: *the stamped height is the verified-minted height, and
 the assembled root is the served root* — not *the on-chain anchor commits this root*.
 
-**Input-shape question for CL (the one design call).** When `availability` is present, the
-separate `anchor.anchorHeight` becomes redundant with `firstServableHeight`. Options:
-- **(A, my rec) additive + consistency gate.** Keep `anchor: {anchorTxid, anchorHeight}`; when
-  `availability` is also present, require `anchor.anchorHeight === firstServableHeight` (and source
-  the stamped height from the brand). Minimal type churn; the assembly-only path is unchanged.
-- **(B) discriminated input.** `availability` present ⇒ `anchor` carries only `anchorTxid` and the
-  height comes solely from the brand. Cleaner provenance, more type churn.
-- The `anchorTxid` always comes from the caller/inclusion (D-SB-avail carries no txid).
+**Input shape — RULED B (discriminated input, CL on `007cd67`).** The assembler input is a union
+of an UNCOUPLED and a COUPLED shape, so the branded height is the only height source at the type
+boundary once `availability` exists (A still left a redundant bare height on the coupled surface
+that future call sites could treat as meaningful):
+- **UNCOUPLED (§11), unchanged:** `availability` absent ⇒ `anchor: { anchorTxid, anchorHeight }` —
+  the structure-only / current assembly input.
+- **COUPLED (§12):** `availability` present ⇒ `anchor` carries **only** `{ anchorTxid }`;
+  `batchAnchor.anchorHeight` is sourced **solely** from `availability.firstServableHeight`. When an
+  inclusion is embedded, gate `inclusion.txid === anchor.anchorTxid` and
+  `inclusion.height === availability.bound.anchorHeight`.
+- `anchorTxid` always comes from the caller/inclusion (D-SB-avail carries no txid).
 
-**Planned red battery (E-PB7..E-PB10), against the real kernel verdicts:**
-- `pb.coupling-binds-brand` (E-PB7): `availability` present ⇒ `batchAnchor.anchorHeight ===
-  firstServableHeight` and the bundle round-trips green; the height is the minted brand.
+**Red battery (E-PB7..E-PB11), against the real kernel verdicts:**
+- `pb.coupling-binds-brand` (E-PB7): coupled ⇒ `batchAnchor.anchorHeight === firstServableHeight`
+  and `accumulatorProof.root === bound.anchoredRoot`; the bundle round-trips green (incl. `btc.0.chain`).
 - `pb.coupling-served-root` (E-PB8): `membership.rootHex !== bound.anchoredRoot` ⇒ fail closed.
 - `pb.coupling-anchor-height` (E-PB9): `inclusion.height !== bound.anchorHeight` ⇒ fail closed.
-- `pb.coupling-no-overclaim` (E-PB10): a bundle whose anchor txid does NOT commit the served root
-  is still ASSEMBLED (the coupling makes no OP_RETURN claim) — documents the residual, mirrors the
-  §11 out-of-scope note so the boundary is executable, not just prose.
+- `pb.coupling-inconsistent-brand` (E-PB10, CL r2 add): a forged/cast `VerifiedAvailability` with
+  `bound.anchorHeight !== firstServableHeight` ⇒ fail closed BEFORE stamping (D-PB does not blindly
+  trust a contradictory branded object that is the coupling gate).
+- `pb.coupling-no-overclaim` (E-PB11): a coupled bundle binds height (brand) + root (served) but the
+  builder makes NO OP_RETURN/root-commit check, and the resident verifier doesn't either — the
+  residual stays publisher/D-CV (the §11 out-of-scope note made executable, not just prose).
 
-On design-OK (+ the input-shape ruling) I write the red battery then implement green. I commit,
-CL reviews, DK merges.
+Built GREEN per CL's "proceed red→green on that shape" — discriminated union
+(`UncoupledBatchClaimInput | CoupledBatchClaimInput`), 5 coupling vectors, `@ont/evidence` 45/45.

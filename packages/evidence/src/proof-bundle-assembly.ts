@@ -23,10 +23,15 @@
 // signed-record material it CAN emit a bundle the kernel then rejects. That is the pure-placer
 // split — forged evidence yields the kernel's no-accept (E-ND1), never a false accept.
 //
-// SCOPE (CL design review on `4c0e3fd`). Assembly-only: the branded verified-anchor-height
-// coupling (consuming a D-SB-avail `VerifiedAvailability` so the stamped height is the minted
-// brand) is a NAMED FOLLOW-UP (§11 "deferred coupling"), kept out of this slice so D-SB-avail
-// stays closed. Here the anchor txid + height are gated to match the embedded D-BI inclusion.
+// TWO INPUT SHAPES (CL ruling B — discriminated):
+//   • UNCOUPLED (§11): the caller supplies the cited anchor `{ anchorTxid, anchorHeight }`; the
+//     anchor txid + height are gated to match the embedded D-BI inclusion.
+//   • COUPLED (§12): the caller supplies `{ anchorTxid }` + a verified D-SB-avail
+//     `VerifiedAvailability`. The branded `firstServableHeight` is the SOLE source of the bundle's
+//     anchor height (no bare number on the coupled surface), the membership root must be the served
+//     root (`bound.anchoredRoot`), and the inclusion height must agree with `bound.anchorHeight`.
+//     The coupling enforces those equalities; it still makes NO claim the on-chain txid committed
+//     that root (OP_RETURN/root linkage stays publisher/D-CV).
 import {
   computeValueRecordHash,
   normalizeName,
@@ -37,6 +42,7 @@ import {
 
 import type { BuiltBitcoinInclusion } from "./bitcoin-inclusion.js";
 import type { BuiltMembershipProof } from "./membership.js";
+import type { VerifiedAvailability } from "./served-availability.js";
 
 /** Ownership facts the bundle commits (the claimed current owner + ownership reference). */
 export interface BundleOwnership {
@@ -52,8 +58,8 @@ export interface BundleAnchorRef {
   readonly anchorHeight: number;
 }
 
-/** Inputs to the batched-claim proof-bundle assembler — already-built component witnesses. */
-export interface BuildBatchClaimBundleInput {
+/** Fields common to both the uncoupled and the coupled assembler inputs. */
+interface BatchClaimBundleCommon {
   /** The raw ONT name being claimed; `normalizedName` is derived, never caller-supplied. */
   readonly name: string;
   readonly assuranceTier: string;
@@ -61,12 +67,10 @@ export interface BuildBatchClaimBundleInput {
   readonly ownership: BundleOwnership;
   /** D-AM: membership proof for `H(normalizedName)` committing the claimed owner. */
   readonly membership: BuiltMembershipProof;
-  /** The cited batch anchor (txid + height). */
-  readonly anchor: BundleAnchorRef;
   /**
    * D-BI: the anchor's Bitcoin inclusion. OPTIONAL: present → a Bitcoin-settled bundle (its
-   * txid + height MUST match `anchor`); absent → a structurally-valid but not-Bitcoin-settled
-   * bundle (passes `…Structure`, fails `…AgainstBitcoin` on `btc.inclusion.present`).
+   * txid + height MUST match the cited anchor); absent → a structurally-valid but not-Bitcoin-
+   * settled bundle (passes `…Structure`, fails `…AgainstBitcoin` on `btc.inclusion.present`).
    */
   readonly inclusion?: BuiltBitcoinInclusion;
   /**
@@ -76,6 +80,31 @@ export interface BuildBatchClaimBundleInput {
    */
   readonly valueRecords?: readonly SignedValueRecord[];
 }
+
+/**
+ * UNCOUPLED assembly input (§11): the caller supplies the cited anchor `{ anchorTxid, anchorHeight }`
+ * directly. No D-SB-avail coupling. The anchor height is the caller's; when an inclusion is embedded
+ * it is gated to match.
+ */
+export interface UncoupledBatchClaimInput extends BatchClaimBundleCommon {
+  readonly anchor: BundleAnchorRef;
+  readonly availability?: undefined;
+}
+
+/**
+ * COUPLED assembly input (§12; CL ruling B — discriminated): the cited anchor carries ONLY the
+ * `anchorTxid`. The verified D-SB-avail witness is the SOLE source of the bundle's anchor height —
+ * `batchAnchor.anchorHeight := availability.firstServableHeight` (branded), so a bare number can
+ * never be the coupled height at the type boundary. The membership root must be the served root and
+ * (when an inclusion is embedded) the inclusion height must agree with the bound anchor height.
+ */
+export interface CoupledBatchClaimInput extends BatchClaimBundleCommon {
+  readonly anchor: { readonly anchorTxid: string };
+  readonly availability: VerifiedAvailability;
+}
+
+/** Inputs to the batched-claim proof-bundle assembler — uncoupled (§11) or coupled (§12). */
+export type BuildBatchClaimBundleInput = UncoupledBatchClaimInput | CoupledBatchClaimInput;
 
 /** One value record in bundle shape — signed fields + the computed `recordHash`. */
 export interface BundleValueRecord {
@@ -183,14 +212,16 @@ function placeValueRecords(
  * Assemble an `accumulator_batch_claim` proof bundle from already-built component witnesses.
  * Fails closed (throws) on the cheap assembly-coherence obligations it owns — leaf binds the
  * name, value commits the claimed owner, and (when an inclusion is embedded) the cited anchor
- * txid + height match it. A WELL-FORMED input round-trips green through
- * `verifyProofBundleStructure` and (with an inclusion) `verifyProofBundleAgainstBitcoin`;
- * cryptographic + value-record validity remains the kernel's to decide (pure placer).
+ * txid + height match it. In the COUPLED shape (§12) the height is sourced solely from the
+ * verified `availability.firstServableHeight` and the membership root must be the served root.
+ * A WELL-FORMED input round-trips green through `verifyProofBundleStructure` and (with an
+ * inclusion) `verifyProofBundleAgainstBitcoin`; cryptographic + value-record validity remains
+ * the kernel's to decide (pure placer).
  */
 export function buildAccumulatorBatchClaimBundle(
   input: BuildBatchClaimBundleInput,
 ): OntProofBundle {
-  const { name, assuranceTier, verificationGoal, ownership, membership, anchor, inclusion } = input;
+  const { name, assuranceTier, verificationGoal, ownership, membership, inclusion } = input;
 
   const normalizedName = normalizeName(name);
 
@@ -211,15 +242,45 @@ export function buildAccumulatorBatchClaimBundle(
     fail("accumulator value does not commit to the claimed current owner");
   }
 
-  // (3) One consistent anchor: when a D-BI inclusion is embedded, the cited batch anchor txid
-  //     AND height must both match it (the verifier cites the anchor by txid, but a wrong height
-  //     would otherwise pass the structure check that only requires anchorHeight to exist).
-  if (inclusion !== undefined) {
-    if (anchor.anchorTxid.toLowerCase() !== inclusion.txid.toLowerCase()) {
-      fail("batch anchor txid does not match the embedded D-BI inclusion");
+  // (3) Resolve the cited anchor (txid + height) — uncoupled vs coupled (§12, CL ruling B).
+  const anchorTxid = input.anchor.anchorTxid;
+  let anchorHeight: number;
+  if (input.availability !== undefined) {
+    // COUPLED: the verified D-SB-avail witness is the SOLE source of the height + served root.
+    const av = input.availability;
+    // (3a) Internal consistency of the branded object itself (CL r2 add): D-SB-avail never mints a
+    //      contradictory object, but D-PB must not blindly trust one if it is the coupling gate.
+    if (av.bound.anchorHeight !== (av.firstServableHeight as number)) {
+      fail(
+        "availability object is internally inconsistent (bound.anchorHeight !== firstServableHeight) — not a valid VerifiedAvailability",
+      );
     }
-    if (anchor.anchorHeight !== inclusion.height) {
-      fail("batch anchor height does not match the embedded D-BI inclusion");
+    // (3b) Served-root binding: the assembled accumulator root must be the root the served bytes
+    //      reconstruct, not just any root the membership proof folds to.
+    if (membership.rootHex.toLowerCase() !== av.bound.anchoredRoot.toLowerCase()) {
+      fail("membership root is not the served/anchored root (availability.bound.anchoredRoot)");
+    }
+    // (3c) Branded height provenance: the stamped height IS the minted firstServableHeight.
+    anchorHeight = av.firstServableHeight as number;
+    // (3d) Anchor-height agreement + txid match when an inclusion is embedded.
+    if (inclusion !== undefined) {
+      if (inclusion.txid.toLowerCase() !== anchorTxid.toLowerCase()) {
+        fail("batch anchor txid does not match the embedded D-BI inclusion");
+      }
+      if (inclusion.height !== av.bound.anchorHeight) {
+        fail("D-BI inclusion height does not agree with the bound anchor height (availability.bound.anchorHeight)");
+      }
+    }
+  } else {
+    // UNCOUPLED: the caller's cited anchor height; gated to the inclusion when one is embedded.
+    anchorHeight = input.anchor.anchorHeight;
+    if (inclusion !== undefined) {
+      if (anchorTxid.toLowerCase() !== inclusion.txid.toLowerCase()) {
+        fail("batch anchor txid does not match the embedded D-BI inclusion");
+      }
+      if (anchorHeight !== inclusion.height) {
+        fail("batch anchor height does not match the embedded D-BI inclusion");
+      }
     }
   }
 
@@ -244,8 +305,8 @@ export function buildAccumulatorBatchClaimBundle(
       siblings: membership.proof.siblings,
     },
     batchAnchor: {
-      anchorTxid: anchor.anchorTxid,
-      anchorHeight: anchor.anchorHeight,
+      anchorTxid,
+      anchorHeight,
     },
     ...(inclusion !== undefined
       ? {
