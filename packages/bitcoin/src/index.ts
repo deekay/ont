@@ -9,6 +9,14 @@ export interface BitcoinTransactionOutput {
   readonly valueSats: bigint;
   readonly scriptType: "op_return" | "payment" | "unknown";
   readonly dataHex?: string;
+  /**
+   * The parsed destination of a payment output (RPC `scriptPubKey.address`, Esplora
+   * `scriptpubkey_address`), when the source exposes one. Consumed by the recovery-invoke
+   * successor-bond binding (PR-34): the kernel requires the rotated bond output to pay the
+   * descriptor's `recoveryAddress`, and a missing destination fails that check closed. B3 may
+   * refine address→script derivation; B2 binds on this parsed destination.
+   */
+  readonly address?: string;
 }
 
 export interface BitcoinTransactionInput {
@@ -146,6 +154,7 @@ export interface BitcoinTransactionOutputFixture {
   readonly valueSats: string | number;
   readonly scriptType: BitcoinTransactionOutput["scriptType"];
   readonly dataHex?: string;
+  readonly address?: string;
 }
 
 export interface BitcoinBlockSourceInput {
@@ -1108,7 +1117,7 @@ function parseBitcoinTransactionOutputFixture(input: unknown): BitcoinTransactio
     throw new Error("transaction output fixture must be an object");
   }
 
-  const { valueSats, scriptType, dataHex } = input;
+  const { valueSats, scriptType, dataHex, address } = input;
 
   if (
     scriptType !== "op_return" &&
@@ -1116,6 +1125,10 @@ function parseBitcoinTransactionOutputFixture(input: unknown): BitcoinTransactio
     scriptType !== "unknown"
   ) {
     throw new Error("transaction output fixture scriptType is invalid");
+  }
+
+  if (address !== undefined && typeof address !== "string") {
+    throw new Error("transaction output fixture address must be a string when present");
   }
 
   if (
@@ -1132,7 +1145,8 @@ function parseBitcoinTransactionOutputFixture(input: unknown): BitcoinTransactio
   return {
     valueSats: BigInt(valueSats),
     scriptType,
-    ...(dataHex === undefined ? {} : { dataHex })
+    ...(dataHex === undefined ? {} : { dataHex }),
+    ...(address === undefined ? {} : { address })
   };
 }
 
@@ -1171,11 +1185,13 @@ function parseBitcoinRpcTransactionOutput(input: unknown): BitcoinTransactionOut
   const scriptType = mapScriptType(scriptPubKey.type);
   const asm = typeof scriptPubKey.asm === "string" ? scriptPubKey.asm : undefined;
   const dataHex = scriptType === "op_return" ? parseOpReturnDataHex(asm) : undefined;
+  const address = getOptionalString(scriptPubKey, "address");
 
   return {
     valueSats: btcToSats(value),
     scriptType,
-    ...(dataHex === undefined ? {} : { dataHex })
+    ...(dataHex === undefined ? {} : { dataHex }),
+    ...(address === undefined ? {} : { address })
   };
 }
 
@@ -1188,11 +1204,13 @@ function parseBitcoinEsploraTransactionOutput(input: unknown): BitcoinTransactio
   const scriptType = mapScriptType(input.scriptpubkey_type);
   const asm = getOptionalString(input, "scriptpubkey_asm");
   const dataHex = scriptType === "op_return" ? parseOpReturnDataHex(asm) : undefined;
+  const address = getOptionalString(input, "scriptpubkey_address");
 
   return {
     valueSats: BigInt(value),
     scriptType,
-    ...(dataHex === undefined ? {} : { dataHex })
+    ...(dataHex === undefined ? {} : { dataHex }),
+    ...(address === undefined ? {} : { address })
   };
 }
 

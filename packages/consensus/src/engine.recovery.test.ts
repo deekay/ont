@@ -13,19 +13,21 @@
 //   - R19: the cancel branch is a pure predicate (never consults the invoke
 //     availability callback).
 //
+// INVOKE PATH — now hardened to #50-b1 (engine B, this file's "recovery invoke" section
+// below): `applyRecoverOwnerRequest` no longer gates on a `recoveryWalletProofAvailable`
+// callback or a proof-commitment-in-sig-slot. It assembles the four `acceptRecoverOwner`
+// inputs from the event + witnessed descriptor evidence (data-only options) and admits only
+// on an accepted verdict (§3c evidence-gated admission). It also enforces the PR-34
+// successor-bond-address binding, the PR-35 exact-height CANCEL/finalize boundary, and the
+// X13 transfer-block. The R15/R17 CANCEL tests below still SEED pendingRecovery directly (the
+// cancel predicate is pure over (cancel digest, prior state)); the invoke tests drive a full
+// admit through the public API.
+//
 // PARKED — explicitly OUT of the ratified gate:
-//   - The entire INVOKE path (applyRecoverOwnerRequest) is PRE-#50 LEGACY: it gates
-//     pendingRecovery on an injected `recoveryWalletProofAvailable` callback plus a
-//     proof commitment stuffed in the signature slot — NOT the ratified #50-b1
-//     signer (descriptor-v2 recoveryPubkey signing the ont-recover-owner W13 digest
-//     with witnessed descriptor evidence). Hardening invoke to ratified law is a B2
-//     implementation rewrite (on DK's return docket next to transfer-during-recovery
-//     / PR-17/34/35), not a legacy hardening pass. These tests SEED pendingRecovery
-//     DIRECTLY and never exercise or bless the legacy invoke path.
 //   - R16 binding/timeliness (prevStateTxid=request-txid overloading, the
 //     field-equality set, the strict-before-deadline boundary): used here only as
 //     the fixture mechanics needed to reach a valid cancel; NOT asserted as ratified.
-//   - R18 completion mechanics; R1/R2/R3/R4/R5/R6/R7/R8/R9/R10/R11/R12/R13/R14 (invoke).
+//   - R14 (invoke) remains future spec work.
 //   - The CANCEL flag bit (RECOVER_OWNER_FLAG_CANCEL = 0x01) is code-only — normative
 //     WIRE §4.2 flags(1) has no bit registry. Used here ONLY as the legacy fixture
 //     selector to reach the cancel branch; NOT asserted as ratified wire law, and no
@@ -46,19 +48,31 @@ import {
   bytesToHex,
   computeRecoverOwnerAuthorizationHash,
   createRecoverOwnerPayload,
+  createTransferPayload,
   deriveOwnerPubkey,
   encodeRecoverOwnerPayload,
+  encodeTransferPayload,
   signRecoverOwnerCancelAuthorization,
+  signTransferAuthorization,
 } from "@ont/protocol";
 import type { BitcoinTransactionInBlock } from "@ont/bitcoin";
-import { recoverAuthDigest } from "@ont/wire";
+import { schnorr } from "@noble/curves/secp256k1.js";
+import {
+  RECOVERY_DESCRIPTOR_FORMAT,
+  RECOVERY_DESCRIPTOR_VERSION_V2,
+  hexToBytes,
+  recoverAuthDigest,
+  recoveryDescriptorDigest,
+} from "@ont/wire";
 
 import {
   applyBlockTransactionsWithProvenance,
   createEmptyState,
+  refreshDerivedState,
   type NameRecord,
   type OntEventApplicationOptions,
   type OntState,
+  type ResolvedRecoveryDescriptorState,
 } from "./engine.js";
 
 // ---------------------------------------------------------------------------
@@ -243,25 +257,251 @@ describe("R17 — a valid cancel is abort-only", () => {
 });
 
 // ===========================================================================
-// R19 — the cancel branch is a pure predicate (no invoke availability callback)
+// PR-35 — a valid CANCEL at the EXACT finalize height is in-window
 // ===========================================================================
-describe("R19 — the cancel branch never consults the invoke availability callback", () => {
-  it("a valid cancel succeeds without invoking recoveryWalletProofAvailable (passed a throwing callback)", () => {
+describe("PR-35 — CANCEL/finalize boundary is inclusive at the exact finalize height", () => {
+  it("(+) an owner cancel AT the finalize height is in-window and clears pendingRecovery", () => {
+    const state = createEmptyState();
+    seedNameWithPendingRecovery(state); // finalizeHeight = 644
+    const { events } = apply(state, cancelTx({ txid: "c6".repeat(32), blockHeight: FINALIZE_HEIGHT, fields: cancelFields(), signerPrivateKeyHex: OWNER_PRIV }));
+    expect(events[0]?.validationStatus).toBe("applied");
+    expect(events[0]?.reason).toBe("recovery_cancelled_by_owner");
+    expect(state.names.get("alice")?.pendingRecovery).toBeUndefined();
+  });
+
+  it("(−) an owner cancel strictly AFTER the finalize height is too late", () => {
     const state = createEmptyState();
     seedNameWithPendingRecovery(state);
-    let called = false;
-    const options: OntEventApplicationOptions = {
-      recoveryWalletProofAvailable: () => {
-        called = true;
-        throw new Error("the cancel path must not consult the invoke availability callback");
-      },
-    };
-    let events: ReturnType<typeof apply>["events"] = [];
-    expect(() => {
-      events = apply(state, cancelTx({ txid: "c5".repeat(32), blockHeight: 600, fields: cancelFields(), signerPrivateKeyHex: OWNER_PRIV }), options).events;
-    }).not.toThrow();
-    expect(called).toBe(false);
+    const { events } = apply(state, cancelTx({ txid: "c7".repeat(32), blockHeight: FINALIZE_HEIGHT + 1, fields: cancelFields(), signerPrivateKeyHex: OWNER_PRIV }));
+    expect(events[0]?.validationStatus).toBe("ignored");
+    expect(events[0]?.reason).toBe("recovery_cancel_too_late");
+    expect(state.names.get("alice")?.pendingRecovery).toBeDefined();
+  });
+});
+
+// ===========================================================================
+// R18 — recovery completion is deterministic over chain height (finalize)
+// ===========================================================================
+describe("R18 — completion is a deterministic function of (prior pendingRecovery, chain height)", () => {
+  it("(+) at the finalize height the proposed owner is installed and pendingRecovery clears", () => {
+    const state = createEmptyState();
+    seedNameWithPendingRecovery(state);
+    refreshDerivedState(state, FINALIZE_HEIGHT);
+    const after = state.names.get("alice");
+    expect(after?.pendingRecovery).toBeUndefined();
+    expect(after?.currentOwnerPubkey).toBe(PROPOSED_PUB); // recovery completes -> proposed owner installed
+  });
+
+  it("(−) one block before the finalize height nothing finalizes (deterministic over height)", () => {
+    const state = createEmptyState();
+    seedNameWithPendingRecovery(state);
+    refreshDerivedState(state, FINALIZE_HEIGHT - 1);
+    const after = state.names.get("alice");
+    expect(after?.pendingRecovery).toBeDefined();
+    expect(after?.currentOwnerPubkey).toBe(OWNER_PUB); // not yet finalized
+  });
+
+  it("a same-height CANCEL then finalize: the cancel clears pending first, so finalization is a no-op (ordering)", () => {
+    const state = createEmptyState();
+    seedNameWithPendingRecovery(state);
+    // CANCEL at the finalize height applies first (block events before refreshDerivedState),
+    // clearing pendingRecovery; the subsequent finalize finds nothing and the owner is unchanged.
+    apply(state, cancelTx({ txid: "c8".repeat(32), blockHeight: FINALIZE_HEIGHT, fields: cancelFields(), signerPrivateKeyHex: OWNER_PRIV }));
+    refreshDerivedState(state, FINALIZE_HEIGHT);
+    const after = state.names.get("alice");
+    expect(after?.pendingRecovery).toBeUndefined();
+    expect(after?.currentOwnerPubkey).toBe(OWNER_PUB); // cancel won; proposed owner never installed
+  });
+});
+
+// ===========================================================================
+// R19 — the cancel branch is a pure predicate (no invoke availability callback)
+// ===========================================================================
+describe("R19 — the cancel branch is pure (independent of the invoke evidence gate)", () => {
+  it("a valid cancel succeeds with NO recovery evidence supplied (cancel never consults the invoke gate)", () => {
+    const state = createEmptyState();
+    seedNameWithPendingRecovery(state);
+    // No recoveryEvidence in options — the invoke evidence gate (acceptRecoverOwner) is irrelevant
+    // to a CANCEL. A valid owner cancel still clears pendingRecovery; the cancel branch is a pure
+    // predicate over (cancel digest, prior state), never the witnessed-descriptor evidence path.
+    // (The legacy availability callback that this test once proved unused no longer exists.)
+    const { events } = apply(
+      state,
+      cancelTx({ txid: "c5".repeat(32), blockHeight: 600, fields: cancelFields(), signerPrivateKeyHex: OWNER_PRIV }),
+      {}
+    );
     expect(events[0]?.validationStatus).toBe("applied");
     expect(state.names.get("alice")?.pendingRecovery).toBeUndefined();
+  });
+});
+
+// ===========================================================================
+// Recovery INVOKE path (#50-b1, engine B) — acceptRecoverOwner admission + the
+// PR-34 successor-bond-address binding + §3c evidence-gated admission, driven through
+// the public API. (acceptRecoverOwner's own conjunct battery lives in
+// recovery-invoke-authority.test.ts + the R/T conformance bindings; here we prove the
+// ENGINE wiring: it assembles the inputs, consults the gate, binds the bond address,
+// and opens pendingRecovery only on an accepted verdict.)
+// ===========================================================================
+const RECOVERY_PRIV = "05".repeat(32);
+const RECOVERY_PUB = deriveOwnerPubkey(RECOVERY_PRIV);
+const INVOKE_HEAD = "ee".repeat(32);
+const SEEDED_BOND_TXID = "bb".repeat(32);
+const DESC_REF = "aa".repeat(32);
+const DESC_SEQ = 3;
+const RECOVERY_ADDR = "bc1qrecoveryexampleaddr0000000000000000";
+const DESC_T0 = "2026-01-01T00:00:00Z";
+const INVOKE_HEIGHT = 600; // immature (< maturityHeight 1000), so recovery is permitted (R12)
+const W_R = 20;
+const AUX = new Uint8Array(32);
+
+function seedInvokableName(state: OntState): void {
+  state.names.set("alice", {
+    name: "alice",
+    status: "immature",
+    currentOwnerPubkey: OWNER_PUB,
+    claimCommitTxid: "a1".repeat(32),
+    claimRevealTxid: "b1".repeat(32),
+    claimHeight: 100,
+    maturityHeight: 1000,
+    requiredBondSats: 50_000n,
+    currentBondTxid: SEEDED_BOND_TXID,
+    currentBondVout: 0,
+    currentBondValueSats: 50_000n,
+    lastStateTxid: INVOKE_HEAD,
+    lastStateHeight: 400,
+    winningCommitBlockHeight: 100,
+    winningCommitTxIndex: 0,
+  });
+}
+
+// The name's current armed descriptor head (v2), owner-armed by OWNER_PRIV. Deterministic.
+function armedDescriptor(): Record<string, unknown> {
+  const unsigned: Record<string, unknown> = {
+    format: RECOVERY_DESCRIPTOR_FORMAT,
+    descriptorVersion: RECOVERY_DESCRIPTOR_VERSION_V2,
+    name: "alice",
+    ownerPubkey: OWNER_PUB,
+    ownershipRef: DESC_REF,
+    sequence: DESC_SEQ,
+    previousDescriptorHash: null,
+    recoveryAddress: RECOVERY_ADDR,
+    signingProfile: "bip322",
+    challengeWindowBlocks: CHALLENGE_WINDOW,
+    issuedAt: DESC_T0,
+    recoveryPubkey: RECOVERY_PUB,
+    signature: "00".repeat(64),
+  };
+  return { ...unsigned, signature: bytesToHex(schnorr.sign(recoveryDescriptorDigest(unsigned), hexToBytes(OWNER_PRIV), AUX)) };
+}
+
+function recoveryOptions(witnessedByHeight: number): OntEventApplicationOptions {
+  const descriptor = armedDescriptor();
+  const resolved: ResolvedRecoveryDescriptorState = {
+    descriptorEvidence: { descriptor, witness: { kind: "b3-verified-recovery-descriptor-witness", witnessedByHeight } },
+    recoveryDescriptorHeadHash: bytesToHex(recoveryDescriptorDigest(descriptor)),
+    recoveryDescriptorHeadSequence: DESC_SEQ,
+    currentOwnershipRef: DESC_REF,
+  };
+  return { recoveryEvidence: { byName: new Map([["alice", resolved]]), params: { recoveryEvidenceWindowBlocks: W_R } } };
+}
+
+// A non-cancel RecoverOwner invoke: spends the seeded bond outpoint, pays a successor bond output
+// (vout 0) to `successorAddress`, and posts the OP_RETURN payload (vout 1). The 64-byte slot holds a
+// real BIP340 signature over the W13 recoverAuthDigest by `invokeSignerPriv` (default the recovery key).
+function invokeTx(opts: { txid: string; blockHeight: number; successorAddress?: string; invokeSignerPriv?: string }): BitcoinTransactionInBlock {
+  const descHash = bytesToHex(recoveryDescriptorDigest(armedDescriptor()));
+  const fields = { prevStateTxid: INVOKE_HEAD, newOwnerPubkey: PROPOSED_PUB, flags: 0, successorBondVout: 0, challengeWindowBlocks: CHALLENGE_WINDOW, recoveryDescriptorHash: descHash };
+  const signature = bytesToHex(schnorr.sign(recoverAuthDigest(fields), hexToBytes(opts.invokeSignerPriv ?? RECOVERY_PRIV), AUX));
+  const payload = createRecoverOwnerPayload({ ...fields, signature });
+  const dataHex = bytesToHex(encodeRecoverOwnerPayload(payload));
+  return {
+    tx: {
+      txid: opts.txid,
+      inputs: [{ txid: SEEDED_BOND_TXID, vout: 0, coinbase: false }],
+      outputs: [
+        { valueSats: 50_000n, scriptType: "payment", ...(opts.successorAddress === undefined ? {} : { address: opts.successorAddress }) },
+        { valueSats: 0n, scriptType: "op_return", dataHex },
+      ],
+    },
+    blockHeight: opts.blockHeight,
+    txIndex: 0,
+  };
+}
+
+describe("recovery invoke (engine B) — acceptRecoverOwner admission + PR-34 bond-address binding", () => {
+  it("(+) a fully-armed invoke whose successor bond pays the descriptor recoveryAddress opens pendingRecovery", () => {
+    const state = createEmptyState();
+    seedInvokableName(state);
+    const { events } = apply(state, invokeTx({ txid: "f0".repeat(32), blockHeight: INVOKE_HEIGHT, successorAddress: RECOVERY_ADDR }), recoveryOptions(INVOKE_HEIGHT + W_R));
+    expect(events[0]?.validationStatus).toBe("applied");
+    expect(events[0]?.reason).toBe("recovery_requested");
+    expect(state.names.get("alice")?.pendingRecovery?.proposedOwnerPubkey).toBe(PROPOSED_PUB);
+  });
+
+  it("(−) PR-34: a successor bond paying a DIFFERENT address is rejected (bond not provably controlled by the recovery address)", () => {
+    const state = createEmptyState();
+    seedInvokableName(state);
+    const { events } = apply(state, invokeTx({ txid: "f1".repeat(32), blockHeight: INVOKE_HEIGHT, successorAddress: "bc1qattackercontrolledaddr0000000000000" }), recoveryOptions(INVOKE_HEIGHT + W_R));
+    expect(events[0]?.validationStatus).toBe("ignored");
+    expect(events[0]?.reason).toBe("recovery_successor_bond_address_mismatch");
+    expect(state.names.get("alice")?.pendingRecovery).toBeUndefined();
+  });
+
+  it("(−) PR-34: a successor bond with NO destination field is rejected (the model cannot prove control)", () => {
+    const state = createEmptyState();
+    seedInvokableName(state);
+    const { events } = apply(state, invokeTx({ txid: "f2".repeat(32), blockHeight: INVOKE_HEIGHT }), recoveryOptions(INVOKE_HEIGHT + W_R));
+    expect(events[0]?.reason).toBe("recovery_successor_bond_address_mismatch");
+    expect(state.names.get("alice")?.pendingRecovery).toBeUndefined();
+  });
+
+  it("(−) no witnessed descriptor evidence supplied → fail closed (opens nothing)", () => {
+    const state = createEmptyState();
+    seedInvokableName(state);
+    const { events } = apply(state, invokeTx({ txid: "f3".repeat(32), blockHeight: INVOKE_HEIGHT, successorAddress: RECOVERY_ADDR }), {});
+    expect(events[0]?.reason).toBe("recovery_no_witnessed_descriptor_evidence");
+    expect(state.names.get("alice")?.pendingRecovery).toBeUndefined();
+  });
+
+  it("(−) the acceptRecoverOwner gate is consulted: an invoke signed by the wrong key is unauthorized (no state opens)", () => {
+    const state = createEmptyState();
+    seedInvokableName(state);
+    const { events } = apply(state, invokeTx({ txid: "f4".repeat(32), blockHeight: INVOKE_HEIGHT, successorAddress: RECOVERY_ADDR, invokeSignerPriv: STRANGER_PRIV }), recoveryOptions(INVOKE_HEIGHT + W_R));
+    expect(events[0]?.validationStatus).toBe("ignored");
+    expect(events[0]?.reason).toBe("recovery_unauthorized");
+    expect(state.names.get("alice")?.pendingRecovery).toBeUndefined();
+  });
+
+  it("(−) §3c: descriptor evidence witnessed past h_r + W_r forfeits (no state opens)", () => {
+    const state = createEmptyState();
+    seedInvokableName(state);
+    const { events } = apply(state, invokeTx({ txid: "f5".repeat(32), blockHeight: INVOKE_HEIGHT, successorAddress: RECOVERY_ADDR }), recoveryOptions(INVOKE_HEIGHT + W_R + 1));
+    expect(events[0]?.reason).toBe("recovery_unauthorized");
+    expect(state.names.get("alice")?.pendingRecovery).toBeUndefined();
+  });
+});
+
+// ===========================================================================
+// X13 — owner-key Transfer is BLOCKED while a recovery is pending (PR-34)
+// ===========================================================================
+describe("X13 — owner-key Transfer is blocked while a recovery is pending", () => {
+  it("a transfer referencing a name with an open pendingRecovery mutates nothing", () => {
+    const state = createEmptyState();
+    seedNameWithPendingRecovery(state); // pendingRecovery open; head = PRE_INVOKE_HEAD, current owner = OWNER_PUB
+    const transferFields = { prevStateTxid: PRE_INVOKE_HEAD, newOwnerPubkey: PROPOSED_PUB, flags: 0, successorBondVout: 0 };
+    const signature = signTransferAuthorization({ ...transferFields, ownerPrivateKeyHex: OWNER_PRIV });
+    const payload = createTransferPayload({ ...transferFields, signature });
+    const dataHex = bytesToHex(encodeTransferPayload(payload));
+    const tx: BitcoinTransactionInBlock = {
+      tx: { txid: "f6".repeat(32), inputs: [], outputs: [{ valueSats: 0n, scriptType: "op_return", dataHex }] },
+      blockHeight: 600,
+      txIndex: 0,
+    };
+    const { events } = apply(state, tx, {});
+    expect(events[0]?.validationStatus).toBe("ignored");
+    expect(events[0]?.reason).toBe("transfer_blocked_pending_recovery");
+    expect(state.names.get("alice")?.pendingRecovery).toBeDefined();
+    expect(state.names.get("alice")?.currentOwnerPubkey).toBe(OWNER_PUB); // unchanged
   });
 });
