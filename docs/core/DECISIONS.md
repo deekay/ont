@@ -1779,6 +1779,51 @@ malformed or extra-field inputs return a non-recognition verdict and never throw
 adapter/source/producer field is admitted as authority. This satisfies #44's "boundary may change
 only with a DECISIONS entry + conformance coverage"; the boundary freezes at launch.
 
+71. b2-occupancy-boundary: the name-occupancy predicate enters @ont/consensus as a pure
+CONSENSUS_VERDICTS decider — the insertion-only / no-takeover-of-final gate over a name's resolved
+post-DA-verdict occupancy — riding nothing external — 2026-06-15
+
+*Status: **Proposed** (writer ClaudeleLunatique, reviewer ChatLunatique; lands on branch
+clean-build-b2-kernel, DK merges). A boundary-manifest addition under #44, riding the
+CONSENSUS_VERDICTS tier established by #59 — a new pure verdict module, NOT a tier-widening. Its
+external allowlist is empty: it consumes the name's resolved governing occupancy, with no `@ont/core`
+indexer/resolver, no research/simulation code, and no host I/O. NO new consensus law: it lands the
+already-ratified A11 (anchors are insertion-only; a batched claim must not take an already-final
+name), #26 (root anchors/markers do not authorize transfers or value updates), and D10 (a DA-failed
+claim counts for no lifecycle purpose). Covered by conformance: `trust-surface.test.ts`
+(`occupancy.ts` in CONSENSUS_VERDICTS with an empty allowlist), `occupancy.test.ts` (predicate
+battery), and the A11-pos-01 binding in `b2-vector-bindings.test.ts`. Authored under DK's keep-going
+grant.*
+
+**The rule.** One narrow pure predicate, `resolveNameOccupancy({ priorOccupancy })` — `priorOccupancy`
+is the name's RESOLVED governing occupancy (`null` or one of three kinds), never re-derived here:
+- `null` (unoccupied / fully reopened) → admit a fresh insertion.
+- `{ kind: "forfeited" }` (a DA-decided non-priority prior insertion) → admit. This is the A11-pos-01
+  crux: occupancy is enforced over POST-DA-VERDICT state, so a name "inserted" only by a
+  later-forfeited (DA-failed) batch does not occupy it and must not block honest re-claiming (D10).
+- `{ kind: "contestable-provisional" }` (the caller has established the candidate is inside the live
+  competition window) → admit a competing insertion; the collision / finalize / nullify outcome is
+  notice-window (#69), not this gate.
+- `{ kind: "final" }` (a DA-valid finalized owner holds the name) → refuse; insertion-only, the
+  existing owner is unchanged (no takeover).
+
+**#49-independent.** The predicate consumes the resolved governing occupancy as a fact — the caller
+(engine) has already composed the DA verdict (`da-verdict.ts`) and the lifecycle verdict
+(notice-window / auction) and reduced any multiple prior insertions (first-anchor-wins, A12) into one
+governing occupancy. It never recomputes W/C/K and never reduces insertions itself. Auction-pending
+and nullified-reopen states are NOT mapped to an admitting kind; a reducer must deliberately
+introduce a future occupancy kind for them — they are not silently insertable.
+
+The verdict carries ONLY an admit/refuse decision plus a classification — there is no owner/value/
+transfer field, so the predicate is structurally insertion-only (no mutation path; #26). Deliberately
+excluded: the multiple-insertion reduction (engine, A12); how the DA / finality verdicts were
+computed (upstream); the competing-claim outcome (notice-window #69); and non-canonical-name-byte
+rejection (A6 — a separate A-area name-canonicalization concern). Total / fail-closed + closed-shape
+(the #63–#70 discipline): malformed, unknown-kind, or extra-field input fails closed to a
+non-admitting `undecidable` verdict and never throws, so no producer-asserted occupancy outside the
+three resolved kinds is admitted as authority. This satisfies #44's "boundary may change only with a
+DECISIONS entry + conformance coverage"; the boundary freezes at launch.
+
 ## Fairness Principles To Carry Into The Launch Rewrite
 
 The rewritten launch draft should explicitly state:

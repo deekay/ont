@@ -80,6 +80,7 @@ import {
 } from "./auction-resolution.js";
 import { resolveNoticeWindow, type NoticeWindowClaim, type NoticeWindowInput } from "./notice-window.js";
 import { resolveReopen, type ReopenInput } from "./reopen-resolution.js";
+import { resolveNameOccupancy } from "./occupancy.js";
 import {
   createTransferPayload,
   deriveOwnerPubkey,
@@ -224,6 +225,8 @@ const LOCAL_BINDING_MANIFEST = new Set<string>([
   "T22-neg-01",
   "T22-neg-02",
   "B19-neg-01",
+  // occupancy family (#71)
+  "A11-pos-01",
 ]);
 
 // A binding may only execute a vector that is (a) locked, (b) required-tier
@@ -1469,6 +1472,23 @@ describe("B2 vector bindings — reopen/re-auction resolution family (#70)", () 
       recognized: true,
       derivedLatestReleaseHeight: 900_000,
     });
+  });
+});
+
+// ---- occupancy family (#71) ----
+// resolveNameOccupancy consumes the name's resolved governing occupancy (the caller composes the DA
+// verdict + lifecycle verdict and reduces multiple insertions). The A11 crux: occupancy is enforced
+// over post-DA-verdict state, so a forfeited (DA-failed) prior insertion does NOT block re-claim.
+describe("B2 vector bindings — occupancy family (#71)", () => {
+  it("A11-pos-01: a forfeited (DA-failed) prior insertion does not block honest re-claim", () => {
+    const vector = loadVector("anchor-acceptance.json", "A11-pos-01");
+    assertBindable(vector);
+    // the post-DA-verdict crux: a name 'occupied' only by a later-forfeited batch admits re-claim.
+    expect(resolveNameOccupancy({ priorOccupancy: { kind: "forfeited" } }).admitsInsertion).toBe(accepts(vector)); // accept
+    // companion: a FINAL name refuses a fresh insertion (insertion-only, no takeover); an unoccupied
+    // name admits — so the forfeited-admit is the post-DA-verdict distinction, not a blanket admit.
+    expect(resolveNameOccupancy({ priorOccupancy: { kind: "final" } }).admitsInsertion).toBe(false);
+    expect(resolveNameOccupancy({ priorOccupancy: null }).admitsInsertion).toBe(true);
   });
 });
 

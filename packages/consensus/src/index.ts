@@ -66,3 +66,7 @@ export * from "./notice-window.js";
 // lot keyed off the latest KERNEL-DERIVED bond-break release height (T22/B19/S7/S9/#56). Rides
 // nothing external — witnessed break facts + the parsed lot anchor enter as caller inputs.
 export * from "./reopen-resolution.js";
+// The name-occupancy predicate (#71, riding #59's verdict tier): the pure insertion-only /
+// no-takeover-of-final gate over a name's resolved post-DA-verdict occupancy (A11/#26). Rides
+// nothing external — the resolved governing occupancy enters as a caller input.
+export * from "./occupancy.js";
