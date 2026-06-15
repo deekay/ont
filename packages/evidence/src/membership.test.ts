@@ -21,6 +21,15 @@ const leaves = (): ReadonlyMap<string, string> =>
     [KEY_B, VAL_B],
   ]);
 
+/** Assert the verifier returns false WITHOUT throwing (E-ND1 fail-closed). */
+const rejectsNoThrow = (rootHex: string, proof: unknown): void => {
+  let result: boolean | "threw" = "threw";
+  expect(() => {
+    result = verifyAccumulatorMembership(rootHex, proof as never);
+  }).not.toThrow();
+  expect(result).toBe(false);
+};
+
 describe("D-AM accumulator membership witness (B3)", () => {
   it("E-AM1: an honestly built membership proof verifies against the built root", () => {
     const { rootHex, proof } = buildMembershipProof(leaves(), KEY_A);
@@ -70,39 +79,56 @@ describe("D-AM accumulator membership witness (B3)", () => {
   });
 });
 
-describe("verifier totality (E-ND1: forged ⇒ false, never throws)", () => {
+describe("verifier totality — malformed hex (E-ND1: forged ⇒ false, never throws)", () => {
   it("a wrong-length but valid-hex key fails closed", () => {
     const { rootHex } = buildMembershipProof(leaves(), KEY_A);
-    let result: boolean | "threw" = "threw";
-    expect(() => {
-      result = verifyAccumulatorMembership(rootHex, { keyHex: "aa", value: VAL_A, siblings: [] });
-    }).not.toThrow();
-    expect(result).toBe(false);
+    rejectsNoThrow(rootHex, { keyHex: "aa", value: VAL_A, siblings: [] });
   });
 
   it("a NON-HEX key fails closed without throwing", () => {
     const { rootHex } = buildMembershipProof(leaves(), KEY_A);
-    let result: boolean | "threw" = "threw";
-    expect(() => {
-      result = verifyAccumulatorMembership(rootHex, {
-        keyHex: "zz".repeat(32),
-        value: VAL_A,
-        siblings: [],
-      });
-    }).not.toThrow();
-    expect(result).toBe(false);
+    rejectsNoThrow(rootHex, { keyHex: "zz".repeat(32), value: VAL_A, siblings: [] });
   });
 
   it("a NON-HEX sibling hash fails closed without throwing", () => {
     const { rootHex, proof } = buildMembershipProof(leaves(), KEY_A);
-    const garbageSibling = {
+    rejectsNoThrow(rootHex, {
       ...proof,
       siblings: proof.siblings.map((s, i) => (i === 0 ? { ...s, hash: "zz".repeat(32) } : s)),
-    };
-    let result: boolean | "threw" = "threw";
-    expect(() => {
-      result = verifyAccumulatorMembership(rootHex, garbageSibling);
-    }).not.toThrow();
-    expect(result).toBe(false);
+    });
+  });
+});
+
+describe("verifier canonical proof shape (CL r-on-f5f5e8e: non-canonical metadata ⇒ false)", () => {
+  const base = (): ReturnType<typeof buildMembershipProof> => buildMembershipProof(leaves(), KEY_A);
+
+  it("a sibling at level 0 (below the leaf-fold range) is rejected", () => {
+    const { rootHex, proof } = base();
+    rejectsNoThrow(rootHex, { ...proof, siblings: [...proof.siblings, { level: 0, hash: "00".repeat(32) }] });
+  });
+
+  it("a sibling at level 257 (above DEPTH) is rejected", () => {
+    const { rootHex, proof } = base();
+    rejectsNoThrow(rootHex, { ...proof, siblings: [...proof.siblings, { level: 257, hash: "00".repeat(32) }] });
+  });
+
+  it("duplicate sibling levels are rejected (no silent overwrite)", () => {
+    const { rootHex, proof } = base();
+    const first = proof.siblings[0]!;
+    rejectsNoThrow(rootHex, { ...proof, siblings: [...proof.siblings, { ...first }] });
+  });
+
+  it("a short (non-32-byte) sibling hash is rejected", () => {
+    const { rootHex, proof } = base();
+    rejectsNoThrow(rootHex, {
+      ...proof,
+      siblings: proof.siblings.map((s, i) => (i === 0 ? { ...s, hash: "aa".repeat(16) } : s)),
+    });
+  });
+
+  it("a malformed rootHex (wrong length / non-hex) is rejected", () => {
+    const { proof } = base();
+    rejectsNoThrow("aa", proof);
+    rejectsNoThrow("zz".repeat(32), proof);
   });
 });

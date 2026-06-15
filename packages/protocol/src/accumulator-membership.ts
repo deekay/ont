@@ -71,9 +71,28 @@ export function verifyAccumulatorMembership(rootHex: string, proof: AccumulatorM
     if (key.length !== 32) {
       return false;
     }
+    // Canonical root: exactly 32 bytes of hex (case-insensitive).
+    if (!/^[0-9a-f]{64}$/.test(rootHex.toLowerCase())) {
+      return false;
+    }
+    // Canonical sibling set: each sits at a real child level [1, DEPTH], levels
+    // are unique, and each hash is 32 bytes. Non-canonical metadata is rejected,
+    // not silently ignored — a level-0/257 or duplicate-level sibling would
+    // otherwise be dropped/overwritten by the level-keyed fold, letting a forged
+    // proof smuggle siblings the verifier never reads.
     const siblingByLevel = new Map<number, Uint8Array>();
     for (const sibling of proof.siblings) {
-      siblingByLevel.set(sibling.level, hexToBytes(sibling.hash));
+      if (!Number.isInteger(sibling.level) || sibling.level < 1 || sibling.level > ACCUMULATOR_DEPTH) {
+        return false;
+      }
+      if (siblingByLevel.has(sibling.level)) {
+        return false;
+      }
+      const hash = hexToBytes(sibling.hash);
+      if (hash.length !== 32) {
+        return false;
+      }
+      siblingByLevel.set(sibling.level, hash);
     }
 
     let digest = proof.value === null
