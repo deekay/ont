@@ -1,10 +1,11 @@
 // D-PB conformance battery (B3_EVIDENCE_HARDENING.md §11 / E-PB1..E-PB5; FREE / structural,
 // conforms to the kernel `verifyProofBundleStructure` / `verifyProofBundleAgainstBitcoin`).
 // D-PB ASSEMBLES the `accumulator_batch_claim` bundle from already-built component witnesses
-// (D-AM membership, D-BI inclusion, ownership + value-record chain) and is the verifier's
-// inverse: a well-formed input round-trips GREEN through the resident verifiers, and any cheap
-// assembly incoherence fails closed at build time — so the builder never emits a bundle the
-// verifier would reject (§1 / E-ND1).
+// (D-AM membership, D-BI inclusion, ownership + value-record chain). A WELL-FORMED input
+// round-trips GREEN through the resident verifiers, and any cheap assembly incoherence (the
+// obligations D-PB owns) fails closed at build time. Cryptographic + value-record validity stays
+// VERIFIER-owned (pure placer): D-PB may place forged signed-record material, and the kernel then
+// rejects it — forged evidence ≡ the kernel's no-accept, never a false accept (§1 / E-ND1).
 import {
   verifyProofBundleAgainstBitcoin,
   verifyProofBundleStructure,

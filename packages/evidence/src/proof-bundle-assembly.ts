@@ -9,15 +9,19 @@
 //
 // COMPOSITION STANCE (CL's D-SB-avail ruling — consume verified facts, don't re-derive). D-PB
 // takes the OUTPUTS of D-AM / D-BI and assembles them; it does NOT re-run PoW / Merkle /
-// membership and it does NOT call the verifier. Its correctness obligation is exactly
-// "assembles a bundle the resident verifier accepts," asserted by running the resident
+// membership and it does NOT call the verifier. Its obligation is that a WELL-FORMED input
+// produces a bundle the resident verifiers accept, asserted by running
 // `verifyProofBundleStructure` + `verifyProofBundleAgainstBitcoin` over the built bundle in the
 // tests.
 //
-// NON-DECIDING (the §1 contract). The builder returns no verdict and decides no ownership; it
-// fails closed (throws) on the cheap assembly-coherence obligations the resident validator
-// enforces, so it never silently emits a bundle the verifier would reject. A hostile assembly
-// has the same acceptance effect as no-witness (E-ND1).
+// NON-DECIDING + PURE PLACER (the §1 contract). The builder returns no verdict and decides no
+// ownership. It fails closed (throws) only on the CHEAP ASSEMBLY-COHERENCE obligations it owns —
+// leaf binds the name, value is a non-null commitment to the claimed owner, the cited anchor
+// matches the embedded inclusion, and value-record owner/ref/sequence/predecessor linkage.
+// CRYPTOGRAPHIC + VALUE-RECORD VALIDITY (Schnorr signatures, `recordHash`, full string shape)
+// stays VERIFIER-owned: D-PB places signed records without re-verifying them, so handed forged
+// signed-record material it CAN emit a bundle the kernel then rejects. That is the pure-placer
+// split — forged evidence yields the kernel's no-accept (E-ND1), never a false accept.
 //
 // SCOPE (CL design review on `4c0e3fd`). Assembly-only: the branded verified-anchor-height
 // coupling (consuming a D-SB-avail `VerifiedAvailability` so the stamped height is the minted
@@ -177,11 +181,11 @@ function placeValueRecords(
 
 /**
  * Assemble an `accumulator_batch_claim` proof bundle from already-built component witnesses.
- * Fails closed (throws) on the cheap assembly-coherence obligations the resident validator
- * enforces — leaf binds the name, value commits the claimed owner, and (when an inclusion is
- * embedded) the cited anchor txid + height match it. The assembled bundle is the verifier's
- * inverse: it round-trips green through `verifyProofBundleStructure` and (with an inclusion)
- * `verifyProofBundleAgainstBitcoin`.
+ * Fails closed (throws) on the cheap assembly-coherence obligations it owns — leaf binds the
+ * name, value commits the claimed owner, and (when an inclusion is embedded) the cited anchor
+ * txid + height match it. A WELL-FORMED input round-trips green through
+ * `verifyProofBundleStructure` and (with an inclusion) `verifyProofBundleAgainstBitcoin`;
+ * cryptographic + value-record validity remains the kernel's to decide (pure placer).
  */
 export function buildAccumulatorBatchClaimBundle(
   input: BuildBatchClaimBundleInput,
