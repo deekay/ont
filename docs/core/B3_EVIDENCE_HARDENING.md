@@ -484,6 +484,27 @@ name — the notice-window does. So D-CV may use commit-priority to derive a det
 and emit `contested` provenance, but must not declare an owner. This is the single place B3
 could smuggle a consensus decision; confirm the boundary before the red→green slice.
 
+**Boundary RESOLVED + red battery AUTHORED (CL D-CV confirm).** CL confirmed: deterministic
+ordering is allowed; ownership selection is not (#37 rejects height/txid priority as an
+acquisition winner; #69 counts only distinct-owner DA-valid priority-bearing claims). So for a
+distinct-owner same-leaf collision D-CV emits a canonical `contested-no-owner` representation —
+neither owner value enters the SMT; same-owner duplicates coalesce; batch-local duplicates fail
+closed; DA-excluded / non-priority leaves are skipped with no contest / nullify effect. To stop
+**winner leakage** the disposition is COMPUTED from the actual grouping and cross-checked against
+the projection's claimed `duplicateHandling`; a contradiction fails closed. D-CV **consumes** the
+locked #83 closed projection (`DcvClosedLeafProjection`) — it does not re-define leaf key/name,
+owner identity/binding, anchor coords, batch-id/duplicate handling, DA verdict, or base relation.
+`deriveCanonicalRoot(input) → { derived, newRoot, leaves, reason }` (`batch-exclusion.ts`).
+
+The §6c deadline-clock / `cv.earliest-valid-governs` windows aspect is **scoped out** to da-windows
+(#49) — D-CV owns the canonical root + provenance, not the timing; `cv.same-block-order` folds into
+`cv.commute` (order-independence). Authored cv.* battery (14, RED vs the stub): `derives-canonical-
+root` (positive) · `prevroot-k-deep` · `base-root-binding` · `no-op-anchor` · `commute` ·
+`no-contest-decision` (CL's executable negative: distinct-owner → contested, no provable owner A/B in
+the root) · `winner-leakage-guard` (claimed `unique` for a real collision ⇒ fail closed) ·
+`same-owner-coalesce` · `excluded-duplicate-no-nullify` · `reorg-rederive` · `stale-base` ·
+`insert-only` · `batch-local-duplicate` · `malformed` (fail closed, never throws).
+
 ## §11 — Third FREE slice: D-PB proof-bundle assembly design
 
 Design-first → **OK'd by CL (design review on `4c0e3fd`)** with the tightenings folded below.

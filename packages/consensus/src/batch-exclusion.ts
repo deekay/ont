@@ -612,3 +612,92 @@ export function deriveBatchedInsertions(input: BatchExclusionInput): BatchExclus
     reason: "batch-exclusion-derived",
   };
 }
+
+// ---------------------------------------------------------------------------------------------
+// D-CV — canonical-root derivation (B3 §10; ratified #53 prevRoot=R_{h-K} delta-merge + #54/#55
+// anchor order + PR-5/PR-9 via #66). The ROOT-DERIVATION half on top of the locked #83 closed
+// projection contract (`DcvClosedLeafProjection`): given the K-deep base and a set of delta leaves
+// each carrying its closed projection + committed value, fold the DA-valid priority-bearing leaves
+// into ONE deterministic SMT root and emit per-leaf provenance. PURE / total / fail-closed /
+// order-independent — no I/O and no nondeterministic globals (the @ont/consensus purity gate).
+//
+// CONSUMES, NEVER RE-DEFINES (CL D-CV confirm). Leaf key/name, owner identity/binding, anchor
+// coords, batch-id / duplicate handling, DA verdict, and the base relation are the #83 projection
+// contract; D-CV reads them. It does NOT recompute the DA verdict, name grammar, or owner binding.
+//
+// THE BOUNDARY (CL: deterministic ordering allowed, ownership selection NOT — #37 rejects
+// height/txid priority as an acquisition winner; #69 counts only distinct-owner DA-valid
+// priority-bearing claims). D-CV may use commit-priority / anchor order to derive a deterministic
+// root + provenance, but for a distinct-owner same-leaf collision it MUST emit a canonical
+// `contested-no-owner` representation — neither claimant's owner value enters the SMT. Same-owner
+// duplicates coalesce; batch-local duplicates fail closed; DA-excluded / non-priority leaves are
+// skipped with no contest / nullify / auction effect. To stop WINNER LEAKAGE, the effective
+// disposition is COMPUTED from the actual leaf grouping and cross-checked against the projection's
+// claimed `duplicateHandling`; a contradiction fails closed.
+//
+// SCOPE-OUT: the §6c deadline-clock / earliest-valid-governs windows aspect stays in da-windows
+// (#49) — D-CV owns the canonical root + provenance, not the timing.
+
+/** What the derivation did with a single leaf key after folding the DA-valid priority leaves. */
+export type DcvLeafDisposition =
+  | "inserted" // unique, or same-owner duplicates coalesced → the owner value is in the SMT
+  | "contested-no-owner" // distinct-owner collision → NO owner value in the SMT (notice-window #69 decides)
+  | "skipped-excluded" // DA-excluded or non-priority → no effect on the root or any contest
+  | "rejected-batch-local"; // duplicate leaf key within one batch → rejected
+
+export interface DcvLeafProvenance {
+  readonly leafKeyHex: string;
+  readonly name: string;
+  readonly disposition: DcvLeafDisposition;
+  /** The owner value folded into the SMT for this leaf, or null (contested / excluded / rejected). */
+  readonly ownerValueHex: string | null;
+  /** Contributing non-excluded batch ids, sorted (deterministic provenance). */
+  readonly contributingBatchIds: readonly string[];
+}
+
+export type DcvDerivationReason =
+  | "dcv-not-implemented"
+  | "dcv-derived"
+  | "dcv-input-malformed"
+  | "dcv-base-mismatch" // baseLeaves do not fold to base.prevRoot, or the base is not K-deep vs the deltas
+  | "dcv-stale-base" // a delta projection's base relation disagrees with the input base
+  | "dcv-insert-only-violation" // a delta leaf key is already present in the base set
+  | "dcv-projection-contradiction" // claimed duplicateHandling disagrees with the computed disposition (winner-leakage guard)
+  | "dcv-batch-local-duplicate" // the same leaf key appears twice within one batch
+  | "dcv-no-op"; // the DA-valid effect is empty — the derived root equals prevRoot
+
+export interface DcvDerivationVerdict {
+  readonly derived: boolean;
+  /** newRoot = accumulatorRootOf(base ∪ {inserted owner leaves}); null when `derived` is false. */
+  readonly newRoot: string | null;
+  /** Per-leaf provenance, sorted by leafKeyHex (deterministic). */
+  readonly leaves: readonly DcvLeafProvenance[];
+  readonly reason: DcvDerivationReason;
+}
+
+/** D-CV input — the K-deep base + delta leaves, each carrying its locked #83 closed projection. */
+export interface DcvDerivationInput {
+  /** R_{h-K}: the base relation the delta applies onto (consumed from the #83 contract). */
+  readonly base: DcvBaseRootRelationship;
+  /** The base committed leaf set; its accumulatorRoot MUST equal `base.prevRoot` (the K-deep snapshot). */
+  readonly baseLeaves: readonly BatchCompletenessBaseLeafWitness[];
+  /** Confirmation depth K (no baked constant): every delta anchor must be ≥ K above `baseRootHeight`. */
+  readonly K: number;
+  /** The delta leaves to fold, each with its closed projection + committed value (#83 leaf witness). */
+  readonly leaves: readonly BatchCompletenessLeafWitness[];
+}
+
+/**
+ * Derive the canonical SMT root from the K-deep base and the delta leaves' closed projections.
+ * PURE / total / fail-closed: malformed input, a stale/contradictory base, a winner-leakage
+ * contradiction, a batch-local duplicate, an insert-only violation, or an empty (no-op) effect all
+ * return `derived:false` and never throw. On success returns the deterministic `newRoot` and the
+ * sorted per-leaf provenance, with distinct-owner collisions surfaced as `contested-no-owner` and
+ * NO owner value placed in the SMT.
+ */
+export function deriveCanonicalRoot(input: DcvDerivationInput): DcvDerivationVerdict {
+  // D-CV stub (tests-first): the derivation + boundary gates land on CL's red-battery review.
+  // Until then this is a sentinel so the cv.* battery is RED.
+  void input;
+  return { derived: false, newRoot: null, leaves: [], reason: "dcv-not-implemented" };
+}
