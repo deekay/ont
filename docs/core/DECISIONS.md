@@ -2003,6 +2003,34 @@ precondition is a final name), a malformed attempt, or any extra field fails clo
 overclaims for a non-final name. This satisfies #44's "boundary may change only with a DECISIONS entry
 + conformance coverage"; the boundary freezes at launch.
 
+78. b2-lot-commitment-match-boundary: the lot-commitment-match predicate enters @ont/consensus as a
+pure CONSENSUS_VERDICTS decider — a bid's claimed lot commitment is accepted only if it equals the
+WIRE §6 recomputation over its (auctionId, name, unlockBlock); a mismatch is refused — riding the
+audited B1 @ont/wire computeLotCommitment primitive — 2026-06-15
+
+*Status: **Proposed** (writer ClaudeleLunatique, reviewer ChatLunatique; lands on branch
+clean-build-b2-kernel, DK merges). A boundary-manifest addition under #44, riding the
+CONSENSUS_VERDICTS tier (#59). External allowlist is `@ont/wire` only: it rides the B1
+`computeLotCommitment` primitive (`sha256(lenPrefix("ont-auction-lot") ‖ lenPrefix(text(auctionId)) ‖
+lenPrefix(name) ‖ lenPrefix(decimal(unlockBlock)))`) — the same authority the wire encoder uses — and
+imports no legacy `@ont/protocol` normalization. NO new consensus law: it lands the already-ratified
+B12 (a bid whose recomputed lot commitment mismatches its claimed lot is refused; no parallel lot for
+a single name). Covered by conformance: `trust-surface.test.ts` (`lot-commitment-match.ts` in
+CONSENSUS_VERDICTS, `@ont/wire` allowlist), `lot-commitment-match.test.ts`, and the B12-neg-01 binding.*
+
+**The rule.** `lotCommitmentMatch({ claimedLotCommitment, auctionId, name, unlockBlock })` →
+`{ matches, reason }`: recompute the WIRE §6 lot commitment over `(auctionId, name, unlockBlock)` and
+compare to `claimedLotCommitment`; a mismatch refuses (no parallel lot minted). SCOPE: only the
+recompute-and-compare check — the auctionId GRAMMAR (`opening-{name}` / `reopen-{name}-after-{r}`,
+PR-28) is NOT validated here (`computeLotCommitment` treats auctionId as opaque preimage text per WIRE
+§6); broader lot-witness / indexer integration and release-anchor matching (reopen #70 / S9) stay
+their own slices. The name preimage must be canonical (the primitive rides the same `isCanonicalName`
+as #75). Total / fail-closed + closed-shape (the #63–#77 discipline): a malformed bid (non-hex32
+claimed commitment, non-string auctionId/name, non-integer unlockBlock, extra field) rejects, and the
+wire primitive — which throws on a non-canonical name / out-of-range unlockBlock — is wrapped so any
+throw becomes a fail-closed reject, never an exception. This satisfies #44's "boundary may change
+only with a DECISIONS entry + conformance coverage"; the boundary freezes at launch.
+
 ## Fairness Principles To Carry Into The Launch Rewrite
 
 The rewritten launch draft should explicitly state:

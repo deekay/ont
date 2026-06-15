@@ -37,6 +37,7 @@ import {
   VALUE_RECORD_FORMAT,
   VALUE_RECORD_VERSION,
   bytesToHex,
+  computeLotCommitment,
   hexToBytes,
   recoverAuthDigest,
   recoveryDescriptorDigest,
@@ -86,6 +87,7 @@ import { windowSchedule } from "./window-schedule.js";
 import { acceptCanonicalLeafName } from "./name-canonicalization.js";
 import { claimPathEligibility } from "./claim-path-eligibility.js";
 import { acceptPostFinalAttempt } from "./post-final-attempt.js";
+import { lotCommitmentMatch } from "./lot-commitment-match.js";
 import {
   createTransferPayload,
   deriveOwnerPubkey,
@@ -252,6 +254,8 @@ const LOCAL_BINDING_MANIFEST = new Set<string>([
   "F15-pos-01",
   // post-final-attempt (#77)
   "B7-neg-01",
+  // lot-commitment-match (#78)
+  "B12-neg-01",
 ]);
 
 // A binding may only execute a vector that is (a) locked, (b) required-tier
@@ -1756,6 +1760,21 @@ describe("B2 vector bindings — post-final-attempt (#77)", () => {
       expect(changesIncumbent).toBe(accepts(vector)); // false === reject
       expect(r).toMatchObject({ refused: true, stateEffect: "none", incumbentUnchanged: true });
     }
+  });
+});
+
+// ---- lot-commitment-match (#78) ----
+describe("B2 vector bindings — lot-commitment-match (#78)", () => {
+  it("B12-neg-01: a bid whose claimed lot commitment != the WIRE §6 recomputation is refused (no parallel lot)", () => {
+    const vector = loadVector("batched-path-transitions.json", "B12-neg-01");
+    assertBindable(vector);
+    const preimage = { auctionId: "opening-alice", name: "alice", unlockBlock: 0 };
+    const correct = computeLotCommitment(preimage);
+    // caseLotMismatch: the claimed commitment binds a different lot (unlockBlock 1) than the preimage.
+    const mismatched = lotCommitmentMatch({ claimedLotCommitment: computeLotCommitment({ ...preimage, unlockBlock: 1 }), ...preimage });
+    expect(mismatched.matches).toBe(accepts(vector)); // false === reject
+    // positiveControl: the claimed commitment matches the recomputation over its own preimage.
+    expect(lotCommitmentMatch({ claimedLotCommitment: correct, ...preimage }).matches).toBe(true);
   });
 });
 

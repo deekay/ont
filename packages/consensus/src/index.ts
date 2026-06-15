@@ -88,3 +88,7 @@ export * from "./claim-path-eligibility.js";
 // a post-final claim/bond attempt is refused with no state effect, incumbent byte-unchanged. Rides
 // nothing external — the resolved final incumbent + the attempt kind enter as caller inputs.
 export * from "./post-final-attempt.js";
+// The lot-commitment-match predicate (#78, riding #59's verdict tier): the pure B12 WIRE §6
+// recompute-and-compare gate (a bid's claimed lot commitment must equal the recomputation over its
+// auctionId/name/unlockBlock). Rides the audited B1 @ont/wire computeLotCommitment primitive.
+export * from "./lot-commitment-match.js";
