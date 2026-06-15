@@ -752,3 +752,41 @@ the kernel RE-RUN it inline (full no-trust recompute, stateful over prior-bid st
 closed `stateEffect` set as a witnessed verdict (my lean — matches the existing consume-witnessed-
 verdict pattern; the effect is kernel-law from `acceptAuctionBid`, not a B3 assertion)? On your
 rulings I author the `cw.*` red battery then green.
+
+### §13 update — CL rulings (a)+(b) folded (recompute acceptance, not trust it)
+
+**(a) Required fields; kill the bare placeholder.** `kind:"b3-verified-completeness-witness"` now
+REQUIRES `lot` + `bids` — a verifier-checkable witness IS the enumeration. No additive-optional
+(that would preserve the old kind-only bypass as a second valid shape). The 3 existing
+`b2-vector-bindings` T2 uses migrate via a `minimalConcreteWitness()` helper; they are
+purity/determinism/reject checks (none asserts `complete:true` for the placeholder), so they stay
+green against a well-formed concrete witness.
+
+**(b) Recompute acceptance — do NOT trust a B3-supplied `effect`.** The kernel boundary treats
+runtime input as hostile: a late accepted bid falsely marked `none` would shrink the final close and
+let `T2-neg-02` pass. So the witness carries the **full bid + bond facts** each bid needs, and
+`transcriptCompleteness` **recomputes** acceptance by folding the resident `acceptAuctionBid` over
+the bids in canonical `(minedHeight, txIndex)` order — `acceptAuctionBid` already computes
+`nextCloseHeight` (opening → `minedHeight + baseWindow`; soft-close → `max(close, minedHeight +
+softCloseWindow)`), so the soft-close range falls out of the fold. The witness `effect` field is
+OPTIONAL (fixture readability) and is treated as **asserted**: a mismatch vs the recomputed
+`stateEffect` fails closed. This recomputes acceptance EFFECTS only (consensus law under PR-19/PR-29)
+— it does NOT select a winner (T7/T9).
+
+**Concrete witness shape:**
+```
+{ kind: "b3-verified-completeness-witness",
+  lot: { openingFloorSats, params: AuctionParams, openHeight? },   // openHeight optional cross-check
+  bids: [ { txid, txIndex, bidFacts: AuctionBidFacts, bondFacts: AuctionBondFacts, effect? } ] }
+```
+`AuctionParams` = the full resident shape (`baseWindowBlocks`, `softCloseWindowBlocks`, normal +
+soft-close `minRaiseSats`/`minRaiseBasisPoints`). Fold: `prior0 = {openingFloorSats, leader:null,
+close:null}`; per accepted bid update `prior`; `openHeight` = the single `opens-auction` bid's
+height; `finalClose` = the fold's final close. Completeness = symmetric set-equality of the counted
+txid set vs `{ bid.txid | openHeight <= minedHeight <= finalClose }` (accepted + rejected in-range).
+
+**Added red pins (CL):** exactly one computed `opens-auction` (`lot.openHeight` if present must equal
+it); **no-opener / two-openers / update-before-opener** fail closed;
+`cw.effect-forgery-hidden-extension` (a bid whose supplied `effect="none"` but recomputation accepts
+it in soft close ⇒ fail, not shrink the range); params carry every `acceptAuctionBid` input and
+malformed/overflow values fail closed.

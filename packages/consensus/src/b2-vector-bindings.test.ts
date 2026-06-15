@@ -643,7 +643,24 @@ describe("B2 vector bindings — transcript-completeness family (transcriptCompl
   // A distinct, well-formed counted bid set + a labelled "B3-verified witness placeholder".
   // The concrete verifier-checkable witness format and the lot's block range / soft-close are
   // B3 (T2-neg-02 candidate); B2 consumes the witness opaquely.
-  const b3Verified: CompletenessWitness = { kind: "b3-verified-completeness-witness" };
+  // D-CW (B3 §13) retired the bare placeholder: a verifier-checkable witness IS the concrete
+  // enumeration ({lot, bids}). T1-neg-01 only checks purity/determinism/fail-closed (it never
+  // asserts complete:true for the placeholder), so any well-formed concrete witness suffices here.
+  const b3Verified: CompletenessWitness = {
+    kind: "b3-verified-completeness-witness",
+    lot: {
+      openingFloorSats: 1000n,
+      params: {
+        baseWindowBlocks: 1008,
+        softCloseWindowBlocks: 144,
+        minRaiseSats: 1000n,
+        minRaiseBasisPoints: 1000,
+        softCloseMinRaiseSats: 1000n,
+        softCloseMinRaiseBasisPoints: 1000,
+      },
+    },
+    bids: [],
+  };
   const cleanTranscript: AuctionTranscript = { bids: [{ txid: "ab".repeat(32) }, { txid: "cd".repeat(32) }] };
 
   it("T1-neg-01: the transcript verdict is pure with no out-of-kernel override channel", () => {
@@ -687,10 +704,9 @@ describe("B2 vector bindings — transcript-completeness family (transcriptCompl
     expect(transcriptCompleteness(cleanTranscript, { kind: "producer-asserted" }).complete).toBe(accepts(vector)); // false === reject
     // companion: an absent witness also fails closed.
     expect(transcriptCompleteness(cleanTranscript, null).complete).toBe(false);
-    // companion (positive control): only the B3-verified witness placeholder satisfies the posture.
-    // The concrete verifier-checkable format and the lot's block range / soft-close are B3 (T2-neg-02);
-    // consumed opaquely here.
-    expect(transcriptCompleteness(cleanTranscript, b3Verified).complete).toBe(true);
+    // The positive control (a verified witness whose enumeration the transcript matches ⇒ complete)
+    // now lives in the D-CW cw.* battery (transcript-completeness.test.ts), since completeness is
+    // symmetric set-equality over the recomputed soft-close range (B3 §13), not opaque acceptance.
   });
 
   it("T21-neg-01: counted bids must be distinct, well-formed L1 txids — no silent dedup", () => {
@@ -702,8 +718,7 @@ describe("B2 vector bindings — transcript-completeness family (transcriptCompl
     // companion: a malformed (non-32-byte-lowercase-hex) txid is rejected.
     expect(transcriptCompleteness({ bids: [{ txid: "ZZ" }] }, b3Verified).complete).toBe(false);
     expect(transcriptCompleteness({ bids: [{ txid: "AB".repeat(32) }] }, b3Verified).complete).toBe(false); // uppercase hex rejected
-    // companion (positive control): an all-distinct, well-formed set with a verified witness passes.
-    expect(transcriptCompleteness(cleanTranscript, b3Verified).complete).toBe(true);
+    // The all-distinct positive control now lives in the D-CW cw.* battery (set-equality over the range).
   });
 });
 
@@ -1732,7 +1747,7 @@ describe("B2 vector bindings — purity / determinism closing batch (Z1/T20)", (
     //     closed-shape-rejected — so no wall-clock value can ride the deadline boundary.
     expect(bondInNoticeWindow(1003, 1000, 6).verdict).toBe("in-window"); // pure function of heights
     expect(
-      transcriptCompleteness({ bids: [], issuedAt: "2026-01-01T00:00:00Z" } as never, { kind: "b3-verified-completeness-witness" }).complete
+      transcriptCompleteness({ bids: [], issuedAt: "2026-01-01T00:00:00Z" } as never, { kind: "b3-verified-completeness-witness" } as unknown as CompletenessWitness).complete
     ).toBe(false); // injected issuedAt rejected — no timestamp channel
   });
 });
