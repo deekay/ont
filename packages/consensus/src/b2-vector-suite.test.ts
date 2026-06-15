@@ -43,6 +43,10 @@ const readyBindingTargetById: Record<string, string> = {
   "D13-pos-01": "da-verdict: h+W and h+W+C inclusive boundaries",
   "F8-pos-01": "gate-fee: pure structural gate over (anchor, batch, fee), no publisher-identity channel",
   "T18-neg-01": "da-verdict: a claim past the h+W holdsPriority deadline does not enter the transcript",
+  "B10-neg-01": "da-verdict: DA verdict is a witnessed input, no local-fetch channel",
+  "B3-neg-01": "da-verdict: eligible-claim count evaluated at one #49 S1 clock",
+  "B4-neg-01": "da-verdict: only DA-includable claims count toward a collision",
+  "B1-neg-02": "da-verdict: state re-derives from the witnessed DA verdict, no cache across a flip",
   "T1-neg-01": "transcript-completeness: pure verdict, no out-of-kernel override channel",
   "T2-neg-01": "transcript-completeness: absent/producer-asserted completeness witness fails closed",
   "T21-neg-01": "transcript-completeness: distinct/well-formed L1 bid txids, no silent dedup",
@@ -216,8 +220,8 @@ describe("B2 executable vector suite inventory", () => {
 
     expect(countsBy(plans.map((plan) => plan.state))).toEqual({
       "pending-dk": 30,
-      "pending-predicate": 34,
-      "ready-for-binding": 30,
+      "pending-predicate": 30,
+      "ready-for-binding": 34,
     });
   });
 
@@ -227,9 +231,9 @@ describe("B2 executable vector suite inventory", () => {
       .map((plan) => plan.vector.id)
       .sort();
 
-    expect(pendingRequired).toHaveLength(34);
+    expect(pendingRequired).toHaveLength(30);
     expect(pendingRequired).toContain("R10-neg-01");
-    expect(pendingRequired).toContain("B1-neg-02");
+    expect(pendingRequired).toContain("B10-pos-01"); // B1/B3/B4/B10-neg now resident; B10-pos deferred (locality surface)
     expect(pendingRequired).toContain("T7-neg-01"); // T1/T2/T21 are now resident; T7 (auction resolution) stays pending
     expect(pendingRequired).toContain("Q10-neg-01");
   });

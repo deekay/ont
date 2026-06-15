@@ -119,6 +119,11 @@ const LOCAL_BINDING_MANIFEST = new Set<string>([
   "D13-pos-01",
   // T-area vector realized via the resident DA holdsPriority predicate (transcript entry)
   "T18-neg-01",
+  // batched-path DA-consumer family (bindings over resident includable / holdsPriority)
+  "B10-neg-01",
+  "B3-neg-01",
+  "B4-neg-01",
+  "B1-neg-02",
   // params family (DA-window construction + h+K eligibility)
   "A3-neg-01",
   "D9-neg-01",
@@ -276,6 +281,86 @@ describe("B2 vector bindings — DA-verdict family (includable / holdsPriority)"
     expect(holdsPriority(anchor, servedAt(pastDeadlineComparand), params)).toBe(
       holdsPriority(anchor, servedAt(pastDeadlineComparand), params)
     );
+  });
+});
+
+describe("B2 vector bindings — batched-path DA-consumer family (over the resident DA verdict)", () => {
+  // These B vectors are bindings over the RESIDENT da-verdict facts (includable / holdsPriority),
+  // NOT a batched-path state model. The candidate B1 5-state enum {provisional, collided,
+  // contested, final, nullified} is NOT asserted; auction resolution and the B3 witness format
+  // stay out of scope.
+
+  it("B10-neg-01: the DA verdict is a witnessed input — no local-fetch channel can supply it", () => {
+    const vector = loadVector("batched-path-transitions.json", "B10-neg-01");
+    assertBindable(vector);
+    // includable's only evidence input is the witnessed servedEvidence (the #47 eligible(anchor,
+    // servedEvidence, W, C) surface). There is no local-fetch / network parameter, so absent
+    // witnessed evidence fails closed — a kernel cannot rescue it with "I fetched it locally".
+    // Primary -> expected.verdict: with no witnessed evidence the verdict is excluded, and there is
+    // no fetch channel to flip it.
+    expect(includable(anchor, null, params)).toBe(accepts(vector)); // false === reject (no fetch fallback)
+    // companion: the verdict is a pure function of the witnessed servedEvidence only (determinism;
+    // the signature carries no fetch / network channel).
+    const witnessed = servedAt(H + 5);
+    expect(includable(anchor, witnessed, params)).toBe(includable(anchor, witnessed, params));
+  });
+
+  it("B3-neg-01: the eligible-claim count is evaluated at one #49 S1 clock; a desynced height changes it", () => {
+    const vector = loadVector("batched-path-transitions.json", "B3-neg-01");
+    assertBindable(vector);
+    // Count includable claims at ONE clock (the anchor's mined height h). Evaluating one claim's
+    // eligibility against a DIFFERENT (shifted) clock desynchronizes the count — so the verdict that
+    // a multi-clock count is conformant is false (reject); the honest count is one-clock. (No
+    // finalization edge is asserted.)
+    const claimA = servedAt(H + 5); // includable at h: 1005 <= h+W+C = 1005
+    const claimB = servedAt(H + 5);
+    const countAtOneClock = [claimA, claimB].filter((e) => includable(anchor, e, params)).length; // 2
+    // claimB evaluated against a desynced earlier clock h' = H-1 (deadline 1004) drops it.
+    const shiftedAnchor: AnchorFacts = { minedHeight: H - 1, anchoredRoot: "abcd", batchSize: 4 };
+    const shiftedB: ServedEvidence = { anchorHeight: H - 1, anchoredRoot: "abcd", batchSize: 4, firstServableHeight: H + 5 };
+    const countDesynced =
+      (includable(anchor, claimA, params) ? 1 : 0) + (includable(shiftedAnchor, shiftedB, params) ? 1 : 0); // 1
+    // Primary -> expected.verdict: a one-clock count equals itself; the desynced count differs, so
+    // "the multi-clock count is conformant" is false === reject.
+    expect(countAtOneClock === countDesynced).toBe(accepts(vector)); // false === reject
+    expect(countAtOneClock).toBe(2);
+    expect(countDesynced).toBe(1); // the desynced clock drops claimB
+  });
+
+  it("B4-neg-01: only DA-includable claims count toward a collision; a withheld claim contributes nothing", () => {
+    const vector = loadVector("batched-path-transitions.json", "B4-neg-01");
+    assertBindable(vector);
+    // A name collision counts ONLY DA-includable claims. A withheld / DA-excluded colliding claim
+    // (no witnessed served evidence) contributes nothing, so it cannot nullify the victim's name by
+    // withholding. (The two-DA-valid contrast is a companion, NOT a nullified-state-enum assertion.)
+    const realClaim = servedAt(H + 5); // includable
+    const withheldClaim = null; // withheld: no witnessed served evidence -> not includable
+    const includableCollidingCount =
+      (includable(anchor, realClaim, params) ? 1 : 0) + (includable(anchor, withheldClaim, params) ? 1 : 0); // 1
+    // Primary -> expected.verdict: a withheld colliding claim does not push the collision to >= 2,
+    // so it cannot nullify — "the withheld claim nullifies" is false === reject.
+    expect(includableCollidingCount >= 2).toBe(accepts(vector)); // false === reject
+    // companion: two DA-valid (includable) colliding claims do reach a collision count of 2.
+    const twoIncludable =
+      (includable(anchor, servedAt(H + 5), params) ? 1 : 0) + (includable(anchor, servedAt(H + 4), params) ? 1 : 0);
+    expect(twoIncludable).toBe(2);
+  });
+
+  it("B1-neg-02: batched-path state re-derives from the current witnessed DA verdict; no cache across a flip", () => {
+    const vector = loadVector("batched-path-transitions.json", "B1-neg-02");
+    assertBindable(vector);
+    // The DA verdict flips as the witnessed served evidence changes; the kernel re-derives from the
+    // CURRENT witnessed verdict and never serves a cached one across a flip. (No {provisional,
+    // collided, contested, final, nullified} state enum is asserted — that is candidate.)
+    const beforeFlip = includable(anchor, servedAt(H + 5), params); // true: 1005 <= h+W+C = 1005
+    const afterFlip = includable(anchor, servedAt(H + 6), params); // false: 1006 > 1005 — the verdict flips
+    // Primary -> expected.verdict: serving the cached pre-flip verdict after a flip is non-conformant;
+    // "cached-across-flip is conformant" requires before === after, which is false === reject.
+    expect(beforeFlip === afterFlip).toBe(accepts(vector)); // false === reject
+    expect(beforeFlip).toBe(true);
+    expect(afterFlip).toBe(false); // the verdict genuinely flipped
+    // determinism companion: re-deriving from the same current evidence yields the same verdict.
+    expect(includable(anchor, servedAt(H + 6), params)).toBe(includable(anchor, servedAt(H + 6), params));
   });
 });
 
