@@ -11,3 +11,9 @@ export {
   type BuiltBitcoinInclusion,
   type BitcoinInclusionInput,
 } from "./bitcoin-inclusion.js";
+
+export {
+  buildServedEvidence,
+  type ServedBatch,
+  type ServedLeaf,
+} from "./served-bytes.js";
