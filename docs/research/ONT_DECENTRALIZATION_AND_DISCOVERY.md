@@ -19,10 +19,12 @@ Companions:
 
 **ONT name state is a deterministic function of Bitcoin.** Given the Bitcoin
 block history, the frozen `@ont/consensus` rules, and the data-availability windows, every
-honest indexer computes *the same* name ownership, value records, and contest
-state — in any processing order. This is not aspirational; it is the
+honest indexer computes *the same* name ownership, value-record validity, and
+contest state — in any processing order. This is not aspirational; it is the
 convergence guarantee proven in `da-convergence-sim.test.ts` and composed in
-`runBatchRail`.
+`runBatchRail`. (Value-record *validity* is deterministic given a presented
+chain head; *which* record is the current/freshest one is resolver liveness, not
+consensus — see "The trust model: safety vs liveness" below.)
 
 The consequence for decentralization and discovery is the load-bearing insight
 of this note:
