@@ -14,6 +14,9 @@
 //         recoveryPubkey — NOT a commitment parsed out of the slot.
 //   - R6  head binding: recoveryDescriptorDigest(descriptor) equals the invoke's
 //         recoveryDescriptorHash (the invoke names THIS descriptor).
+//   - R8  challenge-window equality (T19 companion): descriptor.challengeWindowBlocks equals the
+//         invoke's challengeWindowBlocks — the descriptor-committed window must match the event
+//         window, or the invoke (which signs W13 with its own window) cannot authorize.
 //   - R3  current armed head: that same digest equals the name-state's current descriptor
 //         head-hash fact (hash/fact based; sequence is only a companion check, never a
 //         substitute for the head hash).
@@ -57,10 +60,25 @@ const isObject = (x: unknown): x is Record<string, unknown> =>
   typeof x === "object" && x !== null && !Array.isArray(x);
 const isClosedShape = (obj: object, allowed: readonly string[]): boolean =>
   Object.keys(obj).every((key) => allowed.includes(key));
-const isNonNegInteger = (x: unknown): x is number => typeof x === "number" && Number.isInteger(x) && x >= 0;
+const isSafeNonNegInt = (x: unknown): x is number => typeof x === "number" && Number.isSafeInteger(x) && x >= 0;
+const isU32 = (x: unknown): x is number => isSafeNonNegInt(x) && x <= 0xffff_ffff;
+const isByte = (x: unknown): x is number => isSafeNonNegInt(x) && x <= 0xff;
+// Canonical hex is LOWERCASE-only — matches @ont/wire checkHex32/checkHex64; an uppercase
+// variant is non-canonical and must reject (no normalization).
 const isHex = (x: unknown, bytes: number): x is string =>
-  typeof x === "string" && new RegExp(`^[0-9a-fA-F]{${bytes * 2}}$`).test(x);
+  typeof x === "string" && new RegExp(`^[0-9a-f]{${bytes * 2}}$`).test(x);
 const toHex = (b: Uint8Array): string => Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
+
+// The closed §8.2/§8.2a recovery-descriptor envelope key set — mirrors @ont/wire RD_REQUIRED +
+// RD_OPTIONAL (those are not exported). Used to reject extra fields on the descriptor at the
+// predicate boundary BEFORE digesting (recoveryDescriptorDigest reads known fields but does not
+// reject extras — only parseRecoveryDescriptor closed-envelopes, and the kernel gets an object).
+// A drift tripwire test builds a wire-shaped descriptor and asserts it passes this set.
+const DESCRIPTOR_KEYS = [
+  "format", "descriptorVersion", "name", "ownerPubkey", "ownershipRef", "sequence",
+  "previousDescriptorHash", "recoveryAddress", "signingProfile", "challengeWindowBlocks",
+  "issuedAt", "signature", "recoveryPubkey",
+] as const;
 
 /**
  * The on-chain `RecoverOwner` invoke facts the kernel reads — the §5 payload fields that enter the
@@ -153,7 +171,7 @@ export function acceptRecoverOwner(
   const params = recoveryParams as unknown;
   if (!isObject(params)) return reject("recovery-params-malformed");
   if (!isClosedShape(params, RECOVERY_PARAMS_KEYS)) return reject("recovery-params-malformed");
-  if (!isNonNegInteger(params.recoveryEvidenceWindowBlocks) || params.recoveryEvidenceWindowBlocks < 1) {
+  if (!isU32(params.recoveryEvidenceWindowBlocks) || params.recoveryEvidenceWindowBlocks < 1) {
     return reject("recovery-evidence-window-out-of-range");
   }
   const wR = params.recoveryEvidenceWindowBlocks;
@@ -167,10 +185,10 @@ export function acceptRecoverOwner(
     !isHex(facts.newOwnerPubkey, 32) ||
     !isHex(facts.recoveryDescriptorHash, 32) ||
     !isHex(facts.signature, 64) ||
-    !isNonNegInteger(facts.flags) ||
-    !isNonNegInteger(facts.successorBondVout) ||
-    !isNonNegInteger(facts.challengeWindowBlocks) ||
-    !isNonNegInteger(facts.minedHeight)
+    !isByte(facts.flags) ||
+    !isByte(facts.successorBondVout) ||
+    !isU32(facts.challengeWindowBlocks) ||
+    !isU32(facts.minedHeight)
   ) {
     return reject("invoke-facts-malformed");
   }
@@ -189,9 +207,12 @@ export function acceptRecoverOwner(
   if (!isObject(witness)) return reject("descriptor-witness-malformed");
   if (!isClosedShape(witness, WITNESS_KEYS)) return reject("descriptor-witness-malformed");
   if (witness.kind !== "b3-verified-recovery-descriptor-witness") return reject("descriptor-witness-malformed");
-  if (!isNonNegInteger(witness.witnessedByHeight)) return reject("descriptor-witness-malformed");
+  if (!isU32(witness.witnessedByHeight)) return reject("descriptor-witness-malformed");
   const descriptor = evidence.descriptor as unknown;
   if (!isObject(descriptor)) return reject("descriptor-malformed");
+  // Closed-shape the descriptor envelope locally: recoveryDescriptorDigest reads known fields but
+  // does not reject extras, so an injected `source`/`producer`/etc. field must be rejected here.
+  if (!isClosedShape(descriptor, DESCRIPTOR_KEYS)) return reject("descriptor-extra-field");
 
   // ---- name-state facts ----
   const state = nameState as unknown;
@@ -202,7 +223,7 @@ export function acceptRecoverOwner(
     !isHex(state.headTxid, 32) ||
     !isHex(state.currentOwnershipRef, 32) ||
     !isHex(state.recoveryDescriptorHeadHash, 32) ||
-    !isNonNegInteger(state.recoveryDescriptorHeadSequence)
+    !isSafeNonNegInt(state.recoveryDescriptorHeadSequence)
   ) {
     return reject("name-state-malformed");
   }
@@ -222,6 +243,12 @@ export function acceptRecoverOwner(
 
   // ---- R6: the invoke names THIS descriptor ----
   if (descriptorDigestHex !== facts.recoveryDescriptorHash) return reject("recovery-descriptor-hash-mismatch");
+
+  // ---- T19 / R8: the descriptor-committed challenge window must equal the invoke's window ----
+  // (descriptor.challengeWindowBlocks was checkU32-validated inside recoveryDescriptorDigest above).
+  // Without this, an invoke could sign W13 with one challengeWindowBlocks while pointing at a
+  // descriptor that commits a different window, and still authorize.
+  if (descriptor.challengeWindowBlocks !== facts.challengeWindowBlocks) return reject("challenge-window-mismatch");
 
   // ---- R3: this descriptor IS the current armed head (hash fact authoritative) ----
   if (descriptorDigestHex !== state.recoveryDescriptorHeadHash) return reject("descriptor-not-current-head");

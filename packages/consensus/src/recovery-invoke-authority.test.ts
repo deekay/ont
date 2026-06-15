@@ -68,6 +68,7 @@ interface BuildOpts {
   ownershipRef?: string;
   sequence?: number;
   descriptorVersion?: number;
+  descriptorChallengeWindowBlocks?: number; // descriptor-committed window (default CWB = the invoke's window)
   flags?: number;
   minedHeight?: number;
   wR?: number;
@@ -87,6 +88,7 @@ function buildValid(opts: BuildOpts = {}): Bundle {
   const minedHeight = opts.minedHeight ?? H_R;
   const wR = opts.wR ?? W_R;
   const witnessedByHeight = opts.witnessedByHeight ?? minedHeight + wR;
+  const descriptorCWB = opts.descriptorChallengeWindowBlocks ?? CWB; // invoke's window stays CWB
 
   const unsignedDescriptor: Record<string, unknown> = {
     format: RECOVERY_DESCRIPTOR_FORMAT,
@@ -98,7 +100,7 @@ function buildValid(opts: BuildOpts = {}): Bundle {
     previousDescriptorHash: null,
     recoveryAddress: "bc1qrecoveryexampleaddr0000000000000000",
     signingProfile: "bip322",
-    challengeWindowBlocks: CWB,
+    challengeWindowBlocks: descriptorCWB,
     issuedAt: T0,
     recoveryPubkey,
     signature: "00".repeat(64),
@@ -180,6 +182,15 @@ describe("acceptRecoverOwner — recovery-invoke authorization + evidence gate (
     const b = buildValid();
     const v = run({ ...b, invokeFacts: { ...b.invokeFacts, recoveryDescriptorHash: "ab".repeat(32) } });
     expect(v).toEqual({ accepted: false, reason: "recovery-descriptor-hash-mismatch" });
+  });
+
+  it("R8/T19: a descriptor committing a different challengeWindowBlocks than the invoke is rejected", () => {
+    // descriptor commits 200; the invoke signs W13 with CWB (144) and names this descriptor's digest,
+    // so R6 still passes — but the window-equality conjunct rejects (the T19/R8 battery).
+    const b = buildValid({ descriptorChallengeWindowBlocks: 200 });
+    expect(b.invokeFacts.challengeWindowBlocks).toBe(CWB);
+    expect(b.descriptorEvidence.descriptor.challengeWindowBlocks).toBe(200);
+    expect(run(b)).toEqual({ accepted: false, reason: "challenge-window-mismatch" });
   });
 
   it("R3: the descriptor must be the name's current armed head (hash fact)", () => {
@@ -324,10 +335,35 @@ describe("acceptRecoverOwner — recovery-invoke authorization + evidence gate (
       { flags: -1 },
       { minedHeight: 1.5 },
       { recoveryDescriptorHash: 123 as unknown as string },
+      { minedHeight: 0x1_0000_0000 }, // exceeds u32
+      { challengeWindowBlocks: 0x1_0000_0000 }, // exceeds u32
+      { successorBondVout: 256 }, // exceeds byte
+      { flags: 256 }, // exceeds byte (caught as malformed before the path-split check)
     ]) {
       expect(runLoose({ ...b.invokeFacts, ...bad }, b.descriptorEvidence, b.nameState, b.recoveryParams).reason)
         .toBe("invoke-facts-malformed");
     }
+  });
+
+  it("rejects an extra field on the descriptor envelope (closed shape, #67 / blocker 2)", () => {
+    const b = buildValid();
+    const withExtra = (extra: object) =>
+      runLoose(
+        b.invokeFacts,
+        { ...b.descriptorEvidence, descriptor: { ...b.descriptorEvidence.descriptor, ...extra } },
+        b.nameState,
+        b.recoveryParams
+      ).reason;
+    expect(withExtra({ source: "resolver" })).toBe("descriptor-extra-field");
+    expect(withExtra({ producer: "x" })).toBe("descriptor-extra-field");
+  });
+
+  it("rejects uppercase (non-canonical) hex — canonical hex is lowercase-only", () => {
+    const b = buildValid();
+    expect(runLoose({ ...b.invokeFacts, prevStateTxid: b.invokeFacts.prevStateTxid.toUpperCase() }, b.descriptorEvidence, b.nameState, b.recoveryParams).reason)
+      .toBe("invoke-facts-malformed");
+    expect(runLoose(b.invokeFacts, b.descriptorEvidence, { ...b.nameState, ownerPubkey: b.nameState.ownerPubkey.toUpperCase() }, b.recoveryParams).reason)
+      .toBe("name-state-malformed");
   });
 
   it("rejects malformed name-state fields without throwing", () => {
