@@ -422,12 +422,21 @@ describe("B2 vector bindings — settlement family (settlementLockMatchesMaturit
     // second maturity value (no baked constant): the comparison tracks the supplied parameter.
     expect(settlementLockMatchesMaturity({ settlementLockBlocks: 144 }, 288).matches).toBe(false);
     expect(settlementLockMatchesMaturity({ settlementLockBlocks: 288 }, 288).matches).toBe(true);
-    // total fail-closed + closed-shape: malformed / negative / extra-field do not match, never throw.
-    expect(settlementLockMatchesMaturity({ settlementLockBlocks: -1 }, 100).matches).toBe(false);
+    // Total fail-closed + closed-shape (the #65 discipline) — pin every claim mechanically. A
+    // loose-typed view exercises the non-object cases the typed signature forbids at call sites.
+    const s5Loose = settlementLockMatchesMaturity as unknown as (a: unknown, b: unknown) => { matches: boolean; reason: string };
+    expect(settlementLockMatchesMaturity({ settlementLockBlocks: -1 }, 100).matches).toBe(false); // negative lock
+    expect(s5Loose(null, 100).matches).toBe(false); // null commitment
+    expect(s5Loose("x", 100).matches).toBe(false); // non-object commitment
+    expect(s5Loose({ settlementLockBlocks: 1.5 }, 100).matches).toBe(false); // non-integer settlementLockBlocks
+    expect(s5Loose({ settlementLockBlocks: 100 }, 1.5).matches).toBe(false); // non-integer maturityBlocks
+    expect(s5Loose({ settlementLockBlocks: 100 }, -1).matches).toBe(false); // negative maturityBlocks
     expect(
       settlementLockMatchesMaturity({ settlementLockBlocks: 100, source: "bidder-x" } as unknown as SettlementLockCommitment, 100).matches
     ).toBe(false); // extra field rejected — no source authority
-    expect(() => settlementLockMatchesMaturity({ settlementLockBlocks: 1.5 } as unknown as SettlementLockCommitment, 100)).not.toThrow();
+    expect(() => s5Loose(null, 100)).not.toThrow();
+    expect(() => s5Loose("x", "y")).not.toThrow();
+    expect(() => s5Loose({ settlementLockBlocks: 1.5 }, -1)).not.toThrow();
   });
 
   it("S15-neg-01: ownership materializes only from an actual accepted winning bid", () => {
@@ -444,8 +453,15 @@ describe("B2 vector bindings — settlement family (settlementLockMatchesMaturit
     // authority — it does not materialize (fail closed), never throws.
     expect(
       settlementMaterializes({ kind: "accepted-winning-bid", phase: "settled", source: "catalog" } as unknown as AcceptedWinningBid).materializes
-    ).toBe(false);
-    expect(() => settlementMaterializes(undefined as unknown as AcceptedWinningBid | null)).not.toThrow();
+    ).toBe(false); // extra field rejected — no catalog/phase/source authority
+    // Total fail-closed (the #65 discipline) — a loose-typed view exercises the malformed cases.
+    const s15Loose = settlementMaterializes as unknown as (a: unknown) => { materializes: boolean; reason: string };
+    expect(s15Loose(undefined).materializes).toBe(false); // undefined -> no owner
+    expect(s15Loose("x").materializes).toBe(false); // non-object
+    expect(s15Loose({ kind: "nope" }).materializes).toBe(false); // wrong kind
+    expect(() => s15Loose(undefined)).not.toThrow();
+    expect(() => s15Loose("x")).not.toThrow();
+    expect(() => s15Loose({ kind: "nope" })).not.toThrow();
   });
 });
 
