@@ -82,6 +82,7 @@ import { resolveNoticeWindow, bondInNoticeWindow, type NoticeWindowClaim, type N
 import { resolveReopen, type ReopenInput } from "./reopen-resolution.js";
 import { resolveNameOccupancy } from "./occupancy.js";
 import { deriveBatchedInsertions, type BatchExclusionInput } from "./batch-exclusion.js";
+import { windowSchedule } from "./window-schedule.js";
 import {
   createTransferPayload,
   deriveOwnerPubkey,
@@ -240,6 +241,9 @@ const LOCAL_BINDING_MANIFEST = new Set<string>([
   // purity / determinism closing batch (structural, b2-boundary idiom)
   "Z1-neg-01",
   "T20-neg-01",
+  // window-schedule (#74)
+  "B22-neg-01",
+  "Z11-neg-01",
 ]);
 
 // A binding may only execute a vector that is (a) locked, (b) required-tier
@@ -1669,6 +1673,38 @@ describe("B2 vector bindings — purity / determinism closing batch (Z1/T20)", (
     expect(
       transcriptCompleteness({ bids: [], issuedAt: "2026-01-01T00:00:00Z" } as never, { kind: "b3-verified-completeness-witness" }).complete
     ).toBe(false); // injected issuedAt rejected — no timestamp channel
+  });
+});
+
+// ---- window-schedule family (#74) ----
+// windowSchedule proves "no market-derived window shrink" BY CONSTRUCTION: no market input channel
+// (closed shape) and an extend-only adjustment. Two frozen constant sets so no launch value is baked.
+const WS_SCHEDULE = { segments: [{ fromHeight: 0, floorBlocks: 1_008 }, { fromHeight: 900_000, floorBlocks: 504 }] };
+describe("B2 vector bindings — window-schedule family (#74)", () => {
+  it("B22-neg-01: a market-derived window shrink has no admitted input channel (closed shape, top-level + nested)", () => {
+    const vector = loadVector("batched-path-transitions.json", "B22-neg-01");
+    assertBindable(vector);
+    // any market signal that would shorten the window is rejected by construction — it cannot even be
+    // supplied. Top-level and nested-in-floorConstants both fail closed.
+    const topLevelMarket = windowSchedule({ anchorHeight: 800_000, floorConstants: WS_SCHEDULE, claimVolume: 9_999 } as never);
+    expect(topLevelMarket.computed).toBe(accepts(vector)); // false === reject
+    expect(windowSchedule({ anchorHeight: 800_000, floorConstants: { segments: WS_SCHEDULE.segments, marketMaturity: 1 } } as never).computed).toBe(false);
+    // positive control: anchor height + frozen schedule only -> a deterministic floor.
+    expect(windowSchedule({ anchorHeight: 800_000, floorConstants: WS_SCHEDULE })).toMatchObject({ computed: true, floorBlocks: 1_008 });
+  });
+
+  it("Z11-neg-01: extend-only — a computed window below the height-keyed floor is rejected; windows reduce only by block height", () => {
+    const vector = loadVector("reorg-replay-determinism.json", "Z11-neg-01");
+    assertBindable(vector);
+    // a negative (shrink) adjustment is rejected, not normalized — no window below the floor.
+    expect(windowSchedule({ anchorHeight: 800_000, floorConstants: WS_SCHEDULE, adaptiveExtensionBlocks: -1 }).computed).toBe(accepts(vector)); // false === reject
+    // positive controls: floor-only and floor + nonnegative extension both yield blocks >= floorBlocks.
+    const floorOnly = windowSchedule({ anchorHeight: 800_000, floorConstants: WS_SCHEDULE });
+    const extended = windowSchedule({ anchorHeight: 800_000, floorConstants: WS_SCHEDULE, adaptiveExtensionBlocks: 144 });
+    expect(floorOnly.blocks).toBe(floorOnly.floorBlocks);
+    expect(extended.computed && (extended.blocks as number) >= (extended.floorBlocks as number)).toBe(true);
+    // the floor itself reduces only by passage of block height (deterministic height schedule).
+    expect(windowSchedule({ anchorHeight: 950_000, floorConstants: WS_SCHEDULE }).floorBlocks).toBe(504);
   });
 });
 

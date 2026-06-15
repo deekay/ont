@@ -1890,6 +1890,44 @@ first-seen vs re-derived height. Total / fail-closed: malformed input fails clos
 and never throws. This satisfies #44's "boundary may change only with a DECISIONS entry + conformance
 coverage"; the boundary freezes at launch.
 
+74. b2-window-schedule-boundary: the window-schedule predicate enters @ont/consensus as a pure
+CONSENSUS_VERDICTS decider — a lifecycle window's length is a function of anchor height + a frozen
+height-keyed schedule plus an extend-only adjustment, with no market-signal input channel — riding
+nothing external — 2026-06-15
+
+*Status: **Proposed** (writer ClaudeleLunatique, reviewer ChatLunatique; lands on branch
+clean-build-b2-kernel, DK merges). A boundary-manifest addition under #44, riding the
+CONSENSUS_VERDICTS tier established by #59 — a new pure verdict module, NOT a tier-widening. Empty
+external allowlist: anchor height + a frozen value-free schedule enter as caller inputs; no
+`@ont/core`, no research/simulation code, no host I/O. NO new consensus law: it lands the
+already-ratified B22 (the window function's only inputs are anchor height + frozen schedule constants;
+a market/state-derived signal that would shorten a window is rejected by construction) and Z11
+(extend-only; a computed window below the height-keyed floor is rejected; windows reduce only by
+passage of block height). Covered by conformance: `trust-surface.test.ts` (`window-schedule.ts` in
+CONSENSUS_VERDICTS with an empty allowlist), `window-schedule.test.ts` (predicate battery), and the
+B22-neg-01 / Z11-neg-01 bindings in `b2-vector-bindings.test.ts`. Authored under DK's keep-going grant.*
+
+**The rule.** `windowSchedule({ anchorHeight, floorConstants, adaptiveExtensionBlocks? })` returns
+`{ computed, blocks, floorBlocks, reason }`:
+- The floor is a deterministic function of anchor height over `floorConstants.segments` — a non-empty
+  list of `{ fromHeight, floorBlocks }` STRICTLY ascending by `fromHeight`; the floor is the
+  `floorBlocks` of the last segment whose `fromHeight <= anchorHeight`. The floor may decay by height
+  (windows reduce only by passage of block height), never by a market signal.
+- `blocks = floorBlocks + extension`, where `extension` is 0 if absent and otherwise a safe
+  nonnegative integer — **extend-only**: a negative (shrink) adjustment fails closed
+  (`window-schedule-shrink-rejected`) rather than being normalized to 0, so `blocks >= floorBlocks`
+  always holds.
+- **No market-signal input channel by construction**: the input is closed-shape at the top level AND
+  inside `floorConstants` and each segment, so a market field (`claimVolume`, `bondTotals`,
+  `distinctKeys`, `marketMaturity`, …) is rejected, never read.
+
+The concrete launch schedule VALUES remain launch-freeze (the schedule enters as frozen caller
+constants; the conformance tests use two distinct constant sets so no value is baked). Total /
+fail-closed + closed-shape (the #63–#73 discipline): malformed, extra-field, unordered-segment,
+negative/non-integer extension, or overflow input fails closed (`computed:false`, `blocks`/`floorBlocks`
+null) and never throws. This satisfies #44's "boundary may change only with a DECISIONS entry +
+conformance coverage"; the boundary freezes at launch.
+
 ## Fairness Principles To Carry Into The Launch Rewrite
 
 The rewritten launch draft should explicitly state:

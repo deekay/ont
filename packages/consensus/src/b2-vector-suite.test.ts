@@ -106,6 +106,8 @@ const readyBindingTargetById: Record<string, string> = {
   "S4-neg-01": "settlement: maturity is the fixed MATURITY_BLOCKS param; an epoch-halving / override value does not settle",
   "Z1-neg-01": "b2-boundary/batch-exclusion: name state is a pure function of (canonical chain + served evidence) only — no local receipt time; arrival-order independent",
   "T20-neg-01": "b2-boundary/notice-window: deadlines are computed from block heights only — no issuedAt / wall-clock input channel",
+  "B22-neg-01": "window-schedule: the window length has no market-signal input channel (closed shape) — a market-derived shrink is rejected by construction",
+  "Z11-neg-01": "window-schedule: extend-only; a computed window below the height-keyed floor (negative/shrink extension) is rejected; windows reduce only by block height",
 };
 
 type VectorOrigin = "vector-now" | "provisional-origin";
@@ -261,8 +263,8 @@ describe("B2 executable vector suite inventory", () => {
 
     expect(countsBy(plans.map((plan) => plan.state))).toEqual({
       "pending-dk": 8,
-      "pending-predicate": 11,
-      "ready-for-binding": 75,
+      "pending-predicate": 9,
+      "ready-for-binding": 77,
     });
   });
 
@@ -272,7 +274,7 @@ describe("B2 executable vector suite inventory", () => {
       .map((plan) => plan.vector.id)
       .sort();
 
-    expect(pendingRequired).toHaveLength(11);
+    expect(pendingRequired).toHaveLength(9);
     // the entire recovery-parked group (R1/R2/R7/R9/R10-01/R10-02/T19 + now R18 completion / G6
     // no-callback purity) is bound to the resident recovery surface — no recovery vector remains.
     // the winner-selection / bid-acceptance group (Q1/Q2/Q3/Q4/Q7/Q9/Q10 + T7/T9/G1) is bound to
@@ -301,5 +303,8 @@ describe("B2 executable vector suite inventory", () => {
     // purity closing batch now resident (structural b2-boundary bindings)
     expect(pendingRequired).not.toContain("Z1-neg-01");
     expect(pendingRequired).not.toContain("T20-neg-01");
+    // window-schedule (#74) now resident
+    expect(pendingRequired).not.toContain("B22-neg-01");
+    expect(pendingRequired).not.toContain("Z11-neg-01");
   });
 });

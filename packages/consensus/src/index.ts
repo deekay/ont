@@ -74,3 +74,7 @@ export * from "./occupancy.js";
 // batched-insertion derivation that makes the DA-exclusion locality / state-equivalence property
 // checkable (B10/D7). Rides nothing external — the DA verdict enters as consumed excludedBatchIds.
 export * from "./batch-exclusion.js";
+// The window-schedule predicate (#74, riding #59's verdict tier): the pure height-keyed, extend-only
+// window-length verdict with no market-signal input channel (B22/Z11). Rides nothing external —
+// anchor height + a frozen value-free schedule enter as caller inputs.
+export * from "./window-schedule.js";
