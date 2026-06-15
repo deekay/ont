@@ -114,6 +114,7 @@ const readyBindingTargetById: Record<string, string> = {
   "B12-neg-01": "lot-commitment-match: a bid whose claimed lot commitment != the WIRE §6 recomputation over (auctionId, name, unlockBlock) is refused (no parallel lot minted)",
   "S6-neg-01": "bond-continuity-break: a pre-maturity bond-outpoint spend with no same-tx valid successor releases the name, regardless of which key signed (no signer channel)",
   "X11-neg-01": "transfer-authority-state: transfer authority requires an owned state; every non-owned lifecycle state (provisional/live-auction/nullified/broken-bond/nonexistent) is non-transferable",
+  "S12-pos-01": "engine applyTransfer: a pre-maturity transfer chain preserves maturityHeight byte-identical across every hop (no reset/extend) — conformance binding to resident engine behavior",
 };
 
 type VectorOrigin = "vector-now" | "provisional-origin";
@@ -269,8 +270,8 @@ describe("B2 executable vector suite inventory", () => {
 
     expect(countsBy(plans.map((plan) => plan.state))).toEqual({
       "pending-dk": 8,
-      "pending-predicate": 3,
-      "ready-for-binding": 83,
+      "pending-predicate": 2,
+      "ready-for-binding": 84,
     });
   });
 
@@ -280,15 +281,15 @@ describe("B2 executable vector suite inventory", () => {
       .map((plan) => plan.vector.id)
       .sort();
 
-    expect(pendingRequired).toHaveLength(3);
+    expect(pendingRequired).toHaveLength(2);
     // the entire recovery-parked group (R1/R2/R7/R9/R10-01/R10-02/T19 + now R18 completion / G6
     // no-callback purity) is bound to the resident recovery surface — no recovery vector remains.
     // the winner-selection / bid-acceptance group (Q1/Q2/Q3/Q4/Q7/Q9/Q10 + T7/T9/G1) is bound to
     // auction-resolution; the notice-window group (T17/F11) is bound to notice-window — no auction
     // or notice-window vector remains pending-predicate.
-    // S12 (transfer maturity-preservation) is a still-pending surface (not yet built); it stays a
-    // visible pending-predicate target so non-resident vectors aren't silently skipped.
-    expect(pendingRequired).toContain("S12-pos-01");
+    // F9 (fee-fact eligibility) is the last still-pending buildable surface; it stays a visible
+    // pending-predicate target so non-resident vectors aren't silently skipped.
+    expect(pendingRequired).toContain("F9-neg-01");
     expect(pendingRequired).not.toContain("T17-neg-01"); // now resident in notice-window
     expect(pendingRequired).not.toContain("F11-neg-01");
     // the reopen/re-auction group (T22/B19) is bound to reopen-resolution — no longer pending.
@@ -322,5 +323,7 @@ describe("B2 executable vector suite inventory", () => {
     // bond-continuity-break (#79) + transfer-authority-state (#80) now resident
     expect(pendingRequired).not.toContain("S6-neg-01");
     expect(pendingRequired).not.toContain("X11-neg-01");
+    // S12 maturity-preservation now bound to the resident engine transfer path
+    expect(pendingRequired).not.toContain("S12-pos-01");
   });
 });

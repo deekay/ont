@@ -262,6 +262,8 @@ const LOCAL_BINDING_MANIFEST = new Set<string>([
   "S6-neg-01",
   // transfer-authority-state (#80)
   "X11-neg-01",
+  // engine-transfer maturity preservation (S12, binding to resident engine behavior)
+  "S12-pos-01",
 ]);
 
 // A binding may only execute a vector that is (a) locked, (b) required-tier
@@ -1034,6 +1036,44 @@ describe("B2 vector bindings — engine-transfer family (applyBlockTransactions)
       })) === "applied";
     expect(applied).toBe(accepts(vector)); // accepts=true -> applied
     expect(state.names.get("alice")?.currentBondTxid).toBe(ET_OLD_BOND_TXID); // companion: bond fields untouched on the mature path
+  });
+
+  it("S12-pos-01: a pre-maturity transfer chain preserves maturityHeight byte-identical across every hop (no reset/extend)", () => {
+    const vector = loadVector("settlement-consequences.json", "S12-pos-01");
+    assertBindable(vector);
+    // A non-placeholder original maturity, so a baked constant would not coincidentally pass.
+    const ORIGINAL_MATURITY = 900_000;
+    const HOP1 = "51".repeat(32);
+    const HOP2 = "52".repeat(32);
+    const C_PUB = deriveOwnerPubkey(ET_STRANGER_PRIV); // a third owner for the chain A -> B -> C
+    const state = createEmptyState();
+    etSeed(state, { name: "alice", maturityHeight: ORIGINAL_MATURITY, requiredBondSats: 50_000n });
+
+    // hop A -> B: signed by the seeded owner (A), spends the seeded bond, creates a valid successor.
+    const hop1Applied =
+      etApplyVerdict(state, etBlock({
+        txid: HOP1,
+        blockHeight: 500, // pre-maturity (< 900_000)
+        payload: etSignedTransfer({ prevStateTxid: ET_OLD_HEAD_TXID, newOwnerPubkey: ET_NEW_OWNER_PUB, flags: 0, successorBondVout: 1 }, ET_OWNER_PRIV),
+        inputs: [etBondInput(ET_OLD_BOND_TXID, ET_OLD_BOND_VOUT)],
+        extraOutputs: [etPayment(50_000n)],
+      })) === "applied";
+    expect(hop1Applied).toBe(accepts(vector)); // true === accept
+    expect(state.names.get("alice")?.maturityHeight).toBe(ORIGINAL_MATURITY); // inherited unchanged after hop 1
+
+    // hop B -> C: signed by B (the owner after hop 1), spends hop-1's successor bond outpoint.
+    const hop2Applied =
+      etApplyVerdict(state, etBlock({
+        txid: HOP2,
+        blockHeight: 600, // still pre-maturity
+        payload: etSignedTransfer({ prevStateTxid: HOP1, newOwnerPubkey: C_PUB, flags: 0, successorBondVout: 1 }, ET_NEW_OWNER_PRIV),
+        inputs: [etBondInput(HOP1, 1)],
+        extraOutputs: [etPayment(50_000n)],
+      })) === "applied";
+    expect(hop2Applied).toBe(true);
+    // the equality IS the negative companion: any reset / extend / shorten would fail this assertion.
+    expect(state.names.get("alice")?.maturityHeight).toBe(ORIGINAL_MATURITY); // byte-identical after hop 2
+    expect(state.names.get("alice")?.currentOwnerPubkey).toBe(C_PUB); // the chain advanced to C
   });
 });
 
