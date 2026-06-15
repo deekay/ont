@@ -498,12 +498,28 @@ owner identity/binding, anchor coords, batch-id/duplicate handling, DA verdict, 
 
 The §6c deadline-clock / `cv.earliest-valid-governs` windows aspect is **scoped out** to da-windows
 (#49) — D-CV owns the canonical root + provenance, not the timing; `cv.same-block-order` folds into
-`cv.commute` (order-independence). Authored cv.* battery (14, RED vs the stub): `derives-canonical-
-root` (positive) · `prevroot-k-deep` · `base-root-binding` · `no-op-anchor` · `commute` ·
-`no-contest-decision` (CL's executable negative: distinct-owner → contested, no provable owner A/B in
-the root) · `winner-leakage-guard` (claimed `unique` for a real collision ⇒ fail closed) ·
-`same-owner-coalesce` · `excluded-duplicate-no-nullify` · `reorg-rederive` · `stale-base` ·
-`insert-only` · `batch-local-duplicate` · `malformed` (fail closed, never throws).
+`cv.commute` (order-independence). CL agreed the deadline-clock stays outside D-CV but ruled base
+exactness + duplicate/value coherence ARE on this surface (review round 1):
+- **Exact base horizon.** `base.baseRootHeight === minedHeight - K` (matches #83's exact relation and
+  the pinned D-SB-bind snapshot) — a too-recent OR too-old base fails closed (`<= h-K` would re-admit
+  already-K-deep anchors, a design change we are NOT making).
+- **Contest preserves the signal.** A contest-only delta derives with `contested-no-owner` provenance
+  and `newRoot === prevRoot`; it must NOT collapse to `dcv-no-op` (that would erase the nullify/reopen
+  signal). `dcv-no-op` fires only when nothing inserted AND nothing contested.
+- **Value/binding coherence.** `leaf.valueHex === projection.ownerValueBindingHex` (D-CV must not fold
+  one value while the provenance binds another); same-owner duplicates with a conflicting value fail
+  closed; a duplicate base key fails closed (no silent `Map` overwrite).
+- **Duplicate-handling both directions + non-priority.** Claimed `unique` for a real collision AND
+  claimed `distinct-owner-contested` for a real unique (a false-contest denial vector) both fail
+  closed; an includable-but-`holdsPriority:false` duplicate is skipped with no nullify (#69 counts only
+  priority-bearing claims, not only `excluded`).
+
+Authored cv.* battery (21, RED vs the stub): `derives-canonical-root` · `prevroot-k-deep` ·
+`base-too-old` · `base-root-binding` · `duplicate-base-key` · `no-op-anchor` · `commute` ·
+`no-contest-decision` · `no-contest-only-no-op` (contest-only ⇒ derive, not no-op) ·
+`winner-leakage-guard` · `false-contest-claim` · `same-owner-coalesce` · `same-owner-conflicting-value`
+· `value-binding-mismatch` · `excluded-duplicate-no-nullify` · `non-priority-no-nullify` ·
+`reorg-rederive` · `stale-base` · `insert-only` · `batch-local-duplicate` · `malformed`.
 
 ## §11 — Third FREE slice: D-PB proof-bundle assembly design
 
