@@ -55,7 +55,7 @@ const srcDir = dirname(fileURLToPath(import.meta.url));
 const CORE_DECIDERS = ["engine.ts", "state.ts", "proof-bundle.ts"] as const;
 const CONSENSUS_SUPPORT = ["scanner.ts"] as const;
 const CONSENSUS_PARAMS = ["params.ts"] as const;
-const CONSENSUS_VERDICTS = ["da-verdict.ts", "value-record-authority.ts", "gate-fee.ts", "transcript-completeness.ts", "bond-qualification.ts", "settlement.ts", "recovery-invoke-authority.ts", "auction-resolution.ts", "notice-window.ts", "reopen-resolution.ts", "occupancy.ts", "batch-exclusion.ts", "window-schedule.ts", "name-canonicalization.ts", "claim-path-eligibility.ts", "post-final-attempt.ts", "lot-commitment-match.ts"] as const;
+const CONSENSUS_VERDICTS = ["da-verdict.ts", "value-record-authority.ts", "gate-fee.ts", "transcript-completeness.ts", "bond-qualification.ts", "settlement.ts", "recovery-invoke-authority.ts", "auction-resolution.ts", "notice-window.ts", "reopen-resolution.ts", "occupancy.ts", "batch-exclusion.ts", "window-schedule.ts", "name-canonicalization.ts", "claim-path-eligibility.ts", "post-final-attempt.ts", "lot-commitment-match.ts", "bond-continuity-break.ts"] as const;
 
 // Consensus-support rides the B1 normative wire grammar (@ont/wire); the parameter
 // surface rides nothing external (values enter as inputs).
@@ -140,6 +140,9 @@ const VERDICTS_ALLOWED_BY_FILE: Record<string, ReadonlySet<string>> = {
   // lot-commitment-match is the pure B12 WIRE §6 recompute-and-compare gate; it rides the audited B1
   // computeLotCommitment primitive, so it admits @ont/wire only (#78).
   "lot-commitment-match.ts": new Set(["@ont/wire"]),
+  // bond-continuity-break is the pure S6 observed-spend release gate over resolved chain facts; no
+  // signer/key channel, riding nothing external (#79).
+  "bond-continuity-break.ts": new Set<string>([]),
 };
 const ALL_MANIFEST = [...CORE_DECIDERS, ...CONSENSUS_SUPPORT, ...CONSENSUS_PARAMS, ...CONSENSUS_VERDICTS];
 const ALLOWED_RELATIVE = new Set(ALL_MANIFEST.map((file) => `./${file.replace(/\.ts$/, ".js")}`));

@@ -88,6 +88,7 @@ import { acceptCanonicalLeafName } from "./name-canonicalization.js";
 import { claimPathEligibility } from "./claim-path-eligibility.js";
 import { acceptPostFinalAttempt } from "./post-final-attempt.js";
 import { lotCommitmentMatch } from "./lot-commitment-match.js";
+import { bondContinuityBreak } from "./bond-continuity-break.js";
 import {
   createTransferPayload,
   deriveOwnerPubkey,
@@ -256,6 +257,8 @@ const LOCAL_BINDING_MANIFEST = new Set<string>([
   "B7-neg-01",
   // lot-commitment-match (#78)
   "B12-neg-01",
+  // bond-continuity-break (#79)
+  "S6-neg-01",
 ]);
 
 // A binding may only execute a vector that is (a) locked, (b) required-tier
@@ -1775,6 +1778,26 @@ describe("B2 vector bindings — lot-commitment-match (#78)", () => {
     expect(mismatched.matches).toBe(accepts(vector)); // false === reject
     // positiveControl: the claimed commitment matches the recomputation over its own preimage.
     expect(lotCommitmentMatch({ claimedLotCommitment: correct, ...preimage }).matches).toBe(true);
+  });
+});
+
+// ---- bond-continuity-break (#79) ----
+describe("B2 vector bindings — bond-continuity-break (#79)", () => {
+  it("S6-neg-01: a pre-maturity bond spend with no same-tx valid successor releases the name, regardless of key", () => {
+    const vector = loadVector("settlement-consequences.json", "S6-neg-01");
+    assertBindable(vector);
+    const broken = bondContinuityBreak({ preMaturity: true, currentBondOutpointSpent: true, sameTxValidSuccessorBond: false });
+    // the rejected behavior is "the name SURVIVES the break" — it must not; so nameSurvives === reject.
+    const nameSurvivesBreak = broken.decided && !broken.released;
+    expect(nameSurvivesBreak).toBe(accepts(vector)); // false === reject
+    expect(broken).toMatchObject({ decided: true, released: true });
+    // regardless of key: there is no signer/key channel — a purported signer field is rejected
+    // (undecided), so no key can avert the release.
+    for (const keyField of ["signerKey", "ownerKey", "fundingKey"]) {
+      expect(bondContinuityBreak({ preMaturity: true, currentBondOutpointSpent: true, sameTxValidSuccessorBond: false, [keyField]: "a".repeat(64) } as never).decided).toBe(false);
+    }
+    // positive control: a valid same-tx successor preserves continuity (no release).
+    expect(bondContinuityBreak({ preMaturity: true, currentBondOutpointSpent: true, sameTxValidSuccessorBond: true }).released).toBe(false);
   });
 });
 

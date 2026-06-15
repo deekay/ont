@@ -2031,6 +2031,35 @@ wire primitive — which throws on a non-canonical name / out-of-range unlockBlo
 throw becomes a fail-closed reject, never an exception. This satisfies #44's "boundary may change
 only with a DECISIONS entry + conformance coverage"; the boundary freezes at launch.
 
+79. b2-bond-continuity-break-boundary: the bond-continuity-break predicate enters @ont/consensus as a
+pure CONSENSUS_VERDICTS decider — a pre-maturity bond-outpoint spend with no same-tx valid successor
+releases the name, regardless of which key signed the spend — riding nothing external — 2026-06-15
+
+*Status: **Proposed** (writer ClaudeleLunatique, reviewer ChatLunatique; lands on branch
+clean-build-b2-kernel, DK merges). A boundary-manifest addition under #44, riding the
+CONSENSUS_VERDICTS tier (#59). Empty external allowlist: it consumes resolved chain facts, with no
+host I/O. NO new consensus law: it lands the already-ratified S6 / S7 / B18 / #5 (a broken bond before
+maturity releases the name). Covered by conformance: `trust-surface.test.ts`
+(`bond-continuity-break.ts` in CONSENSUS_VERDICTS, empty allowlist), `bond-continuity-break.test.ts`,
+and the S6-neg-01 binding.*
+
+**The rule.** `bondContinuityBreak({ preMaturity, currentBondOutpointSpent, sameTxValidSuccessorBond })`
+→ `{ decided, released, reason }`. Four valid fact combinations are all `decided`: mature spend →
+no-release (X8: a mature name imposes no continuity requirement); pre-maturity unspent → no-release;
+pre-maturity spent with a same-tx valid successor → no-release (rotated); pre-maturity spent with NO
+same-tx valid successor → `released` (continuity broke; the name reopens). `sameTxValidSuccessorBond`
+is a consumed resolved engine/B3 fact (full successor output/script validation is outside this slice).
+
+**NO signer / key / authorized input channel (the S6 crux).** Continuity is an ONT rule, not a Bitcoin
+timelock: the release is a consequence of an OBSERVED spend, never a key-authorized event. The bond
+outpoint is spendable by whoever holds the funding-wallet key, distinct from the owner key (#41), so
+there is no owner-signature exemption. The closed shape admits ONLY the three booleans; ANY signer /
+funding-key / owner-key / authorized field is rejected (`undecided`), so no key can be consulted to
+avert the release. Total / fail-closed + closed-shape (the #63–#78 discipline): a malformed or
+extra-field input is `undecided` (fail closed — NOT silently a valid no-break) and never throws. This
+satisfies #44's "boundary may change only with a DECISIONS entry + conformance coverage"; the boundary
+freezes at launch.
+
 ## Fairness Principles To Carry Into The Launch Rewrite
 
 The rewritten launch draft should explicitly state:

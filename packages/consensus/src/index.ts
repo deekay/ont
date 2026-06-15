@@ -92,3 +92,7 @@ export * from "./post-final-attempt.js";
 // recompute-and-compare gate (a bid's claimed lot commitment must equal the recomputation over its
 // auctionId/name/unlockBlock). Rides the audited B1 @ont/wire computeLotCommitment primitive.
 export * from "./lot-commitment-match.js";
+// The bond-continuity-break predicate (#79, riding #59's verdict tier): the pure S6 observed-spend
+// release gate — a pre-maturity bond-outpoint spend with no same-tx valid successor releases the name,
+// regardless of key (no signer channel). Rides nothing external — resolved chain facts enter as inputs.
+export * from "./bond-continuity-break.js";
