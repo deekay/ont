@@ -819,3 +819,61 @@ fold the resident `acceptAuctionBid` threading `PriorAuctionState` (recompute ev
 cross-check; `finalClose` from the witnessed fold (not the count); symmetric set-equality of the counted
 txids vs the witnessed in-range bids over `[openHeight, finalClose]`. 23 cw.* GREEN; `@ont/consensus`
 445 pass / 2 skip (no regression), `@ont/evidence` 45/45, purity green.
+
+## §14 — Sixth slice: D-GF gate-fee fact witness design
+
+Design-first; **CL's picked next slice** after D-CW. **Classification: FREE — conforms to ratified
+#52** (`Σ gᵢ` over the full committed leaf set; per-leaf-drop is a STATE concern, not a fee one; leaf
+value = `H(ownerPubkey)`). The `g(name)` *schedule numbers* stay launch-freeze (§5.1). It closes the
+one STATUS-disclosed gap still on the batched-claim path: aggregate gate-fee adequacy is designed
+(F8 structural slice in `gate-fee.ts`) but the `fee >= Σ g` conjunct is not implemented.
+
+**Kernel law, evidence facts (CL constraint 1).** B3 witnesses the fee facts (Bitcoin tx prevout
+values / outputs) + the full committed leaf set; `gateFeeValidation` RECOMPUTES adequacy. No
+self-declared `paidFee` or `sumG` is trusted — both are derived in-kernel.
+
+**Open design call — RULED: in-place surface evolution (CL's lean; I concur).** Keep the stable
+three-input no-source signature `gateFeeValidation(anchor, batch, fee)`; evolve the inputs:
+- `anchor: GateFeeAnchorFacts` — unchanged `{ minedHeight, anchoredRoot, batchSize }`.
+- `batch: CommittedBatchContents` — extends to carry the **full committed leaf set** (`Σ g` basis):
+  `{ anchoredRoot, batchSize, leaves: [{ canonicalNameByteLength, … }] }`, `leaves.length === batchSize`.
+- `fee: GateFeeWitness` (was `GateFee`) — the **verified fee witness + schedule facts**:
+  `{ inputs: [{ prevoutTxid, prevoutVout, prevoutValueSats }], outputs: [{ valueSats }], anchorTxid,
+  schedule: GateFeeSchedule }`. `paidFee = Σ prevoutValueSats − Σ outputs.valueSats`.
+B2 callers migrate, but the 3-input boundary stays — N=1 self-anchor and publisher batch use the
+identical predicate, no publisher/source/endpoint field (CL constraint 5; preserves I5).
+
+**Adequacy rule (CL constraints 2–4).** `requiredFee = Σ over the FULL committed set of g(byteLength)`
+(#52 — DA-excluded / later-dropped valid leaves STILL count; the `Σ` is regardless of drops). Accept
+iff `paidFee >= requiredFee`. The fee derives from witnessed Bitcoin facts only (`Σ prevout − Σ out`),
+fail closed on: missing/negative/overflow prevout value, duplicate `(prevoutTxid, prevoutVout)`,
+output count/value malformed, `paidFee < 0`, and `fee.anchorTxid` not matching the anchor it gates.
+`g(name)` = a length-curve over the closed `GateFeeSchedule` (mirrors the resident `openingFloor`
+shape: `{ oneCharPriceSats, longNameFloorSats }`, ≥5 flat floor / 2–4 halving / 1 full) — a closed
+param object, no market/source/publisher channel.
+
+**Planned `gf.*` red battery (CL's list):** adequate-fee accepts; underpay-by-1 rejects; self-declared
+`sumG`/`paidFee` lie has no channel (the field doesn't exist — recomputed); missing-prevout rejects;
+dropped/malformed-leaf still counts in `Σ g` (#52); DA-excluded valid leaf still counts;
+duplicate committed name / duplicate fee input fail closed; schedule object malformed / zero / negative
+/ overflow fails closed; `leaves.length !== batchSize` or root mismatch ⇒ `f8-batch-not-bound-to-anchor`;
+`fee.anchorTxid` mismatch ⇒ fail closed; no source/identity field injection rejected (closed-shape).
+
+**Sub-questions for CL before the red battery.**
+1. **Committed-leaf shape + #52 "still counts".** The committed leaf carries `canonicalNameByteLength`
+   (validated upstream at wire, as `openingFloor` consumes), so `g` is a pure function of length and
+   `Σ g` is over ALL `batchSize` leaves regardless of any later malformed-owner / DA-excluded status —
+   i.e. D-GF does not re-derive name validity; the malformed/DA-excluded "still counts" cases are pinned
+   by including such leaves in the committed set and asserting they remain in `Σ g`. Concur, or do you
+   want the leaf to carry the raw name + a kernel length re-derivation?
+2. **Schedule reuse.** Reuse the `openingFloor` length-curve shape for `g(name)` (same
+   `{oneCharPriceSats, longNameFloorSats}` params, a *gate-fee* instance), or define a distinct
+   `GateFeeSchedule` curve? My lean: a distinct closed `GateFeeSchedule` param object (the gate-fee
+   schedule is its own launch-freeze §5.1 parameter, not the auction opening floor), curve-shaped like
+   `openingFloor` so the math is familiar.
+3. **Fee↔anchor binding.** The fee witness binds to the anchor via `fee.anchorTxid === <the anchor tx>` —
+   but `GateFeeAnchorFacts` has no txid today. Add `anchorTxid` to `GateFeeAnchorFacts`, or bind via the
+   existing `anchoredRoot`? My lean: add `anchorTxid` to the anchor facts (the fee tx IS the anchor tx),
+   so `fee.anchorTxid === anchor.anchorTxid` is the bind.
+
+On your rulings I author the `gf.*` red battery then green.
