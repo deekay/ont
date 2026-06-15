@@ -695,9 +695,152 @@ export interface DcvDerivationInput {
  * sorted per-leaf provenance, with distinct-owner collisions surfaced as `contested-no-owner` and
  * NO owner value placed in the SMT.
  */
+const DCV_INPUT_KEYS = ["base", "baseLeaves", "K", "leaves"] as const;
+
+const dcvFail = (reason: DcvDerivationReason): DcvDerivationVerdict => ({
+  derived: false,
+  newRoot: null,
+  leaves: [],
+  reason,
+});
+
+/** Owner-identity equality (same kind + same hex) — distinguishes same-owner duplicates from contests. */
+const ownerIdentityEq = (a: DcvOwnerIdentity, b: DcvOwnerIdentity): boolean =>
+  a.kind === b.kind &&
+  (a.kind === "owner-key"
+    ? a.ownerKeyHex === (b as { ownerKeyHex: string }).ownerKeyHex
+    : a.commitmentHex === (b as { commitmentHex: string }).commitmentHex);
+
+/** A delta leaf is a folding candidate iff its DA verdict is includable AND priority-bearing (#69). */
+const isPriorityLeaf = (leaf: BatchCompletenessLeafWitness): boolean =>
+  leaf.projection.daVerdict.kind === "includable" && leaf.projection.daVerdict.holdsPriority;
+
 export function deriveCanonicalRoot(input: DcvDerivationInput): DcvDerivationVerdict {
-  // D-CV stub (tests-first): the derivation + boundary gates land on CL's red-battery review.
-  // Until then this is a sentinel so the cv.* battery is RED.
-  void input;
-  return { derived: false, newRoot: null, leaves: [], reason: "dcv-not-implemented" };
+  // --- 0. Total fail-closed shape validation over an untrusted runtime value (never throws). ---
+  const i = input as unknown;
+  if (!isObject(i) || !hasExactKeys(i, DCV_INPUT_KEYS)) return dcvFail("dcv-input-malformed");
+  if (!isDcvBaseRootRelationship(i.base) || !isInteger(i.K)) return dcvFail("dcv-input-malformed");
+  if (!Array.isArray(i.baseLeaves) || !Array.isArray(i.leaves)) return dcvFail("dcv-input-malformed");
+  const base = i.base;
+  const K = i.K;
+
+  // baseLeaves: shape-valid, and DUPLICATE keys caught BEFORE Map materialization (no silent overwrite).
+  const baseMap = new Map<string, string>();
+  for (const bl of i.baseLeaves) {
+    if (!isObject(bl) || !hasExactKeys(bl, BC_BASE_LEAF_KEYS) || !isHex32(bl.keyHex) || !isHex32(bl.valueHex)) {
+      return dcvFail("dcv-input-malformed");
+    }
+    if (baseMap.has(bl.keyHex)) return dcvFail("dcv-input-malformed");
+    baseMap.set(bl.keyHex, bl.valueHex);
+  }
+
+  // leaves: each witness is closed-shape, projection is the locked #83 closed projection.
+  for (const lw of i.leaves) {
+    if (
+      !isObject(lw) ||
+      !hasExactKeys(lw, BC_LEAF_KEYS) ||
+      !isClosedDcvProjection(lw.projection) ||
+      !isHex32(lw.valueHex) ||
+      !(lw.servedHeight === null || isInteger(lw.servedHeight))
+    ) {
+      return dcvFail("dcv-input-malformed");
+    }
+  }
+  const leaves = i.leaves as readonly BatchCompletenessLeafWitness[];
+
+  // --- 1. Base root binding: the base set must fold to the committed prevRoot (R_{h-K}). ---
+  if (accumulatorRootOf(baseMap) !== base.prevRoot) return dcvFail("dcv-base-mismatch");
+
+  // --- 2. Batch-local duplicate: the same (batchId, leafKeyHex) must not appear twice (insert-only set). ---
+  const batchLeafSeen = new Set<string>();
+  for (const { projection } of leaves) {
+    const key = `${projection.batchId} ${projection.leafKeyHex}`;
+    if (batchLeafSeen.has(key)) return dcvFail("dcv-batch-local-duplicate");
+    batchLeafSeen.add(key);
+  }
+
+  // --- 3. Per-leaf coherence (all leaves, before any fold). Stale base + value/binding equality. ---
+  for (const { projection, valueHex } of leaves) {
+    if (!baseRelEq(projection.base, base)) return dcvFail("dcv-stale-base");
+    if (valueHex !== projection.ownerValueBindingHex) return dcvFail("dcv-projection-contradiction");
+  }
+
+  // --- 4. Per-priority-leaf gates (the folding candidates): exact K-deep horizon + insert-only. ---
+  for (const leaf of leaves) {
+    if (!isPriorityLeaf(leaf)) continue;
+    if (base.baseRootHeight !== leaf.projection.anchor.minedHeight - K) return dcvFail("dcv-base-mismatch");
+    if (baseMap.has(leaf.projection.leafKeyHex)) return dcvFail("dcv-insert-only-violation");
+  }
+
+  // --- 5. Group by leaf key; compute the disposition from the PRIORITY members, then cross-check it
+  //        against the claimed `duplicateHandling` (both directions) to stop winner leakage. ---
+  const order: string[] = []; // first-seen order of distinct leaf keys (re-sorted at the end)
+  const byKey = new Map<string, BatchCompletenessLeafWitness[]>();
+  for (const leaf of leaves) {
+    const k = leaf.projection.leafKeyHex;
+    let bucket = byKey.get(k);
+    if (bucket === undefined) {
+      bucket = [];
+      byKey.set(k, bucket);
+      order.push(k);
+    }
+    bucket.push(leaf);
+  }
+
+  const inserted = new Map<string, string>(); // leafKeyHex -> chosen owner value
+  const provenance: DcvLeafProvenance[] = [];
+  let contestedCount = 0;
+
+  for (const k of order) {
+    const bucket = byKey.get(k) as BatchCompletenessLeafWitness[];
+    const name = bucket[0]!.projection.name;
+    const priority = bucket.filter(isPriorityLeaf);
+
+    if (priority.length === 0) {
+      // Excluded / non-priority only — skipped, with NO contest / nullify effect (#69).
+      provenance.push({ leafKeyHex: k, name, disposition: "skipped-excluded", ownerValueHex: null, contributingBatchIds: [] });
+      continue;
+    }
+
+    const contributingBatchIds = [...new Set(priority.map((l) => l.projection.batchId))].sort();
+    const owner0 = priority[0]!.projection.owner;
+    const allSameOwner = priority.every((l) => ownerIdentityEq(l.projection.owner, owner0));
+
+    let disposition: DcvLeafDisposition;
+    let ownerValueHex: string | null;
+    let expectedHandling: DcvDuplicateHandling;
+
+    if (!allSameOwner) {
+      // Distinct-owner collision: canonical contested representation — NEITHER owner value enters the SMT.
+      disposition = "contested-no-owner";
+      ownerValueHex = null;
+      expectedHandling = "distinct-owner-contested";
+      contestedCount += 1;
+    } else {
+      // Same owner: idempotent only if the bound value is identical; a conflict cannot be resolved.
+      const value0 = priority[0]!.valueHex;
+      if (!priority.every((l) => l.valueHex === value0)) return dcvFail("dcv-projection-contradiction");
+      disposition = "inserted";
+      ownerValueHex = value0;
+      expectedHandling = priority.length === 1 ? "unique" : "same-owner-duplicate";
+      inserted.set(k, value0);
+    }
+
+    // Cross-check: every priority member's claimed handling must match the computed expectation
+    // (claimed `unique` for a real collision, or a false `distinct-owner-contested`, both fail closed).
+    if (!priority.every((l) => l.projection.duplicateHandling === expectedHandling)) {
+      return dcvFail("dcv-projection-contradiction");
+    }
+
+    provenance.push({ leafKeyHex: k, name, disposition, ownerValueHex, contributingBatchIds });
+  }
+
+  // --- 6. Fold the inserted owner values onto the base; reject a no-op (nothing inserted AND no contest). ---
+  if (inserted.size === 0 && contestedCount === 0) return dcvFail("dcv-no-op");
+  const merged = new Map(baseMap);
+  for (const [k, v] of inserted) merged.set(k, v);
+  const newRoot = accumulatorRootOf(merged);
+
+  provenance.sort((a, b) => (a.leafKeyHex < b.leafKeyHex ? -1 : a.leafKeyHex > b.leafKeyHex ? 1 : 0));
+  return { derived: true, newRoot, leaves: provenance, reason: "dcv-derived" };
 }

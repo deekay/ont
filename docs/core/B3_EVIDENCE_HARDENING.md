@@ -517,7 +517,8 @@ exactness + duplicate/value coherence ARE on this surface (review round 1):
   closed; an includable-but-`holdsPriority:false` duplicate is skipped with no nullify (#69 counts only
   priority-bearing claims, not only `excluded`).
 
-Authored cv.* battery (22, RED vs the stub): `derives-canonical-root` · `prevroot-k-deep` ·
+cv.* battery (22, GREEN — `deriveCanonicalRoot` implemented, CL red-OK on `2dfc29b`):
+`derives-canonical-root` · `prevroot-k-deep` ·
 `base-too-old` · `mixed-anchor-height-base-exactness` · `base-root-binding` · `duplicate-base-key` ·
 `no-op-anchor` · `commute` ·
 `no-contest-decision` · `no-contest-only-no-op` (contest-only ⇒ derive, not no-op) ·
