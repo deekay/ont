@@ -4,7 +4,7 @@
 If the README, one-pager, design brief, or the website disagree with this file, **this file
 wins** — fix the others. (It exists because those numbers drifted apart once; don't let them again.)
 
-Last updated: 2026-06-14.
+Last updated: 2026-06-15.
 
 ## DECOMMISSION NOTICE — 2026-06-11
 
@@ -34,7 +34,7 @@ as the record.
 | --- | --- | --- |
 | Owner-key model (transfer / value record / recovery) | **Decommissioned (2026-06-11)** | Enforced at replay; byte-identical across the engine + mobile crypto. |
 | Contested-auction bonded bid | **Decommissioned (2026-06-11)** | Bid → resolver-accepted on signet. Proof bundle now enforces **highest-bid-wins** + **distinct-bid** well-formedness (was a gap). Set-*completeness* vs L1 still needs the light-client path — see Known-incomplete. |
-| Bitcoin-inclusion verifier (Merkle + PoW) | **Prototype** | The verifier exists and is tested vs a real mainnet block, but **producers don't emit the `bitcoinInclusion` section**, so the light-client path is **not closed end-to-end**. |
+| Bitcoin-inclusion verifier (Merkle + PoW) | **Prototype** | The verifier exists and is tested vs a real mainnet block, but **producers don't emit the `bitcoinInclusion` section** and launch clients do not enforce `verifyProofBundleAgainstBitcoin` with an independent canonical header source yet, so the light-client path is **not closed end-to-end**. |
 | Batched claim path (batch claims) | **Decommissioned (2026-06-11)** | **End-to-end since 2026-06-09**: claim → publisher anchors on-chain → indexer decodes the anchor → fetches the batch leaves from the publisher (`/da/{root}`) → re-verifies every membership proof against the Bitcoin-anchored root → name resolves and shows in the public explorer. A lying data source can't mint ownership (verify-don't-trust), and a loop integration test pins the publisher-bytes→indexer-decode boundary. **Still open:** fail-closed availability-deadline enforcement (keyed off the anchor's mined height per marker-fold (#47) — the separate marker event is retired) is design+simulation only (see Known-incomplete); transport is publisher-served v1 (content-addressed mirroring is the design direction). |
 | Publisher (batched-path batch anchor) | **Decommissioned (2026-06-11)** | Pay-first; real signet anchor broadcast; data-availability bundles survive restart (rebuilt on snapshot replay). Lightning stubbed on signet (Lexe is mainnet-only); leaderless multi-publisher is simulated, not deployed. |
 | Discovery (resolver/publisher) | **Designed** | Config-seeded today; registry-free on-chain scan designed, not built. |
@@ -117,7 +117,10 @@ determine **owner-key authority and replay validation** (transfers, value record
   predicate + B3 served-bytes witness) before the batched claim path's adversarial story is
   operational.
 - Light-client inclusion proofs not emitted end-to-end → "verify against Bitcoin" is the verifier's
-  capability, not yet the live app/resolver path.
+  capability, not yet the live app/resolver path. `da-trust-model` (#82) makes this a launch gate:
+  every relevant client proof path must require `bitcoinInclusion` and run
+  `verifyProofBundleAgainstBitcoin` against an independent canonical best-chain header source before
+  the DA safety-vs-liveness firewall claim is allowed.
 - **Auction-transcript completeness is not self-certified by the proof bundle.** The bundle now
   enforces that the winner is the highest *listed* accepted bid and that the bid set is well-formed
   (distinct txids, no duplicate-stuffing). It does **not** prove the listed set is the *complete* set of

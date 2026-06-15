@@ -103,11 +103,18 @@ export function assembleDirectAuctionProofBundle(input: DirectAuctionProofInput)
       records: [...valueRecords]
         .sort((a, b) => a.sequence - b.sequence)
         .map((r) => ({
+          format: r.format,
+          recordVersion: r.recordVersion,
+          name: r.name,
           sequence: r.sequence,
           recordHash: r.recordHash,
           previousRecordHash: r.previousRecordHash,
           ownerPubkey: r.ownerPubkey,
-          ownershipRef: r.ownershipRef
+          ownershipRef: r.ownershipRef,
+          valueType: r.valueType,
+          payloadHex: r.payloadHex,
+          issuedAt: r.issuedAt,
+          signature: r.signature
         }))
     };
   }

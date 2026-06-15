@@ -34,15 +34,8 @@ export interface ResolverValueRecord {
   readonly issuedAt: string;
 }
 
-export interface ResolverValueHistoryRecord {
+export interface ResolverValueHistoryRecord extends SignedValueRecord {
   readonly recordHash: string;
-  readonly sequence: number;
-  readonly previousRecordHash: string | null;
-  readonly ownerPubkey: string;
-  readonly ownershipRef: string;
-  readonly valueType?: number;
-  readonly payloadHex?: string;
-  readonly issuedAt?: string;
 }
 
 export interface ResolverValueHistory {

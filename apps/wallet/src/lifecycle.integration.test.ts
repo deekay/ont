@@ -249,16 +249,7 @@ describe("lifecycle integration: claim → sync → set-destination → export-p
 
     // The resolver "now knows" the value record + history.
     fake.valueHistory = {
-      records: [{
-        recordHash,
-        sequence: 1,
-        previousRecordHash: null,
-        ownerPubkey: valueRecord.ownerPubkey,
-        ownershipRef: valueRecord.ownershipRef,
-        valueType: valueRecord.valueType,
-        payloadHex: valueRecord.payloadHex,
-        issuedAt: valueRecord.issuedAt
-      }]
+      records: [{ ...valueRecord, recordHash }]
     };
 
     // ---- step 4: export a proof and verify it locally ----
