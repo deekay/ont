@@ -2177,8 +2177,8 @@ guarantee.
 and reconstructs the anchored root by `h+W+C`; any missing leaf fails the whole batch closed — 2026-06-15
 
 *Status: **PROPOSED — NEW consensus law, NOT agent-decided; DK ratifies O2 vs O3.** Writer
-ClaudeleLunatique; awaits ChatLunatique adversarial pass; lands on branch spec-batch-completeness
-(stacked on spec-da-trust-model, off main). Decision paper:
+ClaudeleLunatique; reviewer ChatLunatique (round-1 pass applied — see below); lands on branch
+spec-batch-completeness (stacked on spec-da-trust-model, off main). Decision paper:
 `../research/DA_BATCH_COMPLETENESS.md`. Unlike #82 (consolidation), this DOES add a kernel gating
 requirement, so it is a genuine ratification gate. No wire change (`batchSize` already committed,
 WIRE §4.4); the change is a conjunct of `includable`. NO implementation until ratified (tests-first).*
@@ -2187,20 +2187,33 @@ WIRE §4.4); the change is a conjunct of `includable`. NO implementation until r
 require the served-bytes witness to demonstrate all N leaves. Promote it to a gating requirement?
 
 **Recommendation: O2 (kernel-enforced whole-batch completeness).** `includable(anchor, evidence, W,
-C)` requires the witness to reconstruct the anchored root over all N committed leaves (or prove
-non-membership for absent slots) by `h+W+C`; a missing leaf fails the whole batch closed. Rationale:
+C)` requires an **exact complete delta witness** by `h+W+C`: exactly `batchSize` unique canonical leaf
+keys, applied to the base (`prevRoot` / D-CV base snapshot), recompute the anchored `newRoot`.
+Membership proofs for the presented N are NOT enough — only the full `prevRoot → newRoot` replay
+proves no leaf was omitted ("all N", not "these N"). Any count mismatch / duplicate key / malformed
+leaf / unverifiable owner binding / non-replaying witness fails the whole batch closed. Rationale:
 matches §6c (batch-level exclusion already); makes the committed count meaningful (auditable
 completeness via the da-trust-model mirror market; bond-free long-tail contention discovery);
-withholding is self-harm + detectable; no cheap hidden-collision grief (#37/#69 guard). Cost: an
-honest producer must keep all N retrievable through `h+W+C` or lose the batch — mitigated by
-content-addressed mirroring. Alternative O3 (per-leaf) is gentler but loses the completeness
-guarantee. **Convergence:** O2 needs the D-CV projection to carry per-leaf owner identity — exactly
-ChatLunatique's open D-CV blocker — so batch-completeness + the D-CV fix land together.
+withholding is self-harm + detectable. **Cost (falls on users, not just the producer):** one
+malformed/missing leaf or a publisher operational failure fails the whole batch — every user in it
+must re-anchor; liveness/self-harm, never theft; mitigate with batch-size caps, pre-seal validation,
+content-addressed mirrors, a user retry/reclaim path, and the direct-L1/bonded path for high-value
+names. Alternative O3 (per-leaf) is gentler but loses the completeness guarantee. **Convergence:** O2
+*forces and closes* the owner-identity hole in ChatLunatique's open D-CV blocker but does NOT fully
+specify D-CV — the closed projection (name/leaf-key, owner identity-or-commitment, owner↔value
+binding, anchor coords + per-tx instance discriminator, batch identity + dup handling, DA
+verdict/first-complete height, base-root relationship) is D-CV's own deliverable; they land together.
 
-**Ratification gate (6-test matrix, each → a conformance vector):** (1) full-N required (N−1 → not
-includable); (2) hidden-claim no-effect (#37/#69); (3) mirror-lies-fail (bytes must reconstruct the
-root); (4) projection-carries-owner (distinct-owner collision ≠ same-owner duplicate); (5)
-copied-anchor grief-not-steal *(inherited #82)*; (6) finalize-once *(inherited #82)*.
+**Ratification gate (conformance matrix; each → a vector). Core six:** (1) full-N required; (2)
+hidden-claim no-effect (#37/#69); (3) mirror-lies-fail; (4) projection-carries-owner; (5)
+copied-anchor grief-not-steal *(inherited #82)*; (6) finalize-once *(inherited #82)*. **Plus the
+exactness/timing/reorg battery (ChatLunatique round-1):** (7) exact-N / no extras (N−1, N+1,
+duplicate key, `batchSize=0` all defined-or-rejected); (8) replay-from-base (verifies against
+`newRoot` but cannot replay `prevRoot→newRoot` fails); (9) one bad leaf poisons the batch; (10)
+partial timing (N−1 by `h+W`, last leaf in `(h+W, h+W+C]` → includable, no priority; after `h+W+C` →
+whole batch excluded); (11) reorg/re-mine (stale-anchor evidence cannot carry; deadlines re-derive
+from the canonical anchor); (12) projection closure (missing owner/anchor-coords/dup-ambiguity or
+producer-asserted `complete=true` all fail closed).
 
 ## Fairness Principles To Carry Into The Launch Rewrite
 
