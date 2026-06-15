@@ -3,9 +3,10 @@
 > **Status: DECOMPOSITION SIGNED OFF (ChatLunatique, rev 5 `e98460c`,
 > 2026-06-15). rev 6 = freeze: 3 non-blocking source-hygiene fixes folded.**
 > Steps 1–2 (invariant extraction + source check) for the L3 evidence layer.
-> Decomposition: B3 is witness construction, no open DK consensus docket beyond
-> the `g(name)` launch-freeze parameter (§5). D-BI / D-AM cleared to build.
-> See §8 for the review record.
+> Decomposition: B3 is witness construction. Parked-decision docket (§5): the
+> `g(name)` launch-freeze parameter, and — newly surfaced by D-SB — the §6c
+> first-servable-height attribution (§5.2), the first genuine new-consensus-law
+> item B3 has raised. See §8 for the review record.
 > Branch `clean-build-b3`, stacked on `main` @ the B2 buildable-complete merge
 > (`03495bd`). Produced 2026-06-15 on DK's "continue the adversarial build
 > process" greenlight (event `d031752d`). Steps-1–2 output for the L3 evidence
@@ -220,21 +221,71 @@ retroactive priority/decertification (E-SB4 / E-CW3). 3. **Multi-publisher merge
 Measure issuance throughput / proof sizes; update **R11** in
 [RISKS.md](../RISKS.md). *(Numbers, not a correctness gate.)*
 
-## §5 — The one parked item: `g(name)` gate-fee schedule (launch-freeze)
+## §5 — Parked-decision docket
 
-There is **no open consensus decision blocking B3** — #51–#56 and the #66
-spec-PR-matrix ratification cleared the docket. The single non-construction item:
+The #51–#56 ratifications + the #66 spec-PR matrix cleared the *binding* docket,
+but D-SB surfaced one genuinely new consensus question (§5.2). Two items:
 
-- **`g(name)` fee schedule.** B2 left the fee-amount adequacy basis (the `g(name)`
-  schedule numbers, `fee ≥ Σ g`) to downstream (`gate-fee.ts`; DECISIONS #62;
-  return-queue F1/F2/F3). These are **launch-freeze parameters**, not B3
-  consensus rules: B3 supplies the witnessed fee *fact* (D-GF / E-GF1, conforming
-  to #52's full-committed-set basis); the *numbers* freeze with the other launch
-  parameters (W/C/K, `W_r`, bond curve). **Recommendation:** route `g(name)` to
-  the launch-parameter freeze; do not block B3 construction on it.
+### §5.1 `g(name)` gate-fee schedule (launch-freeze)
+B2 left the fee-amount adequacy basis (the `g(name)` schedule numbers, `fee ≥ Σ g`)
+to downstream (`gate-fee.ts`; DECISIONS #62; return-queue F1/F2/F3). These are
+**launch-freeze parameters**, not B3 consensus rules: B3 supplies the witnessed fee
+*fact* (D-GF / E-GF1, conforming to #52's full-committed-set basis); the *numbers*
+freeze with the other launch parameters (W/C/K, `W_r`, bond curve). **Rec:** route
+`g(name)` to the launch-parameter freeze; do not block B3 construction on it.
 
-Should any genuinely new consensus question surface mid-build, it parks for DK
-under the standing rule — but none is open today.
+### §5.2 D-SB-avail — first-servable-height attribution (§6c) — **NEW; DK consensus-law**
+**Mini-design (design-first, per CL r-on-b89c8df). The first genuine new-consensus-
+law item B3 has surfaced.**
+
+*The question.* D-SB-bind binds the served-bytes **content** (bytes → anchored
+commitment under `prevRoot→newRoot`). The kernel's `includable` (≤ `h+W+C`) /
+`holdsPriority` (≤ `h+W`) then consume a `firstServableHeight`. What confirmed-chain
+fact mints a `VerifiedAvailabilityHeight` — independently verifiable from the witness
++ confirmed chain, never producer-attested (#51 (iii))?
+
+*Classification: NOT pure B3 bytes — a DK consensus decision.* The witness **content
+format** is a ratified B3 deliverable (DA §6e S4: "format = B3 deliverable") and is
+built (D-SB-bind). But the **height attribution** is consensus-law, because:
+- availability is **not positively provable** in general — DA §6c / §88–89: "you can
+  show bytes *are* available; you can never prove it *isn't*." The mechanism is a
+  *fail-closed challenge*, not a cryptographic timestamp.
+- §6d needs a **per-batch served height** (a batch first served in `(h+W, h+W+C]` is
+  includable but **forfeits priority**), so a pure "available-at-anchor" default is
+  insufficient — the late-served height must be observably established.
+- the concrete §6c challenge mechanism is **"working direction, open for challenge"**
+  (DA §258, approach T2) — *not* ratified bytes.
+- per the canon boundary rule, a rule that sets which batches are eligible / hold
+  priority is **kernel law**, not evidence construction.
+
+*Candidate confirmed-chain facts / options (for DK):*
+- **O1 — fail-closed default + attributable challenge-exclusion.** `firstServableHeight
+  = h` by default (the anchor *is* the availability commitment, §6b); a confirmed
+  on-chain **challenge-exclusion fault** removes a batch nobody can back. Verifiable
+  from (anchor height, absence of a confirmed exclusion). Matches §6c + §215
+  (bonded-attestation rejected). *Gap:* doesn't by itself produce the §6d late-served
+  height (priority forfeiture).
+- **O2 — positive availability attestation at a height.** A confirmed event records
+  "bytes served by height X" → `firstServableHeight = X`, capturing the §6d late case.
+  *Gap:* needs a poster-authorization / sybil model (§215 cautions on attestation).
+- **O3 — direct-L1 settlement for contested (Approach A, §6d) over O1 for the long
+  tail.** Contested marquee names settle full-data-on-L1 (no DA height problem);
+  the batched tail uses O1's fail-closed default.
+
+*Recommendation (DK rules):* **O1 + O3** — fail-closed default keyed to the anchor
+height with an attributable challenge-exclusion, and direct-L1 for contested names
+(which is where the §6d priority race actually bites). This keeps
+`VerifiedAvailabilityHeight` a function of confirmed-chain facts (#51 (iii)),
+honours §6c/§88–89 (no positive unavailability proof) and §215 (no bonded
+attestation), and confines the unobservable-late-served-height problem to the
+contested path, which O3 routes to L1. The spec work DK would ratify: the concrete
+**challenge-exclusion event format** + the `firstServableHeight` derivation rule.
+
+*Ripple / status:* until DK rules, **D-SB-avail cannot mint
+`VerifiedAvailabilityHeight`**; D-SB-bind (content binding) stands and the kernel
+verdicts already consume the height (ratified #49). This is drafted decision-ready;
+**not** agent-decided. Pending CL's adversarial pass on this classification before it
+goes to DK.
 
 ## §6 — Mining map (existing code → deliverable)
 | Existing | Mineable into |
