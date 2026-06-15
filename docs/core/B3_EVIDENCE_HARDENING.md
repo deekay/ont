@@ -480,3 +480,67 @@ get a deterministic root + provenance, but it must **not** decide **ownership** 
 name — the notice-window does. So D-CV may use commit-priority to derive a deterministic root
 and emit `contested` provenance, but must not declare an owner. This is the single place B3
 could smuggle a consensus decision; confirm the boundary before the red→green slice.
+
+## §11 — Third FREE slice: D-PB full proof-bundle assembly design
+
+Design-first (the proven rhythm). **Classification: FREE — structural construction.** The
+proof-bundle SHAPE is fixed by the resident verifiers `verifyProofBundleStructure` +
+`verifyProofBundleAgainstBitcoin` (`@ont/consensus`, `proof-bundle.ts`). D-PB supplies the
+construction that produces a `proofSource: "accumulator_batch_claim"` bundle those verifiers
+accept; it introduces **no new rule** and decides nothing. DK confirmed this as the next slice
+(option 2, after the B3-green milestone); CL concurred.
+
+**What it builds.** `buildAccumulatorBatchClaimBundle(...)` in `@ont/evidence` (L3), assembling
+a complete bundle from already-built sub-witnesses:
+- D-AM `BuiltMembershipProof` (`{rootHex, proof:{keyHex,value,siblings[]}}`) →
+  `accumulatorProof {root, leaf, value, siblings[]}`.
+- D-BI `BuiltBitcoinInclusion` (`{txid,height,blockHeaderHex,merkle[],pos}`) →
+  `bitcoinInclusion.anchors[]` **and** `batchAnchor {anchorTxid, anchorHeight}`.
+- ownership + value-record chain → `ownershipProof {currentOwnerPubkey, ownershipRef}` and
+  `valueRecordChain.records[]` (sequence + `previousRecordHash` linkage).
+- fixed envelope: `format:"ont-proof-bundle"`, `bundleVersion:0`, `proofSource`, `name`,
+  `normalizedName`, `assuranceTier`, `verificationGoal`.
+
+**Composition stance (per CL's D-SB-avail ruling — consume verified facts, don't re-derive).**
+D-PB takes the **outputs** of D-AM / D-BI / D-SB and assembles them; it does NOT re-run
+PoW / Merkle / membership. Its correctness obligation is exactly *"assembles a bundle the
+resident verifier accepts,"* asserted by running `verifyProofBundleStructure` +
+`verifyProofBundleAgainstBitcoin` over the built bundle in the tests.
+
+**The binding obligations D-PB must satisfy (from the resident validator).**
+- `leaf === H(normalizedName)` (`sha256(utf8(normalizedName))`) — so the embedded membership
+  proof must be the proof for `key = H(name)`; D-PB computes the leaf and requires the supplied
+  proof's `keyHex` to match (fail closed otherwise — a proof for a different name cannot be
+  assembled into this name's bundle).
+- `accumulatorProof.value === currentOwnerPubkey` — the value the proof commits to is the
+  claimed owner.
+- `batchAnchor.anchorTxid` / `anchorHeight` come from the SAME D-BI inclusion carried in
+  `bitcoinInclusion.anchors` (one consistent anchor, not two stories).
+
+**Tests-first red battery (E-PB), instantiated against the resident verifiers:**
+- `pb.assembles-valid` (E-PB1): a bundle built from a real D-AM proof (leaf `H(name)`, value
+  owner) + the block-170 D-BI inclusion passes BOTH `verifyProofBundleStructure` (all checks)
+  and `verifyProofBundleAgainstBitcoin(bundle,{headerSource})` (`valid===true`).
+- `pb.leaf-binds-name-owner` (E-PB2): the assembled `leaf===H(normalizedName)` and
+  `value===currentOwnerPubkey`; a builder fed a proof whose `keyHex` ≠ `H(name)` or whose value
+  ≠ owner fails closed at assembly (does not silently emit a bundle the verifier would reject on
+  `accumulator.leaf.bindsName` / `accumulator.value.bindsOwner`).
+- `pb.structure-vs-bitcoin` (E-PB3): a bundle assembled WITHOUT `bitcoinInclusion.anchors` is
+  structurally valid but not Bitcoin-settled — `…Structure` passes, `…AgainstBitcoin` fails
+  `btc.inclusion.present` (mirrors E-BI3, the two-tier distinction).
+- `pb.tamper-fails-right-check` (E-PB4): tampering the assembled membership sibling / owner value
+  / anchor txid each flips exactly the corresponding resident check to `failed` and `valid` to
+  false — hostile assembly ≡ no-witness acceptance effect (E-ND1), diagnostics may differ.
+
+**Design questions for CL (before the red→green slice):**
+1. **Composition inputs** — D-PB consumes the already-built D-AM `BuiltMembershipProof` + D-BI
+   `BuiltBitcoinInclusion` (+ D-SB served facts) and asserts the assembled bundle passes the
+   resident verifiers; it re-runs no sub-verification. Concur, or do you want a self-verify call
+   inside the builder (vs. leaving verification to the resident functions in tests)?
+2. **Value-record chain depth** — my lean: assemble a small 1–2 record chain so
+   `validateValueRecordChain`'s `sequence` / `previousRecordHash` linkage is actually exercised,
+   not skipped via the null-chain early return. OK?
+3. **Branded verified-anchor-height tightening** (the coupling you flagged on D-SB-avail) — my
+   lean: keep D-PB assembly-only this slice and do the brand coupling (D-PB exposes a verified
+   inclusion result D-SB-avail can consume) as a separate small follow-up, so D-SB-avail stays
+   untouched. Defer, or fold in now?
