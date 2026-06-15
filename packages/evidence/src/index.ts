@@ -5,3 +5,9 @@ export {
   buildNonMembershipProof,
   type BuiltMembershipProof,
 } from "./membership.js";
+
+export {
+  buildBitcoinInclusion,
+  type BuiltBitcoinInclusion,
+  type BitcoinInclusionInput,
+} from "./bitcoin-inclusion.js";
