@@ -112,6 +112,15 @@ function siblingPath(
 }
 
 /**
+ * The accumulator root committing EXACTLY `leaves` (the canonical from-empty
+ * fold). Used by D-SB to recompute a served leaf set's root and compare it to the
+ * anchor's committed root — the completeness check (not mere member inclusion).
+ */
+export function accumulatorRootOf(leaves: ReadonlyMap<string, string>): string {
+  return bytesToHex(subtreeRoot(0, toLeaves(leaves)));
+}
+
+/**
  * Build a MEMBERSHIP proof for `targetKeyHex` over the committed `leaves`
  * (keyHex -> valueHex). The proof verifies against the returned root via
  * @ont/protocol `verifyAccumulatorMembership`. Throws on builder misuse:

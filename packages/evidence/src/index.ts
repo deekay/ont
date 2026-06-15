@@ -13,7 +13,10 @@ export {
 } from "./bitcoin-inclusion.js";
 
 export {
-  buildServedEvidence,
-  type ServedBatch,
+  bindServedBytes,
+  toServedEvidence,
   type ServedLeaf,
+  type AnchorBinding,
+  type BoundServedBatch,
+  type VerifiedAvailabilityHeight,
 } from "./served-bytes.js";
