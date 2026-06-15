@@ -1,5 +1,6 @@
 import { verifyProofBundle } from "@ont/consensus";
 import { Accumulator, accumulatorKeyForName } from "@ont/core";
+import { computeValueRecordHash, deriveOwnerPubkey, signValueRecord } from "@ont/protocol";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -9,7 +10,8 @@ import {
 } from "./proof-export.js";
 import type { ResolverAuctionState, ResolverNameRecord, ResolverValueHistory } from "./resolver.js";
 
-const WINNER_PUBKEY = "ab".repeat(32);
+const WINNER_PRIVATE_KEY = "11".repeat(32);
+const WINNER_PUBKEY = deriveOwnerPubkey(WINNER_PRIVATE_KEY);
 const WINNING_TXID = "cd".repeat(32);
 
 function record(overrides: Partial<ResolverNameRecord> = {}): ResolverNameRecord {
@@ -43,7 +45,7 @@ function auction(overrides: Partial<ResolverAuctionState> = {}): ResolverAuction
     blocksUntilUnlock: 0,
     blocksUntilClose: 0,
     visibleBidOutcomes: [
-      { txid: "ee".repeat(32), ownerPubkey: "11".repeat(32), amountSats: "12000", status: "rejected" },
+      { txid: "ee".repeat(32), ownerPubkey: "22".repeat(32), amountSats: "12000", status: "rejected" },
       { txid: WINNING_TXID, ownerPubkey: WINNER_PUBKEY, amountSats: "20000", status: "accepted" }
     ],
     ...overrides
@@ -86,21 +88,36 @@ describe("assembleDirectAuctionProofBundle", () => {
   });
 
   it("includes a value-record chain when supplied, and it passes verification", () => {
+    const first = signValueRecord({
+      name: "satoshi",
+      ownerPrivateKeyHex: WINNER_PRIVATE_KEY,
+      ownershipRef: WINNING_TXID,
+      sequence: 1,
+      previousRecordHash: null,
+      valueType: 1,
+      payloadHex: "68656c6c6f",
+      issuedAt: "2026-06-15T00:00:00.000Z"
+    });
+    const firstHash = computeValueRecordHash(first);
+    const second = signValueRecord({
+      name: "satoshi",
+      ownerPrivateKeyHex: WINNER_PRIVATE_KEY,
+      ownershipRef: WINNING_TXID,
+      sequence: 2,
+      previousRecordHash: firstHash,
+      valueType: 1,
+      payloadHex: "776f726c64",
+      issuedAt: "2026-06-15T00:01:00.000Z"
+    });
     const valueHistory: ResolverValueHistory = {
       records: [
         {
-          sequence: 1,
-          recordHash: "aa".repeat(32),
-          previousRecordHash: null,
-          ownerPubkey: WINNER_PUBKEY,
-          ownershipRef: WINNING_TXID
+          ...first,
+          recordHash: firstHash
         },
         {
-          sequence: 2,
-          recordHash: "bb".repeat(32),
-          previousRecordHash: "aa".repeat(32),
-          ownerPubkey: WINNER_PUBKEY,
-          ownershipRef: WINNING_TXID
+          ...second,
+          recordHash: computeValueRecordHash(second)
         }
       ]
     };
