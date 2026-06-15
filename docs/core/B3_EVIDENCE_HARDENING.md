@@ -877,3 +877,49 @@ duplicate committed name / duplicate fee input fail closed; schedule object malf
    so `fee.anchorTxid === anchor.anchorTxid` is the bind.
 
 On your rulings I author the `gf.*` red battery then green.
+
+### §14 update — CL design rulings + the Q4 fee-completeness blocker
+
+**Q1 leaf shape (ruled).** Committed leaf = `{ leafKeyHex, canonicalNameByteLength }` (D-GF consumes the
+closed committed-set projection; it does NOT re-run name normalization). **Duplicate committed name =
+duplicate `leafKeyHex`** (not duplicate length). A later-dropped leaf with a valid committed key+length
+still counts in `Σ g`; a leaf so malformed the witness cannot derive key+length is a **malformed
+committed-set witness**, not a fee discount.
+
+**Q2 schedule (ruled).** A DISTINCT closed `GateFeeSchedule` — gate-specific field names, positive
+bigint values, closed shape, no market/source/publisher channel; curve-shaped like `openingFloor`
+(reuse the helper MATH, not the `OpeningFloorParams` type — no semantic coupling to auction floors).
+
+**Q3 anchor binding (ruled).** Add `anchorTxid` to `GateFeeAnchorFacts`; bind by
+`fee.anchorTxid === anchor.anchorTxid` (`anchoredRoot` is insufficient — two txs can commit the same
+root with different fees).
+
+**Q4 fee-fact completeness (BLOCKER — the fee witness must be a complete, txid-bound anchor-tx view).**
+An arbitrary `outputs:[valueSats]` + `inputs:[prevout]` is NOT verifier-checkable: a hostile witness can
+omit outputs (inflating `paidFee = Σin − Σout`) or invent prevouts. The inputs + outputs must be
+COMMITTED by the txid. **There is NO resident Bitcoin tx serializer / txid-recompute** (`@ont/bitcoin` is
+Merkle/PoW only), so D-GF must add a kernel-local legacy-txid serializer. Proposed fee-witness shape:
+```
+GateFeeWitness {
+  tx: { version, inputs: [{ prevoutTxid, prevoutVout, scriptSigHex, sequence, prevoutValueSats }],
+        outputs: [{ valueSats, scriptPubKeyHex }], locktime },   // the COMPLETE anchor tx
+  anchorTxid,                                                     // == anchor.anchorTxid (Q3)
+  schedule: GateFeeSchedule }
+```
+- The kernel recomputes the **legacy txid** = `reverse(dsha256(serialize(tx)))` (the non-witness
+  serialization — the txid form even for segwit) and requires it `=== anchor.anchorTxid === fee.anchorTxid`.
+  A matched txid pins the inputs + outputs exactly, so neither omission nor a fake input can inflate the fee.
+- `paidFee = Σ inputs.prevoutValueSats − Σ outputs.valueSats`; fail closed on `paidFee < 0`, value
+  overflow, or any malformed field.
+- `prevoutValueSats` is supplied one-for-one for the parsed inputs (the tx does not carry input values).
+  Over-stating a prevout value to inflate `paidFee` is the residual the on-chain prevout binds — that is a
+  D-BI obligation (the prevout's own inclusion), out of D-GF; D-GF pins COMPLETENESS (no omit / no fake).
+
+**Added Q4 negatives:** omitted output cannot inflate the fee; an extra fake prevout cannot inflate the
+fee (both ⇒ recomputed txid ≠ anchor.anchorTxid ⇒ fail closed); missing prevout value ⇒ fail closed;
+txid mismatch ⇒ fail closed.
+
+**Confirm points before the red battery.** (i) the tx-fact shape above (complete tx + per-input prevout
+values + legacy-txid recompute); (ii) the serializer lives kernel-local in `@ont/consensus` (fee
+adequacy is consensus law; reuses `@ont/protocol` sha256), agreed?; (iii) the over-stated-prevout
+residual is explicitly D-BI's (the prevout's on-chain value), NOT re-bound in D-GF — agreed scope line?
