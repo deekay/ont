@@ -719,7 +719,7 @@ export function deriveCanonicalRoot(input: DcvDerivationInput): DcvDerivationVer
   // --- 0. Total fail-closed shape validation over an untrusted runtime value (never throws). ---
   const i = input as unknown;
   if (!isObject(i) || !hasExactKeys(i, DCV_INPUT_KEYS)) return dcvFail("dcv-input-malformed");
-  if (!isDcvBaseRootRelationship(i.base) || !isInteger(i.K)) return dcvFail("dcv-input-malformed");
+  if (!isDcvBaseRootRelationship(i.base) || !isInteger(i.K) || i.K < 0) return dcvFail("dcv-input-malformed");
   if (!Array.isArray(i.baseLeaves) || !Array.isArray(i.leaves)) return dcvFail("dcv-input-malformed");
   const base = i.base;
   const K = i.K;
@@ -754,7 +754,7 @@ export function deriveCanonicalRoot(input: DcvDerivationInput): DcvDerivationVer
   // --- 2. Batch-local duplicate: the same (batchId, leafKeyHex) must not appear twice (insert-only set). ---
   const batchLeafSeen = new Set<string>();
   for (const { projection } of leaves) {
-    const key = `${projection.batchId} ${projection.leafKeyHex}`;
+    const key = JSON.stringify([projection.batchId, projection.leafKeyHex]);
     if (batchLeafSeen.has(key)) return dcvFail("dcv-batch-local-duplicate");
     batchLeafSeen.add(key);
   }
@@ -793,7 +793,10 @@ export function deriveCanonicalRoot(input: DcvDerivationInput): DcvDerivationVer
 
   for (const k of order) {
     const bucket = byKey.get(k) as BatchCompletenessLeafWitness[];
+    // A leaf key is H(name); D-CV does not recompute it, so a same-key bucket carrying more than one
+    // distinct `name` would make the returned provenance order-dependent. Fail closed (CL r1).
     const name = bucket[0]!.projection.name;
+    if (!bucket.every((l) => l.projection.name === name)) return dcvFail("dcv-projection-contradiction");
     const priority = bucket.filter(isPriorityLeaf);
 
     if (priority.length === 0) {

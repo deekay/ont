@@ -220,6 +220,24 @@ describe("D-CV canonical-root derivation (B3 §10; #53 delta-merge, root-derivat
     expect(v.reason).toBe("dcv-projection-contradiction");
   });
 
+  it("cv.same-key-name-mismatch: same leafKeyHex with inconsistent name fails closed, order-independently", () => {
+    // CL r1: leafKeyHex = H(name) is NOT recomputed; a same-key bucket carrying two distinct names
+    // would make the returned provenance name order-dependent. Reject — and identically for either order.
+    const alice = leaf({}); // name "alice", LEAF_A, includable + priority
+    const mallory = leaf({ name: "mallory", batchId: "batch-3", daVerdict: { kind: "excluded", firstCompleteServedHeight: null, holdsPriority: false } }); // same LEAF_A, different name
+    const forward = deriveCanonicalRoot(input({ leaves: [alice, mallory] }));
+    const reverse = deriveCanonicalRoot(input({ leaves: [mallory, alice] }));
+    expect(forward.derived).toBe(false);
+    expect(forward.reason).toBe("dcv-projection-contradiction");
+    expect(reverse).toEqual(forward); // deterministic provenance: identical verdict regardless of input order
+  });
+
+  it("cv.negative-K: a negative confirmation depth is malformed input", () => {
+    const v = deriveCanonicalRoot(input({ K: -1 }));
+    expect(v.derived).toBe(false);
+    expect(v.reason).toBe("dcv-input-malformed");
+  });
+
   it("cv.excluded-duplicate-no-nullify: a DA-excluded same-leaf duplicate does not contest or nullify", () => {
     const aClaim = leaf({}, BIND_A);
     const bExcluded = bClaimForA({ daVerdict: { kind: "excluded", firstCompleteServedHeight: null, holdsPriority: false } });

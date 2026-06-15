@@ -516,14 +516,19 @@ exactness + duplicate/value coherence ARE on this surface (review round 1):
   claimed `distinct-owner-contested` for a real unique (a false-contest denial vector) both fail
   closed; an includable-but-`holdsPriority:false` duplicate is skipped with no nullify (#69 counts only
   priority-bearing claims, not only `excluded`).
+- **Deterministic provenance.** `leafKeyHex = H(name)` is NOT recomputed, so a same-key bucket carrying
+  more than one distinct `name` would make the returned provenance order-dependent — it fails closed
+  (CL green-review). `K >= 0` (negative confirmation depth is malformed); the batch-local-duplicate key
+  is a structured `JSON.stringify([batchId, leafKeyHex])` (no separator-collision / NUL).
 
-cv.* battery (22, GREEN — `deriveCanonicalRoot` implemented, CL red-OK on `2dfc29b`):
+cv.* battery (24, GREEN — `deriveCanonicalRoot` implemented; CL red-OK on `2dfc29b` + green review):
 `derives-canonical-root` · `prevroot-k-deep` ·
 `base-too-old` · `mixed-anchor-height-base-exactness` · `base-root-binding` · `duplicate-base-key` ·
-`no-op-anchor` · `commute` ·
+`negative-K` · `no-op-anchor` · `commute` ·
 `no-contest-decision` · `no-contest-only-no-op` (contest-only ⇒ derive, not no-op) ·
 `winner-leakage-guard` · `false-contest-claim` · `same-owner-coalesce` · `same-owner-conflicting-value`
-· `value-binding-mismatch` · `excluded-duplicate-no-nullify` · `non-priority-no-nullify` ·
+· `value-binding-mismatch` · `same-key-name-mismatch` (order-independent reject) ·
+`excluded-duplicate-no-nullify` · `non-priority-no-nullify` ·
 `reorg-rederive` · `stale-base` · `insert-only` · `batch-local-duplicate` · `malformed`.
 
 ## §11 — Third FREE slice: D-PB proof-bundle assembly design
