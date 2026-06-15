@@ -5,8 +5,11 @@
 // esplora `/merkle-proof` returns) and the target's position. The VERIFIER lives
 // in @ont/consensus; B3 owns only the BUILDER (non-deciding).
 //
-// Status: STUB — tests-first (B3_EVIDENCE_HARDENING.md §9 / E-BI1, E-BI2). The
-// conformance battery in bitcoin-inclusion.test.ts is RED until this is built.
+// Convention mirrors the verifier (proof-bundle.ts merkleRootFromProof): leaves
+// and internal nodes are hashed in INTERNAL (little-endian) byte order; siblings
+// are emitted in DISPLAY (big-endian) order. Bitcoin's Merkle rule duplicates the
+// last node when a level has an odd count.
+import { bytesToHex, concatBytes, hexToBytes, sha256Bytes } from "@ont/protocol";
 
 /** The `bitcoinInclusion.anchors[]` element shape the kernel verifier consumes. */
 export interface BuiltBitcoinInclusion {
@@ -29,11 +32,66 @@ export interface BitcoinInclusionInput {
   readonly orderedBlockTxids: readonly string[];
 }
 
+const HEX_64 = /^[0-9a-f]{64}$/;
+const HEX_HEADER = /^[0-9a-f]{160}$/;
+
+const dsha = (bytes: Uint8Array): Uint8Array => sha256Bytes(sha256Bytes(bytes));
+const reversed = (bytes: Uint8Array): Uint8Array => Uint8Array.from(bytes).reverse();
+
+/** Display (big-endian) txid hex → internal (little-endian) leaf bytes. */
+function txidToInternal(displayHex: string): Uint8Array {
+  const lower = displayHex.toLowerCase();
+  if (!HEX_64.test(lower)) {
+    throw new Error(`@ont/evidence: txid must be 32-byte hex, got ${JSON.stringify(displayHex)}`);
+  }
+  return reversed(hexToBytes(lower));
+}
+
 /**
- * Build the inclusion proof for `txid` within its block. The result must verify
+ * Build the inclusion proof for `txid` within its block. The result verifies
  * against the header's Merkle root via the kernel's against-Bitcoin verifier.
- * Throws on misuse: malformed header, or a target absent from the block.
+ * Throws on misuse: malformed header (not 80 bytes of hex), malformed/duplicate
+ * txids, or a target absent from the block.
  */
-export function buildBitcoinInclusion(_input: BitcoinInclusionInput): BuiltBitcoinInclusion {
-  throw new Error("@ont/evidence.buildBitcoinInclusion: not implemented (B3 D-BI)");
+export function buildBitcoinInclusion(input: BitcoinInclusionInput): BuiltBitcoinInclusion {
+  const target = input.txid.toLowerCase();
+  if (!HEX_64.test(target)) {
+    throw new Error(`@ont/evidence.buildBitcoinInclusion: target txid must be 32-byte hex`);
+  }
+  if (!HEX_HEADER.test(input.blockHeaderHex.toLowerCase())) {
+    throw new Error(`@ont/evidence.buildBitcoinInclusion: blockHeaderHex must be 80 bytes of hex`);
+  }
+  const ordered = input.orderedBlockTxids.map((t) => t.toLowerCase());
+  const pos = ordered.indexOf(target);
+  if (pos < 0) {
+    throw new Error(`@ont/evidence.buildBitcoinInclusion: target ${target} is not in the block`);
+  }
+  if (new Set(ordered).size !== ordered.length) {
+    throw new Error(`@ont/evidence.buildBitcoinInclusion: duplicate txid in the block`);
+  }
+
+  let level = ordered.map(txidToInternal);
+  let index = pos;
+  const merkle: string[] = [];
+  while (level.length > 1) {
+    if (level.length % 2 === 1) {
+      level.push(level[level.length - 1]!); // Bitcoin: duplicate the last node
+    }
+    const siblingIndex = index ^ 1;
+    merkle.push(bytesToHex(reversed(level[siblingIndex]!))); // emit display order
+    const next: Uint8Array[] = [];
+    for (let i = 0; i < level.length; i += 2) {
+      next.push(dsha(concatBytes(level[i]!, level[i + 1]!)));
+    }
+    level = next;
+    index >>= 1;
+  }
+
+  return {
+    txid: target,
+    height: input.height,
+    blockHeaderHex: input.blockHeaderHex.toLowerCase(),
+    merkle,
+    pos,
+  };
 }
