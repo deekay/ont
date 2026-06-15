@@ -25,8 +25,7 @@
 // proof, #51 (iii)) is the separate D-SB-avail sub-slice. D-SB-bind never accepts a
 // bare/attested height — `toServedEvidence` consumes only a `VerifiedAvailabilityHeight`,
 // the brand the future D-SB-avail verifier mints.
-import { accumulatorRootOf } from "./membership.js";
-
+import { accumulatorRootOf } from "@ont/protocol";
 import type { ServedEvidence } from "@ont/consensus";
 
 const HEX_32 = /^[0-9a-f]{64}$/;

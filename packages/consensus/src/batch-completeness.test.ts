@@ -16,6 +16,8 @@ import {
   type DcvDaVerdict,
   type DcvOwnerIdentity,
 } from "./batch-exclusion.js";
+import { accumulatorRootOf } from "@ont/protocol";
+import { resolveNoticeWindow } from "./notice-window.js";
 
 const expectedCaseIds = [
   "bc.full-n-required",
@@ -67,8 +69,23 @@ const projectionFixture = (): DcvClosedLeafProjection => ({
 const OWNER_A: DcvOwnerIdentity = { kind: "owner-key", ownerKeyHex: "11".repeat(32) };
 const OWNER_B: DcvOwnerIdentity = { kind: "owner-key", ownerKeyHex: "12".repeat(32) };
 const ANCHOR_A: DcvAnchorCoordinates = { txid: "33".repeat(32), minedHeight: 100, txIndex: 2, vout: 1, anchorInstance: 0 };
-const BASE_A: DcvBaseRootRelationship = { prevRoot: "44".repeat(32), baseRootHeight: 94 };
 const DA_INCLUDABLE: DcvDaVerdict = { kind: "includable", firstCompleteServedHeight: 103, holdsPriority: true };
+
+// Real D-CV roots, computed via the @ont/protocol SMT builder (the same one the
+// slice-4 replay will use), so the happy path is genuinely replay-valid and the
+// mirror-lies / replay-from-base faults isolate `replay-mismatch` honestly rather
+// than against dummy roots.
+const ALICE_KEY = "aa".repeat(32);
+const ALICE_VALUE = "66".repeat(32);
+const BOB_KEY = "bb".repeat(32);
+const BOB_VALUE = "77".repeat(32);
+const BASE_PRIOR_LEAVES = [{ keyHex: "0a".repeat(32), valueHex: "0b".repeat(32) }];
+const baseMap = new Map<string, string>(BASE_PRIOR_LEAVES.map((l) => [l.keyHex, l.valueHex]));
+const PREV_ROOT = accumulatorRootOf(baseMap);
+const NEW_ROOT = accumulatorRootOf(
+  new Map<string, string>([...baseMap, [ALICE_KEY, ALICE_VALUE], [BOB_KEY, BOB_VALUE]]),
+);
+const BASE_A: DcvBaseRootRelationship = { prevRoot: PREV_ROOT, baseRootHeight: 94 };
 
 function leafWitness(opts: {
   name: string;
@@ -97,13 +114,14 @@ function leafWitness(opts: {
   };
 }
 
-// A valid full-N input: 2 served leaves matching batchSize 2, all within window.
+// A valid full-N input: 2 served leaves whose delta replays PREV_ROOT -> NEW_ROOT,
+// matching batchSize 2, all within window. base height 94 = anchor.minedHeight(100) - K(6).
 function baseInput(): BatchCompletenessPredicateInput {
   return {
-    commitment: { prevRoot: "44".repeat(32), newRoot: "55".repeat(32), batchSize: 2 },
+    commitment: { prevRoot: PREV_ROOT, newRoot: NEW_ROOT, batchSize: 2 },
     base: BASE_A,
-    baseLeaves: [],
-    window: { W: 2, C: 3, availabilityDeadlineHeight: 102, challengeDeadlineHeight: 105 },
+    baseLeaves: [...BASE_PRIOR_LEAVES],
+    window: { K: 6, W: 2, C: 3, availabilityDeadlineHeight: 102, challengeDeadlineHeight: 105 },
     daVerdict: DA_INCLUDABLE,
     priorSettledVerdict: null,
     batches: [
@@ -111,8 +129,8 @@ function baseInput(): BatchCompletenessPredicateInput {
         batchId: "batch-a",
         anchor: ANCHOR_A,
         leaves: [
-          leafWitness({ name: "alice", leafKeyHex: "aa".repeat(32), index: 0, valueHex: "66".repeat(32), owner: OWNER_A }),
-          leafWitness({ name: "bob", leafKeyHex: "bb".repeat(32), index: 1, valueHex: "77".repeat(32), owner: OWNER_B }),
+          leafWitness({ name: "alice", leafKeyHex: ALICE_KEY, index: 0, valueHex: ALICE_VALUE, owner: OWNER_A }),
+          leafWitness({ name: "bob", leafKeyHex: BOB_KEY, index: 1, valueHex: BOB_VALUE, owner: OWNER_B }),
         ],
       },
     ],
@@ -175,6 +193,25 @@ describe("batch-completeness (#83) conformance matrix scaffold", () => {
     expect(evaluateBatchCompleteness(excluded)).toEqual({ accepts: false, reason: "batch-completeness-da-excluded" });
   });
 
+  it("bc.hidden-claim-no-effect (notice-window): visible DA-valid + hidden excluded finalizes as 1, not nullified (green)", () => {
+    // The other half of "hidden claim has no effect": at the notice-window layer, a hidden
+    // claim that resolves not-DA-priority does not count toward the collision, so the single
+    // visible DA-valid claim finalizes (count 1) rather than nullifying the name.
+    const verdict = resolveNoticeWindow({
+      anchorHeight: 100,
+      currentHeight: 120, // notice window (10 blocks) closed → decidable
+      claims: [
+        { ownerKey: "11".repeat(32), daVerdict: { decided: true, holdsPriority: true } }, // visible DA-valid (victim)
+        { ownerKey: "12".repeat(32), daVerdict: { decided: true, holdsPriority: false } }, // hidden / not DA-priority → uncounted
+      ],
+      bond: { bondAmountSats: null, bondFloorSats: 50_000n },
+      params: { noticeWindowBlocks: 10 },
+    });
+    expect(verdict.outcome).toBe("finalized");
+    expect(verdict.awarded).toBe(true);
+    expect(verdict.daValidOwnerCount).toBe(1);
+  });
+
   it("bc.mirror-lies-fail: served bytes that do not recompute newRoot are rejected", () => {
     const i = baseInput();
     const tampered = withLeaves(i, [{ ...i.batches[0]!.leaves[0]!, valueHex: "de".repeat(32) }, i.batches[0]!.leaves[1]!]);
@@ -191,13 +228,18 @@ describe("batch-completeness (#83) conformance matrix scaffold", () => {
     expect(isClosedDcvProjection({ ...p, duplicateHandling: "same-owner-duplicate" })).toBe(true);
   });
 
-  it("bc.copied-anchor-grief-not-steal: a copied/relocated anchor (stale coords) fails closed", () => {
-    const i = baseInput();
-    const copied: BatchCompletenessPredicateInput = {
-      ...i,
-      batches: [{ ...i.batches[0]!, anchor: { ...ANCHOR_A, txid: "ee".repeat(32), minedHeight: 200 } }],
+  it("bc.copied-anchor-grief-not-steal: a copied/relocated anchor never changes the owner (green)", () => {
+    // An attacker copies the victim's anchor label and re-mines it elsewhere. The leaf
+    // projection still carries the VICTIM's owner key — ownership is fixed by the owner
+    // field, not the anchor — so a copied current anchor cannot steal the name (and is
+    // not, by itself, a completeness reject; that is the grief-not-steal property).
+    const p = projectionFixture(); // owner = OWNER_A, the victim
+    const copiedAnchor: DcvClosedLeafProjection = {
+      ...p,
+      anchor: { ...p.anchor, txid: "ee".repeat(32), minedHeight: 200 },
     };
-    expect(evaluateBatchCompleteness(copied)).toEqual({ accepts: false, reason: "batch-completeness-stale-anchor" });
+    expect(isClosedDcvProjection(copiedAnchor)).toBe(true);
+    expect(copiedAnchor.owner).toEqual({ kind: "owner-key", ownerKeyHex: "11".repeat(32) });
   });
 
   it("bc.finalize-once: an already-settled accept is preserved despite later byte-loss", () => {
@@ -240,18 +282,29 @@ describe("batch-completeness (#83) conformance matrix scaffold", () => {
     expect(evaluateBatchCompleteness(wrongBase)).toEqual({ accepts: false, reason: "batch-completeness-replay-mismatch" });
   });
 
-  it("bc.one-bad-leaf-poisons-batch: a single invalid owner binding fails the WHOLE batch, not N-1", () => {
+  it("bc.one-bad-leaf-poisons-batch: a single malformed leaf (open projection) fails the WHOLE batch, not N-1", () => {
     const i = baseInput();
+    // One leaf with a wrong-length (16-byte) owner-value binding → open projection.
+    // Per O2, that fails the WHOLE batch closed, not N-1 accepted.
     const badLeaf = withLeaves(i, [
       i.batches[0]!.leaves[0]!,
-      { ...i.batches[0]!.leaves[1]!, projection: { ...i.batches[0]!.leaves[1]!.projection, ownerValueBindingHex: "00".repeat(32) } },
+      { ...i.batches[0]!.leaves[1]!, projection: { ...i.batches[0]!.leaves[1]!.projection, ownerValueBindingHex: "00".repeat(16) } },
     ]);
-    expect(evaluateBatchCompleteness(badLeaf)).toEqual({ accepts: false, reason: "batch-completeness-owner-binding-invalid" });
+    expect(evaluateBatchCompleteness(badLeaf)).toEqual({ accepts: false, reason: "batch-completeness-projection-open-shape" });
   });
 
-  it("bc.partial-timing: the last leaf served after h+W+C excludes the whole batch (late)", () => {
-    const i = baseInput();
-    const late = withLeaves(i, [i.batches[0]!.leaves[0]!, { ...i.batches[0]!.leaves[1]!, servedHeight: 106 }]); // > challengeDeadline 105
+  it("bc.partial-timing: last leaf in (h+W, h+W+C] is includable without priority; after h+W+C is late", () => {
+    const base = baseInput();
+    // In-window-but-after-availability: served at 104, within (h+W=102, h+W+C=105].
+    // Completeness accepts; the daVerdict carries holdsPriority=false (no priority).
+    const inWindow: BatchCompletenessPredicateInput = {
+      ...withLeaves(base, [base.batches[0]!.leaves[0]!, { ...base.batches[0]!.leaves[1]!, servedHeight: 104 }]),
+      daVerdict: { kind: "includable", firstCompleteServedHeight: 104, holdsPriority: false },
+    };
+    expect(evaluateBatchCompleteness(inWindow)).toEqual({ accepts: true, reason: "batch-completeness-accepted" });
+
+    // After the challenge deadline (105): the whole batch is excluded as late.
+    const late = withLeaves(base, [base.batches[0]!.leaves[0]!, { ...base.batches[0]!.leaves[1]!, servedHeight: 106 }]);
     expect(evaluateBatchCompleteness(late)).toEqual({ accepts: false, reason: "batch-completeness-late" });
   });
 
@@ -263,12 +316,17 @@ describe("batch-completeness (#83) conformance matrix scaffold", () => {
     expect(evaluateBatchCompleteness(remined)).toEqual({ accepts: false, reason: "batch-completeness-stale-anchor" });
   });
 
-  it("bc.projection-closure: open/incomplete projections are rejected by the closed-shape gate (green)", () => {
+  it("bc.projection-closure: open/incomplete/malformed projections are rejected by the closed-shape gate (green)", () => {
     const p = projectionFixture();
     const { base: _omitBase, ...missingBase } = p;
     expect(isClosedDcvProjection(missingBase)).toBe(false);
     expect(isClosedDcvProjection({ ...p, anchor: { ...p.anchor, txid: "" } })).toBe(false);
     expect(isClosedDcvProjection({ ...p, daVerdict: { kind: "includable", firstCompleteServedHeight: 1 } })).toBe(false);
+    // Wrong-length hex (16 bytes, not 32) is rejected by the tightened gate.
+    expect(isClosedDcvProjection({ ...p, leafKeyHex: "aa".repeat(16) })).toBe(false);
+    expect(isClosedDcvProjection({ ...p, ownerValueBindingHex: "22".repeat(16) })).toBe(false);
+    expect(isClosedDcvProjection({ ...p, owner: { kind: "owner-key", ownerKeyHex: "11".repeat(16) } })).toBe(false);
+    expect(isClosedDcvProjection({ ...p, base: { ...p.base, prevRoot: "44".repeat(16) } })).toBe(false);
   });
 
   it("pins the exact-delta completeness predicate signature as a sentinel API", () => {
@@ -282,6 +340,7 @@ describe("batch-completeness (#83) conformance matrix scaffold", () => {
       base: projection.base,
       baseLeaves: [],
       window: {
+        K: 6,
         W: 2,
         C: 3,
         availabilityDeadlineHeight: 102,

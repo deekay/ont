@@ -10,6 +10,7 @@
 import {
   ACCUMULATOR_DEFAULTS,
   ACCUMULATOR_DEPTH,
+  accumulatorRootOf,
   accumulatorKeyBit,
   bytesToHex,
   hashAccumulatorInternal,
@@ -17,6 +18,8 @@ import {
   hexToBytes,
   type AccumulatorMembershipProof,
 } from "@ont/protocol";
+
+export { accumulatorRootOf } from "@ont/protocol";
 
 export interface BuiltMembershipProof {
   /** The accumulator root the proof folds to. */
@@ -112,15 +115,6 @@ function siblingPath(
 }
 
 /**
- * The accumulator root committing EXACTLY `leaves` (the canonical from-empty
- * fold). Used by D-SB to recompute a served leaf set's root and compare it to the
- * anchor's committed root — the completeness check (not mere member inclusion).
- */
-export function accumulatorRootOf(leaves: ReadonlyMap<string, string>): string {
-  return bytesToHex(subtreeRoot(0, toLeaves(leaves)));
-}
-
-/**
  * Build a MEMBERSHIP proof for `targetKeyHex` over the committed `leaves`
  * (keyHex -> valueHex). The proof verifies against the returned root via
  * @ont/protocol `verifyAccumulatorMembership`. Throws on builder misuse:
@@ -137,7 +131,7 @@ export function buildMembershipProof(
     throw new Error(`@ont/evidence.buildMembershipProof: target ${targetKey} is not in the committed set`);
   }
   return {
-    rootHex: bytesToHex(subtreeRoot(0, set)),
+    rootHex: accumulatorRootOf(leaves),
     proof: { keyHex: targetKey, value: bytesToHex(member.value), siblings: siblingPath(set, member.key) },
   };
 }
@@ -157,7 +151,7 @@ export function buildNonMembershipProof(
     throw new Error(`@ont/evidence.buildNonMembershipProof: target ${targetKey} IS in the committed set`);
   }
   return {
-    rootHex: bytesToHex(subtreeRoot(0, set)),
+    rootHex: accumulatorRootOf(leaves),
     proof: { keyHex: targetKey, value: null, siblings: siblingPath(set, hexToBytes(targetKey)) },
   };
 }

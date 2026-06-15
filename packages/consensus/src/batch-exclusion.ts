@@ -40,6 +40,7 @@ const isClosedShape = (obj: object, allowed: readonly string[]): boolean =>
 const hasExactKeys = (obj: object, allowed: readonly string[]): boolean =>
   isClosedShape(obj, allowed) && allowed.every((key) => Object.prototype.hasOwnProperty.call(obj, key));
 const isNonEmptyString = (x: unknown): x is string => typeof x === "string" && x.length > 0;
+const isHex32 = (x: unknown): x is string => typeof x === "string" && /^[0-9a-f]{64}$/.test(x);
 const isInteger = (x: unknown): x is number => Number.isInteger(x);
 const isBoolean = (x: unknown): x is boolean => typeof x === "boolean";
 
@@ -198,10 +199,10 @@ function isDcvOwnerIdentity(input: unknown): input is DcvOwnerIdentity {
     return false;
   }
   if (input.kind === "owner-key") {
-    return hasExactKeys(input, DCV_OWNER_KEY_KEYS) && isNonEmptyString(input.ownerKeyHex);
+    return hasExactKeys(input, DCV_OWNER_KEY_KEYS) && isHex32(input.ownerKeyHex);
   }
   if (input.kind === "owner-commitment") {
-    return hasExactKeys(input, DCV_OWNER_COMMITMENT_KEYS) && isNonEmptyString(input.commitmentHex);
+    return hasExactKeys(input, DCV_OWNER_COMMITMENT_KEYS) && isHex32(input.commitmentHex);
   }
   return false;
 }
@@ -210,7 +211,7 @@ function isDcvAnchorCoordinates(input: unknown): input is DcvAnchorCoordinates {
   return (
     isObject(input) &&
     hasExactKeys(input, DCV_ANCHOR_COORDINATE_KEYS) &&
-    isNonEmptyString(input.txid) &&
+    isHex32(input.txid) &&
     isInteger(input.minedHeight) &&
     isInteger(input.txIndex) &&
     isInteger(input.vout) &&
@@ -222,7 +223,7 @@ function isDcvBaseRootRelationship(input: unknown): input is DcvBaseRootRelation
   return (
     isObject(input) &&
     hasExactKeys(input, DCV_BASE_RELATIONSHIP_KEYS) &&
-    isNonEmptyString(input.prevRoot) &&
+    isHex32(input.prevRoot) &&
     isInteger(input.baseRootHeight)
   );
 }
@@ -254,9 +255,9 @@ export function isClosedDcvProjection(input: unknown): input is DcvClosedLeafPro
     isObject(input) &&
     hasExactKeys(input, DCV_CLOSED_LEAF_PROJECTION_KEYS) &&
     isNonEmptyString(input.name) &&
-    isNonEmptyString(input.leafKeyHex) &&
+    isHex32(input.leafKeyHex) &&
     isDcvOwnerIdentity(input.owner) &&
-    isNonEmptyString(input.ownerValueBindingHex) &&
+    isHex32(input.ownerValueBindingHex) &&
     isDcvAnchorCoordinates(input.anchor) &&
     isNonEmptyString(input.batchId) &&
     isInteger(input.batchLocalIndex) &&
@@ -297,6 +298,8 @@ export interface BatchCompletenessBaseLeafWitness {
 }
 
 export interface BatchCompletenessWindowFacts {
+  /** Confirmation depth K, kept as an input so base-root height checks do not bake a constant. */
+  readonly K: number;
   /** Availability window W, kept as an input so vectors can prove no baked constant. */
   readonly W: number;
   /** Challenge window C, kept as an input so vectors can prove no baked constant. */

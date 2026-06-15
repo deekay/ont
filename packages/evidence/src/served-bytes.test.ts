@@ -4,9 +4,9 @@
 // anchoredRoot (newRoot) — COMPLETENESS from prevRoot, not from-empty. Then the
 // kernel deadline composition runs over an already-verified height.
 import { createDaWindowParams, holdsPriority, includable, type AnchorFacts } from "@ont/consensus";
+import { accumulatorRootOf } from "@ont/protocol";
 import { describe, expect, it } from "vitest";
 
-import { accumulatorRootOf } from "./membership.js";
 import {
   bindServedBytes,
   toServedEvidence,
