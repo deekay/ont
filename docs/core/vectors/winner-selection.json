@@ -86,20 +86,20 @@
       "attackFlagText": "If 'at least' replaced 'equals exactly', a bidder could post one oversized output and later claim the same output backs a larger rebid without new capital; exact equality plus one-bond-output-per-bid closes this — the spec text must say 'equals exactly'",
       "predicateSignature": "bidAcceptance(auctionBid{bidAmountSats, bondVout}, witnessedChainFacts{output value at bondVout}, priorAuctionState) -> {verdict}",
       "fixture": {
-        "caseAbove": "bidAmountSats one sat ABOVE the output value at bondVout -> reject",
-        "caseBelow": "bidAmountSats one sat BELOW the output value at bondVout -> reject",
+        "caseBelow": "output value at bondVout one sat BELOW bidAmountSats -> reject (under-bond; value must be >= the bid)",
         "caseMissingOutput": "bondVout index designates no corresponding output -> reject",
-        "positiveControl": "the output value at bondVout equals bidAmountSats EXACTLY -> passes this clause",
+        "caseOverBond": "output value at bondVout one sat ABOVE bidAmountSats -> PASSES this clause (over-bonding allowed, PR-21)",
+        "positiveControl": "output value at bondVout EQUALS bidAmountSats exactly -> passes this clause",
         "priorState": "an auction context"
       },
-      "scopeNote": "Verdict authority RATIFIED via #66 (PR-21 bond binding): the declared bid amount and the posted on-chain bond value are one number — equals-exactly, not at-least (LAUNCH 'bond value = bid at bondVout', ratified through PR-21). WIRE_FORMAT §4.3 (normative) supplies the bondVout/bidAmountSats field ENCODING only. Ratified tier via #66 (authored at candidate LAUNCH; the equals-exactly sentence is now ratified, not pending promotion into AUCTION.md).",
+      "scopeNote": "Verdict authority RATIFIED via #66 (PR-21 bond binding): a valid bid's bondVout output value must be >= bidAmountSats — OVER-BONDING IS ALLOWED. WIRE_FORMAT §4.3 (normative) supplies the bondVout/bidAmountSats field encoding only. CORRECTION 2026-06-15: the #66 promotion mis-framed this clause as exact-equality and mis-cited PR-21; PR-21 (the authoritative #66 record) explicitly rules >= / over-bonding-allowed, so the vector is corrected to match the ratified rule. The bidder-control / spendable-script clause is Q4 + B3.",
       "authoringStatus": "authored: predicate-input shape proposed at candidate tier; reviewer sign-off complete; locked. Promoted candidate→ratified 2026-06-15 (#66, DK event 43d30e67) via PR-21."
     },
     "expected": {
       "verdict": "reject",
-      "reason": "q3-01-bond-output-must-equal-bid-exactly",
-      "invariant": "the output value at bondVout must equal bidAmountSats exactly; one sat above, one sat below, or a missing output at bondVout all reject — at-least is insufficient",
-      "rationale": "The exact-equality rule (bond output value at bondVout equals bidAmountSats exactly): LAUNCH.md Implementation/Validation status states 'bond value = bid at bondVout', and WIRE_FORMAT §4.3 normatively fixes the bondVout and bidAmountSats fields (encoding). The negatives (one sat above, one sat below, missing output at bondVout) all reject; positive (exact equality) passes this clause. Ratified via #66 (PR-21; authored at candidate LAUNCH)."
+      "reason": "q3-01-bond-below-bid-or-missing-rejects-overbond-allowed",
+      "invariant": "the bond output value at bondVout must be >= bidAmountSats (PR-21: over-bonding is allowed); a value strictly below the bid or a missing output at bondVout rejects, while an over-bond (above) and an exact-equal value both pass this clause",
+      "rationale": "PR-21 (#66, ratified) rules the bondVout output value must be >= bidAmountSats, over-bonding allowed. So a value strictly BELOW the bid and a missing output at bondVout reject; an over-bond (one sat above) and an exact-equal value both pass this value clause. Corrected from the promotion's exact-equality mis-citation of PR-21 (a stale candidate reading of LAUNCH 'bond value = bid at bondVout' that PR-21 superseded). The non-returnable/burnable-script rejects are Q4's clause; the full bidder-control script enumeration is B3."
     },
     "status": "locked",
     "attackFlagRef": "Q3-01",
