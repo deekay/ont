@@ -120,10 +120,13 @@ const VERDICTS_ALLOWED_BY_FILE: Record<string, ReadonlySet<string>> = {
   // occupancy is the pure insertion-only / no-takeover-of-final gate; it consumes a name's resolved
   // governing occupancy and rides nothing external (#71).
   "occupancy.ts": new Set<string>([]),
-  // batch-exclusion is the pure insert-only batched-insertion derivation for the DA-exclusion
-  // locality / state-equivalence property; the DA verdict enters as consumed excludedBatchIds, so it
-  // rides nothing external (#72).
-  "batch-exclusion.ts": new Set<string>([]),
+  // batch-exclusion hosts two verdicts: (1) the pure insert-only batched-insertion derivation for the
+  // DA-exclusion locality / state-equivalence property (DA verdict enters as consumed
+  // excludedBatchIds, #72); and (2) #83 batch-completeness `evaluateBatchCompleteness`, which COMPUTES
+  // the canonical-root replay itself (D-CV is kernel law, ratified #83) and therefore rides the audited
+  // @ont/protocol accumulator primitive `accumulatorRootOf` — the per-file allowlist-extension pattern
+  // (admit an audited primitive where a specific verdict needs it). No host I/O, no state mutation.
+  "batch-exclusion.ts": new Set<string>(["@ont/protocol"]),
   // window-schedule is the pure height-keyed, extend-only window-length verdict; anchor height + a
   // frozen value-free schedule enter as inputs and it rides nothing external (#74).
   "window-schedule.ts": new Set<string>([]),

@@ -33,6 +33,8 @@
 //
 // Rules: docs/core/B2_KERNEL_HARDENING.md B10 / D7; DECISIONS #26 (insertion-only anchors), DA §5.
 
+import { accumulatorRootOf } from "@ont/protocol";
+
 const isObject = (x: unknown): x is Record<string, unknown> =>
   typeof x === "object" && x !== null && !Array.isArray(x);
 const isClosedShape = (obj: object, allowed: readonly string[]): boolean =>
@@ -346,24 +348,124 @@ export type BatchCompletenessReason =
   | "batch-completeness-replay-mismatch"
   | "batch-completeness-da-excluded"
   | "batch-completeness-late"
-  | "batch-completeness-stale-anchor";
+  | "batch-completeness-stale-anchor"
+  | "batch-completeness-timing-contradiction";
 
 export interface BatchCompletenessVerdict {
   readonly accepts: boolean;
   readonly reason: BatchCompletenessReason;
 }
 
+const BC_INPUT_KEYS = ["commitment", "base", "baseLeaves", "window", "daVerdict", "priorSettledVerdict", "batches"] as const;
+const BC_COMMITMENT_KEYS = ["prevRoot", "newRoot", "batchSize"] as const;
+const BC_WINDOW_KEYS = ["K", "W", "C", "availabilityDeadlineHeight", "challengeDeadlineHeight"] as const;
+const BC_BASE_LEAF_KEYS = ["keyHex", "valueHex"] as const;
+const BC_PRIOR_SETTLED_KEYS = ["accepts", "reason", "settledAtHeight"] as const;
+const BC_BATCH_KEYS = ["batchId", "anchor", "leaves"] as const;
+const BC_LEAF_KEYS = ["projection", "valueHex", "servedHeight"] as const;
+
+const bcFail = (reason: BatchCompletenessReason): BatchCompletenessVerdict => ({ accepts: false, reason });
+
 /**
- * #83 exact-delta completeness predicate signature. Slice 4 replaces this
- * sentinel with the pure replay check: exactly `batchSize` unique canonical leaf
- * keys, closed D-CV projections, owner-value bindings, and `prevRoot -> newRoot`
- * recomputation under the resolved DA verdict. Until then, every fixture can
- * compile against the final API but no fixture can accidentally pass as
- * implemented.
+ * #83 batch-completeness (O2): exact-delta whole-batch completeness predicate. PURE / total /
+ * fail-closed / closed-shape (#63-#71). It consumes the witnessed DA verdict but COMPUTES the
+ * canonical-root replay itself (D-CV is kernel law) via `@ont/protocol` `accumulatorRootOf`, and
+ * cross-checks the verdict against the witnessed served-heights so a contradictory witness fails
+ * closed. Reason precedence (CL slice-4 review): prior-settled accept → da-excluded → zero/no-op →
+ * open-projection → duplicate-key/count-mismatch → stale base/anchor → replay-mismatch → timing.
  */
 export function evaluateBatchCompleteness(input: BatchCompletenessPredicateInput): BatchCompletenessVerdict {
-  void input;
-  return { accepts: false, reason: "batch-completeness-not-implemented" };
+  // --- 0. Fail-closed shape validation over an untrusted runtime value (never throws). ---
+  const i = input as unknown;
+  if (!isObject(i) || !hasExactKeys(i, BC_INPUT_KEYS)) return bcFail("batch-completeness-input-malformed");
+  const commitment = i.commitment;
+  if (
+    !isObject(commitment) || !hasExactKeys(commitment, BC_COMMITMENT_KEYS) ||
+    !isHex32(commitment.prevRoot) || !isHex32(commitment.newRoot) ||
+    !isInteger(commitment.batchSize) || commitment.batchSize < 0
+  ) {
+    return bcFail("batch-completeness-input-malformed");
+  }
+  const base = i.base;
+  if (!isObject(base) || !hasExactKeys(base, DCV_BASE_RELATIONSHIP_KEYS) || !isHex32(base.prevRoot) || !isInteger(base.baseRootHeight)) {
+    return bcFail("batch-completeness-input-malformed");
+  }
+  if (!Array.isArray(i.baseLeaves) || !i.baseLeaves.every((bl) => isObject(bl) && hasExactKeys(bl, BC_BASE_LEAF_KEYS) && isHex32(bl.keyHex) && isHex32(bl.valueHex))) {
+    return bcFail("batch-completeness-input-malformed");
+  }
+  const win = i.window;
+  if (
+    !isObject(win) || !hasExactKeys(win, BC_WINDOW_KEYS) ||
+    !isInteger(win.K) || !isInteger(win.W) || !isInteger(win.C) ||
+    !isInteger(win.availabilityDeadlineHeight) || !isInteger(win.challengeDeadlineHeight)
+  ) {
+    return bcFail("batch-completeness-input-malformed");
+  }
+  if (!isDcvDaVerdict(i.daVerdict)) return bcFail("batch-completeness-input-malformed");
+  const prior = i.priorSettledVerdict;
+  if (
+    prior !== null &&
+    !(isObject(prior) && hasExactKeys(prior, BC_PRIOR_SETTLED_KEYS) && isBoolean(prior.accepts) && isNonEmptyString(prior.reason) && isInteger(prior.settledAtHeight))
+  ) {
+    return bcFail("batch-completeness-input-malformed");
+  }
+  if (
+    !Array.isArray(i.batches) || i.batches.length === 0 ||
+    !i.batches.every(
+      (b) =>
+        isObject(b) && hasExactKeys(b, BC_BATCH_KEYS) && isNonEmptyString(b.batchId) && isDcvAnchorCoordinates(b.anchor) &&
+        Array.isArray(b.leaves) &&
+        b.leaves.every((lf) => isObject(lf) && hasExactKeys(lf, BC_LEAF_KEYS) && isObject(lf.projection) && typeof lf.valueHex === "string" && (lf.servedHeight === null || isInteger(lf.servedHeight))),
+    )
+  ) {
+    return bcFail("batch-completeness-input-malformed");
+  }
+
+  // Validated structurally → use the typed input for the decision logic.
+  const { commitment: c, base: b, baseLeaves, window: w, daVerdict, priorSettledVerdict, batches } = input;
+  const leaves = batches.flatMap((batch) => batch.leaves);
+
+  // --- 1. finalize-once: a prior settled accept is never revised (later byte-loss cannot revoke it). ---
+  if (priorSettledVerdict !== null && priorSettledVerdict.accepts) {
+    return { accepts: true, reason: "batch-completeness-accepted" };
+  }
+  // --- 2. DA excluded → no completeness effect. ---
+  if (daVerdict.kind === "excluded") return bcFail("batch-completeness-da-excluded");
+  // --- 3a. zero / no-op anchor. ---
+  if (c.batchSize === 0 || leaves.length === 0) return bcFail("batch-completeness-zero-or-noop-anchor");
+  // --- 3b. open projection: every served leaf's projection must be closed-shape, and its served value 32-byte hex. ---
+  for (const lf of leaves) {
+    if (!isClosedDcvProjection(lf.projection) || !isHex32(lf.valueHex)) return bcFail("batch-completeness-projection-open-shape");
+  }
+  // --- 3c. duplicate leaf key, then exact-N count. ---
+  const seenKeys = new Set<string>();
+  for (const lf of leaves) {
+    if (seenKeys.has(lf.projection.leafKeyHex)) return bcFail("batch-completeness-duplicate-leaf-key");
+    seenKeys.add(lf.projection.leafKeyHex);
+  }
+  if (leaves.length !== c.batchSize) return bcFail("batch-completeness-count-mismatch");
+  // --- 3d. stale base/anchor: the base must be exactly K-deep under the anchor's mined height. ---
+  for (const batch of batches) {
+    if (b.baseRootHeight !== batch.anchor.minedHeight - w.K) return bcFail("batch-completeness-stale-anchor");
+  }
+  // --- 3e. replay-mismatch: prevRoot is the root of baseLeaves, and prevRoot+delta recomputes newRoot. ---
+  const baseRootMap = new Map<string, string>();
+  for (const bl of baseLeaves) baseRootMap.set(bl.keyHex, bl.valueHex);
+  if (accumulatorRootOf(baseRootMap) !== c.prevRoot || b.prevRoot !== c.prevRoot) return bcFail("batch-completeness-replay-mismatch");
+  const fullMap = new Map<string, string>(baseRootMap);
+  for (const lf of leaves) fullMap.set(lf.projection.leafKeyHex, lf.valueHex);
+  if (accumulatorRootOf(fullMap) !== c.newRoot) return bcFail("batch-completeness-replay-mismatch");
+  // --- 4. timing. ---
+  if (leaves.some((lf) => lf.servedHeight === null)) return bcFail("batch-completeness-late");
+  const maxServed = Math.max(...leaves.map((lf) => lf.servedHeight as number));
+  if (maxServed > w.challengeDeadlineHeight) return bcFail("batch-completeness-late");
+  // timing-consistency cross-check: a holdsPriority=true verdict is refuted if a leaf was served
+  // after the availability deadline — fail closed rather than trust the contradictory witness.
+  if (daVerdict.kind === "includable" && daVerdict.holdsPriority && maxServed > w.availabilityDeadlineHeight) {
+    return bcFail("batch-completeness-timing-contradiction");
+  }
+
+  return { accepts: true, reason: "batch-completeness-accepted" };
 }
 
 const INPUT_KEYS = ["batches", "excludedBatchIds", "priorFinalNames"] as const;

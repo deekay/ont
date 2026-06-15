@@ -306,6 +306,14 @@ describe("batch-completeness (#83) conformance matrix scaffold", () => {
     // After the challenge deadline (105): the whole batch is excluded as late.
     const late = withLeaves(base, [base.batches[0]!.leaves[0]!, { ...base.batches[0]!.leaves[1]!, servedHeight: 106 }]);
     expect(evaluateBatchCompleteness(late)).toEqual({ accepts: false, reason: "batch-completeness-late" });
+
+    // Timing contradiction: a holdsPriority=true verdict refuted by a leaf served after h+W (102)
+    // — the predicate must not trust a witness whose own timing contradicts the claimed priority.
+    const contradiction: BatchCompletenessPredicateInput = {
+      ...withLeaves(base, [base.batches[0]!.leaves[0]!, { ...base.batches[0]!.leaves[1]!, servedHeight: 104 }]),
+      daVerdict: { kind: "includable", firstCompleteServedHeight: 104, holdsPriority: true },
+    };
+    expect(evaluateBatchCompleteness(contradiction)).toEqual({ accepts: false, reason: "batch-completeness-timing-contradiction" });
   });
 
   it("bc.reorg-remine: evidence bound to a stale base height after re-mine fails closed", () => {
@@ -327,40 +335,6 @@ describe("batch-completeness (#83) conformance matrix scaffold", () => {
     expect(isClosedDcvProjection({ ...p, ownerValueBindingHex: "22".repeat(16) })).toBe(false);
     expect(isClosedDcvProjection({ ...p, owner: { kind: "owner-key", ownerKeyHex: "11".repeat(16) } })).toBe(false);
     expect(isClosedDcvProjection({ ...p, base: { ...p.base, prevRoot: "44".repeat(16) } })).toBe(false);
-  });
-
-  it("pins the exact-delta completeness predicate signature as a sentinel API", () => {
-    const projection = projectionFixture();
-    const input: BatchCompletenessPredicateInput = {
-      commitment: {
-        prevRoot: "44".repeat(32),
-        newRoot: "55".repeat(32),
-        batchSize: 1,
-      },
-      base: projection.base,
-      baseLeaves: [],
-      window: {
-        K: 6,
-        W: 2,
-        C: 3,
-        availabilityDeadlineHeight: 102,
-        challengeDeadlineHeight: 105,
-      },
-      daVerdict: projection.daVerdict,
-      priorSettledVerdict: null,
-      batches: [
-        {
-          batchId: "batch-a",
-          anchor: projection.anchor,
-          leaves: [{ projection, valueHex: "66".repeat(32), servedHeight: 101 }],
-        },
-      ],
-    };
-
-    expect(evaluateBatchCompleteness(input)).toEqual({
-      accepts: false,
-      reason: "batch-completeness-not-implemented",
-    });
   });
 });
 
