@@ -1487,6 +1487,32 @@ reopen/bond-continuity, and #50-b1 recovery invoke admission respectively). Spec
 DECISIONS #59. This satisfies #44's "boundary may change only with a DECISIONS entry +
 conformance coverage"; the boundary freezes at launch.
 
+64. b2-bond-qualification-boundary: the bond-qualification predicate enters @ont/consensus as
+a pure CONSENSUS_VERDICTS decider riding nothing external — 2026-06-15
+
+*Status: **Proposed** (writer ClaudeleLunatique, reviewer ChatLunatique; lands on branch
+clean-build-b2-kernel, DK merges). A boundary-manifest addition under #44, riding the
+CONSENSUS_VERDICTS tier established by #59 — a new pure verdict module, NOT a tier-widening:
+its external allowlist is empty (the strictest, like `da-verdict.ts` / `gate-fee.ts` (#62) /
+`transcript-completeness.ts` (#63)). No new consensus law (DECISIONS #37 bond-opens is ratified),
+no DK ruling required. Covered by conformance: `trust-surface.test.ts`
+(`bond-qualification.ts` in CONSENSUS_VERDICTS with an empty `VERDICTS_ALLOWED_BY_FILE` entry),
+`b2-boundary.test.ts` (zero-I/O purity), and the B6-neg-01 binding in
+`b2-vector-bindings.test.ts`. Authored under DK's keep-going grant (event 62b47b5e, 2026-06-14).*
+
+**The rule.** `bondQualifiesForEscalation(bondAmountSats, bondFloorSats)` is a pure deterministic
+verdict: a bond qualifies to escalate iff its amount is at or above the supplied floor (#37
+bond-opens — "a bond, not a bare claim, opens the auction"). It is named around qualification,
+not state transition. SCOPE: this asserts ONLY the #37 qualification test. It DELIBERATELY
+EXCLUDES the candidate "contested" state and the auction state machine, auction RESOLUTION (who
+wins), the claim-count trigger (there is no claim-count parameter, so a bare claim can never
+escalate), and the bond-floor schedule (the floor is a launch-freeze PARAMETER supplied to the
+predicate; B2 does not fix its value). It rides nothing external (empty allowlist) and mutates no
+state. Total / fail-closed (the #63 discipline): a non-bigint or negative amount/floor does not
+qualify and never throws. Spec: `DECISIONS.md` #37 bond-opens; `B2_KERNEL_HARDENING.md` B6;
+DECISIONS #59. This satisfies #44's "boundary may change only with a DECISIONS entry +
+conformance coverage"; the boundary freezes at launch.
+
 ## Fairness Principles To Carry Into The Launch Rewrite
 
 The rewritten launch draft should explicitly state:

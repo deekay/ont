@@ -42,3 +42,7 @@ export * from "./gate-fee.js";
 // actor/source channel — fail-closed on an absent/producer-asserted witness; rides nothing
 // external (the witness format + lot range are B3). See DECISIONS b2-transcript-completeness-boundary (#63).
 export * from "./transcript-completeness.js";
+// The bond-qualification predicate (#64, riding #59's verdict tier): the pure #37 escalation
+// qualification test (bond >= floor); rides nothing external (the floor is a launch-freeze
+// parameter). See DECISIONS b2-bond-qualification-boundary (#64).
+export * from "./bond-qualification.js";

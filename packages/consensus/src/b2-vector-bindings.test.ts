@@ -51,6 +51,7 @@ import {
   type AuctionTranscript,
   type CompletenessWitness,
 } from "./transcript-completeness.js";
+import { bondQualifiesForEscalation } from "./bond-qualification.js";
 import {
   createTransferPayload,
   deriveOwnerPubkey,
@@ -124,6 +125,8 @@ const LOCAL_BINDING_MANIFEST = new Set<string>([
   "B3-neg-01",
   "B4-neg-01",
   "B1-neg-02",
+  // bond-qualification family (bondQualifiesForEscalation)
+  "B6-neg-01",
   // params family (DA-window construction + h+K eligibility)
   "A3-neg-01",
   "D9-neg-01",
@@ -361,6 +364,27 @@ describe("B2 vector bindings — batched-path DA-consumer family (over the resid
     expect(afterFlip).toBe(false); // the verdict genuinely flipped
     // determinism companion: re-deriving from the same current evidence yields the same verdict.
     expect(includable(anchor, servedAt(H + 6), params)).toBe(includable(anchor, servedAt(H + 6), params));
+  });
+});
+
+describe("B2 vector bindings — bond-qualification family (bondQualifiesForEscalation)", () => {
+  it("B6-neg-01: only a qualifying bond at or above the floor escalates; a sub-floor bond is a no-op", () => {
+    const vector = loadVector("batched-path-transitions.json", "B6-neg-01");
+    assertBindable(vector);
+    // #37: a qualifying bond is at/above the supplied floor. The signature takes only
+    // (bondAmount, bondFloor) — no claim-count parameter, so a bare claim can never escalate; it
+    // asserts nothing about the candidate "contested" state or auction resolution. The floor is a
+    // launch-freeze parameter, exercised at TWO distinct values so a baked constant fails.
+    expect(bondQualifiesForEscalation.length).toBe(2); // no claim-count channel
+    // Primary -> expected.verdict: a sub-floor bond does not qualify (no-op).
+    expect(bondQualifiesForEscalation(99_999n, 100_000n).qualifies).toBe(accepts(vector)); // sub-floor -> false === reject
+    expect(bondQualifiesForEscalation(100_000n, 100_000n).qualifies).toBe(true); // at-floor -> qualifies (positive companion)
+    // second floor (no baked constant): the threshold tracks the supplied floor, not a constant.
+    expect(bondQualifiesForEscalation(49_999n, 50_000n).qualifies).toBe(false);
+    expect(bondQualifiesForEscalation(50_000n, 50_000n).qualifies).toBe(true);
+    // total fail-closed companions: a negative amount does not qualify, and the call never throws.
+    expect(bondQualifiesForEscalation(-1n, 100_000n).qualifies).toBe(false);
+    expect(() => bondQualifiesForEscalation(100_000n, 100_000n)).not.toThrow();
   });
 });
 
