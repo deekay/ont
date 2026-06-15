@@ -26,3 +26,11 @@ export {
   type AvailabilityInput,
   type VerifiedAvailability,
 } from "./served-availability.js";
+
+export {
+  assembleBatchClaimProofBundle,
+  type BatchClaimProofBundleInput,
+  type BundleOwnership,
+  type BundleValueRecord,
+  type OntProofBundle,
+} from "./proof-bundle-assembly.js";

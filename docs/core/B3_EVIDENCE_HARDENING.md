@@ -348,7 +348,10 @@ passing it in would look tighter without itself proving PoW / Merkle / canonical
 The honest split: D-BI / D-PB verify Bitcoin inclusion and establish the confirmed
 mined-height fact; D-SB-avail consumes that already-verified height. Replacing the raw
 number with a branded verified-anchor-height object is left as a **D-PB assembly
-tightening** (typing/coupling), not a slice-3 correctness concern.
+tightening** (typing/coupling), not a slice-3 correctness concern. **Realized in §11**:
+D-PB consumes the whole `VerifiedAvailability` object, so the bundle's stamped anchor
+height IS the branded `VerifiedAvailabilityHeight`, gated to the same anchor the D-BI
+inclusion proves (`inclusion.height === bound.anchorHeight === firstServableHeight`).
 
 ## §6 — Mining map (existing code → deliverable)
 | Existing | Mineable into |
@@ -480,6 +483,73 @@ get a deterministic root + provenance, but it must **not** decide **ownership** 
 name — the notice-window does. So D-CV may use commit-priority to derive a deterministic root
 and emit `contested` provenance, but must not declare an owner. This is the single place B3
 could smuggle a consensus decision; confirm the boundary before the red→green slice.
+
+## §11 — Third FREE slice: D-PB proof-bundle assembly design
+
+Design-first (per the established loop). **Classification: FREE / structural** — D-PB
+conforms to the kernel's `verifyProofBundleStructure` / `verifyProofBundleAgainstBitcoin`
+(§2 D-PB row); it introduces **no new rule**. It is the BUILDER half of the proof bundle:
+the kernel owns the verifier, B3 owns assembly. It also **realizes the §5.2 D-PB tightening**
+(the branded verified-anchor-height coupling §5.2 deferred to this slice).
+
+**What it builds (mining map §6: `@ont/consensus/proof-bundle.ts` → D-PB).** A pure
+`assembleBatchClaimProofBundle(input) → OntProofBundle` that assembles the
+`accumulator_batch_claim` bundle a claimant publishes, from the already-VERIFIED component
+witnesses the earlier slices mint:
+- **D-AM** `BuiltMembershipProof` → `accumulatorProof { root, leaf, value, siblings }`;
+- **D-BI** `BuiltBitcoinInclusion` → `bitcoinInclusion.anchors[0]` + the cited `batchAnchor.anchorTxid`;
+- **D-SB-avail** `VerifiedAvailability` → `batchAnchor.anchorHeight` (the branded height) + the bound root;
+- ownership facts → `ownershipProof`; optional already-signed value records → `valueRecordChain`.
+
+**NON-DECIDING (the §1 contract).** The builder constructs a bundle the kernel decides on;
+it returns no verdict and decides no ownership. It **fails closed (throws)** on any
+cross-section incoherence, so it can never emit a bundle the verifier would reject — the
+assembled bundle is the verifier's inverse (it round-trips green). Forged / incoherent
+inputs yield NO bundle, not a false-accepting one (E-ND1).
+
+**The D-PB tightening (headline; §5.2 realized).** The only height that reaches the bundle
+is the branded `VerifiedAvailabilityHeight`. The builder consumes the whole
+`VerifiedAvailability` object — a bare number cannot be stamped as the anchor height — and
+gates `inclusion.height === bound.anchorHeight === firstServableHeight`, so the stamped
+`batchAnchor.anchorHeight` is the verified mined height tied to the SAME anchor whose served
+bytes reconstruct `anchoredRoot` AND whose D-BI inclusion is PoW/Merkle-proven.
+
+**Coherence gates (all fail-closed).** (1) inclusion height-coupling above; (2)
+`membership.rootHex === bound.anchoredRoot` (the proof binds to the served root); (3)
+membership value is non-null (a member, not a non-membership proof); (4)
+`membership.value === ownership.currentOwnerPubkey` (the value commits the claimed owner —
+the no-false-accept gate); (5) `membership.leaf === H(normalizeName(name))` (the proof is
+bound to this name); (6) when value records are present, each record's `ownerPubkey` /
+`ownershipRef` match the ownership facts and the sequence chains from 1 (D-PB attaches each
+`recordHash`; the kernel re-checks signatures + hashes — D-PB NEVER signs).
+
+**Tests-first red battery (E-PB1..E-PB5; against the real kernel verdicts, E-ND1):**
+- `E-PB1` — the assembled bundle round-trips GREEN through `verifyProofBundleStructure` AND
+  `verifyProofBundleAgainstBitcoin` (the cited anchor is the real block-170 PoW+Merkle sample).
+- `E-PB2` — the stamped `batchAnchor.anchorHeight` IS the branded `firstServableHeight`, tied
+  to the same anchor; an inclusion for a different anchor height ⇒ fail closed.
+- `E-PB3` — cross-section coherence fails closed: wrong root, value≠owner, non-membership
+  proof, and wrong-name leaf each throw a specific fail-closed message.
+- `E-PB4` — value-record chain placement: a bundle WITH a signed chain round-trips green; a
+  record whose owner key ≠ the claimed owner ⇒ fail closed.
+- `E-PB5` — hostile equivalence: the owner/value mismatch the builder refuses (E-PB3) is also
+  rejected by the kernel when hand-forged past assembly (`accumulator.value.bindsOwner` fails) —
+  forged evidence ≡ no-witness, fail-closed (§1).
+
+**Design points flagged for CL's adversarial pass.**
+1. **Value-record placement scope.** Include the signed-chain placement + owner/ref/sequence
+   coherence gate in THIS slice (my lean — it is a first-class bundle section, and the
+   `recordHash` enrichment + hex32-`ownershipRef` coupling is the real D-PB transform), or
+   split it to a thin D-PB follow-up? If in-scope: should D-PB *verify signatures* as a
+   pre-gate, or stay a pure placer and let the kernel be the sole signature decider (my lean —
+   pure placer; a bad signature fails closed at the kernel, §1)?
+2. **Anchor-root linkage is out of structural scope.** This slice does not verify the batch
+   anchor tx's OP_RETURN commits `anchoredRoot` (the publisher/indexer linkage) — the
+   structural verifier doesn't either. Confirm that stays a later publisher/D-CV concern, not
+   smuggled into D-PB; the height-coupling above is the in-scope tightening.
+3. **Direct-L1 assembly is a separate builder.** D-PB here is the `accumulator_batch_claim`
+   path (the batched-claim path B3 is building). The `bitcoin_l1_direct_auction` bundle
+   assembler is a separate slice; confirm that split.
 
 ## §11 — Third FREE slice: D-PB full proof-bundle assembly design
 
