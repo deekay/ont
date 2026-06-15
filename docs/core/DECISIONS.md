@@ -2118,6 +2118,43 @@ K-depth, or non-nonnegative-bigint fee input contributes no fee fact and never t
 #44's "boundary may change only with a DECISIONS entry + conformance coverage"; the boundary freezes
 at launch.
 
+82. da-trust-model: the DA trust model, named — ONT separates safety (validity) from liveness
+(availability) and never lets the second decide the first. Validity is a pure function of Bitcoin +
+presented commitment-matching bytes with no authority slot; availability is a bootstrapped, 1-of-N,
+fail-closed liveness property. Light-client SPV header verification is a launch gate for the firewall
+claim — 2026-06-15
+
+*Status: **Proposed** (writer ClaudeleLunatique, reviewer ChatLunatique; lands on branch
+spec-da-trust-model, off main, DK merges). Consolidates and names what the Data-Availability
+Agreement §8/§8b already build; **NO new consensus mechanism** — it pins invariants that already
+follow from the layer model (adapters never decide), §215 (bonded attestation rejected), and
+da-windows #49 / `DA_WINDOWS` S6 (finalize-once). The one forward commitment is the SPV-before-launch
+gate (DK ruling, event b90b66bf). Normative invariants: DA agreement §8c (candidate tier). Rationale
++ threat-model posture + bootstrap commitment + reviewer checklist:
+`../research/ONT_DECENTRALIZATION_AND_DISCOVERY.md` "The trust model: safety vs liveness".*
+
+**The four invariants.** (1) **Resolvers never decide** — the validity predicate takes no
+resolver/indexer output as a deciding input; a lying source is caught by verification, a missing one
+is fail-closed. (2) **Checkpoints never enter consensus** — a completeness/availability checkpoint
+(gossip or L1) is a falsifiable reputation signal only; treating it as proof of availability is the
+rejected bonded-attestation shape (§215). (3) **Finalize-once** — once the availability verdict
+settles (`h + W + C`, #49) it is never revised; a name proven available in-window stays owned even if
+content later goes dark, and a *continuing* availability requirement is rejected because it would let
+later censorship strip a settled name (liveness failure → theft). (4) **SPV precondition + launch
+gate** — "verify against Bitcoin" is real only with a light-client header path; until it exists the
+system half-verifies (bundle structure, not PoW headers) and a fabricated-anchor source is not
+caught. DK ruling: light-client header verification is a launch gate for the firewall claim.
+
+**Posture (the reviewer-facing line).** During bootstrap the operator holds temporary
+censorship/liveness power (deny by withholding) but zero theft power (cannot forge ownership — bad
+bytes fail the seal; cannot strip a settled name — finalize-once); that censorship power erodes as
+independent archives appear. Safety is unconditional and never centralized; only liveness is
+centralized, temporarily, and provably decays — precisely early Bitcoin's posture. Design-space: ONT
+is at all-data-on-L1 for contested names and honest-mirror-market for the long tail, with DA sampling
++ erasure coding (§7 option C) named as the known ceiling. The honest claim is that long-tail
+availability is a bootstrapped liveness property that decentralizes over time, not a cryptographic
+guarantee.
+
 ## Fairness Principles To Carry Into The Launch Rewrite
 
 The rewritten launch draft should explicitly state:

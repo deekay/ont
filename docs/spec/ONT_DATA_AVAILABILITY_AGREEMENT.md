@@ -273,6 +273,68 @@ censorship-resistance for v1, or should a mirror/gossip convention land sooner? 
 DA sampling (§7-C) worth the complexity for trust-minimized light-client availability at scale? (c) is
 there a transport that tightens the 1-of-N residual further without a new trusted network?
 
+## 8c. The trust model, named — da-trust-model *(proposed; candidate tier)*
+
+§8/§8b establish the pieces; this names the doctrine and pins the invariants a
+critical reviewer must be able to check. **The firewall: validity is never an
+authority's call; availability is a liveness property.** Two layers, never
+conflated:
+
+- **Validity (safety) — unconditional, no authority slot.** A name's ownership,
+  value records, and contest state are a *pure function* of (the Bitcoin chain +
+  the presented, commitment-matching bytes), recomputed identically by anyone.
+  No resolver, publisher, indexer, or elected set decides it — the layer model
+  already binds this (adapters "convey and convince; they never decide"). There
+  is no slot in the validity path for a party to become "an authority on the
+  future," because the path consults no party.
+- **Availability (liveness) — bootstrapped, 1-of-N, fail-closed.** Getting the
+  bytes to a verifier is the only residual (§8), served by content-addressed
+  mirrors (§8b, T2). It can be censored/withheld; it cannot corrupt — wrong
+  bytes fail the commitment, absent bytes fail closed (the batch drops, never
+  forks).
+
+**Invariants (candidate-normative; each becomes a negative test):**
+
+1. **Resolvers never decide.** The validity predicate takes no resolver/indexer
+   output as a deciding input. A lying source is caught by verification; a
+   missing source is fail-closed.
+2. **Checkpoints are out-of-band, never a consensus input.** A completeness /
+   availability checkpoint (gossip *or* an L1 post) is a falsifiable reputation
+   signal only. The kernel MUST NOT treat "a checkpoint attests availability" as
+   deciding a verdict — that is the rejected bonded-attestation shape (§215),
+   and it would mint exactly the authority this model forbids.
+3. **Finalize-once: no retroactive revocation by later byte-loss.** Once the
+   availability verdict settles (`anchorHeight + W + C`, da-windows #49) it is
+   never revised (`DA_WINDOWS` S6). Ownership proven available in-window stays
+   owned even if the content later goes dark. The converse — a *continuing*
+   availability requirement — is rejected: it would let later censorship strip a
+   settled name, converting a liveness failure into a theft. Safety is
+   unconditional; only liveness is time-bound.
+4. **The firewall's precondition is light-client verification.** "Verify against
+   Bitcoin" is real only with an SPV header path: the client obtains Bitcoin
+   headers independently and confirms every cited anchor is in a PoW-confirmed
+   block at the claimed depth before trusting any served state. Until that
+   exists the system only *half*-verifies (proof-bundle structure, not headers),
+   so a fabricated-anchor source is not caught. **Ruling (da-trust-model):
+   light-client header verification is a launch gate for the firewall claim** —
+   the firewall is the target invariant; SPV verification is what makes it true.
+
+**Design-space placement (so the choice reads as deliberate).** Three ways to
+make off-chain data available: (1) **all data on L1** — cryptographic, maximum
+cost (what the contested/bonded path does); (2) **DA sampling + erasure coding**
+— probabilistic cryptographic guarantee without all-data-on-L1, heavy machinery
+(§7 option C / §8b T3, post-v1); (3) **honest mirror-market + fail-closed +
+bonded escalation** — pragmatic, liveness-not-safety (this model, §8b T2). ONT
+sits at **(1) for contested names, (3) for the long tail**, with (2) named as
+the known ceiling we may climb later. The honest claim is exactly that and no
+more: long-tail availability is a bootstrapped *liveness* property that
+decentralizes over time — not a cryptographic guarantee.
+
+Rationale, threat-model posture, and the bootstrap commitment:
+[`../research/ONT_DECENTRALIZATION_AND_DISCOVERY.md`](../research/ONT_DECENTRALIZATION_AND_DISCOVERY.md)
+§"The trust model: safety vs liveness". Named decision: da-trust-model
+([`../core/DECISIONS.md`](../core/DECISIONS.md) #82).
+
 ## 9. Attacks checked
 
 - **Withhold-to-stall others** → self-harm: a hidden delta only loses its own names; the union

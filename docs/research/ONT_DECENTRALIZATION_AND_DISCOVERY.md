@@ -45,6 +45,77 @@ safe — **provided the verification path exists.** It largely does not yet (see
 "The precondition" below), which is why this note treats verification and
 discovery as one problem.
 
+## The trust model: safety vs liveness (da-trust-model)
+
+The reframing above has a sharp consequence worth stating as doctrine, because
+it is the thing a critical reviewer will press on: **ONT separates *safety* from
+*liveness*, and never lets the second contaminate the first.**
+
+- **Safety (who validly owns a name) is unconditional and has no authority
+  slot.** It is a pure function of Bitcoin + the presented commitment-matching
+  bytes, recomputed identically by anyone. No resolver is consulted to decide
+  it. "Who sees the complete set?" therefore has a deliberately boring answer:
+  *it does not matter who sees it, because seeing is not deciding* — the set is
+  self-verifying against the anchored `batchSize` + root, so any observer
+  confirms completeness independently and no observer's view is privileged.
+- **Liveness (can I get the bytes) is bootstrapped and improves over time.** It
+  is the only residual (the Data-Availability Agreement §8), and it is where the
+  resolver market lives.
+
+**The posture, stated plainly (this is the part to put in front of a skeptic):**
+during bootstrap we hold temporary **censorship/liveness power** — we can
+*deny* by withholding bytes — but **zero theft power**: we can never forge
+ownership (bad bytes fail the seal) and we can never strip a settled name
+(finalize-once). That censorship power **erodes the moment independent archives
+exist.** Safety is unconditional and never centralized; only liveness is
+centralized, temporarily, and provably decays. That is *precisely* early
+Bitcoin's posture — fragile liveness, never-compromised validation.
+
+**The bootstrap commitment.** Like Bitcoin, the network starts thin and is
+coaxed wider — but note *what* gets bootstrapped: Satoshi bootstrapped the
+consensus *enforcers* (miners/nodes); ONT does **not** bootstrap consensus
+(ours rides Bitcoin's, already decentralized). We bootstrap a *serving*
+network. Concretely:
+
+- We commit to running **one honest, maximally-complete resolver** at launch,
+  and to recruiting others.
+- Completeness is a **competitive, auditable metric**: the box says N
+  (`batchSize`), so any resolver claiming completeness can be checked — "shows N
+  vs shows N−1" is provable against the on-chain commitment. Resolvers compete
+  on it; gossip surfaces who is complete.
+- This is an **availability/adoption** commitment, not a trust anchor: our
+  resolver is verifiable against Bitcoin like any other and earns no authority
+  from being first or being ours.
+
+**The one rule that keeps this honest:** an availability/completeness checkpoint
+— whether gossiped or posted to L1 — is an *out-of-band, falsifiable* signal,
+**never a consensus input.** The instant the kernel treated a checkpoint as
+*proof* of availability, it would mint the attestation authority this whole
+model exists to avoid (rejected as the bonded-attestation shape, Data-
+Availability Agreement §215). Checkpoints inform humans and resolvers; they
+never decide a verdict.
+
+**What makes this "solved" rather than "solved once we build X" — the reviewer
+checklist:**
+
+1. The validity function provably **never consults a resolver** (pure over
+   Bitcoin + witness).
+2. **Fail-closed**: absent/withheld bytes have no effect — worst case is denial,
+   never corruption.
+3. **Contested names route to bonded/L1**, where availability ambiguity is zero
+   — the high-stakes cases do not lean on the mirror market.
+4. The mirror market is **liveness-only, auditable, bootstrapped honest-first**.
+5. **Light-client header verification (SPV)** exists — the precondition that
+   makes 1–4 true rather than aspirational. This is the launch gate
+   (da-trust-model, `../core/DECISIONS.md` #82); "The precondition" section
+   below is hereby elevated from a recommendation to a committed gate.
+6. **Honest disclosure**: long-tail availability is a bootstrapped *liveness*
+   property, not a cryptographic guarantee — claimed as exactly that and no
+   more.
+
+The normative invariants are pinned in the Data-Availability Agreement §8c;
+this section is their rationale and the operational commitment.
+
 ## How publishers work, and how they decentralize
 
 A publisher (`apps/publisher`) is a thin batching service. It quotes a gate
@@ -276,7 +347,10 @@ bad discovery source can do is waste your time.
 1. Is light-client header verification in scope before launch, or do we ship
    "verify bundle structure + trust your resolver set + fan out to detect
    disagreement" and harden later? (This determines whether resolver
-   equivocation, adversarial-note 3.2, is a launch blocker.)
+   equivocation, adversarial-note 3.2, is a launch blocker.) **[ANSWERED by
+   da-trust-model (DECISIONS #82): yes — light-client header verification is a
+   launch gate for the firewall claim; resolver equivocation is a launch
+   blocker, not deferred.]**
 2. Do we add the on-chain service-announcement event type now (it is cheap and
    the enum has room), or defer discovery entirely to config + docs for v0?
 3. If we use a well-known discovery name (Option C), who owns it — a published
