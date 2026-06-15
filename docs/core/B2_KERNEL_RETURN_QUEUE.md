@@ -76,3 +76,41 @@ So the entire remaining B2-kernel *decision* surface reduces to: rule the recove
 cluster (matrix PR-17/18/33/34/35) + the §3c descriptor-evidence observation rule, and
 greenlight the invoke slice. (§8.2a/§8.3 are already landed — see §2.) The rest proceeds
 without you.
+
+## 5. Executable vector binding lane — WRAPPED (2026-06-15); residual inventory
+
+The B2 conformance-vector suite (`packages/consensus/src/b2-vector-suite.test.ts` spine +
+`b2-vector-bindings.test.ts` bindings) holds the 94 locked vectors. After this run the
+**resident-predicate binding lane is wrapped**: **40 of 94 vectors are bound** to a resident
+`@ont/consensus` predicate, each asserting the predicate output equals the vector's own
+`expected.verdict`. Eight verdict modules back them: scanner, params, da-verdict, value-record,
+engine (B1) + the four landed this run — gate-fee (#62), transcript-completeness (#63),
+bond-qualification (#64), settlement (#65).
+
+The other **54 vectors are NOT bound, by design** — none has a resident predicate it can honestly
+bind to. They are not silently skipped; the spine keeps them visible. Grouped by what each needs:
+
+- **New surface required (24-row group; ratified ingredients, but a separately-scoped new-predicate
+  phase — NOT a same-lane binding):**
+  - *Winner-selection / bid-acceptance* (the input S15 treats as opaque): Q9-pos-01, Q10-neg-01,
+    T7-neg-01, T9-neg-01, G1-pos-01 (#37 largest-bond + #25 tie-order).
+  - *Claim-counting / notice-window resolution* (finalize/nullify/escalate over the DA-valid set):
+    T17-neg-01, F11-neg-01 (#49 S6 + #37).
+  - *Reopen / re-auction* (release-recording, no-adapter): T22-neg-01, T22-neg-02, B19-neg-01 (#42).
+  - *Fee × K-deep confirmation* (reorged-out anchor → no fee fact): F9-neg-01 (gate-fee + #53).
+  - *Occupancy / insertion* (post-DA-verdict re-claim): A11-pos-01.
+  - *Wire-decoder canonicality* (reject-don't-normalize at the `@ont/wire` decoder, not consensus):
+    A6-neg-01.
+- **DK / recovery parked (#50-b1 invoke path; gated on the recovery cluster + §3c + the invoke
+  greenlight, see §2/§3):** R1-neg-01, R2-neg-01, R7-neg-01, R9-neg-01, R10-neg-01, R10-neg-02,
+  R18-pos-01, T19-pos-01, G6-neg-01 (9 vectors).
+- **Deferred locality-or-window surface (a small resident surface would unblock these):**
+  B10-pos-01 (exclusion locality: every other name byte-identical / no final owner unseated),
+  Z9-neg-01 (notice-window / bond-window: re-derived current-chain mined height vs first-seen).
+- **Candidate-tier (DK ratification-gated; the 30 pending-DK vectors):** authored, locked, and
+  visible, but never executed until DK/spec promotion (the spine enforces this).
+
+Next moves are each a *new* effort, not a continuation of the wrapped binding lane: open
+winner-selection as its own scoped new-predicate phase; build the reopen / notice-window /
+locality surfaces; or wait on the recovery cluster + the candidate ratifications. None is a
+same-lane binding.
