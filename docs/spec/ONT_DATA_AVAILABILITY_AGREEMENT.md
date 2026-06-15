@@ -280,13 +280,21 @@ critical reviewer must be able to check. **The firewall: validity is never an
 authority's call; availability is a liveness property.** Two layers, never
 conflated:
 
-- **Validity (safety) — unconditional, no authority slot.** A name's ownership,
-  value records, and contest state are a *pure function* of (the Bitcoin chain +
-  the presented, commitment-matching bytes), recomputed identically by anyone.
-  No resolver, publisher, indexer, or elected set decides it — the layer model
-  already binds this (adapters "convey and convince; they never decide"). There
-  is no slot in the validity path for a party to become "an authority on the
-  future," because the path consults no party.
+- **Validity (safety) — unconditional, no authority slot.** A name's
+  **acquisition ownership and contest/availability verdicts** are a *pure
+  function* of (the Bitcoin chain + the presented, commitment-matching bytes),
+  recomputed identically by anyone. No consensus/kernel verifier consults a
+  resolver, publisher, indexer, or elected set to decide them — the layer model
+  binds this (adapters "convey and convince; they never decide"); there is no
+  slot in the *consensus* validity path for a party to become "an authority on
+  the future," because that path consults no party. **Scope note — value
+  records:** owner-signed value-record *validity* is likewise pure *given* a
+  presented value-chain head and a verified ownership interval
+  (`valueRecordAccept(record, interval, head)`); but *which* record is the
+  current/freshest is resolver-fed **liveness** (`compareValueHistoryResults`
+  picks a display-canonical result by completeness/URL), never ownership
+  authority. The firewall covers acquisition ownership + contest/availability;
+  value freshness is a product-liveness concern, not a DA-consensus one.
 - **Availability (liveness) — bootstrapped, 1-of-N, fail-closed.** Getting the
   bytes to a verifier is the only residual (§8), served by content-addressed
   mirrors (§8b, T2). It can be censored/withheld; it cannot corrupt — wrong
@@ -295,29 +303,45 @@ conflated:
 
 **Invariants (candidate-normative; each becomes a negative test):**
 
-1. **Resolvers never decide.** The validity predicate takes no resolver/indexer
-   output as a deciding input. A lying source is caught by verification; a
-   missing source is fail-closed.
+1. **No consensus verifier consumes resolver output.** No `@ont/consensus`
+   predicate or availability verdict takes resolver/indexer output as a deciding
+   input — a lying source is caught by verification, a missing one is
+   fail-closed. (Product/UX paths *do* consume resolvers operationally — value-
+   history fanout, the owner→names convenience endpoint — but only for liveness /
+   display, never as authority. **Cleanup ripple:** the "authoritative,
+   cross-publisher" wording on the `apps/claim` resolver endpoint (`README.md`,
+   `src/index.ts`, `src/client.ts`) must be requalified as a convenience, not
+   authority.)
 2. **Checkpoints are out-of-band, never a consensus input.** A completeness /
    availability checkpoint (gossip *or* an L1 post) is a falsifiable reputation
    signal only. The kernel MUST NOT treat "a checkpoint attests availability" as
    deciding a verdict — that is the rejected bonded-attestation shape (§215),
    and it would mint exactly the authority this model forbids.
-3. **Finalize-once: no retroactive revocation by later byte-loss.** Once the
-   availability verdict settles (`anchorHeight + W + C`, da-windows #49) it is
-   never revised (`DA_WINDOWS` S6). Ownership proven available in-window stays
+3. **Finalize-once: no retroactive revocation by later byte-loss.** Once a
+   **Bitcoin-verified, complete, verifier-accepted** availability verdict settles
+   (`anchorHeight + W + C`, da-windows #49) it is never revised (`DA_WINDOWS`
+   S6). (The qualifier matters: finalize-once must not lock a verdict reached on
+   an incomplete or fabricated witness path — it settles only what the enforced
+   verifier of invariant 4 has accepted.) Ownership proven available in-window stays
    owned even if the content later goes dark. The converse — a *continuing*
    availability requirement — is rejected: it would let later censorship strip a
    settled name, converting a liveness failure into a theft. Safety is
    unconditional; only liveness is time-bound.
-4. **The firewall's precondition is light-client verification.** "Verify against
-   Bitcoin" is real only with an SPV header path: the client obtains Bitcoin
-   headers independently and confirms every cited anchor is in a PoW-confirmed
-   block at the claimed depth before trusting any served state. Until that
-   exists the system only *half*-verifies (proof-bundle structure, not headers),
-   so a fabricated-anchor source is not caught. **Ruling (da-trust-model):
-   light-client header verification is a launch gate for the firewall claim** —
-   the firewall is the target invariant; SPV verification is what makes it true.
+4. **The firewall's precondition is *enforced* light-client verification.** The
+   verifier primitive already exists — `verifyProofBundleAgainstBitcoin` checks
+   PoW/Merkle inclusion via the bundle's `bitcoinInclusion` proofs — but it is
+   **not enforced on launch client paths**: CLI/wallet still call
+   `verifyProofBundle` (a deprecated alias of `verifyProofBundleStructure`),
+   which checks bundle *structure* only. Against a structure-only client a
+   fabricated-anchor source is not caught; and PoW/Merkle alone proves inclusion
+   in *a* valid-work header, not the **canonical best chain**. So the precise
+   pre-gate claim is: resolvers/publishers cannot forge a valid **consensus
+   witness** — *not* that a structure-only client has zero theft exposure.
+   **Ruling (da-trust-model): the launch gate is that clients MUST require
+   `bitcoinInclusion` and run `verifyProofBundleAgainstBitcoin` against an
+   independent canonical (best-chain) header source on every relevant proof
+   path.** The firewall is the target invariant; enforcing this verifier is what
+   makes it true.
 
 **Design-space placement (so the choice reads as deliberate).** Three ways to
 make off-chain data available: (1) **all data on L1** — cryptographic, maximum

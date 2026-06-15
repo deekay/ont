@@ -2119,10 +2119,11 @@ K-depth, or non-nonnegative-bigint fee input contributes no fee fact and never t
 at launch.
 
 82. da-trust-model: the DA trust model, named — ONT separates safety (validity) from liveness
-(availability) and never lets the second decide the first. Validity is a pure function of Bitcoin +
-presented commitment-matching bytes with no authority slot; availability is a bootstrapped, 1-of-N,
-fail-closed liveness property. Light-client SPV header verification is a launch gate for the firewall
-claim — 2026-06-15
+(availability) and never lets the second decide the first. **Acquisition ownership and
+contest/availability verdicts** are a pure function of Bitcoin + presented commitment-matching bytes
+with no consensus authority slot (value-record *validity* is pure given inputs; *freshness* is
+resolver liveness); availability is a bootstrapped, 1-of-N, fail-closed liveness property. **Enforced**
+light-client Bitcoin verification is a launch gate for the firewall claim — 2026-06-15
 
 *Status: **Proposed** (writer ClaudeleLunatique, reviewer ChatLunatique; lands on branch
 spec-da-trust-model, off main, DK merges). Consolidates and names what the Data-Availability
@@ -2131,24 +2132,40 @@ follow from the layer model (adapters never decide), §215 (bonded attestation r
 da-windows #49 / `DA_WINDOWS` S6 (finalize-once). The one forward commitment is the SPV-before-launch
 gate (DK ruling, event b90b66bf). Normative invariants: DA agreement §8c (candidate tier). Rationale
 + threat-model posture + bootstrap commitment + reviewer checklist:
-`../research/ONT_DECENTRALIZATION_AND_DISCOVERY.md` "The trust model: safety vs liveness".*
+`../research/ONT_DECENTRALIZATION_AND_DISCOVERY.md` "The trust model: safety vs liveness".
+ChatLunatique adversarial pass (event 7932d882) confirmed NO new consensus mechanism after three
+precision-narrowings, applied here: value-records scoped out of DA consensus (validity pure given
+inputs, freshness = resolver liveness); "resolvers never decide" scoped to consensus/kernel verifiers
+(product/UX paths consume resolvers for liveness only — `apps/claim` "authoritative" wording flagged
+for cleanup); zero-theft scoped post-gate (a structure-only client is exposed until
+`verifyProofBundleAgainstBitcoin` is enforced).*
 
-**The four invariants.** (1) **Resolvers never decide** — the validity predicate takes no
-resolver/indexer output as a deciding input; a lying source is caught by verification, a missing one
-is fail-closed. (2) **Checkpoints never enter consensus** — a completeness/availability checkpoint
-(gossip or L1) is a falsifiable reputation signal only; treating it as proof of availability is the
-rejected bonded-attestation shape (§215). (3) **Finalize-once** — once the availability verdict
-settles (`h + W + C`, #49) it is never revised; a name proven available in-window stays owned even if
-content later goes dark, and a *continuing* availability requirement is rejected because it would let
-later censorship strip a settled name (liveness failure → theft). (4) **SPV precondition + launch
-gate** — "verify against Bitcoin" is real only with a light-client header path; until it exists the
-system half-verifies (bundle structure, not PoW headers) and a fabricated-anchor source is not
-caught. DK ruling: light-client header verification is a launch gate for the firewall claim.
+**The four invariants.** (1) **No consensus verifier consumes resolver output** — no `@ont/consensus`
+predicate or availability verdict takes resolver/indexer output as a deciding input; a lying source is
+caught by verification, a missing one is fail-closed. (Product/UX paths do consume resolvers for
+liveness/display — value-history fanout, the owner→names convenience endpoint — never as authority.)
+(2) **Checkpoints never enter consensus** — an availability/completeness checkpoint (gossip or L1) is
+a falsifiable reputation signal only; treating it as proof of availability is the rejected
+bonded-attestation shape (§215). (3) **Finalize-once** — once a *Bitcoin-verified, complete,
+verifier-accepted* availability verdict settles (`h + W + C`, #49) it is never revised; a name proven
+available in-window stays owned even if content later goes dark, and a *continuing* availability
+requirement is rejected because it would let later censorship strip a settled name (liveness failure →
+theft). The qualifier prevents finalize-once locking a verdict reached on an incomplete/fabricated
+witness. (4) **Enforced verification + launch gate** — the verifier primitive exists
+(`verifyProofBundleAgainstBitcoin`, PoW/Merkle via `bitcoinInclusion`) but is not enforced on launch
+clients (CLI/wallet call `verifyProofBundle`, the deprecated structural alias); a structure-only
+client does not catch a fabricated anchor, and PoW/Merkle alone proves inclusion in *a* valid-work
+header, not the canonical best chain. Pre-gate claim: resolvers/publishers cannot forge a valid
+*consensus witness* — not that a structure-only client has zero theft exposure. DK ruling: clients
+MUST require `bitcoinInclusion` and run `verifyProofBundleAgainstBitcoin` against an independent
+canonical header source on every relevant proof path — the launch gate for the firewall claim.
 
 **Posture (the reviewer-facing line).** During bootstrap the operator holds temporary
 censorship/liveness power (deny by withholding) but zero theft power (cannot forge ownership — bad
 bytes fail the seal; cannot strip a settled name — finalize-once); that censorship power erodes as
-independent archives appear. Safety is unconditional and never centralized; only liveness is
+independent archives appear. (Zero-theft is *post-gate*: it holds for a client running the enforced
+`verifyProofBundleAgainstBitcoin` path; a structure-only client is exposed to a fabricated anchor
+until that gate is wired — which is why invariant 4 is a launch gate.) Safety is unconditional and never centralized; only liveness is
 centralized, temporarily, and provably decays — precisely early Bitcoin's posture. Design-space: ONT
 is at all-data-on-L1 for contested names and honest-mirror-market for the long tail, with DA sampling
 + erasure coding (§7 option C) named as the known ceiling. The honest claim is that long-tail
