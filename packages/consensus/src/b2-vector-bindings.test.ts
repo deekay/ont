@@ -31,14 +31,24 @@ import { schnorr } from "@noble/curves/secp256k1.js";
 import {
   RECOVERY_DESCRIPTOR_FORMAT,
   RECOVERY_DESCRIPTOR_VERSION,
+  RECOVERY_DESCRIPTOR_VERSION_V1,
+  RECOVERY_DESCRIPTOR_VERSION_V2,
   SEQUENCE_BOUND,
   VALUE_RECORD_FORMAT,
   VALUE_RECORD_VERSION,
   bytesToHex,
   hexToBytes,
+  recoverAuthDigest,
   recoveryDescriptorDigest,
   valueRecordDigest,
 } from "@ont/wire";
+import {
+  acceptRecoverOwner,
+  type RecoverOwnerInvokeFacts,
+  type RecoveryDescriptorEvidence,
+  type RecoveryNameStateFacts,
+  type RecoveryParams,
+} from "./recovery-invoke-authority.js";
 import { valueRecordAccept, type OwnershipInterval, type ValueRecordEnvelope } from "./value-record-authority.js";
 import {
   gateFeeValidation,
@@ -171,6 +181,14 @@ const LOCAL_BINDING_MANIFEST = new Set<string>([
   "A1-neg-01",
   "A10-neg-01",
   "G7-neg-01",
+  // recovery-invoke-authority family (acceptRecoverOwner authorization/evidence gate, #67)
+  "R1-neg-01",
+  "R2-neg-01",
+  "R7-neg-01",
+  "R9-neg-01",
+  "R10-neg-01",
+  "R10-neg-02",
+  "T19-pos-01",
 ]);
 
 // A binding may only execute a vector that is (a) locked, (b) required-tier
@@ -1102,5 +1120,152 @@ describe("B2 vector bindings — reorg/replay-determinism family (over resident 
     const wallClockAffectsVerdict = farFuture.accepted !== farPast.accepted || farFuture.reason !== farPast.reason;
     expect(wallClockAffectsVerdict).toBe(accepts(vector)); // false === reject
     expect(farFuture).toEqual(farPast); // byte-identical verdict at any host clock
+  });
+});
+
+// ---- recovery-invoke-authority family (acceptRecoverOwner authorization/evidence gate, #67) ----
+// A shared builder produces a fully-consistent signed bundle: BIP340 over the §8.2a descriptor
+// digest (arming) and over the W13 recoverAuthDigest (invoke). Each binding perturbs one facet to
+// realize its vector and asserts the predicate verdict equals the vector's own expected.verdict.
+const RIA_OWNER_PRIV = "11".repeat(32);
+const RIA_RECOVERY_PRIV = "33".repeat(32);
+const RIA_OTHER_PRIV = "44".repeat(32);
+const RIA_AUX = new Uint8Array(32);
+const riaXonly = (priv: string): string => bytesToHex(schnorr.getPublicKey(hexToBytes(priv)));
+const RIA_REF = "aa".repeat(32);
+const RIA_HEAD = "cc".repeat(32);
+const RIA_NEWOWNER = "dd".repeat(32);
+const RIA_CWB = 144;
+const RIA_WR = 20;
+const RIA_HR = 100000;
+const RIA_SEQ = 3;
+
+interface RiaBundle {
+  invokeFacts: RecoverOwnerInvokeFacts;
+  descriptorEvidence: RecoveryDescriptorEvidence;
+  nameState: RecoveryNameStateFacts;
+  recoveryParams: RecoveryParams;
+}
+
+function riaBundle(opts: {
+  descriptorOwnerPriv?: string; // signs the arming sig + sets descriptor.ownerPubkey
+  invokeSignerPriv?: string; // signs the invoke over W13 (default = the recovery key)
+  descriptorVersion?: number;
+  witness?: unknown; // override the verifier-checked witness (R1)
+} = {}): RiaBundle {
+  const dOwner = opts.descriptorOwnerPriv ?? RIA_OWNER_PRIV;
+  const invokeSigner = opts.invokeSignerPriv ?? RIA_RECOVERY_PRIV;
+  const unsigned: Record<string, unknown> = {
+    format: RECOVERY_DESCRIPTOR_FORMAT,
+    descriptorVersion: opts.descriptorVersion ?? RECOVERY_DESCRIPTOR_VERSION_V2,
+    name: "alice",
+    ownerPubkey: riaXonly(dOwner),
+    ownershipRef: RIA_REF,
+    sequence: RIA_SEQ,
+    previousDescriptorHash: null,
+    recoveryAddress: "bc1qrecoveryexampleaddr0000000000000000",
+    signingProfile: "bip322",
+    challengeWindowBlocks: RIA_CWB,
+    issuedAt: "2026-01-01T00:00:00Z",
+    recoveryPubkey: riaXonly(RIA_RECOVERY_PRIV),
+    signature: "00".repeat(64),
+  };
+  const descriptorDigest = recoveryDescriptorDigest(unsigned);
+  const descriptor = { ...unsigned, signature: bytesToHex(schnorr.sign(descriptorDigest, hexToBytes(dOwner), RIA_AUX)) };
+  const descHash = bytesToHex(descriptorDigest);
+  const w13 = recoverAuthDigest({
+    prevStateTxid: RIA_HEAD,
+    newOwnerPubkey: RIA_NEWOWNER,
+    flags: 0,
+    successorBondVout: 0,
+    challengeWindowBlocks: RIA_CWB,
+    recoveryDescriptorHash: descHash,
+  });
+  const defaultWitness = { kind: "b3-verified-recovery-descriptor-witness", witnessedByHeight: RIA_HR + RIA_WR };
+  return {
+    invokeFacts: {
+      prevStateTxid: RIA_HEAD,
+      newOwnerPubkey: RIA_NEWOWNER,
+      flags: 0,
+      successorBondVout: 0,
+      challengeWindowBlocks: RIA_CWB,
+      recoveryDescriptorHash: descHash,
+      signature: bytesToHex(schnorr.sign(w13, hexToBytes(invokeSigner), RIA_AUX)),
+      minedHeight: RIA_HR,
+    },
+    descriptorEvidence: {
+      descriptor,
+      witness: (opts.witness !== undefined ? opts.witness : defaultWitness) as RecoveryDescriptorEvidence["witness"],
+    },
+    nameState: {
+      ownerPubkey: riaXonly(RIA_OWNER_PRIV), // the name's CURRENT owner
+      headTxid: RIA_HEAD,
+      currentOwnershipRef: RIA_REF,
+      recoveryDescriptorHeadHash: descHash,
+      recoveryDescriptorHeadSequence: RIA_SEQ,
+    },
+    recoveryParams: { recoveryEvidenceWindowBlocks: RIA_WR },
+  };
+}
+const riaAccepted = (b: RiaBundle): boolean =>
+  acceptRecoverOwner(b.invokeFacts, b.descriptorEvidence, b.nameState, b.recoveryParams).accepted;
+
+describe("B2 vector bindings — recovery-invoke-authority family (acceptRecoverOwner, #67)", () => {
+  it("T19-pos-01: a matching-window, fully-armed invoke is admitted (R8 window equality holds)", () => {
+    const vector = loadVector("transcript-completeness.json", "T19-pos-01");
+    assertBindable(vector);
+    expect(riaAccepted(riaBundle())).toBe(accepts(vector)); // accept
+  });
+
+  it("R1-neg-01: an invoke with no verifier-witnessed descriptor evidence fails closed", () => {
+    const vector = loadVector("recovery-authority.json", "R1-neg-01");
+    assertBindable(vector);
+    // No verifier-checked witness -> the §3c evidence gate has nothing to admit -> fail closed.
+    expect(riaAccepted(riaBundle({ witness: null }))).toBe(accepts(vector)); // reject
+  });
+
+  it("R2-neg-01: a descriptor armed by a non-owner key does not authorize", () => {
+    const vector = loadVector("recovery-authority.json", "R2-neg-01");
+    assertBindable(vector);
+    // descriptor self-claims + is signed by OTHER; the name's current owner is OWNER, so R2 rejects.
+    expect(riaAccepted(riaBundle({ descriptorOwnerPriv: RIA_OTHER_PRIV }))).toBe(accepts(vector)); // reject
+  });
+
+  it("R7-neg-01: a v1 descriptor profile is not invokable", () => {
+    const vector = loadVector("recovery-authority.json", "R7-neg-01");
+    assertBindable(vector);
+    expect(riaAccepted(riaBundle({ descriptorVersion: RECOVERY_DESCRIPTOR_VERSION_V1 }))).toBe(accepts(vector)); // reject
+  });
+
+  it("R9-neg-01: a non-authorizing wallet proof cannot substitute for a valid W13 event signature", () => {
+    const vector = loadVector("recovery-authority.json", "R9-neg-01");
+    assertBindable(vector);
+    // #50-b1 non-substitution (NOT a BIP322 verifier in B2): the predicate has no wallet-proof input
+    // channel, so an invoke whose W13 event signature is invalid (signed by the wrong key) rejects
+    // regardless — nothing substitutes. And an out-of-band proof field is rejected by closed shape.
+    expect(riaAccepted(riaBundle({ invokeSignerPriv: RIA_OTHER_PRIV }))).toBe(accepts(vector)); // reject: bad event sig
+    const b = riaBundle();
+    const smuggled = { ...b, descriptorEvidence: { ...b.descriptorEvidence, walletProof: "x" } as unknown as RecoveryDescriptorEvidence };
+    expect(riaAccepted(smuggled)).toBe(false); // closed-shape rejects an out-of-band proof field
+  });
+
+  it("R10-neg-01: a replayed arming signature presented in the invoke slot is rejected", () => {
+    const vector = loadVector("recovery-authority.json", "R10-neg-01");
+    assertBindable(vector);
+    const b = riaBundle();
+    const replayed: RiaBundle = {
+      ...b,
+      invokeFacts: { ...b.invokeFacts, signature: b.descriptorEvidence.descriptor.signature as string },
+    };
+    expect(riaAccepted(replayed)).toBe(accepts(vector)); // reject
+  });
+
+  it("R10-neg-02: a legacy commitment value in the 64-byte signature slot is verified as a signature and rejected", () => {
+    const vector = loadVector("recovery-authority.json", "R10-neg-02");
+    assertBindable(vector);
+    const b = riaBundle();
+    // A 64-byte commitment-shaped value (not a BIP340 signature over W13) -> verifySchnorr false.
+    const legacy: RiaBundle = { ...b, invokeFacts: { ...b.invokeFacts, signature: "ab".repeat(64) } };
+    expect(riaAccepted(legacy)).toBe(accepts(vector)); // reject
   });
 });
