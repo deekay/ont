@@ -83,14 +83,17 @@ The B2 conformance-vector suite (`packages/consensus/src/b2-vector-suite.test.ts
 `b2-vector-bindings.test.ts` bindings) holds the 94 locked vectors. After this run the
 **resident-predicate binding lane is wrapped**: **40 of 94 vectors are bound** to a resident
 `@ont/consensus` predicate, each asserting the predicate output equals the vector's own
-`expected.verdict`. Eight verdict modules back them: scanner, params, da-verdict, value-record,
-engine (B1) + the four landed this run — gate-fee (#62), transcript-completeness (#63),
-bond-qualification (#64), settlement (#65).
+`expected.verdict`. Nine resident consensus surfaces / source files back them: scanner, params,
+da-verdict, value-record-authority, engine, gate-fee (#62), transcript-completeness (#63),
+bond-qualification (#64), settlement (#65) — i.e. the six `CONSENSUS_VERDICTS` modules plus the
+scanner (`CONSENSUS_SUPPORT`), params (`CONSENSUS_PARAMS`), and engine (`CORE_DECIDERS`) surfaces.
 
 The other **54 vectors are NOT bound, by design** — none has a resident predicate it can honestly
-bind to. They are not silently skipped; the spine keeps them visible. Grouped by what each needs:
+bind to. They are not silently skipped; the spine keeps them visible. The 24 **pending-predicate**
+rows (required-tier, no resident predicate) split into the first three groups below; the fourth is
+the 30 **pending-DK** candidate-tier rows. Grouped by what each needs:
 
-- **New surface required (24-row group; ratified ingredients, but a separately-scoped new-predicate
+- **New surface required (13-row group; ratified ingredients, but a separately-scoped new-predicate
   phase — NOT a same-lane binding):**
   - *Winner-selection / bid-acceptance* (the input S15 treats as opaque): Q9-pos-01, Q10-neg-01,
     T7-neg-01, T9-neg-01, G1-pos-01 (#37 largest-bond + #25 tie-order).
