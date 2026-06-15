@@ -55,7 +55,7 @@ const srcDir = dirname(fileURLToPath(import.meta.url));
 const CORE_DECIDERS = ["engine.ts", "state.ts", "proof-bundle.ts"] as const;
 const CONSENSUS_SUPPORT = ["scanner.ts"] as const;
 const CONSENSUS_PARAMS = ["params.ts"] as const;
-const CONSENSUS_VERDICTS = ["da-verdict.ts", "value-record-authority.ts", "gate-fee.ts", "transcript-completeness.ts", "bond-qualification.ts"] as const;
+const CONSENSUS_VERDICTS = ["da-verdict.ts", "value-record-authority.ts", "gate-fee.ts", "transcript-completeness.ts", "bond-qualification.ts", "settlement.ts"] as const;
 
 // Consensus-support rides the B1 normative wire grammar (@ont/wire); the parameter
 // surface rides nothing external (values enter as inputs).
@@ -98,6 +98,9 @@ const VERDICTS_ALLOWED_BY_FILE: Record<string, ReadonlySet<string>> = {
   // bond-qualification is the pure #37 escalation qualification test (bond >= floor); the
   // floor is a launch-freeze parameter, so it rides nothing external — allowlist empty (#64).
   "bond-qualification.ts": new Set<string>([]),
+  // settlement holds the S5 lock-commitment match + S15 materialization gate; both pure over
+  // their inputs + a launch-freeze maturity parameter, riding nothing external — allowlist empty (#65).
+  "settlement.ts": new Set<string>([]),
 };
 const ALL_MANIFEST = [...CORE_DECIDERS, ...CONSENSUS_SUPPORT, ...CONSENSUS_PARAMS, ...CONSENSUS_VERDICTS];
 const ALLOWED_RELATIVE = new Set(ALL_MANIFEST.map((file) => `./${file.replace(/\.ts$/, ".js")}`));

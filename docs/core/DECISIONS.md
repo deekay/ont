@@ -1513,6 +1513,43 @@ qualify and never throws. Spec: `DECISIONS.md` #37 bond-opens; `B2_KERNEL_HARDEN
 DECISIONS #59. This satisfies #44's "boundary may change only with a DECISIONS entry +
 conformance coverage"; the boundary freezes at launch.
 
+65. b2-settlement-boundary: the settlement predicates enter @ont/consensus as pure
+CONSENSUS_VERDICTS deciders riding nothing external — 2026-06-15
+
+*Status: **Proposed** (writer ClaudeleLunatique, reviewer ChatLunatique; lands on branch
+clean-build-b2-kernel, DK merges). A boundary-manifest addition under #44, riding the
+CONSENSUS_VERDICTS tier established by #59 — a new pure verdict module, NOT a tier-widening:
+its external allowlist is empty (the strictest, like `da-verdict.ts` / `gate-fee.ts` (#62) /
+`transcript-completeness.ts` (#63) / `bond-qualification.ts` (#64)). No new consensus law
+(DECISIONS #12 maturity-binding, #37 bond-opens, and WIRE_FORMAT §4.3 are ratified/normative),
+no DK ruling required. Covered by conformance: `trust-surface.test.ts` (`settlement.ts` in
+CONSENSUS_VERDICTS with an empty `VERDICTS_ALLOWED_BY_FILE` entry), `b2-boundary.test.ts`
+(zero-I/O purity), and the S5-neg-01 / S15-neg-01 bindings in `b2-vector-bindings.test.ts`.
+Authored under DK's keep-going grant (event 62b47b5e, 2026-06-14).*
+
+**The rule.** Two narrow pure predicates, deliberately not one combined verdict so neither
+implies maturity-height computation nor full materialization:
+- `settlementLockMatchesMaturity(lockCommitment, maturityBlocks)` (S5; #12 + WIRE §4.3): a
+  winning bid's `settlementLockBlocks` commitment must equal the protocol maturity parameter; a
+  differing value does not settle. It validates ONLY this equality — no maturity-height
+  computation, no maturity-anchor choice, no bid validation, no record settle. `maturityBlocks`
+  is a launch-freeze parameter.
+- `settlementMaterializes(acceptedWinningBid | null)` (S15; #37): the materialization GATE —
+  ownership materializes only from an actual accepted winning bid; `null` (no winner / zero bids
+  / a settled phase with no valid accepted winner) yields no owner. The accepted winner is an
+  INPUT from winner selection (Q); B2 does not resolve it, and this gate does not construct the
+  NameRecord.
+
+Both ride nothing external (empty allowlist) and mutate no state. They DELIBERATELY EXCLUDE:
+auction RESOLUTION / winner selection (→ Q, candidate); the full NameRecord construction
+(`ownerPubkey`, bond outpoint, amount, maturity height); maturity-anchor reconciliation (S3);
+settlement-bond-continuity (#56, engine-side); and recovery (#50). Total / fail-closed +
+closed-shape (the #63/#64 discipline): a malformed (non-object, extra-field, non-integer/negative)
+input does not settle/materialize and never throws, so no source/catalog/phase field is admitted
+as authority. Spec: `DECISIONS.md` #12 + #37; `WIRE_FORMAT.md` §4.3; `B2_KERNEL_HARDENING.md`
+S5/S15; DECISIONS #59. This satisfies #44's "boundary may change only with a DECISIONS entry +
+conformance coverage"; the boundary freezes at launch.
+
 ## Fairness Principles To Carry Into The Launch Rewrite
 
 The rewritten launch draft should explicitly state:

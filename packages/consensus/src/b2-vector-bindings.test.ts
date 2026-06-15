@@ -53,6 +53,12 @@ import {
 } from "./transcript-completeness.js";
 import { bondQualifiesForEscalation } from "./bond-qualification.js";
 import {
+  settlementLockMatchesMaturity,
+  settlementMaterializes,
+  type AcceptedWinningBid,
+  type SettlementLockCommitment,
+} from "./settlement.js";
+import {
   createTransferPayload,
   deriveOwnerPubkey,
   encodeTransferPayload,
@@ -127,6 +133,9 @@ const LOCAL_BINDING_MANIFEST = new Set<string>([
   "B1-neg-02",
   // bond-qualification family (bondQualifiesForEscalation)
   "B6-neg-01",
+  // settlement family (settlementLockMatchesMaturity / settlementMaterializes)
+  "S5-neg-01",
+  "S15-neg-01",
   // params family (DA-window construction + h+K eligibility)
   "A3-neg-01",
   "D9-neg-01",
@@ -396,6 +405,47 @@ describe("B2 vector bindings — bond-qualification family (bondQualifiesForEsca
     expect(() => bondQualifiesForEscalation(100_000n, 100_000n)).not.toThrow(); // valid call
     expect(() => bondQualifiesForEscalation(-1n, -1n)).not.toThrow(); // negative inputs
     expect(() => callLoose("x", null)).not.toThrow(); // arbitrary malformed inputs
+  });
+});
+
+describe("B2 vector bindings — settlement family (settlementLockMatchesMaturity / settlementMaterializes)", () => {
+  it("S5-neg-01: a winning bid whose settlementLockBlocks != the protocol maturity does not settle", () => {
+    const vector = loadVector("settlement-consequences.json", "S5-neg-01");
+    assertBindable(vector);
+    // S5 (#12 + WIRE §4.3): the per-bid settlementLockBlocks must equal the protocol maturityBlocks;
+    // a differing (e.g. shortened) override does not settle. maturityBlocks is a launch-freeze
+    // parameter, exercised at TWO distinct values so a baked constant fails. It validates ONLY the
+    // equality — no maturity-height computation, no anchor choice, no bid validation, no record settle.
+    // Primary -> expected.verdict: a mismatched lock commitment does not match (does not settle).
+    expect(settlementLockMatchesMaturity({ settlementLockBlocks: 99 }, 100).matches).toBe(accepts(vector)); // mismatch -> false === reject
+    expect(settlementLockMatchesMaturity({ settlementLockBlocks: 100 }, 100).matches).toBe(true); // equal -> matches (positive companion)
+    // second maturity value (no baked constant): the comparison tracks the supplied parameter.
+    expect(settlementLockMatchesMaturity({ settlementLockBlocks: 144 }, 288).matches).toBe(false);
+    expect(settlementLockMatchesMaturity({ settlementLockBlocks: 288 }, 288).matches).toBe(true);
+    // total fail-closed + closed-shape: malformed / negative / extra-field do not match, never throw.
+    expect(settlementLockMatchesMaturity({ settlementLockBlocks: -1 }, 100).matches).toBe(false);
+    expect(
+      settlementLockMatchesMaturity({ settlementLockBlocks: 100, source: "bidder-x" } as unknown as SettlementLockCommitment, 100).matches
+    ).toBe(false); // extra field rejected — no source authority
+    expect(() => settlementLockMatchesMaturity({ settlementLockBlocks: 1.5 } as unknown as SettlementLockCommitment, 100)).not.toThrow();
+  });
+
+  it("S15-neg-01: ownership materializes only from an actual accepted winning bid", () => {
+    const vector = loadVector("settlement-consequences.json", "S15-neg-01");
+    assertBindable(vector);
+    // S15 (#37): the materialization GATE. No accepted winner / zero bids / a settled phase with no
+    // valid accepted winner yields no owner. The accepted winner is an INPUT from winner selection
+    // (Q); B2 does not resolve it, and this gate does NOT construct the NameRecord.
+    // Primary -> expected.verdict: with no accepted winning bid, nothing materializes (no owner).
+    expect(settlementMaterializes(null).materializes).toBe(accepts(vector)); // null -> false === reject
+    // companion (positive control): a valid accepted-winning-bid placeholder materializes.
+    expect(settlementMaterializes({ kind: "accepted-winning-bid" }).materializes).toBe(true);
+    // closed-shape: a catalog / phase / source field on the winner object is not admitted as
+    // authority — it does not materialize (fail closed), never throws.
+    expect(
+      settlementMaterializes({ kind: "accepted-winning-bid", phase: "settled", source: "catalog" } as unknown as AcceptedWinningBid).materializes
+    ).toBe(false);
+    expect(() => settlementMaterializes(undefined as unknown as AcceptedWinningBid | null)).not.toThrow();
   });
 });
 

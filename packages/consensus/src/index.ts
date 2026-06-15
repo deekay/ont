@@ -46,3 +46,7 @@ export * from "./transcript-completeness.js";
 // qualification test (bond >= floor); rides nothing external (the floor is a launch-freeze
 // parameter). See DECISIONS b2-bond-qualification-boundary (#64).
 export * from "./bond-qualification.js";
+// The settlement predicates (#65, riding #59's verdict tier): the S5 lock-commitment match
+// (settlementLockBlocks === maturityBlocks) and the S15 materialization gate (ownership only from
+// an accepted winning bid); both pure, riding nothing external. See DECISIONS b2-settlement-boundary (#65).
+export * from "./settlement.js";
