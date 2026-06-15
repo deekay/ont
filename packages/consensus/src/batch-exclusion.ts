@@ -82,11 +82,11 @@ export interface BatchExclusionVerdict {
   readonly reason: string;
 }
 
-// #83 batch-completeness / D-CV scaffold. This does NOT implement the exact
-// prevRoot -> newRoot replay conjunct yet. It pins the conformance matrix and
-// the closed projection shape the D-CV implementation must consume/emit, so the
-// implementation lands against the ratified O2 surface instead of the older
-// `{name, contributingBatchIds}`-only projection.
+// #83 batch-completeness / D-CV. The conformance matrix below pins the ratified
+// 12-case inventory and the closed projection shape; `evaluateBatchCompleteness`
+// (further down) implements the exact prevRoot -> newRoot replay conjunct against
+// that ratified O2 surface, including insert-only disjointness, projection/top-level
+// coherence, and verdict/served-height timing consistency (slice-4 + round-2).
 export type BatchCompletenessCaseOwner =
   | "batch-completeness"
   | "bond-notice-guard"
