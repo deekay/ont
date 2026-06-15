@@ -78,6 +78,7 @@ import {
   type AuctionResolutionTranscript,
   type PriorAuctionState,
 } from "./auction-resolution.js";
+import { resolveNoticeWindow, type NoticeWindowClaim, type NoticeWindowInput } from "./notice-window.js";
 import {
   createTransferPayload,
   deriveOwnerPubkey,
@@ -215,6 +216,9 @@ const LOCAL_BINDING_MANIFEST = new Set<string>([
   "T7-neg-01",
   "T9-neg-01",
   "G1-pos-01",
+  // notice-window resolution family (#69)
+  "T17-neg-01",
+  "F11-neg-01",
 ]);
 
 // A binding may only execute a vector that is (a) locked, (b) required-tier
@@ -1340,6 +1344,73 @@ describe("B2 vector bindings — auction-resolution family (#68)", () => {
     );
     expect(result.selected).toBe(accepts(vector)); // accept
     expect(result.winner).toMatchObject({ txid: auctionTxid("b"), txIndex: 2 });
+  });
+});
+
+// ---- notice-window resolution family (#69) ----
+// resolveNoticeWindow is #49-independent: each claim carries its already-resolved DA verdict
+// ({decided, holdsPriority} — the ./da-verdict.ts output the engine composes over a served-bytes
+// witness), so these fixtures show the holdsPriority (h+W) boundary by VARYING the supplied DA
+// facts, never by recomputing W/C/K here (the scope-concurrence design point).
+const noticeOwner = (byte: string): string => byte.repeat(64);
+const NW_OWNER_A = noticeOwner("a");
+const NW_OWNER_B = noticeOwner("b");
+const nwDaValid = (ownerKey: string): NoticeWindowClaim => ({
+  ownerKey,
+  daVerdict: { decided: true, holdsPriority: true },
+});
+const nwDaExcluded = (ownerKey: string): NoticeWindowClaim => ({
+  ownerKey,
+  daVerdict: { decided: true, holdsPriority: false },
+});
+const noticeInput = (overrides: Partial<NoticeWindowInput> = {}): NoticeWindowInput => ({
+  anchorHeight: 900_000,
+  currentHeight: 900_006, // anchorHeight + W_notice — the deadline (>= gate satisfied)
+  claims: [nwDaValid(NW_OWNER_A)],
+  bond: { bondAmountSats: null, bondFloorSats: 10_000n },
+  params: { noticeWindowBlocks: 6 },
+  ...overrides,
+});
+
+describe("B2 vector bindings — notice-window resolution family (#69)", () => {
+  it("T17-neg-01: two DA-valid bondless claims nullify (never an award); one finalizes; a qualifying bond escalates", () => {
+    const vector = loadVector("transcript-completeness.json", "T17-neg-01");
+    assertBindable(vector);
+    // caseTwoDAValidBondlessNullify — the headline reject: an award MUST NOT be produced.
+    const nullify = resolveNoticeWindow(noticeInput({ claims: [nwDaValid(NW_OWNER_A), nwDaValid(NW_OWNER_B)] }));
+    expect(nullify.awarded).toBe(accepts(vector)); // false === reject
+    expect(nullify).toMatchObject({ outcome: "nullified", daValidOwnerCount: 2 });
+    // caseOneDAValidFinalize — the companion positive disposition.
+    expect(resolveNoticeWindow(noticeInput({ claims: [nwDaValid(NW_OWNER_A)] }))).toMatchObject({
+      outcome: "finalized",
+      awarded: true,
+      daValidOwnerCount: 1,
+    });
+    // caseBondEscalate — the #37 escalation trigger.
+    expect(
+      resolveNoticeWindow(
+        noticeInput({
+          claims: [nwDaValid(NW_OWNER_A)],
+          bond: { bondAmountSats: 10_000n, bondFloorSats: 10_000n },
+        })
+      )
+    ).toMatchObject({ outcome: "escalated", awarded: false });
+  });
+
+  it("F11-neg-01: collision counting consumes the resolved DA verdict — the holdsPriority (h+W) boundary flips finalize<->nullify", () => {
+    const vector = loadVector("gate-fee-validation.json", "F11-neg-01");
+    assertBindable(vector);
+    // caseTwoDAValidBondless — the headline reject: two DA-valid bondless claims nullify, no award.
+    const nullify = resolveNoticeWindow(noticeInput({ claims: [nwDaValid(NW_OWNER_A), nwDaValid(NW_OWNER_B)] }));
+    expect(nullify.awarded).toBe(accepts(vector)); // false === reject
+    expect(nullify).toMatchObject({ outcome: "nullified", daValidOwnerCount: 2 });
+    // caseBorderlineWBoundary — the borderline claim's DA-validity hinges on holdsPriority (h+W):
+    //   served by h+W  -> priority-bearing -> counts -> 2 competitors -> nullify (above);
+    //   misses h+W     -> forfeits priority -> does not count -> single survivor -> finalize.
+    const borderlineMisses = resolveNoticeWindow(
+      noticeInput({ claims: [nwDaValid(NW_OWNER_A), nwDaExcluded(NW_OWNER_B)] })
+    );
+    expect(borderlineMisses).toMatchObject({ outcome: "finalized", awarded: true, daValidOwnerCount: 1 });
   });
 });
 

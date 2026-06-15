@@ -55,7 +55,7 @@ const srcDir = dirname(fileURLToPath(import.meta.url));
 const CORE_DECIDERS = ["engine.ts", "state.ts", "proof-bundle.ts"] as const;
 const CONSENSUS_SUPPORT = ["scanner.ts"] as const;
 const CONSENSUS_PARAMS = ["params.ts"] as const;
-const CONSENSUS_VERDICTS = ["da-verdict.ts", "value-record-authority.ts", "gate-fee.ts", "transcript-completeness.ts", "bond-qualification.ts", "settlement.ts", "recovery-invoke-authority.ts", "auction-resolution.ts"] as const;
+const CONSENSUS_VERDICTS = ["da-verdict.ts", "value-record-authority.ts", "gate-fee.ts", "transcript-completeness.ts", "bond-qualification.ts", "settlement.ts", "recovery-invoke-authority.ts", "auction-resolution.ts", "notice-window.ts"] as const;
 
 // Consensus-support rides the B1 normative wire grammar (@ont/wire); the parameter
 // surface rides nothing external (values enter as inputs).
@@ -109,6 +109,10 @@ const VERDICTS_ALLOWED_BY_FILE: Record<string, ReadonlySet<string>> = {
   // auction-resolution is the pure opening-floor / bid-acceptance / winner-selection surface; it
   // consumes launch params + B3-verified lot/script facts and rides nothing external (#68).
   "auction-resolution.ts": new Set<string>([]),
+  // notice-window is the pure finalize/nullify/escalate/provisional verdict at the notice deadline;
+  // it consumes resolved per-claim DA verdicts + the launch W_notice param and delegates bond
+  // qualification to the resident #37 predicate (./bond-qualification.js) — riding nothing external (#69).
+  "notice-window.ts": new Set<string>([]),
 };
 const ALL_MANIFEST = [...CORE_DECIDERS, ...CONSENSUS_SUPPORT, ...CONSENSUS_PARAMS, ...CONSENSUS_VERDICTS];
 const ALLOWED_RELATIVE = new Set(ALL_MANIFEST.map((file) => `./${file.replace(/\.ts$/, ".js")}`));

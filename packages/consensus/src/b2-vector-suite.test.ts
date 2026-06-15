@@ -91,6 +91,8 @@ const readyBindingTargetById: Record<string, string> = {
   "T7-neg-01": "auction-resolution: zero accepted bids yields no auction winner / no owner",
   "T9-neg-01": "auction-resolution: declared lower or phantom winner rejects",
   "G1-pos-01": "auction-resolution: same-block equal-amount tie resolves by lower txIndex (#25)",
+  "T17-neg-01": "notice-window: two distinct-owner DA-valid bondless claims nullify; one finalizes; a qualifying bond escalates (#37)",
+  "F11-neg-01": "notice-window: collision counting consumes the resolved DA verdict (holdsPriority h+W boundary); two DA-valid bondless claims nullify",
 };
 
 type VectorOrigin = "vector-now" | "provisional-origin";
@@ -246,8 +248,8 @@ describe("B2 executable vector suite inventory", () => {
 
     expect(countsBy(plans.map((plan) => plan.state))).toEqual({
       "pending-dk": 8,
-      "pending-predicate": 26,
-      "ready-for-binding": 60,
+      "pending-predicate": 24,
+      "ready-for-binding": 62,
     });
   });
 
@@ -257,14 +259,15 @@ describe("B2 executable vector suite inventory", () => {
       .map((plan) => plan.vector.id)
       .sort();
 
-    expect(pendingRequired).toHaveLength(26);
+    expect(pendingRequired).toHaveLength(24);
     // the entire recovery-parked group (R1/R2/R7/R9/R10-01/R10-02/T19 + now R18 completion / G6
     // no-callback purity) is bound to the resident recovery surface — no recovery vector remains.
     // the winner-selection / bid-acceptance group (Q1/Q2/Q3/Q4/Q7/Q9/Q10 + T7/T9/G1) is bound to
-    // auction-resolution — no auction vector remains pending-predicate.
+    // auction-resolution; the notice-window group (T17/F11) is bound to notice-window — no auction
+    // or notice-window vector remains pending-predicate.
     expect(pendingRequired).toContain("B10-pos-01"); // B1/B3/B4/B10-neg/B6 now resident; B10-pos deferred (locality surface)
     expect(pendingRequired).toContain("D7-pos-01"); // promoted via #66; same deferred DA locality/state-equivalence surface as B10-pos — pending-predicate, not a ready binding target
-    expect(pendingRequired).toContain("T17-neg-01"); // claim-counting / notice-window resolution remains a separate surface
-    expect(pendingRequired).toContain("F11-neg-01");
+    expect(pendingRequired).not.toContain("T17-neg-01"); // now resident in notice-window
+    expect(pendingRequired).not.toContain("F11-neg-01");
   });
 });

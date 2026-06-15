@@ -58,3 +58,7 @@ export * from "./recovery-invoke-authority.js";
 // bid-acceptance, and winner-selection verdicts. Rides no external package; launch values and
 // B3-verified lot/script facts enter as caller inputs.
 export * from "./auction-resolution.js";
+// The notice-window resolution predicate (#69, riding #59's verdict tier): the pure
+// finalize/nullify/escalate/provisional verdict at the notice deadline (T17/F11/A13/D10/#37).
+// #49-independent — consumes each claim's resolved DA verdict as a fact; rides nothing external.
+export * from "./notice-window.js";

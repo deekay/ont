@@ -1685,6 +1685,54 @@ and never throw, so no catalog/source/producer field is admitted as authority. T
 "boundary may change only with a DECISIONS entry + conformance coverage"; the boundary freezes at
 launch.
 
+69. b2-notice-window-resolution-boundary: the cheap-claim notice-window resolution predicate
+enters @ont/consensus as a pure CONSENSUS_VERDICTS decider that rules a name
+finalize/nullify/escalate/provisional at the notice deadline, riding nothing external — 2026-06-15
+
+*Status: **Proposed** (writer ClaudeleLunatique, reviewer ChatLunatique; lands on branch
+clean-build-b2-kernel, DK merges). A boundary-manifest addition under #44, riding the
+CONSENSUS_VERDICTS tier established by #59 — a new pure verdict module, NOT a tier-widening. Its
+external allowlist is empty: it consumes resolved per-claim DA verdicts + a launch W_notice
+parameter and delegates bond qualification to the resident #37 predicate (`bond-qualification.ts`,
+an intra-package import), with no `@ont/core` indexer/resolver, no research/simulation code, and no
+host I/O. NO new consensus law: it lands the already-ratified rules #37 (bond-opens), #47
+(marker-fold deadline clock), #49 (da-windows K>=W+C), and PR-6 (distinct-owner counting). Covered
+by conformance: `trust-surface.test.ts` (`notice-window.ts` in CONSENSUS_VERDICTS with an empty
+allowlist), `notice-window.test.ts` (predicate battery), and the T17/F11 bindings in
+`b2-vector-bindings.test.ts`. Authored under DK's keep-going grant.*
+
+**The rule.** One narrow pure predicate, `resolveNoticeWindow(input)`:
+- A13: the notice window opens at the name's earliest-valid anchor mined height; the verdict is
+  derived only at `currentHeight >= anchorHeight + W_notice` (a `>=` gate; before it the name is
+  `provisional`). W_notice is a launch-freeze parameter, not a value this rule fixes.
+- T17/F11/#37: exactly one distinct-owner DA-valid claim and no qualifying bond -> `finalized`; two
+  or more distinct-owner DA-valid claims and no qualifying bond -> `nullified` (no owner, the name
+  reopens); any qualifying bond (against a claim, or bond-first) -> `escalated` to auction. A bare
+  collision can deny, never award.
+- PR-6 / first-anchor-wins (B5): a "competing claim" counts DISTINCT `(name, owner)` only; a
+  same-owner duplicate or re-anchor is idempotent (A12), deduped by owner key before counting.
+- D10: a claim whose DA verdict resolved NOT priority-bearing does not count for any lifecycle
+  purpose; a withheld competing claim (resolved excluded) does not nullify an available claim.
+
+**#49-independent.** The predicate consumes each claim's ALREADY-RESOLVED DA verdict — the
+`{decided, holdsPriority}` output of `da-verdict.ts`, composed by the engine over a served-bytes
+witness — and never recomputes `includable`/`holdsPriority` and never sees W/C/K. The #49-governed
+window algebra lives in the supplied DA verdict; this rule only counts the resolved priority-bearing
+claims, so da-windows values may move without touching this module (the tests vary the supplied DA
+facts to show the holdsPriority `h+W` boundary, F11). As a D10 nullification-by-withholding guard,
+any UNDECIDED claim verdict fails the resolution closed (`undecidable`) — never a premature
+finalize/nullify; under #49 `K>=W+C` an honest deadline evaluation never carries one.
+
+The module deliberately excludes: the auction itself (escalate emits the outcome; winner selection
+is `auction-resolution.ts` #68); the exact notice-deadline INCLUSIVITY of a claim landing AT the
+close height (that non-DA edge is PR-13, cf. A13); the in-window membership filter and the choice of
+governing anchor among competing claims (engine first-anchor-wins composition); whole-batch-vs-per-
+leaf DA granularity (D4); and indexer/resolver integration. Total / fail-closed + closed-shape (the
+#63–#68 discipline): malformed or extra-field inputs return a non-award verdict and never throw, so
+no producer-asserted "qualifies"/"daValid" field is admitted as authority. This satisfies #44's
+"boundary may change only with a DECISIONS entry + conformance coverage"; the boundary freezes at
+launch.
+
 ## Fairness Principles To Carry Into The Launch Rewrite
 
 The rewritten launch draft should explicitly state:
