@@ -33,8 +33,9 @@ tests statement before code.
 - **Scope (in).** `@ont/evidence`: proof-bundle assembly + structural and
   against-Bitcoin verification, accumulator membership-proof construction,
   served-bytes witness production + verification (bytes → anchored root under
-  `batchSize`), completeness-witness production, witness gathering, and the
-  canonical-root merge (Model B — see §5.2).
+  `batchSize`), completeness-witness production, **recovery-descriptor evidence
+  witness** production + verification, witness gathering, and the canonical-root
+  merge (Model B — see §5.2).
 - **Scope (out).** No ownership decisions. B3 decides nothing the kernel
   decides: not who owns a name, not the auction winner, not whether a deadline
   passed. Those stay in `@ont/consensus`. B3 also excludes adapters (publisher/
@@ -78,6 +79,7 @@ verifier-checkable input each one consumes opaquely today.
 | D-CW | Completeness witness: counted-bid set is the complete set over the lot's block/soft-close range | `transcript-completeness.ts` (T2) | "the concrete verifier-checkable format and the lot's block range are a B3 deliverable" |
 | D-CV | Canonical-root merge (multi-publisher convergence) | `batch-exclusion.ts` / `reopen-resolution.ts` (consume `excludedBatchIds`, derived insertions) | the kernel consumes a derived canonical root; deriving it is B3 |
 | D-PB | Proof-bundle assembly (both sources) | `verifyProofBundleStructure` (`bitcoin_l1_direct_auction` \| `accumulator_batch_claim`) | structural self-consistency, then against-Bitcoin |
+| D-RC | Recovery-descriptor evidence witness: armed descriptor head demonstrably witnessed by `h_r + W_r` | `recovery-invoke-authority.ts` (`acceptRecoverOwner`, §3c evidence gate) | "the 'demonstrably witnessed' descriptor-evidence format is a B3 evidence-layer deliverable … `{ kind: "b3-verified-recovery-descriptor-witness", witnessedByHeight }`" |
 
 ## §3 — Evidence-layer invariants (E-series) + source check
 
@@ -121,6 +123,13 @@ needs a ruling before it can be law — parked in §5.
   deadline, no passing witness exists; B3 cannot synthesize one. *[cited:
   DA_MARKER_FOLD.md §6c challenge; convergence "defeats withhold-then-reveal"].*
   Test (adversarial, §4.1): withhold ⇒ kernel fails closed.
+- **E-SB5 — no clock, no receipt time, no endpoint identity as authority.** The
+  only height that may enter is the anchor's current-chain mined height; local
+  receipt time, wall clock, first-seen height, and "which endpoint served it"
+  are never authority inputs. *[cited: `da-verdict.ts` D2/D3 — "no broadcast
+  time, first-seen height, or publisher assertion may enter"].* Test: a witness
+  carrying a receipt timestamp / endpoint id is ignored or rejected, never used
+  to satisfy a deadline.
 
 ### Accumulator membership (feeds D-AM)
 
@@ -138,8 +147,9 @@ needs a ruling before it can be law — parked in §5.
 
 - **E-CW1 — verifier-checkable completeness.** The witness demonstrates the
   counted-bid set is the complete set over the lot's block/soft-close range,
-  checkable without trusting the producer. *[DK-decision: concrete format +
-  range semantics — T2-neg-02, §5.3].*
+  with the range **derived from Bitcoin-witnessed heights** (not producer-
+  asserted), checkable without trusting the producer. *[DK-decision: concrete
+  format + range semantics — T2-neg-02, §5.3].*
 - **E-CW2 — producer-assertion is never trusted.** Already enforced in B2 (T2);
   B3 must supply the *verifiable* alternative, not a self-asserted flag.
   *[ratified: T2 / canon Item 4].*
@@ -167,6 +177,24 @@ needs a ruling before it can be law — parked in §5.
 - **E-CV4 — a malicious delta cannot unseat a finalized name or fork the root.**
   *[cited: convergence doc adversary analysis].* Test (adversarial, §4.1).
 
+### Recovery-descriptor evidence (feeds D-RC)
+
+- **E-RC1 — verifier-checkable descriptor witness.** B3 produces a witness that
+  the name's armed descriptor-v2 head was demonstrably witnessed by `h_r + W_r`
+  (`h_r` = invoke mined height; `W_r` = recovery-evidence window, a launch-freeze
+  param, `1 ≤ W_r ≤ challengeWindowBlocks`). B2's `acceptRecoverOwner` consumes
+  it opaquely as `{ kind: "b3-verified-recovery-descriptor-witness",
+  witnessedByHeight }` and **remains the decider** (R2–R8 authorization stays in
+  the kernel). *[ratified: recovery-auth (#50-b1); RECOVERY_AUTH §3c].*
+- **E-RC2 — fail closed on late/absent/unverified evidence.** Late, missing, or
+  unverified descriptor evidence yields no authorization, so no recovery state
+  opens. *[ratified: §3c fail-closed].* Test: witness at `h_r + W_r + 1` ⇒ no
+  authorization.
+- **E-RC3 — the §8.3 BIP322 wallet proof is non-authorizing corroboration.** B3
+  may construct it, but it carries no witnessing deadline and can neither block
+  nor substitute for the descriptor evidence. *[cited: `recovery-invoke-
+  authority.ts` — "NON-authorizing corroboration … no witnessing deadline"].*
+
 ### Cross-cutting (the §1 contract, made executable)
 
 - **E-ND1 — swapping evidence cannot move a kernel verdict.** A hostile/buggy
@@ -176,6 +204,17 @@ needs a ruling before it can be law — parked in §5.
   recovery decision lives in `@ont/evidence`; enforced by a
   research-quarantine-style import + surface test (like B2's zero-I/O lock).
   *[ratified: canon L3 "non-deciding"].*
+- **E-ND3 — transport affects liveness, not integrity.** Which endpoint served
+  bytes, over what protocol, can change *whether* a witness is gathered in time,
+  never *what* it proves. A "trust me, I saw it" field is a bug, not a witness:
+  every accepted fact reduces to a cryptographic check against the anchor's
+  witnessed commitment. *[ratified: §1 contract; `da-verdict.ts` S4].*
+- **E-ND4 — reorg ⇒ re-derive from current-chain mined heights.** On reorg, all
+  heights are recomputed from the current canonical chain; no first-seen or
+  local height survives as authority (mirrors the kernel's one-clock rule).
+  *[cited: da-windows (#49) S1; `notice-window.ts` Z9 current-chain height].*
+  Test: a witness valid pre-reorg whose anchor is reorged out re-derives to
+  invalid.
 
 ## §4 — The adversarial gate
 
@@ -208,13 +247,20 @@ in [RISKS.md](../RISKS.md). *(Numbers, not a gate on correctness.)*
 These three are the genuine *consensus* questions B3 surfaces. Drafted
 decision-ready; **not** agent-decided.
 
-### §5.1 Partial-service granularity (D4) — **named spec PR needed**
-Does serving a strict subset of a batch's leaves make the batch (or only those
-leaves) eligible? The legacy indexer merged per-leaf; the sim excluded
-per-batch; there is no ratified text. `da-verdict.ts` deliberately models
-whole-batch service only. **Recommendation:** whole-batch eligibility for v1
-(simplest fail-closed predicate; per-leaf is a strictly later enrichment). Ripple:
-the served-bytes witness shape (E-SB2) and the resolver's serving granularity.
+### §5.1 DA verdict granularity table (PR-2 / conflict C5) — **ruling makeable now**
+PR-2 (the registry's commitment-match spec-PR) carries the granularity table:
+the disposition per failure class. Fee → whole-batch and DA-deadline →
+whole-batch are the recorded dispositions; the **open fork is leaf-level
+commitment / well-formedness: per-leaf-drop vs batch-poison** (ruleIds D4, D8,
+A4, A6, B9). The leaf *construction* half (C6) is already settled by
+commitment-match (#52) — committed leaf = `H(ownerPubkey)`, so B3 builds to that
+[**CL: confirm #52's ratification tier**]. **Recommendation:** per-leaf-drop for
+leaf-level malformedness (drop only the bad leaf; Σ gᵢ over the surviving
+committed set), keeping fee / DA-deadline whole-batch. The C5 ruling is makeable
+now — a decision-ready packet already exists in
+[`B2_SPEC_PR_PACKETS.md`](./B2_SPEC_PR_PACKETS.md) (PR-2); only the concrete
+served-bytes / leaf *bytes* are B3-gated. Ripple: the served-bytes witness shape
+(E-SB2) and the resolver's serving granularity.
 
 ### §5.2 Model A vs Model B convergence — **ratify Model B**
 The repo carries two convergence models; the design note already recommends
@@ -241,6 +287,7 @@ Old code is mined for vectors + documenting tests only (quarantine rules).
 | `packages/core/src/research/{delta-merge-sim,da-convergence-sim}.ts` + tests | D-CV — productionize Model B; the convergence property test exists |
 | `apps/resolver` `runBatchRail`/`mergeBlock` path | D-CV — the canonical-root derivation the resolver never wired (B4 consumes it) |
 | `@ont/consensus/proof-bundle.ts` `verifyProofBundleStructure` | D-PB — the structural contract B3 assembles to |
+| `recovery-descriptor.ts` (B1 descriptor digest) + `docs/research/RECOVERY_EVIDENCE_TIMING.md` | D-RC — descriptor-head witness; B2 `acceptRecoverOwner` is the decider |
 
 ## §7 — Carry-forwards
 
