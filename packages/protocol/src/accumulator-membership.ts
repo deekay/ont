@@ -62,25 +62,33 @@ export interface AccumulatorMembershipProof {
  * siblings/value don't actually fold to the claimed root returns `false`.
  */
 export function verifyAccumulatorMembership(rootHex: string, proof: AccumulatorMembershipProof): boolean {
-  const key = hexToBytes(proof.keyHex);
-  if (key.length !== 32) {
+  // Total / fail-closed: a malformed proof (non-hex or odd-length key, value, or
+  // sibling hash; bad root) returns `false`, NEVER throws. The B3 hostile-evidence
+  // contract relies on this — a forged witness must produce the no-witness reject
+  // effect, not crash the verifier (see docs/core/B3_EVIDENCE_HARDENING.md E-ND1).
+  try {
+    const key = hexToBytes(proof.keyHex);
+    if (key.length !== 32) {
+      return false;
+    }
+    const siblingByLevel = new Map<number, Uint8Array>();
+    for (const sibling of proof.siblings) {
+      siblingByLevel.set(sibling.level, hexToBytes(sibling.hash));
+    }
+
+    let digest = proof.value === null
+      ? ACCUMULATOR_EMPTY_NODE
+      : hashAccumulatorLeaf(key, hexToBytes(proof.value));
+    for (let childLevel = ACCUMULATOR_DEPTH; childLevel >= 1; childLevel -= 1) {
+      const parentLevel = childLevel - 1;
+      const sibling = siblingByLevel.get(childLevel) ?? ACCUMULATOR_DEFAULTS[childLevel] ?? ACCUMULATOR_EMPTY_NODE;
+      digest = accumulatorKeyBit(key, parentLevel) === 0
+        ? hashAccumulatorInternal(digest, sibling)
+        : hashAccumulatorInternal(sibling, digest);
+    }
+
+    return bytesToHex(digest) === rootHex.toLowerCase();
+  } catch {
     return false;
   }
-  const siblingByLevel = new Map<number, Uint8Array>();
-  for (const sibling of proof.siblings) {
-    siblingByLevel.set(sibling.level, hexToBytes(sibling.hash));
-  }
-
-  let digest = proof.value === null
-    ? ACCUMULATOR_EMPTY_NODE
-    : hashAccumulatorLeaf(key, hexToBytes(proof.value));
-  for (let childLevel = ACCUMULATOR_DEPTH; childLevel >= 1; childLevel -= 1) {
-    const parentLevel = childLevel - 1;
-    const sibling = siblingByLevel.get(childLevel) ?? ACCUMULATOR_DEFAULTS[childLevel] ?? ACCUMULATOR_EMPTY_NODE;
-    digest = accumulatorKeyBit(key, parentLevel) === 0
-      ? hashAccumulatorInternal(digest, sibling)
-      : hashAccumulatorInternal(sibling, digest);
-  }
-
-  return bytesToHex(digest) === rootHex.toLowerCase();
 }

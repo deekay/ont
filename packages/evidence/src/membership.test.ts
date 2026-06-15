@@ -1,8 +1,8 @@
 // D-AM conformance battery (B3_EVIDENCE_HARDENING.md §9 / E-AM1–E-AM3, E-ND1).
-// Tests-first: RED until membership.ts is implemented. Self-contained — builds
-// witnesses with @ont/evidence and checks them with the shared @ont/protocol
-// verifier, so a forged proof's acceptance effect is provably === a no-witness
-// reject (E-ND1: diagnostics may differ, the accept/reject effect may not).
+// Self-contained: builds witnesses with @ont/evidence and checks them with the
+// shared @ont/protocol verifier, so a forged proof's acceptance effect is
+// provably === a no-witness reject (E-ND1: diagnostics may differ, the
+// accept/reject effect may not).
 import { describe, expect, it } from "vitest";
 import { verifyAccumulatorMembership } from "@ont/protocol";
 
@@ -21,7 +21,7 @@ const leaves = (): ReadonlyMap<string, string> =>
     [KEY_B, VAL_B],
   ]);
 
-describe("D-AM accumulator membership witness (B3, tests-first)", () => {
+describe("D-AM accumulator membership witness (B3)", () => {
   it("E-AM1: an honestly built membership proof verifies against the built root", () => {
     const { rootHex, proof } = buildMembershipProof(leaves(), KEY_A);
     expect(proof.value).toBe(VAL_A);
@@ -53,10 +53,56 @@ describe("D-AM accumulator membership witness (B3, tests-first)", () => {
     expect(verifyAccumulatorMembership(rootHex, forgedMembership)).toBe(false);
   });
 
-  it("E-AM3 / malformed: a wrong-length key fails closed, never throws", () => {
+  // Builder API guards (CL r-on-41cb4fd): the builder must not silently decide
+  // absence/presence — misuse throws rather than returning a misleading proof.
+  it("API-guard: buildMembershipProof on an ABSENT key throws", () => {
+    expect(() => buildMembershipProof(leaves(), KEY_C)).toThrow();
+  });
+
+  it("API-guard: buildNonMembershipProof on a PRESENT key throws", () => {
+    expect(() => buildNonMembershipProof(leaves(), KEY_A)).toThrow();
+  });
+
+  it("API-guard: malformed builder inputs (bad hex / wrong length) throw", () => {
+    expect(() => buildMembershipProof(leaves(), "aa")).toThrow(); // wrong-length target
+    expect(() => buildMembershipProof(new Map([["zz".repeat(32), VAL_A]]), KEY_A)).toThrow(); // non-hex key
+    expect(() => buildMembershipProof(new Map([[KEY_A, "11"]]), KEY_A)).toThrow(); // short value
+  });
+});
+
+describe("verifier totality (E-ND1: forged ⇒ false, never throws)", () => {
+  it("a wrong-length but valid-hex key fails closed", () => {
     const { rootHex } = buildMembershipProof(leaves(), KEY_A);
-    expect(verifyAccumulatorMembership(rootHex, { keyHex: "aa", value: VAL_A, siblings: [] })).toBe(
-      false,
-    );
+    let result: boolean | "threw" = "threw";
+    expect(() => {
+      result = verifyAccumulatorMembership(rootHex, { keyHex: "aa", value: VAL_A, siblings: [] });
+    }).not.toThrow();
+    expect(result).toBe(false);
+  });
+
+  it("a NON-HEX key fails closed without throwing", () => {
+    const { rootHex } = buildMembershipProof(leaves(), KEY_A);
+    let result: boolean | "threw" = "threw";
+    expect(() => {
+      result = verifyAccumulatorMembership(rootHex, {
+        keyHex: "zz".repeat(32),
+        value: VAL_A,
+        siblings: [],
+      });
+    }).not.toThrow();
+    expect(result).toBe(false);
+  });
+
+  it("a NON-HEX sibling hash fails closed without throwing", () => {
+    const { rootHex, proof } = buildMembershipProof(leaves(), KEY_A);
+    const garbageSibling = {
+      ...proof,
+      siblings: proof.siblings.map((s, i) => (i === 0 ? { ...s, hash: "zz".repeat(32) } : s)),
+    };
+    let result: boolean | "threw" = "threw";
+    expect(() => {
+      result = verifyAccumulatorMembership(rootHex, garbageSibling);
+    }).not.toThrow();
+    expect(result).toBe(false);
   });
 });
