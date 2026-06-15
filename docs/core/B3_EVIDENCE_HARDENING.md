@@ -666,3 +666,89 @@ that future call sites could treat as meaningful):
 
 Built GREEN per CL's "proceed red→green on that shape" — discriminated union
 (`UncoupledBatchClaimInput | CoupledBatchClaimInput`), 5 coupling vectors, `@ont/evidence` 45/45.
+
+## §13 — Fifth slice: D-CW completeness witness + lot block/soft-close range design
+
+Design-first; **CL's picked next slice** after D-CV, and CL ruled the four design calls
+(message of 2026-06-15). **Classification: FREE — conforms to ratified PR-19 (increment /
+soft-close / close-boundary economics) + PR-29 (auction-close boundary inclusivity, T6/T16/B13)
+via #66.** The concrete verifier-checkable completeness-witness format + the lot block / soft-close
+range encoding is the B3 deliverable (the long-parked `T2-neg-02`); the soft-close window / base
+window numbers stay launch-freeze inputs (no baked constant).
+
+**The slice.** The kernel `transcriptCompleteness` (T2) consumes the completeness witness as the
+opaque `{kind:"b3-verified-completeness-witness"}` placeholder and explicitly DOES NOT compute the
+lot's block range / soft-close window. D-CW supplies the concrete witness + makes the kernel
+**recompute the range + completeness** over it.
+
+**Headline — soft-close range ↔ completeness interdependence.** A bid mined in the final
+`softCloseWindow` blocks of the current close extends `close` to `bidHeight + softCloseWindow`
+(fixpoint, no hard cap) — but **acceptance-only** (PR-19 / B14 / B15): a *rejected* bid inside soft
+close does NOT extend. So `close` is a function of the *accepted* bids, and a hidden late accepted
+bid both escapes the count AND fails to extend `close` — exactly `T2-neg-02`. Therefore the kernel
+must compute the final close from the **witnessed full bid/effect set, not the counted transcript**
+(CL), or the hidden-extension attack survives.
+
+**Scope split (CL ruling 1 — concur, widened).** The KERNEL recomputes range + completeness;
+EVIDENCE builds the witness from Bitcoin-witnessed bid heights. `{txid,minedHeight}` alone is
+underpowered because soft-close extension is acceptance-only, so the witness carries a **closed set
+of resident-kernel accepted-bid effects** — the existing `acceptAuctionBid` `stateEffect`
+(`"opens-auction"` / `"updates-leading-bid"` = accepted+extends; `"none"` = rejected, no extend)
+threaded in as a witnessed verdict. **B3/evidence does NOT assert acceptance** — that is the
+resident auction predicate's output; evidence only enumerates the L1 lot-bid txids + heights +
+canonical order. Each bid carries `txIndex` (at least) so same-height fixtures are deterministic.
+
+**Concrete witness shape (the B3 format the placeholder becomes):**
+```
+{ kind: "b3-verified-completeness-witness",
+  lot: { openHeight, baseWindow, softCloseWindow },          // launch-freeze params as explicit inputs
+  bids: [ { txid, minedHeight, txIndex, effect } ] }          // effect = resident AuctionBidStateEffect
+```
+- `openHeight` = the accepted opening-bid height (the `"opens-auction"` bid's `minedHeight`); the
+  predicate may instead accept `initialCloseHeight` directly (CL ruling 2). `close0 = openHeight + baseWindow`.
+- `producer-asserted` (and absent) still fail closed (T2 unchanged).
+
+**Range fixpoint (CL ruling 2 — accepted bids only).** `close = close0`; process accepted bids
+(`stateEffect ≠ "none"`) in canonical `(minedHeight, txIndex)` order; if `bidHeight` is in the
+soft-close window of the *current* close, `close = max(close, bidHeight + softCloseWindow)`;
+iterate/process to fixpoint (cascading late bids). No hard cap. `softCloseWindow > 0`; overflow /
+malformed / negative params fail closed.
+
+**PR-29 boundaries (CL ruling 3 — pinned, I did not guess).**
+- `close` is **inclusive** for bids: `bidHeight <= close` is in range / valid; `close+1` is rejected;
+  settlement is strictly after close.
+- Soft-close trigger is position-based, **inclusive at both edges**:
+  `bidHeight >= close - softCloseWindow && bidHeight <= close` (with `softCloseWindow > 0`).
+- Edge vectors pinned at `start-1` (= `close - softCloseWindow - 1`), `start` (= `close - softCloseWindow`),
+  `close`, and `close+1`.
+
+**Completeness (CL ruling 4 — symmetric set equality, after final close).** The counted transcript
+txid set must EQUAL the witnessed set of well-formed L1 AuctionBid events for the lot in
+`[openHeight, finalClose]` — **accepted AND rejected** well-formed in-range lot bids (rejected bids
+have no range/winner effect but ARE in the completeness set). Omission fails; counted
+out-of-range / unwitnessed / foreign-lot padding fails.
+
+**Planned `cw.*` red battery (against the kernel verdict, instantiated):**
+- `cw.complete` — counted set == witnessed in-range set ⇒ complete.
+- `cw.t2-neg-02-hidden-late-accepted` — a late accepted bid present in the witness (extends close)
+  but omitted from the transcript ⇒ incomplete; final close computed from the witness, not the count.
+- `cw.rejected-in-soft-close-no-extend` — a rejected bid in the soft-close window does NOT extend close.
+- `cw.cascade` — a late accepted bid extends close, bringing a further bid into the new window (cascade).
+- `cw.boundary-start-minus-1` / `cw.boundary-start` / `cw.boundary-close` / `cw.boundary-close-plus-1`
+  — the four PR-29 edges.
+- `cw.omitted-in-range-accepted` / `cw.omitted-in-range-rejected` — either omission ⇒ incomplete.
+- `cw.out-of-range-padding` / `cw.foreign-lot-padding` / `cw.unwitnessed-padding` — counted-but-not-
+  witnessed-in-range ⇒ incomplete.
+- `cw.producer-asserted` — producer-asserted witness ⇒ fail closed (T2 unchanged).
+- `cw.malformed-params` — negative/overflow `baseWindow`/`softCloseWindow`, `softCloseWindow <= 0` ⇒ fail closed.
+
+**One sub-decision for CL + a ripple.** (a) Make the concrete `lot`/`bids` fields **required** for the
+`b3-verified-completeness-witness` kind (my lean — a verifier-checkable witness IS the enumeration),
+migrating the 3 existing `b2-vector-bindings` T2 placeholder vectors (only the one positive at line
+646 needs a concrete witness; the extra-field/malformed-transcript ones reject before the range);
+OR keep the fields **additive-optional** (bare placeholder retained for the non-range T1/T21 vectors,
+range check engages only when present). (b) `acceptAuctionBid` is consumed as the effect source — does
+the kernel RE-RUN it inline (full no-trust recompute, stateful over prior-bid state) or consume the
+closed `stateEffect` set as a witnessed verdict (my lean — matches the existing consume-witnessed-
+verdict pattern; the effect is kernel-law from `acceptAuctionBid`, not a B3 assertion)? On your
+rulings I author the `cw.*` red battery then green.
