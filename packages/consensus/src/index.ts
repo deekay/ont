@@ -84,3 +84,7 @@ export * from "./name-canonicalization.js";
 // The claim-path-eligibility predicate (#76, riding #59's verdict tier): the pure PR-15 short-name
 // threshold gate (canonical byte length <= T => bond-first only). Rides nothing external.
 export * from "./claim-path-eligibility.js";
+// The post-final-attempt predicate (#77, riding #59's verdict tier): the pure B7 state-shape gate —
+// a post-final claim/bond attempt is refused with no state effect, incumbent byte-unchanged. Rides
+// nothing external — the resolved final incumbent + the attempt kind enter as caller inputs.
+export * from "./post-final-attempt.js";

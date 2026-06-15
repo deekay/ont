@@ -85,6 +85,7 @@ import { deriveBatchedInsertions, type BatchExclusionInput } from "./batch-exclu
 import { windowSchedule } from "./window-schedule.js";
 import { acceptCanonicalLeafName } from "./name-canonicalization.js";
 import { claimPathEligibility } from "./claim-path-eligibility.js";
+import { acceptPostFinalAttempt } from "./post-final-attempt.js";
 import {
   createTransferPayload,
   deriveOwnerPubkey,
@@ -249,6 +250,8 @@ const LOCAL_BINDING_MANIFEST = new Set<string>([
   // name-canonicalization (#75) + claim-path-eligibility (#76)
   "A6-neg-01",
   "F15-pos-01",
+  // post-final-attempt (#77)
+  "B7-neg-01",
 ]);
 
 // A binding may only execute a vector that is (a) locked, (b) required-tier
@@ -1735,6 +1738,23 @@ describe("B2 vector bindings — claim-path-eligibility (#76)", () => {
       expect(claimPathEligibility(T + 1, T).cheapClaimAllowed).toBe(accepts(vector)); // true === accept
       // negative companion: length <= T is bond-first only.
       expect(claimPathEligibility(T, T).cheapClaimAllowed).toBe(false);
+    }
+  });
+});
+
+// ---- post-final-attempt (#77) ----
+describe("B2 vector bindings — post-final-attempt (#77)", () => {
+  it("B7-neg-01: a post-final claim/bond attempt changes nothing — refused, no effect, incumbent unchanged", () => {
+    const vector = loadVector("batched-path-transitions.json", "B7-neg-01");
+    assertBindable(vector);
+    const incumbent = { status: "final", ownerKey: "a".repeat(64) } as const;
+    for (const kind of ["claim", "bond"] as const) {
+      const r = acceptPostFinalAttempt({ incumbent, attempt: { kind } });
+      // the post-final attempt MUST NOT change the final name: "does it change the incumbent?" is the
+      // rejected behavior, so changesIncumbent === false === the vector's reject.
+      const changesIncumbent = !r.refused || r.stateEffect !== "none" || !r.incumbentUnchanged;
+      expect(changesIncumbent).toBe(accepts(vector)); // false === reject
+      expect(r).toMatchObject({ refused: true, stateEffect: "none", incumbentUnchanged: true });
     }
   });
 });

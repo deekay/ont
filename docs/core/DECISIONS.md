@@ -1974,6 +1974,35 @@ validated canonical byte length, not a name. Total / fail-closed: a non-positive
 threshold fails closed (no cheap path) and never throws. This satisfies #44's "boundary may change
 only with a DECISIONS entry + conformance coverage"; the boundary freezes at launch.
 
+77. b2-post-final-attempt-boundary: the post-final-attempt predicate enters @ont/consensus as a pure
+CONSENSUS_VERDICTS decider — a claim OR bond landing at or after a name's finality is refused as an
+already-owned attempt with no state effect, the incumbent record byte-unchanged — riding nothing
+external — 2026-06-15
+
+*Status: **Proposed** (writer ClaudeleLunatique, reviewer ChatLunatique; lands on branch
+clean-build-b2-kernel, DK merges). A boundary-manifest addition under #44, riding the
+CONSENSUS_VERDICTS tier (#59). Empty external allowlist: it consumes a resolved `final` incumbent +
+the attempt kind, with no host I/O. NO new consensus law: it lands the already-ratified B7 (post-final
+already-owned), grounded in the state machine (post-final claims are already-owned), #37's in-window
+phrasing (a qualifying bond opens an auction only inside the notice window, so a post-final bond opens
+none), and first-anchor-wins / PR-5 (ordering/bonds never touch a final name). Covered by conformance:
+`trust-surface.test.ts` (`post-final-attempt.ts` in CONSENSUS_VERDICTS, empty allowlist),
+`post-final-attempt.test.ts`, and the B7-neg-01 binding.*
+
+**The rule.** `acceptPostFinalAttempt({ incumbent: { status: "final", ownerKey }, attempt: { kind:
+"claim" | "bond" } })` → `{ refused, stateEffect, incumbentUnchanged, reason }`: for a valid final
+incumbent, ANY attempt (claim or bond) is `refused` with `stateEffect: "none"` (no insertion, no
+auction opened, no window reopen/extend, no nullify) and `incumbentUnchanged: true`. This is a
+state-shape gate distinct from occupancy #71 — occupancy admits/refuses a fresh INSERTION over a
+name's occupancy; this gate is the broader post-final no-effect invariant covering both a claim AND a
+bond (the bond half has no other resident home). It does not decide finality itself (the caller
+composes notice-window #69 / auction #68 / settlement #65 to reach `final`) and does not model the
+auction. Total / fail-closed + closed-shape (the #63–#76 discipline): a non-final incumbent (the gate's
+precondition is a final name), a malformed attempt, or any extra field fails closed (`refused:false`,
+`stateEffect:"undecidable"`) and never throws — so the gate never silently admits a change and never
+overclaims for a non-final name. This satisfies #44's "boundary may change only with a DECISIONS entry
++ conformance coverage"; the boundary freezes at launch.
+
 ## Fairness Principles To Carry Into The Launch Rewrite
 
 The rewritten launch draft should explicitly state:

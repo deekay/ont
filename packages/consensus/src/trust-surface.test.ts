@@ -55,7 +55,7 @@ const srcDir = dirname(fileURLToPath(import.meta.url));
 const CORE_DECIDERS = ["engine.ts", "state.ts", "proof-bundle.ts"] as const;
 const CONSENSUS_SUPPORT = ["scanner.ts"] as const;
 const CONSENSUS_PARAMS = ["params.ts"] as const;
-const CONSENSUS_VERDICTS = ["da-verdict.ts", "value-record-authority.ts", "gate-fee.ts", "transcript-completeness.ts", "bond-qualification.ts", "settlement.ts", "recovery-invoke-authority.ts", "auction-resolution.ts", "notice-window.ts", "reopen-resolution.ts", "occupancy.ts", "batch-exclusion.ts", "window-schedule.ts", "name-canonicalization.ts", "claim-path-eligibility.ts"] as const;
+const CONSENSUS_VERDICTS = ["da-verdict.ts", "value-record-authority.ts", "gate-fee.ts", "transcript-completeness.ts", "bond-qualification.ts", "settlement.ts", "recovery-invoke-authority.ts", "auction-resolution.ts", "notice-window.ts", "reopen-resolution.ts", "occupancy.ts", "batch-exclusion.ts", "window-schedule.ts", "name-canonicalization.ts", "claim-path-eligibility.ts", "post-final-attempt.ts"] as const;
 
 // Consensus-support rides the B1 normative wire grammar (@ont/wire); the parameter
 // surface rides nothing external (values enter as inputs).
@@ -133,6 +133,10 @@ const VERDICTS_ALLOWED_BY_FILE: Record<string, ReadonlySet<string>> = {
   // claim-path-eligibility is the pure PR-15 short-name threshold gate over a canonical byte length +
   // launch threshold; it rides nothing external (#76).
   "claim-path-eligibility.ts": new Set<string>([]),
+  // post-final-attempt is the pure B7 state-shape gate — a post-final claim/bond attempt is refused
+  // with no state effect; it consumes a resolved final incumbent + attempt kind, riding nothing
+  // external (#77).
+  "post-final-attempt.ts": new Set<string>([]),
 };
 const ALL_MANIFEST = [...CORE_DECIDERS, ...CONSENSUS_SUPPORT, ...CONSENSUS_PARAMS, ...CONSENSUS_VERDICTS];
 const ALLOWED_RELATIVE = new Set(ALL_MANIFEST.map((file) => `./${file.replace(/\.ts$/, ".js")}`));
