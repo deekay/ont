@@ -83,14 +83,14 @@
         "caseOmittedExtensionBid": "a transcript omitting a witnessed bid confirmed in a soft-close EXTENSION block (post-initial-close, pre-extended-close) -> fail completeness (the range is close-after-extensions, not the initial close)",
         "priorState": "an auction with a soft-close extension"
       },
-      "scopeNote": "Verdict authority is CANDIDATE: the range-includes-soft-close-extensions specifically depends on the AUCTION soft-close mechanism (AUCTION.md, candidate). Canon Item 4 (ratified) corroborates omission-can't-finalize, but the EXTENSION-range definition rests on candidate AUCTION soft-close. The vector pins the range DEFINITION, not the unfrozen W/C window VALUES. Tier candidate.",
+      "scopeNote": "Verdict authority RATIFIED via #66 (PR-19 soft-close): the range-includes-soft-close-extensions depends on the AUCTION soft-close mechanism (ratified through PR-19). Canon Item 4 (ratified) corroborates omission-can't-finalize. The vector pins the range DEFINITION, not the unfrozen W/C window VALUES (still launch-freeze). Ratified tier via #66 (authored at candidate AUCTION soft-close tier).",
       "authoringStatus": "authored: predicate-input shape proposed at candidate tier; reviewer sign-off complete; locked. Promoted candidate→ratified 2026-06-15 (#66, DK event 43d30e67) via PR-19."
     },
     "expected": {
       "verdict": "reject",
       "reason": "t2-02-completeness-range-includes-soft-close-extensions",
       "invariant": "a transcript omitting a bid confirmed in a soft-close extension block fails completeness; the completeness range is close-after-extensions, not the initial close",
-      "rationale": "Rule T2 itself states the range is 'the auction's full block range (including soft-close extensions)'. The structural property — a bid in an extension block must be inside the completeness range — is derivable from the rule's own text plus the AUCTION candidate soft-close mechanism (verdict authority candidate), independent of the unfrozen W/C parameter VALUES; the omission-after-extension vector pins the range definition, not the numeric window. Canon Item 4 (ratified) corroborates that omission cannot finalize."
+      "rationale": "Rule T2 itself states the range is 'the auction's full block range (including soft-close extensions)'. The structural property — a bid in an extension block must be inside the completeness range — is derivable from the rule's own text plus the AUCTION soft-close mechanism, independent of the unfrozen W/C parameter VALUES; the omission-after-extension vector pins the range definition, not the numeric window. Canon Item 4 (ratified) corroborates that omission cannot finalize. Ratified via #66 (PR-19; authored at candidate)."
     },
     "status": "locked",
     "attackFlagRef": "T2-02",
@@ -184,14 +184,14 @@
         "caseInjectedIssuedAt": "a transcript whose deadline outcome would vary with an injected issuedAt/timestamp -> unaffected (invariant); the verdict function admits only heights and event bytes (no wall-clock input channel)",
         "priorState": "an auction with height-keyed deadlines"
       },
-      "scopeNote": "The tested verdict (deadline invariant under an injected issuedAt; no wall-clock input channel) is corroborated by ratified canon 'no clock' + normative WIRE §8 (issuedAt is off-chain only). BUT T20's deadline rule rests on the candidate AUCTION height-keyed decay schedule (Z11/Z20 territory) — so the rule as a whole is candidate-grade; tier candidate (conservative, the deadline-schedule framing is candidate AUCTION). The unfrozen decay-schedule VALUES are excluded.",
+      "scopeNote": "The tested verdict (deadline invariant under an injected issuedAt; no wall-clock input channel) rests on ratified canon 'no clock' + normative WIRE §8 (issuedAt is off-chain only) + the AUCTION height-keyed decay schedule, ratified via #66 (PR-25). Ratified tier via #66 (authored at candidate AUCTION decay tier). The unfrozen decay-schedule VALUES are excluded (launch-freeze).",
       "authoringStatus": "authored: predicate-input shape proposed at candidate tier; reviewer sign-off complete; locked. Promoted candidate→ratified 2026-06-15 (#66, DK event 43d30e67) via PR-25."
     },
     "expected": {
       "verdict": "reject",
       "reason": "t20-01-deadlines-heights-only-no-wallclock",
       "invariant": "transcript deadlines are computed only from witnessed block heights under a height-keyed schedule; the verdict function admits no issuedAt/timestamp input, so an injected issuedAt cannot change any deadline outcome",
-      "rationale": "issuedAt lives only in §8 off-chain owner-signed shapes; it is never a consensus transcript input. T20's rule mandates heights-only, monotonic, height-keyed deadlines, grounded in AUCTION candidate (the decay schedule) + canon's ratified no-clock layer rule + normative §8 (issuedAt off-chain). The fail-closed 'verdict function exposes no timestamp input' posture is derivable today; tier candidate because the deadline-schedule rule itself rests on candidate AUCTION, independent of the unfrozen schedule values."
+      "rationale": "issuedAt lives only in §8 off-chain owner-signed shapes; it is never a consensus transcript input. T20's rule mandates heights-only, monotonic, height-keyed deadlines, grounded in the AUCTION decay schedule (ratified via PR-25) + canon's ratified no-clock layer rule + normative §8 (issuedAt off-chain). The fail-closed 'verdict function exposes no timestamp input' posture is derivable; ratified via #66 (PR-25; authored at candidate), independent of the unfrozen schedule values."
     },
     "status": "locked",
     "attackFlagRef": "T20-01",

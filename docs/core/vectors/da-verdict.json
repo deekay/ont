@@ -59,14 +59,14 @@
         "crossAreaNote": "assumes the insert-only-batches invariant, owned by the batched-path (B) area",
         "priorState": "baseline"
       },
-      "scopeNote": "Cited-now (candidate): DA §4/§5 (delta only inserts; disjoint insertions commute) + state-machine ('exclusion only prevents the withheld data from counting'). The insert-only-batches invariant is a CROSS-AREA dependency owned by the batched-path (B) area — this vector ASSUMES it, does not re-derive it; the flag's coupling caveat is an invariant B must preserve, not a missing-spec gap for D7's own verdict.",
+      "scopeNote": "Ratified via #66 (the ratified DA exclusion / state-equivalence rule — the same locality surface as B10): DA §4/§5 (delta only inserts; disjoint insertions commute) + state-machine ('exclusion only prevents the withheld data from counting'). The insert-only-batches invariant is a CROSS-AREA dependency owned by the batched-path (B) area — this vector ASSUMES it, does not re-derive it; the flag's coupling caveat is an invariant B must preserve, not a missing-spec gap for D7's own verdict. Authored at candidate tier; pending-predicate (a small resident locality surface would bind it, like B10-pos).",
       "authoringStatus": "authored: predicate-input shape proposed at candidate tier; reviewer sign-off complete; locked. Promoted candidate→ratified 2026-06-15 (#66, DK event 43d30e67) via ratified DA exclusion rule (= B10 locality/state-equivalence surface; stays pending-predicate, not bound)."
     },
     "expected": {
       "verdict": "accept",
       "reason": "d7-01-exclusion-state-equivalence",
       "invariant": "excluding batch X removes only X's own leaves; all other batches' names register identically to the as-if-X-never-anchored world; exclusion alters no other name's owner and no remaining-leaf root",
-      "rationale": "D7's verdict — excluding a batch removes only its own leaves and the resulting state equals the state as-if-that-batch-never-existed — is derivable today from candidate authority: DA agreement §4/§5 establish insert-only/commutative merge, and the state-machine pins that exclusion 'only prevents the withheld data from counting'. The flag is a scope-coupling caveat (it holds only while batched-path transitions stay insert-only), which is an invariant the batched-path (B) area must preserve, not a missing-spec gap for D7's own verdict. The state-equivalence property is testable now."
+      "rationale": "D7's verdict — excluding a batch removes only its own leaves and the resulting state equals the state as-if-that-batch-never-existed — is the ratified exclusion/state-equivalence rule (the same surface as B10): DA agreement §4/§5 establish insert-only/commutative merge, and the state-machine pins that exclusion 'only prevents the withheld data from counting'. The flag is a scope-coupling caveat (it holds only while batched-path transitions stay insert-only), which is an invariant the batched-path (B) area must preserve, not a missing-spec gap for D7's own verdict. The state-equivalence property is testable. Ratified via #66 (the DA exclusion locality surface; authored at candidate)."
     },
     "status": "locked",
     "attackFlagRef": "D7-01",

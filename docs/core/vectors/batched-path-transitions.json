@@ -87,14 +87,14 @@
         "casePostFinalClaim": "a claim landing after finality is refused as an already-owned attempt (no nullify, no contest)",
         "priorState": "a final (settled) name"
       },
-      "scopeNote": "Verdict authority is CANDIDATE: B7's rule cites the candidate state-machine ('post-final claims are already-owned attempts') + candidate first-anchor-wins; it does NOT cite #37 for the post-final-bond case (spec is silent on post-final bonds). #37's in-window phrasing corroborates (a qualifying bond opens an auction only inside the notice window). The post-final immunity is candidate authority. Tier candidate (NOT upgraded — the rule's cited authority is candidate; the post-final-bond MUST is the spec gap the flag names).",
+      "scopeNote": "Verdict authority RATIFIED via #66 (PR-5 first-anchor-wins + #37 bond-opens): post-final claims are already-owned attempts and a post-final bond opens no auction and cannot evict the final owner. #37's in-window phrasing (a qualifying bond opens an auction only inside the notice window) bounds it. Ratified tier via #66 (authored from the then-candidate state-machine + first-anchor-wins; the matrix PR-5 ruling lifts the post-final immunity to ratified). No provisional/#49/#50 dependency.",
       "authoringStatus": "authored: predicate-input shape proposed at candidate tier; reviewer sign-off complete; locked. Promoted candidate→ratified 2026-06-15 (#66, DK event 43d30e67) via PR-5 / #37."
     },
     "expected": {
       "verdict": "reject",
       "reason": "b7-01-post-final-attempt-already-owned",
       "invariant": "a claim or bond landing at or after a name's finality is refused as an already-owned attempt: no owner change, no window reopen/extend, no nullify, no auction opened; the incumbent record is byte-unchanged",
-      "rationale": "Derivable from existing candidate authority plus #37 corroboration. The state machine [candidate] says post-final claims are already-owned attempts, and #37's in-window phrasing (a qualifying bond opens an auction only when posted inside the notice window) corroborates that a post-final bond opens no auction and cannot evict the final owner; first-anchor-wins [candidate] confirms ordering/bonds never touch a final name. Tier candidate: the rule's explicit authority for post-final immunity is the candidate state-machine (#37 is not cited for the post-final-bond case — that silence is the flag's named gap). No provisional/#49/#50 dependency: the verdict is about a final (already-settled) name, not a boundary or DA-eligibility question."
+      "rationale": "The state machine says post-final claims are already-owned attempts, #37's in-window phrasing (a qualifying bond opens an auction only when posted inside the notice window) confirms a post-final bond opens no auction and cannot evict the final owner, and first-anchor-wins confirms ordering/bonds never touch a final name. Ratified via #66 (PR-5 first-anchor-wins + #37); authored at candidate tier from the then-candidate state-machine. No provisional/#49/#50 dependency: the verdict is about a final (already-settled) name, not a boundary or DA-eligibility question."
     },
     "status": "locked",
     "attackFlagRef": "B7-01",
@@ -153,14 +153,14 @@
         "positiveControl": "a bid whose recomputed lot commitment matches its claimed lot is admitted to that lot",
         "priorState": "an open auction lot"
       },
-      "scopeNote": "Verdict authority is CANDIDATE: the lot-identity rule (commitment binds (auctionId, name, unlockBlock); no parallel lots per name) is candidate AUCTION ('a valid bonded opening bid creates the auction') + LAUNCH. The auctionLotCommitment ENCODING is WIRE §6 (normative) — encoding the integrity check operates on, not the lot-identity verdict authority (cf. S9). The opening-floor curve values are launch-freeze placeholders. Tier candidate. No #49/#50 dependency.",
+      "scopeNote": "Verdict authority RATIFIED via #66 (PR-19 auction economics): the lot-identity rule (commitment binds (auctionId, name, unlockBlock); no parallel lots per name; a valid bonded opening bid creates the auction). The auctionLotCommitment ENCODING is WIRE §6 (normative) — the encoding the integrity check operates on, not the lot-identity verdict authority (cf. S9). The opening-floor curve values remain launch-freeze placeholders. Ratified tier via #66 (authored from AUCTION/LAUNCH). No #49/#50 dependency.",
       "authoringStatus": "authored: predicate-input shape proposed at candidate tier; reviewer sign-off complete; locked. Promoted candidate→ratified 2026-06-15 (#66, DK event 43d30e67) via PR-19."
     },
     "expected": {
       "verdict": "reject",
       "reason": "b12-01-lot-commitment-mismatch-refused",
       "invariant": "a bid whose recomputed lot commitment (auctionId, name, unlockBlock) does not match its claimed lot is refused; no parallel lot is minted for a single name",
-      "rationale": "Derivable from candidate AUCTION.md (a valid bonded opening bid is what creates the auction; lot commitment recomputes from (auctionId, name, unlockBlock)) and LAUNCH.md (no auction exists until a valid bonded opening bid confirms). The opening-floor curve values are explicit placeholders, parameterized on floor(nameLength) — a launch-freeze parameter, not a provisional decision. A negative vector that a bid whose recomputed lot commitment mismatches its claimed lot is refused is derivable now; no #49/#50 dependency. Tier candidate (the lot-identity rule is candidate AUCTION)."
+      "rationale": "Per AUCTION.md (a valid bonded opening bid is what creates the auction; lot commitment recomputes from (auctionId, name, unlockBlock)) and LAUNCH.md (no auction exists until a valid bonded opening bid confirms). The opening-floor curve values are explicit placeholders, parameterized on floor(nameLength) — a launch-freeze parameter, not a provisional decision. A negative vector that a bid whose recomputed lot commitment mismatches its claimed lot is refused is derivable; no #49/#50 dependency. Ratified via #66 (PR-19; the lot-identity rule was authored at candidate AUCTION tier)."
     },
     "status": "locked",
     "attackFlagRef": "B12-01",
@@ -186,14 +186,14 @@
         "extensionBlocks": "launch-freeze parameter input",
         "priorState": "an auction in its soft-close window"
       },
-      "scopeNote": "Verdict authority is CANDIDATE: extension-on-acceptance is candidate AUCTION timing (parallel to Q7); the B14 rule text itself states a below-minimum bid 'MUST be rejected without changing leader, close height, or required minimum'. The rejected-bid-does-not-extend negative composes with B15. Window/extension block counts are launch-freeze inputs. Tier candidate. No #49/#50 dependency.",
+      "scopeNote": "Verdict authority RATIFIED via #66 (PR-19 auction economics / soft-close): extension-on-acceptance (parallel to Q7); the B14 rule text states a below-minimum bid 'MUST be rejected without changing leader, close height, or required minimum'. The rejected-bid-does-not-extend negative composes with B15. Window/extension block counts remain launch-freeze inputs. Ratified tier via #66 (authored at candidate AUCTION-timing tier). No #49/#50 dependency.",
       "authoringStatus": "authored: predicate-input shape proposed at candidate tier; reviewer sign-off complete; locked. Promoted candidate→ratified 2026-06-15 (#66, DK event 43d30e67) via PR-19."
     },
     "expected": {
       "verdict": "reject",
       "reason": "b14-02-rejected-late-bid-no-close-extension",
       "invariant": "a below-minimum bid inside the soft-close window is rejected without changing the leader, the close height, or the required minimum; close extension is acceptance-only",
-      "rationale": "Derivable from candidate AUCTION.md: extension is a consequence of acceptance ('Bid inside the final blocks moves close to bid block + extension'), and B15 makes close-extension monotone and acceptance-driven. A rejected below-minimum bid 'MUST be rejected without changing leader, close height, or required minimum' is the cited B14 rule text itself. So the negative vector (rejected late bid does NOT extend close) is derivable from the cited rule, independent of the rounding ambiguity in the sibling flag and independent of #49/#50. Block-count placeholders are launch-freeze parameters. Tier candidate (AUCTION timing)."
+      "rationale": "Per AUCTION.md: extension is a consequence of acceptance ('Bid inside the final blocks moves close to bid block + extension'), and B15 makes close-extension monotone and acceptance-driven. A rejected below-minimum bid 'MUST be rejected without changing leader, close height, or required minimum' is the cited B14 rule text itself. So the negative vector (rejected late bid does NOT extend close) is derivable from the cited rule, independent of the rounding ambiguity in the sibling flag and independent of #49/#50. Block-count placeholders are launch-freeze parameters. Ratified via #66 (PR-19; authored at candidate AUCTION-timing tier)."
     },
     "status": "locked",
     "attackFlagRef": "B14-02",
@@ -219,14 +219,14 @@
         "negativeCompanion": "a kernel importing any 'eventually force-end after N extensions' heuristic -> rejected (the design grants no such heuristic)",
         "priorState": "an auction with repeated soft-close extensions"
       },
-      "scopeNote": "Verdict authority is CANDIDATE: AUCTION.md Auction Timing ('Hard cap on extensions | None') + CONTESTED_AUCTION_REFERENCE ('no hard extension cap in the current design'). Close is monotone non-decreasing; the kernel must not import any 'eventually force-end' heuristic the text does not grant. The no-hard-cap design is an accepted candidate posture (parallel to Q7's #35 working-assumption family). Block-count placeholders are launch-freeze. Tier candidate. No #49/#50 dependency.",
+      "scopeNote": "Verdict authority RATIFIED via #66 (PR-25 adaptive-extension/decay + PR-19): AUCTION.md Auction Timing ('Hard cap on extensions | None') + CONTESTED_AUCTION_REFERENCE ('no hard extension cap in the current design'). Close is monotone non-decreasing; the kernel must not import any 'eventually force-end' heuristic the text does not grant. The no-hard-cap design is ratified (parallel to Q7's #35 family). Block-count placeholders remain launch-freeze. Ratified tier via #66 (authored at candidate). No #49/#50 dependency.",
       "authoringStatus": "authored: predicate-input shape proposed at candidate tier; reviewer sign-off complete; locked. Promoted candidate→ratified 2026-06-15 (#66, DK event 43d30e67) via PR-25 / PR-19."
     },
     "expected": {
       "verdict": "accept",
       "reason": "b15-01-no-hard-extension-cap-extend-indefinitely",
       "invariant": "the close height is monotone non-decreasing with no hard cap on extensions; chained late accepted bids extend indefinitely; the kernel imports no 'eventually force-end' heuristic",
-      "rationale": "Derivable from candidate authority: AUCTION.md Auction Timing 'Hard cap on extensions | None' and CONTESTED_AUCTION_REFERENCE 'no hard extension cap in the current design'. The rule (close monotone non-decreasing, no hard cap, kernel must not import any 'eventually force-end' heuristic) is cited. A negative that any 'force-end after N extensions' heuristic is rejected and a positive that chained late bids extend indefinitely are derivable now; the no-hard-cap design is an accepted posture, not a provisional decision. Block-count placeholders are launch-freeze parameters. Tier candidate."
+      "rationale": "Per AUCTION.md Auction Timing 'Hard cap on extensions | None' and CONTESTED_AUCTION_REFERENCE 'no hard extension cap in the current design'. The rule (close monotone non-decreasing, no hard cap, kernel must not import any 'eventually force-end' heuristic) is cited. A negative that any 'force-end after N extensions' heuristic is rejected and a positive that chained late bids extend indefinitely are derivable; the no-hard-cap design is ratified, not provisional. Block-count placeholders are launch-freeze parameters. Ratified via #66 (PR-25/PR-19; authored at candidate)."
     },
     "status": "locked",
     "attackFlagRef": "B15-01",
@@ -285,14 +285,14 @@
         "scheduleIntegers": "launch-freeze parameters",
         "priorState": "any window computation"
       },
-      "scopeNote": "Verdict authority is CANDIDATE: AUCTION Decay Rule (candidate, 'frozen, monotonic, height-keyed schedule; do not let market-derived characteristics shrink windows; extend-only') — parallel to Z11. The ratified kernel-purity canon (no I/O) corroborates the I/O-free window function, but the no-market-shrink schedule rule is candidate AUCTION. This is the schedule-function purity, DISTINCT from the W/C/K window-close algebra (#49). Schedule integers are launch-freeze. Tier candidate.",
+      "scopeNote": "Verdict authority RATIFIED via #66 (PR-25 decay schedule): AUCTION Decay Rule ('frozen, monotonic, height-keyed schedule; do not let market-derived characteristics shrink windows; extend-only') — parallel to Z11. The ratified kernel-purity canon (no I/O) corroborates the I/O-free window function. This is the schedule-function purity, DISTINCT from the W/C/K window-close algebra (#49). Schedule integers remain launch-freeze. Ratified tier via #66 (authored at candidate AUCTION tier).",
       "authoringStatus": "authored: predicate-input shape proposed at candidate tier; reviewer sign-off complete; locked. Promoted candidate→ratified 2026-06-15 (#66, DK event 43d30e67) via PR-25."
     },
     "expected": {
       "verdict": "reject",
       "reason": "b22-01-no-market-derived-window-shrink-io-free",
       "invariant": "the window function's only inputs are anchor height and frozen schedule constants; any market/state-derived signal (claim volume, bond totals, distinct keys, 'market maturity') that would shorten a window is rejected by construction; extend-only",
-      "rationale": "Derivable from cited candidate AUCTION.md Decay Rule ('Use a frozen, monotonic, height-keyed schedule. Do not let market-derived system characteristics shrink windows'; 'extend-only') and the ratified kernel-purity canon (no I/O, pure predicate). The rule's shape (pure function of anchor height, extend-only) is explicitly noted as 'final now'. A negative vector that injecting any market-derived/state-derived signal that would shorten a window is rejected-by-construction is derivable; the concrete schedule integers are launch-freeze, not provisional. No #49/#50 dependency (this is the schedule-function purity, distinct from the W/C/K window-close algebra). Tier candidate (AUCTION Decay)."
+      "rationale": "Per AUCTION.md Decay Rule ('Use a frozen, monotonic, height-keyed schedule. Do not let market-derived system characteristics shrink windows'; 'extend-only') and the ratified kernel-purity canon (no I/O, pure predicate). The rule's shape (pure function of anchor height, extend-only) is explicitly 'final now'. A negative vector that injecting any market-derived/state-derived signal that would shorten a window is rejected-by-construction is derivable; the concrete schedule integers are launch-freeze, not provisional. No #49/#50 dependency (this is the schedule-function purity, distinct from the W/C/K window-close algebra). Ratified via #66 (PR-25 AUCTION Decay; authored at candidate)."
     },
     "status": "locked",
     "attackFlagRef": "B22-01",

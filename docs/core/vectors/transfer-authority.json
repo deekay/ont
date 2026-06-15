@@ -159,14 +159,14 @@
         "positiveCompanion": "Transfer in the block after auction settlement (owned state) -> accept",
         "priorState": "varies per battery case"
       },
-      "scopeNote": "Cited-now (candidate state-machine Owner-Key Control + State Model; DESIGN §6 'owner can transfer the name the moment the auction settles'): transfer authority attaches ONLY in an owned/final state; all non-owned states reject (fail-closed — only an owned state has a transferable owner key). Candidate text is acceptable authority for this candidate-stays verdict. The 'restate as an explicit MUST at promotion' is a wording note, not a verdict gap.",
+      "scopeNote": "Ratified via #66 (PR-36 transfers-free-once-owned; state-machine Owner-Key Control + State Model; DESIGN §6 'owner can transfer the name the moment the auction settles'): transfer authority attaches ONLY in an owned/final state; all non-owned states reject (fail-closed — only an owned state has a transferable owner key). The 'restate as an explicit MUST at promotion' is a wording note, not a verdict gap. Authored at candidate tier.",
       "authoringStatus": "authored: predicate-input shape proposed at candidate tier; reviewer sign-off complete; locked. Promoted candidate→ratified 2026-06-15 (#66, DK event 43d30e67) via PR-36."
     },
     "expected": {
       "verdict": "reject",
       "reason": "x11-01-non-owned-state-no-transfer",
       "invariant": "a Transfer against any non-owned state (provisional-in-notice / live-auction / nullified / broken-bond / nonexistent) makes no state change; transfer authority requires an owned state",
-      "rationale": "The flag notes the only authority is the candidate state diagram plus 'once a name is final', with no explicit MUST forbidding transfer of a provisional claim. But X11 is candidate-stays and candidate text is acceptable authority for a candidate-stays verdict; the state model is unambiguous that transfer authority attaches only in an owned/final state, and DESIGN §6 ('owner ... can transfer the name the moment the auction settles') confirms the boundary. The negatives (provisional-in-notice, live-auction, nullified, broken-bond, nonexistent -> no state change) are derivable as fail-closed: only an owned state has a transferable owner key. The 'must be restated as MUST at promotion' is a wording note, not a verdict gap."
+      "rationale": "The flag notes the authoring authority was the state diagram plus 'once a name is final', with no explicit MUST forbidding transfer of a provisional claim — now ratified via PR-36. The state model is unambiguous that transfer authority attaches only in an owned/final state, and DESIGN §6 ('owner ... can transfer the name the moment the auction settles') confirms the boundary. The negatives (provisional-in-notice, live-auction, nullified, broken-bond, nonexistent -> no state change) are derivable as fail-closed: only an owned state has a transferable owner key. The 'must be restated as MUST at promotion' is a wording note, not a verdict gap. Ratified via #66 (PR-36; authored at candidate)."
     },
     "status": "locked",
     "attackFlagRef": "X11-01",

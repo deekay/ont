@@ -184,7 +184,7 @@
         "positiveBoundary": "a name of length T+1 finalizes via the cheap-claim path -> accept",
         "priorState": "baseline"
       },
-      "scopeNote": "Cited-now (candidate STATUS line 53 + GLOSSARY bond-first): the RULE — a name at-or-below the threshold takes the mandatory bond-first path (no cheap claim), above it the cheap-claim path is available. The threshold INTEGER is launch-freeze (parameterized, two values so no baked-in constant passes). DELIBERATELY EXCLUDES (spec-blocked): the in-batch-handling flag (F15-01). This vector asserts ONLY the threshold-parameterized path boundary.",
+      "scopeNote": "Ratified via #66 (PR-15 short-name no-cheap-path + PR-14; STATUS line 53 + GLOSSARY bond-first): the RULE — a name at-or-below the threshold takes the mandatory bond-first path (no cheap claim), above it the cheap-claim path is available. The threshold INTEGER is launch-freeze (parameterized, two values so no baked-in constant passes). DELIBERATELY EXCLUDES (spec-blocked): the in-batch-handling flag (F15-01). This vector asserts ONLY the threshold-parameterized path boundary. Authored at candidate tier.",
       "authoringStatus": "authored: predicate-input shape proposed at candidate tier; threshold is launch-freeze param; reviewer sign-off complete; locked. Promoted candidate→ratified 2026-06-15 (#66, DK event 43d30e67) via PR-15 / PR-14."
     },
     "expected": {
