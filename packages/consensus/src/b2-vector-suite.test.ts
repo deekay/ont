@@ -50,6 +50,9 @@ const readyBindingTargetById: Record<string, string> = {
   "B6-neg-01": "bond-qualification: a qualifying bond is at/above the floor; sub-floor is a no-op (#37)",
   "S5-neg-01": "settlement: settlementLockBlocks must equal the protocol maturity parameter (#12)",
   "S15-neg-01": "settlement: ownership materializes only from an accepted winning bid (#37)",
+  "Z13-neg-01": "params: #49 S6 strong-form K>=W+C + lower bounds, no baked constant",
+  "Z4-neg-01": "params: confirmed-root membership only at depth >= K; sub-K reorg-invariant",
+  "Z12-neg-01": "value-record/boundary: no kernel wall-clock; issuedAt opaque, byte-identical replay",
   "T1-neg-01": "transcript-completeness: pure verdict, no out-of-kernel override channel",
   "T2-neg-01": "transcript-completeness: absent/producer-asserted completeness witness fails closed",
   "T21-neg-01": "transcript-completeness: distinct/well-formed L1 bid txids, no silent dedup",
@@ -223,8 +226,8 @@ describe("B2 executable vector suite inventory", () => {
 
     expect(countsBy(plans.map((plan) => plan.state))).toEqual({
       "pending-dk": 30,
-      "pending-predicate": 27,
-      "ready-for-binding": 37,
+      "pending-predicate": 24,
+      "ready-for-binding": 40,
     });
   });
 
@@ -234,7 +237,7 @@ describe("B2 executable vector suite inventory", () => {
       .map((plan) => plan.vector.id)
       .sort();
 
-    expect(pendingRequired).toHaveLength(27);
+    expect(pendingRequired).toHaveLength(24);
     expect(pendingRequired).toContain("R10-neg-01");
     expect(pendingRequired).toContain("B10-pos-01"); // B1/B3/B4/B10-neg/B6 now resident; B10-pos deferred (locality surface)
     expect(pendingRequired).toContain("T7-neg-01"); // T1/T2/T21 are now resident; T7 (auction resolution) stays pending

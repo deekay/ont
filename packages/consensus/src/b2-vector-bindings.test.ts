@@ -136,6 +136,10 @@ const LOCAL_BINDING_MANIFEST = new Set<string>([
   // settlement family (settlementLockMatchesMaturity / settlementMaterializes)
   "S5-neg-01",
   "S15-neg-01",
+  // reorg/replay-determinism family (over resident params / value-record predicates)
+  "Z13-neg-01",
+  "Z4-neg-01",
+  "Z12-neg-01",
   // params family (DA-window construction + h+K eligibility)
   "A3-neg-01",
   "D9-neg-01",
@@ -1034,5 +1038,69 @@ describe("B2 vector bindings — scanner / boundary-purity family (meta-shaped)"
     // positiveCompanion: determinism — two evaluations of identical inputs agree.
     const bound = servedAt(anchor.minedHeight);
     expect(includable(anchor, bound, params)).toBe(includable(anchor, bound, params));
+  });
+});
+
+describe("B2 vector bindings — reorg/replay-determinism family (over resident predicates)", () => {
+  // Z vectors are determinism / reorg-invariance / no-wall-clock PROPERTIES over the resident
+  // predicates (params, value-record) — same-lane bindings, no new module and no reorg-replay
+  // engine. They assert the properties by feeding the pure predicates their canonical inputs.
+  // (Z9-neg-01 is deferred: it needs a notice-window / bond-window surface that consumes the
+  // re-derived current-chain mined height, which is not resident — binding it through holdsPriority
+  // or bondQualifiesForEscalation would conflate distinct rules.)
+
+  it("Z13-neg-01: the DA-window kernel enforces #49 S6 strong form at construction (K>=W+C; lower bounds; no baked constant)", () => {
+    const vector = loadVector("reorg-replay-determinism.json", "Z13-neg-01");
+    assertBindable(vector);
+    // Strong form #49 S6: K >= W+C. The weak-form-only triple K = W+C-1 (here 4 = 5-1, with W <= K
+    // still holding) is REJECTED at construction — the distinct strong-form content beyond D9.
+    // Primary -> expected.verdict: a strong-form-violating (weak-form-passing) triple fails construction.
+    expectConstructionVerdict(vector, () => createDaWindowParams({ K: 4, W: 2, C: 3 })); // K=W+C-1=4 -> reject
+    // lower-bound rejects (#49 S6: K < 1 / W < 1 / C < 1):
+    expect(() => createDaWindowParams({ K: 0, W: 2, C: 3 })).toThrow();
+    expect(() => createDaWindowParams({ K: 6, W: 0, C: 3 })).toThrow();
+    expect(() => createDaWindowParams({ K: 6, W: 2, C: 0 })).toThrow();
+    // two distinct valid K>=W+C parameterizations both construct and are boundary-consistent (no
+    // baked constant -> different deadlines).
+    const a = createDaWindowParams({ K: 6, W: 2, C: 3 });
+    const b = createDaWindowParams({ K: 10, W: 3, C: 4 });
+    expect(challengeDeadlineHeight(H, a)).not.toBe(challengeDeadlineHeight(H, b)); // h+5 vs h+7
+  });
+
+  it("Z4-neg-01: an anchor contributes to the confirmed root only at depth >= K; sub-K churn cannot make a K-1 anchor eligible", () => {
+    const vector = loadVector("reorg-replay-determinism.json", "Z4-neg-01");
+    assertBindable(vector);
+    // #49 S2: confirmed-root membership is a pure function of (anchorHeight, tipHeight, K), recomputed
+    // from the current canonical chain — never latched.
+    // Primary -> expected.verdict: an anchor at depth K-1 (tip = h+K-1) is not eligible.
+    expect(confirmedRootEligible(H, H + params.K - 1, params)).toBe(accepts(vector)); // depth K-1 -> false === reject
+    expect(confirmedRootEligible(H, H + params.K, params)).toBe(true); // depth K -> eligible (companion)
+    // reorg-invariance (the honest property the resident surface shows; NOT a full root-sequence
+    // engine): any sub-K-deep churn that leaves the anchor at depth K-1 (tip recomputed to h+K-1)
+    // keeps it not-eligible, deterministically — membership is recomputed, never latched.
+    expect(confirmedRootEligible(H, H + params.K - 1, params)).toBe(
+      confirmedRootEligible(H, H + params.K - 1, params)
+    ); // recompute -> identical
+    expect(confirmedRootEligible(H, H + params.K - 1, params)).toBe(false); // sub-K churn cannot promote a K-1 anchor
+  });
+
+  it("Z12-neg-01: no kernel predicate consumes wall-clock; issuedAt is opaque bytes, replays byte-identical (kernel-wide guard)", () => {
+    const vector = loadVector("reorg-replay-determinism.json", "Z12-neg-01");
+    assertBindable(vector);
+    // Kernel-wide no-wall-clock guard (SOFTWARE_CANON L2 "No DB/network/clock" + WIRE §8). Two limbs:
+    // (a) STRUCTURAL — the b2-boundary purity gate (b2-boundary.test.ts) already bars Date/clock/
+    //     Math.random imports + globals from every production consensus module: the no-clock channel
+    //     is closed at the boundary, kernel-wide. This binding rides that gate.
+    // (b) DETERMINISM PROBE — a resident issuedAt-consuming predicate yields a byte-identical verdict
+    //     at a far-future vs far-past issuedAt; issuedAt influences only digest bytes, never compared
+    //     to "now". Uses the value-record surface as a witness for the KERNEL-WIDE guard (NOT a
+    //     restatement of V11 issuedAt-ordering).
+    const farFuture = valueRecordAccept(vrSign({ sequence: 2, issuedAt: "2999-01-01T00:00:00Z" }), vrIntervalA, null);
+    const farPast = valueRecordAccept(vrSign({ sequence: 2, issuedAt: "1999-01-01T00:00:00Z" }), vrIntervalA, null);
+    // Primary -> expected.verdict: a kernel rule comparing issuedAt to "now" is rejected; the verdict
+    // is wall-clock-independent, so "wall-clock affects the verdict" is false === reject.
+    const wallClockAffectsVerdict = farFuture.accepted !== farPast.accepted || farFuture.reason !== farPast.reason;
+    expect(wallClockAffectsVerdict).toBe(accepts(vector)); // false === reject
+    expect(farFuture).toEqual(farPast); // byte-identical verdict at any host clock
   });
 });
