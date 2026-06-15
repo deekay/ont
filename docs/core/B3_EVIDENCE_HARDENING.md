@@ -923,3 +923,45 @@ txid mismatch ⇒ fail closed.
 values + legacy-txid recompute); (ii) the serializer lives kernel-local in `@ont/consensus` (fee
 adequacy is consensus law; reuses `@ont/protocol` sha256), agreed?; (iii) the over-stated-prevout
 residual is explicitly D-BI's (the prevout's on-chain value), NOT re-bound in D-GF — agreed scope line?
+
+### §14 update 2 — CL correction: no bare prevout value; recompute every value from a txid-bound tx
+
+CL is right: a bare `prevoutValueSats` is as forgeable as a self-declared `paidFee` (overstate it,
+match the anchor txid, inflate `paidFee` ⇒ false accept). So D-GF recomputes EVERY value from a
+txid-bound transaction. Corrected fee witness (CL's option 1):
+```
+GateFeeWitness {
+  anchorTx: LegacyTransaction,            // recompute legacyTxidOf(anchorTx) === anchor.anchorTxid
+  prevoutTxs: LegacyTransaction[],        // one per anchor input, in input order
+  schedule: GateFeeSchedule }
+LegacyTransaction { version, inputs:[{prevoutTxid, prevoutVout, scriptSigHex, sequence}],
+                    outputs:[{valueSats, scriptPubKeyHex}], locktime }
+```
+Kernel derivation (nothing trusted):
+- `legacyTxidOf(anchorTx) === anchor.anchorTxid` (Q3 bind);
+- for each anchor input `i`: `legacyTxidOf(prevoutTxs[i]) === anchorTx.inputs[i].prevoutTxid`, then the
+  spent value = `prevoutTxs[i].outputs[ anchorTx.inputs[i].prevoutVout ].valueSats`;
+- `paidFee = Σ (spent values) − Σ anchorTx.outputs.valueSats`; fail closed on `paidFee < 0`, overflow,
+  `prevoutVout` out of range, or any txid mismatch.
+
+**Why the residual is now fully closed.** The anchor txid is a confirmed-chain fact (D-BI). The anchor
+tx commits its own input `prevoutTxid`s (they're inside the serialization that hashes to the anchor
+txid). Each supplied prevout tx must hash to its `prevoutTxid` (collision-resistant) ⇒ it is the
+GENUINE prevout tx ⇒ its output value is genuine. No bare value is trusted; over-stating an input now
+requires a second-preimage on a txid.
+
+**Q1 serializer (exact legacy Bitcoin tx serialization).** `serializeLegacyTransaction` = `version`
+(4-byte LE) ‖ `CompactSize(vin)` ‖ for each vin: `prevoutTxid` reversed to internal/wire order (32) ‖
+`prevoutVout` (4-byte LE) ‖ `CompactSize(len)` ‖ `scriptSig` ‖ `sequence` (4-byte LE) ‖ `CompactSize(vout)`
+‖ for each vout: `value` (int64 LE, 8) ‖ `CompactSize(len)` ‖ `scriptPubKey` ‖ `locktime` (4-byte LE).
+`legacyTxidOf = reverse(dsha256(serialized))` (display order = the txid; non-witness form, correct for
+segwit too). A **golden txid vector** pins it (mainnet block-170 payment tx
+`f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16`).
+
+**Q2 location.** Pure `@ont/bitcoin` helper (`legacyTxidOf` / `serializeLegacyTransaction`), imported by
+`gate-fee.ts`; per-file trust-surface allowlist (`gate-fee.ts → @ont/bitcoin`) + a #44 boundary-manifest
+DECISIONS addendum. NOT `@ont/protocol` (it is a Bitcoin primitive).
+
+**Added negatives (CL):** over-stated prevout value / mismatched prevout tx ⇒ `legacyTxidOf(prevoutTx) ≠
+prevoutTxid` ⇒ fail closed; omitted anchor output / fake anchor input ⇒ `legacyTxidOf(anchorTx) ≠
+anchor.anchorTxid` ⇒ fail closed; plus the golden-txid positive.
