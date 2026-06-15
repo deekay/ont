@@ -13,6 +13,13 @@ import {
   signRecoverOwnerCancelAuthorization,
   signTransferAuthorization
 } from "@ont/protocol";
+import {
+  RECOVERY_DESCRIPTOR_FORMAT,
+  RECOVERY_DESCRIPTOR_VERSION_V2,
+  recoverAuthDigest,
+  recoveryDescriptorDigest
+} from "@ont/wire";
+import type { ResolvedRecoveryDescriptorState } from "@ont/consensus";
 
 import { createDefaultLaunchAuctionPolicy, getLaunchAuctionOpeningRequirements, type LaunchAuctionPolicy } from "./auction-policy.js";
 import { getExperimentalLaunchAuctionId } from "./experimental-auction.js";
@@ -500,7 +507,11 @@ describe("InMemoryOntIndexer auction observations", () => {
     });
   });
 
-  it.skip("[B3] finalizes bond-authorized owner recovery after the challenge window", () => {
+  it("finalizes a #50-b1 recovery invoke through the indexer with injected descriptor evidence", () => {
+    // B2 indexer plumbing test (engine B): the indexer is given a test-supplied resolved
+    // recoveryEvidence map (what the B3 evidence layer will resolve from W15) and a #50-b1
+    // invoke. This proves the data-only recoveryEvidence plumbing through InMemoryOntIndexer
+    // reaches acceptRecoverOwner, admits, and the finalization path completes.
     const policy = createFastAuctionPolicy();
     const name = "orchard";
     const openingBid = createOpeningBidBlock({
@@ -511,19 +522,26 @@ describe("InMemoryOntIndexer auction observations", () => {
       ownerPubkey: OWNER_PUBKEY
     });
     const recoveryTxid = hexByte(0x44);
-    const indexer = createRecoveryProofAwareIndexer(policy);
+    const indexer = new InMemoryOntIndexer({
+      launchHeight: 0,
+      experimentalLaunchAuctionPolicy: policy,
+      recoveryEvidence: {
+        byName: new Map([[name, recovery50b1Evidence(name, 14)]]),
+        params: { recoveryEvidenceWindowBlocks: RECOVERY_INVOKE_WINDOW }
+      }
+    });
 
     indexer.ingestBlocks([
       openingBid.block,
       emptyBlock(13, 0x33),
-      recoverOwnerRequestBlock({
+      recovery50b1InvokeBlock({
         height: 14,
         txid: recoveryTxid,
+        name,
         prevStateTxid: openingBid.txid,
         spentBondTxid: openingBid.txid,
         spentBondVout: 0,
-        successorBondSats: openingBid.bidAmountSats,
-        challengeWindowBlocks: 2
+        successorBondSats: openingBid.bidAmountSats
       }),
       emptyBlock(15, 0x55)
     ]);
@@ -1138,6 +1156,95 @@ function transferBlock(input: {
         inputs: [{ txid: input.spentBondTxid, vout: input.spentBondVout, coinbase: false }],
         outputs: [
           { valueSats: input.successorBondSats, scriptType: "payment" },
+          { valueSats: 0n, scriptType: "op_return", dataHex: Buffer.from(payload).toString("hex") }
+        ]
+      }
+    ]
+  };
+}
+
+// ---------------------------------------------------------------------------
+// #50-b1 recovery-invoke fixtures (engine B). Drive a real acceptRecoverOwner admission
+// through the indexer with INJECTED recoveryEvidence (test-supplied resolved descriptor
+// state) — full W15 evidence resolution is a B3 deliverable, so the B2 test injects the
+// resolved map and proves the indexer plumbing + finalization path. Signs via tiny-secp256k1
+// (BIP340, interoperable with the @ont/wire verifier the engine uses); digests come from
+// @ont/wire (the exact source the engine consumes, so R6/R3 match).
+// ---------------------------------------------------------------------------
+const RECOVERY_INVOKE_PRIV = "09".repeat(32);
+const RECOVERY_INVOKE_PUB = deriveXOnlyPubkey(RECOVERY_INVOKE_PRIV);
+const RECOVERY_INVOKE_REF = "a5".repeat(32);
+const RECOVERY_INVOKE_ADDR = "bc1qrecoveryexampleaddr0000000000000000";
+const RECOVERY_INVOKE_SEQ = 1;
+const RECOVERY_INVOKE_WINDOW = 2; // == challengeWindowBlocks; W_r <= challengeWindowBlocks
+
+function schnorrHex(digest: Uint8Array, privateKeyHex: string): string {
+  const sig = secp256k1.signSchnorr(digest, Buffer.from(privateKeyHex, "hex"));
+  return Buffer.from(sig).toString("hex");
+}
+
+// The name's current armed descriptor head (v2), owner-armed by OWNER_PRIVATE_KEY_HEX.
+function recovery50b1Descriptor(name: string): Record<string, unknown> {
+  const unsigned: Record<string, unknown> = {
+    format: RECOVERY_DESCRIPTOR_FORMAT,
+    descriptorVersion: RECOVERY_DESCRIPTOR_VERSION_V2,
+    name,
+    ownerPubkey: OWNER_PUBKEY,
+    ownershipRef: RECOVERY_INVOKE_REF,
+    sequence: RECOVERY_INVOKE_SEQ,
+    previousDescriptorHash: null,
+    recoveryAddress: RECOVERY_INVOKE_ADDR,
+    signingProfile: "bip322",
+    challengeWindowBlocks: RECOVERY_INVOKE_WINDOW,
+    issuedAt: "2026-01-01T00:00:00Z",
+    recoveryPubkey: RECOVERY_INVOKE_PUB
+  };
+  return { ...unsigned, signature: schnorrHex(recoveryDescriptorDigest(unsigned), OWNER_PRIVATE_KEY_HEX) };
+}
+
+// The resolved descriptor-chain evidence the indexer injects (what the B3 layer will resolve).
+function recovery50b1Evidence(name: string, witnessedByHeight: number): ResolvedRecoveryDescriptorState {
+  const descriptor = recovery50b1Descriptor(name);
+  return {
+    descriptorEvidence: { descriptor, witness: { kind: "b3-verified-recovery-descriptor-witness", witnessedByHeight } },
+    recoveryDescriptorHeadHash: Buffer.from(recoveryDescriptorDigest(descriptor)).toString("hex"),
+    recoveryDescriptorHeadSequence: RECOVERY_INVOKE_SEQ,
+    currentOwnershipRef: RECOVERY_INVOKE_REF
+  };
+}
+
+// A #50-b1 invoke block: spends the bond outpoint, pays a successor bond output (vout 0) to the
+// descriptor recoveryAddress, and posts the OP_RETURN payload whose 64-byte slot is a real BIP340
+// signature over the W13 digest by the recovery key.
+function recovery50b1InvokeBlock(input: {
+  readonly height: number;
+  readonly txid: string;
+  readonly name: string;
+  readonly prevStateTxid: string;
+  readonly spentBondTxid: string;
+  readonly spentBondVout: number;
+  readonly successorBondSats: bigint;
+}): BitcoinBlock {
+  const descHash = Buffer.from(recoveryDescriptorDigest(recovery50b1Descriptor(input.name))).toString("hex");
+  const fields = {
+    prevStateTxid: input.prevStateTxid,
+    newOwnerPubkey: NEW_OWNER_PUBKEY,
+    flags: 0,
+    successorBondVout: 0,
+    challengeWindowBlocks: RECOVERY_INVOKE_WINDOW,
+    recoveryDescriptorHash: descHash
+  };
+  const signature = schnorrHex(recoverAuthDigest(fields), RECOVERY_INVOKE_PRIV);
+  const payload = encodeRecoverOwnerPayload({ ...fields, signature });
+  return {
+    hash: hexByte(input.height),
+    height: input.height,
+    transactions: [
+      {
+        txid: input.txid,
+        inputs: [{ txid: input.spentBondTxid, vout: input.spentBondVout, coinbase: false }],
+        outputs: [
+          { valueSats: input.successorBondSats, scriptType: "payment", address: RECOVERY_INVOKE_ADDR },
           { valueSats: 0n, scriptType: "op_return", dataHex: Buffer.from(payload).toString("hex") }
         ]
       }
