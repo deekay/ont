@@ -14,16 +14,19 @@
 > [`B1_WIRE_HARDENING.md`](./B1_WIRE_HARDENING.md) /
 > [`B2_KERNEL_HARDENING.md`](./B2_KERNEL_HARDENING.md).
 >
-> **The headline (rev 4): B3 has no open consensus decision blocking it.** Round 2
-> established that the rules I had parked as "DK decisions" are already **ratified
-> law** — #51–#56 (PR-1/2/3/4/16/23) and the **#66 spec-PR-matrix ratification of
-> PR-5..36**. So B3 is *pure construction*: produce and cryptographically verify
-> witnesses that **conform to** the ratified rules, plus their concrete byte
-> layouts (themselves B3 deliverables, DK-ratified at promotion time per the
-> normative-hardening flow — exactly as the B1 wire format was). Every deliverable
-> is **FREE** (buildable now). The lone non-construction item is the `g(name)`
-> gate-fee *schedule*, a launch-freeze parameter (§5). Nothing here is normative
-> until its per-section promotion is ratified.
+> **The headline (rev 4, amended rev 6+): B3 is mostly ratified-construction, with
+> ONE open consensus decision (D-SB-avail, §5.2).** Round 2 established that the
+> rules I had parked as "DK decisions" were already **ratified law** — #51–#56
+> (PR-1/2/3/4/16/23) and the **#66 spec-PR-matrix ratification of PR-5..36**. So most
+> of B3 is *pure construction*: produce and cryptographically verify witnesses that
+> **conform to** the ratified rules, plus their concrete byte layouts (themselves B3
+> deliverables, DK-ratified at promotion, as the B1 wire format was). Those
+> deliverables are **FREE** (buildable now). **Exception:** D-SB-avail — the
+> first-servable-HEIGHT attribution (§6c) — is **GATED on a DK consensus decision**
+> (§5.2); its sibling D-SB-bind (content binding) is FREE and built. The other
+> non-construction item is the `g(name)` gate-fee *schedule*, a launch-freeze
+> parameter (§5.1). Nothing here is normative until its per-section promotion is
+> ratified.
 
 ## §0 — Purpose / scope / tests (the required component statement)
 
@@ -59,15 +62,17 @@
 
 ## §2 — B3 deliverables, each conforming to ratified rules
 
-All **FREE** (buildable now). "Conforms to" names the ratified rule the witness
-must satisfy; B3 supplies the construction + concrete bytes, never a new rule.
+All **FREE** (buildable now) **except D-SB-avail (GATED on the §5.2 DK decision)**.
+"Conforms to" names the ratified rule the witness must satisfy; B3 supplies the
+construction + concrete bytes, never a new rule.
 
 | # | Deliverable | Feeds | Conforms to (ratified) |
 | --- | --- | --- | --- |
 | D-BI | Bitcoin header/inclusion verification (Merkle + PoW) + canonical-header-source pinning | `proof-bundle.ts` `verifyProofBundleAgainstBitcoin` | cited (BITCOIN_ANCHORED_NAME_ACCUMULATOR.md) |
 | D-AM | Accumulator membership-proof construction | `verifyAccumulatorMembership` (`@ont/protocol`) | cited (accumulator doc) |
 | D-PB | Proof-bundle structural assembly | `verifyProofBundleStructure` | structural |
-| D-SB | Served-bytes witness + **concrete byte layout** | `da-verdict.ts` `ServedEvidence` | **#51** served-evidence-interface; #49 S3/S4 |
+| D-SB-bind | Served-bytes **content** binding: `prevRoot + servedDelta → newRoot` under batchSize | `da-verdict.ts` `ServedEvidence` (binding half) | **FREE** [#51 / #52 / #53; built] |
+| D-SB-avail | Served-bytes **first-servable-HEIGHT** attribution (mints `VerifiedAvailabilityHeight`) | `da-verdict.ts` includable/holdsPriority | **GATED on DK** (§5.2 consensus-law) |
 | D-RC | Recovery descriptor-evidence **timing** witness (given engine-resolved head/interval, attests `D` witnessed by `≤ h_r+W_r`; does **not** resolve the current head) | `recovery-invoke-authority.ts` §3c | **#50-b1 / §3c** |
 | D-BC | Bond-continuity / release-fact witness (spend facts only; **no canonical release on tied facts**) | `reopen-resolution.ts` (release-height derivation + same-height tiebreak stay kernel) | **#56**; tiebreak **#70** |
 | D-CW | Completeness witness + lot block/soft-close range | `transcript-completeness.ts` (T2) | **PR-19 / PR-29** (#66); concrete format = T2-neg-02 |
@@ -236,7 +241,9 @@ freeze with the other launch parameters (W/C/K, `W_r`, bond curve). **Rec:** rou
 
 ### §5.2 D-SB-avail — first-servable-height attribution (§6c) — **NEW; DK consensus-law**
 **Mini-design (design-first, per CL r-on-b89c8df). The first genuine new-consensus-
-law item B3 has surfaced.**
+law item B3 has surfaced.** Full decision-ready paper for DK:
+[`docs/research/DA_AVAILABILITY_HEIGHT.md`](../research/DA_AVAILABILITY_HEIGHT.md)
+(proposed name `availability-height`). Summary below.
 
 *The question.* D-SB-bind binds the served-bytes **content** (bytes → anchored
 commitment under `prevRoot→newRoot`). The kernel's `includable` (≤ `h+W+C`) /
@@ -259,12 +266,16 @@ built (D-SB-bind). But the **height attribution** is consensus-law, because:
   priority is **kernel law**, not evidence construction.
 
 *Candidate confirmed-chain facts / options (for DK):*
-- **O1 — fail-closed default + attributable challenge-exclusion.** `firstServableHeight
-  = h` by default (the anchor *is* the availability commitment, §6b); a confirmed
-  on-chain **challenge-exclusion fault** removes a batch nobody can back. Verifiable
-  from (anchor height, absence of a confirmed exclusion). Matches §6c + §215
-  (bonded-attestation rejected). *Gap:* doesn't by itself produce the §6d late-served
-  height (priority forfeiture).
+- **O1 — fail-closed over the presented content witness; challenge is diagnostic
+  only.** `firstServableHeight = h` for any batch whose **presented** verified
+  content witness (D-SB-bind) reconstructs the anchored commitment; absent that
+  witness, fail closed. A challenge event is **fault-attribution / diagnostic only,
+  never a deciding event** — a unilateral "nobody can back this" is the rejected
+  bonded-attestation shape in new clothes (§215) and could censor a valid batch (CL
+  finding 3), and "absence of a confirmed exclusion" can't be relied on without
+  chain-range completeness + duplicate/ordering rules. So the verdict rests on
+  presented content, not on exclusion. *Gap:* `h` collapses the §6e S3 late-served
+  branch for the batched path (see the amendment note in the rec).
 - **O2 — positive availability attestation at a height.** A confirmed event records
   "bytes served by height X" → `firstServableHeight = X`, capturing the §6d late case.
   *Gap:* needs a poster-authorization / sybil model (§215 cautions on attestation).
@@ -272,14 +283,25 @@ built (D-SB-bind). But the **height attribution** is consensus-law, because:
   tail.** Contested marquee names settle full-data-on-L1 (no DA height problem);
   the batched tail uses O1's fail-closed default.
 
-*Recommendation (DK rules):* **O1 + O3** — fail-closed default keyed to the anchor
-height with an attributable challenge-exclusion, and direct-L1 for contested names
-(which is where the §6d priority race actually bites). This keeps
-`VerifiedAvailabilityHeight` a function of confirmed-chain facts (#51 (iii)),
-honours §6c/§88–89 (no positive unavailability proof) and §215 (no bonded
-attestation), and confines the unobservable-late-served-height problem to the
-contested path, which O3 routes to L1. The spec work DK would ratify: the concrete
-**challenge-exclusion event format** + the `firstServableHeight` derivation rule.
+*Recommendation (DK rules):* **O1 + O3, stated as a consensus amendment.** Verdict
+fail-closed over the presented content witness (O1, `firstServableHeight = h`),
+priority-bearing contention routed to bonded/direct-L1 (O3). Keeps
+`VerifiedAvailabilityHeight` a function of confirmed-chain facts (#51 (iii)) and
+honours §6c/§88–89 + §215.
+- **Amendment (CL finding 2):** O1 collapses `firstServableHeight` to `h` for
+  non-faulted batched claims, which **drops the §6e S3 late-served branch
+  (`(h+W, h+W+C]` includable-but-no-priority) for the accumulator path.** Acceptable
+  *only because* O3 routes the priority race to L1. **If DK wants the long-tail
+  batched path itself to preserve late-served priority, O2 (a positive on-chain
+  timestamp) is forced instead** — naming this fork for DK.
+- **Guard (CL finding 4 — #37 / #69):** a late/withheld cheap batched claim that is
+  not DA-valid under the chosen rule must **not** open an auction (#37) or nullify
+  (#69 notice-window); qualifying bonds / direct-L1 are the only priority-bearing
+  path, so O1+O3 leaves no cheap hidden-collision grief.
+
+The spec work DK would ratify: the `firstServableHeight` derivation rule (O1's
+present-content-witness verdict) + whether the challenge stays diagnostic only or
+becomes a rebuttable mechanism with exact response/range/reorg rules.
 
 *Ripple / status:* until DK rules, **D-SB-avail cannot mint
 `VerifiedAvailabilityHeight`**; D-SB-bind (content binding) stands and the kernel
