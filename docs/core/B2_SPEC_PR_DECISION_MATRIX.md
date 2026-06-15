@@ -6,9 +6,30 @@
 > are already RULED — see [DECISIONS.md](./DECISIONS.md) #51–#56. Drafted by
 > ChatLunatique, refined by ClaudeleLunatique (PR-21, PR-17, PR-34). Each row: exact rule
 > text · creates-new-consensus-law? · alternative rejected · vectors unlocked /
-> review focus. **DK approves "as recommended" or rules individual rows; nothing
-> here is ratified until DK approves.** The high-risk / explicit-choice rows
-> (PR-9, PR-10, PR-13, PR-17, PR-23, PR-34, PR-35) are called out below the table.
+> review focus.
+>
+> **RATIFIED 2026-06-15 — DK approved as recommended (event 43d30e67).** All rows are ratified
+> as written; the high-risk / explicit-choice rows (PR-9, PR-10, PR-13, PR-17, PR-34, PR-35;
+> PR-23 was already #56) were ruled **as recommended**. PR-17 carries the atomic-name-sale design
+> note below. See [DECISIONS.md](./DECISIONS.md) #66 for the ratification record + named sub-decisions.
+
+## Ratification notes (DK, 2026-06-15, event 43d30e67)
+
+- The 6 individual-review rows, ruled **as recommended**: PR-9 current-chain re-derivation on reorg;
+  PR-10 separate settlement-finality depth (not DA `K`); PR-13 one inclusive non-DA boundary
+  convention; PR-17 recovery interval opens at **finalization** (not invocation); PR-34 an in-window
+  owner Transfer is **BLOCKED** during `pendingRecovery` (CANCEL-only veto); PR-35 finalize-timing
+  ruled together with PR-34.
+- **PR-17 atomic-name-sale note (DK fold-in).** Name transfers are often name-for-bitcoin sales. A
+  completed transfer rotates the ownership interval (PR-18), so the seller's armed recovery
+  descriptor dies and the buyer is safe from claw-back **post-sale**. But consensus cannot condition
+  a Bitcoin payment on ONT-validity, and a seller can race a head-change / a pending recovery to void
+  the transfer while keeping the payment (a mature name carries no forced outpoint spend) — so
+  **atomic name-for-bitcoin is a B5 / market-layer protocol**, built on the B2 enablers
+  (transfer-kills-seller-recovery + a deterministic, fully pre-checkable transfer predicate), NOT a
+  B2 consensus primitive. A native consensus "sale" event stays a **live future option** — an
+  additive named spec-PR (the wire registry reserves unassigned event types) if the market proves it
+  worth the kernel complexity. Recorded as the `atomic-name-sale` decision (DECISIONS #66).
 
 ## Matrix
 

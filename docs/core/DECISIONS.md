@@ -1270,7 +1270,7 @@ decision adds one). Model: [PR23_DENIAL_LOOP.md](../research/PR23_DENIAL_LOOP.md
 audited consensus-support (not a state-decider), and the package consumes the B1
 normative @ont/wire grammar — 2026-06-14
 
-*Status: **Proposed** (writer ClaudeleLunatique, reviewer ChatLunatique; lands on
+*Status: **Ratified** (DK event 43d30e67, 2026-06-15; writer ClaudeleLunatique, reviewer ChatLunatique; lands on
 branch clean-build-b2-kernel, DK merges). A boundary-manifest change under #44 —
 the new tier + dependency are covered by conformance: `trust-surface.test.ts`
 (manifest split + per-tier import allowlist) and `scanner.test.ts`. Authored under
@@ -1297,7 +1297,7 @@ boundary freezes permanently at launch.
 @ont/consensus as a third audited tier (CONSENSUS_PARAMS) — pure, state-deciding
 nothing, the parametric input the audited rules are evaluated against — 2026-06-14
 
-*Status: **Proposed** (writer ClaudeleLunatique, reviewer ChatLunatique; lands on
+*Status: **Ratified** (DK event 43d30e67, 2026-06-15; writer ClaudeleLunatique, reviewer ChatLunatique; lands on
 branch clean-build-b2-kernel, DK merges). A boundary-manifest change under #44 —
 the new tier is covered by conformance: `trust-surface.test.ts` (third-tier split
 + per-tier import allowlist) and `params.test.ts`. Authored under DK's
@@ -1335,7 +1335,7 @@ boundary freezes permanently at launch.
 as a fourth audited tier (CONSENSUS_VERDICTS) — pure, consensus-deciding but
 state-mutating nothing — 2026-06-14
 
-*Status: **Proposed** (writer ClaudeleLunatique, reviewer ChatLunatique; lands on
+*Status: **Ratified** (DK event 43d30e67, 2026-06-15; writer ClaudeleLunatique, reviewer ChatLunatique; lands on
 branch clean-build-b2-kernel, DK merges). A boundary-manifest change under #44 —
 the new tier is covered by conformance: `trust-surface.test.ts` (fourth-tier split
 + per-tier import allowlist) and `da-verdict.test.ts`. Authored under DK's
@@ -1368,7 +1368,7 @@ launch.
 the audited B1 @ont/wire digest/verification primitives (not the legacy
 @ont/protocol records) — admitting the value-record authority predicate — 2026-06-14
 
-*Status: **Proposed** (writer ClaudeleLunatique, reviewer ChatLunatique; lands on
+*Status: **Ratified** (DK event 43d30e67, 2026-06-15; writer ClaudeleLunatique, reviewer ChatLunatique; lands on
 branch clean-build-b2-kernel, DK merges). A boundary-manifest amendment of #59
 under #44 — covered by conformance: `trust-surface.test.ts` (the verdict allowlist
 pinned **per file** — `da-verdict.ts` mechanically empty-external, `@ont/wire`
@@ -1398,7 +1398,7 @@ permanently at launch.
 61. b2-core-deciders-wire-auth-digests: engine.ts (a CORE_DECIDER) verifies the B1 §5
 owner-key auth digests via @ont/wire, not the legacy @ont/protocol verifiers — 2026-06-14
 
-*Status: **Proposed** (writer ClaudeleLunatique, reviewer ChatLunatique; lands on branch
+*Status: **Ratified** (DK event 43d30e67, 2026-06-15; writer ClaudeleLunatique, reviewer ChatLunatique; lands on branch
 clean-build-b2-kernel, DK merges). A boundary-manifest amendment of #57/#59/#60 under #44,
 framed as a refactor over already-pinned equivalent digests — no new consensus law, no DK
 ruling required. Covered by conformance: `trust-surface.test.ts` (the per-file
@@ -1427,7 +1427,7 @@ change only with a DECISIONS entry + conformance coverage"; the boundary freezes
 62. b2-gate-fee-boundary: the gate-fee validation predicate enters @ont/consensus as a
 pure CONSENSUS_VERDICTS decider riding nothing external — 2026-06-14
 
-*Status: **Proposed** (writer ClaudeleLunatique, reviewer ChatLunatique; lands on branch
+*Status: **Ratified** (DK event 43d30e67, 2026-06-15; writer ClaudeleLunatique, reviewer ChatLunatique; lands on branch
 clean-build-b2-kernel, DK merges). A boundary-manifest addition under #44, riding the
 CONSENSUS_VERDICTS tier established by #59 — a new pure verdict module, NOT a
 tier-widening: its external allowlist is empty (the strictest, like `da-verdict.ts`). No
@@ -1454,7 +1454,7 @@ change only with a DECISIONS entry + conformance coverage"; the boundary freezes
 63. b2-transcript-completeness-boundary: the transcript-completeness predicate enters
 @ont/consensus as a pure CONSENSUS_VERDICTS decider riding nothing external — 2026-06-14
 
-*Status: **Proposed** (writer ClaudeleLunatique, reviewer ChatLunatique; lands on branch
+*Status: **Ratified** (DK event 43d30e67, 2026-06-15; writer ClaudeleLunatique, reviewer ChatLunatique; lands on branch
 clean-build-b2-kernel, DK merges). A boundary-manifest addition under #44, riding the
 CONSENSUS_VERDICTS tier established by #59 — a new pure verdict module, NOT a
 tier-widening: its external allowlist is empty (the strictest, like `da-verdict.ts` and
@@ -1490,7 +1490,7 @@ conformance coverage"; the boundary freezes at launch.
 64. b2-bond-qualification-boundary: the bond-qualification predicate enters @ont/consensus as
 a pure CONSENSUS_VERDICTS decider riding nothing external — 2026-06-15
 
-*Status: **Proposed** (writer ClaudeleLunatique, reviewer ChatLunatique; lands on branch
+*Status: **Ratified** (DK event 43d30e67, 2026-06-15; writer ClaudeleLunatique, reviewer ChatLunatique; lands on branch
 clean-build-b2-kernel, DK merges). A boundary-manifest addition under #44, riding the
 CONSENSUS_VERDICTS tier established by #59 — a new pure verdict module, NOT a tier-widening:
 its external allowlist is empty (the strictest, like `da-verdict.ts` / `gate-fee.ts` (#62) /
@@ -1516,7 +1516,7 @@ conformance coverage"; the boundary freezes at launch.
 65. b2-settlement-boundary: the settlement predicates enter @ont/consensus as pure
 CONSENSUS_VERDICTS deciders riding nothing external — 2026-06-15
 
-*Status: **Proposed** (writer ClaudeleLunatique, reviewer ChatLunatique; lands on branch
+*Status: **Ratified** (DK event 43d30e67, 2026-06-15; writer ClaudeleLunatique, reviewer ChatLunatique; lands on branch
 clean-build-b2-kernel, DK merges). A boundary-manifest addition under #44, riding the
 CONSENSUS_VERDICTS tier established by #59 — a new pure verdict module, NOT a tier-widening:
 its external allowlist is empty (the strictest, like `da-verdict.ts` / `gate-fee.ts` (#62) /
@@ -1549,6 +1549,53 @@ input does not settle/materialize and never throws, so no source/catalog/phase f
 as authority. Spec: `DECISIONS.md` #12 + #37; `WIRE_FORMAT.md` §4.3; `B2_KERNEL_HARDENING.md`
 S5/S15; DECISIONS #59. This satisfies #44's "boundary may change only with a DECISIONS entry +
 conformance coverage"; the boundary freezes at launch.
+
+66. b2-spec-pr-batch: DK ratified the B2 spec-PR matrix (PR-5..36) as recommended, plus the
+boundary-manifest amendments (#57–#65) and the §3c recovery-evidence-timing rule — 2026-06-15
+
+*Status: **RATIFIED (DK, event 43d30e67, 2026-06-15).** Writer ClaudeleLunatique, reviewer
+ChatLunatique; ELI5 ratification list posted (event 6e85b371), DK approved the 6 individual rows
++ the batch as recommended. The per-PR detail is the authoritative ratified record in
+[`B2_SPEC_PR_DECISION_MATRIX.md`](./B2_SPEC_PR_DECISION_MATRIX.md) (header flipped to RATIFIED);
+this entry is the ledger event + the named sub-decisions. The boundary entries #57–#65 are ratified
+by this decision (status lines flipped). No code is pushed; origin stays the return gate.*
+
+**The ratified set.** All ~30 open spec-PRs (PR-5..15, PR-17..36; PR-1/2/3/4/16/23 were already
+#51–#56) are ratified as written. The 6 individual-review rows were ruled **as recommended**:
+- **PR-9** — kernel state re-derives from the current best chain on reorg; no first-seen / old-chain
+  priority survives.
+- **PR-10** — settlement/ownership finality has its own depth parameter, separate from DA `K`.
+- **PR-13** — one inclusive boundary convention for all non-DA windows ("by height h+X" includes h+X).
+- **PR-17 (recovery-interval-opening)** — a RecoverOwner invoke does NOT rotate the ownership interval;
+  the new interval opens only at recovery **finalization**. During an open `pendingRecovery` the
+  pre-recovery owner stays "current owner". (Carries the atomic-name-sale note — see below.)
+- **PR-34 (transfer-vs-recovery, X13)** — while a `pendingRecovery` is open an owner-key Transfer is
+  **BLOCKED** (mutates nothing); the owner's only in-window veto is the explicit CANCEL bit (0x01).
+  Anti-theft: prevents a stolen owner key from exfiltrating the name beyond the recovery descriptor.
+- **PR-35 (recovery-finalize-timing)** — finalization is evaluated after the finalize-height block;
+  only an in-window CANCEL prevents it (ruled together with PR-34).
+
+**§3c recovery-evidence-timing (evidence-gated).** A non-cancel RecoverOwner invoke is accepted only
+if its witnessed descriptor evidence is demonstrably witnessed by `h_r + W_r`; an unwitnessed invoke
+opens no `pendingRecovery` and mutates no state (fail-closed, no state created until the evidence
+verifies). Per [`RECOVERY_EVIDENCE_TIMING.md`](../research/RECOVERY_EVIDENCE_TIMING.md).
+
+**atomic-name-sale (DK fold-in on PR-17).** Name transfers are often name-for-bitcoin sales. A
+completed transfer rotates the ownership interval (PR-18), so the seller's armed recovery descriptor
+dies and the buyer is safe from claw-back post-sale. Consensus cannot condition a Bitcoin payment on
+ONT-validity, and a seller can race a head-change / pending recovery to void the transfer while
+keeping the payment (a mature name carries no forced outpoint spend). **Decision: atomic
+name-for-bitcoin is a B5 / market-layer protocol**, built on the B2 enablers
+(transfer-kills-seller-recovery + a deterministic, fully pre-checkable transfer predicate), NOT a B2
+consensus primitive. A native consensus "sale" event (a Transfer variant binding a committed payment
+output + a state-outpoint spend) stays a **live future option** — an additive named spec-PR (the wire
+registry reserves unassigned event types) if the market proves it worth the kernel complexity.
+
+**Consequences.** The 30 candidate-tier conformance vectors (pending-DK) may be promoted to
+ratified-tier and bound; the recovery-invoke engine rewrite (#50-b1) is greenlit on the now-ratified
+PR-17/34/35 + §3c; the winner-selection, claim-counting, reopen, occupancy, and fee×K-deep surfaces
+may be built. Each follows tests-first + writer/reviewer (ChatLunatique) + the boundary-manifest
+discipline. The #57–65 boundary entries are ratified; the branch merge to main remains DK's op.
 
 ## Fairness Principles To Carry Into The Launch Rewrite
 
