@@ -2060,6 +2060,35 @@ extra-field input is `undecided` (fail closed — NOT silently a valid no-break)
 satisfies #44's "boundary may change only with a DECISIONS entry + conformance coverage"; the boundary
 freezes at launch.
 
+80. b2-transfer-authority-by-state-boundary: the transfer-authority-by-state predicate enters
+@ont/consensus as a pure CONSENSUS_VERDICTS decider — a Transfer has authority only over a name in the
+`owned` lifecycle state; every non-owned state is non-transferable — riding nothing external —
+2026-06-15
+
+*Status: **Proposed** (writer ClaudeleLunatique, reviewer ChatLunatique; lands on branch
+clean-build-b2-kernel, DK merges). A boundary-manifest addition under #44, riding the
+CONSENSUS_VERDICTS tier (#59). Empty external allowlist: it consumes the resolved name lifecycle state,
+with no host I/O. NO new consensus law: it lands the already-ratified X11 (a Transfer against any
+non-owned state makes no state change; transfer authority requires an owned state). A dedicated pure
+predicate rather than an engine binding because the engine's NameRecord.status enum
+(pending/immature/mature/invalid/unclaimed) collapses the X11 non-owned battery — live-auction,
+nullified, and broken-bond are not distinct record statuses (ChatLunatique-concurred). Covered by
+conformance: `trust-surface.test.ts` (`transfer-authority-state.ts` in CONSENSUS_VERDICTS, empty
+allowlist), `transfer-authority-state.test.ts`, and the X11-neg-01 binding.*
+
+**The rule.** `transferAuthorityByState({ nameLifecycleState })` → `{ transferable, reason }`:
+`transferable` is true ONLY for `"owned"`; every non-owned state — `provisional`, `live-auction`,
+`nullified`, `broken-bond`, `nonexistent` — is non-transferable (no state change). It consumes the
+RESOLVED `nameLifecycleState` (the caller composes notice-window #69 / auction #68 /
+bond-continuity-break #79 / occupancy #71); it does not derive the state, verify the transfer
+signature, or model bond continuity. Recovery-pending is deliberately NOT a state here — the X13
+transfer-block (engine, #67/PR-34) already owns that case. Object input `{ nameLifecycleState }`
+(not a raw string) so the boundary keeps closed-shape discipline. Total / fail-closed + closed-shape
+(the #63–#79 discipline): an unknown lifecycle state, a non-object input, or any extra field
+(actor/signature/owner-key) is rejected (not transferable) and never throws — so no signer/authority
+field can ride the boundary to grant a transfer over a non-owned state. This satisfies #44's "boundary
+may change only with a DECISIONS entry + conformance coverage"; the boundary freezes at launch.
+
 ## Fairness Principles To Carry Into The Launch Rewrite
 
 The rewritten launch draft should explicitly state:

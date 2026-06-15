@@ -89,6 +89,7 @@ import { claimPathEligibility } from "./claim-path-eligibility.js";
 import { acceptPostFinalAttempt } from "./post-final-attempt.js";
 import { lotCommitmentMatch } from "./lot-commitment-match.js";
 import { bondContinuityBreak } from "./bond-continuity-break.js";
+import { transferAuthorityByState } from "./transfer-authority-state.js";
 import {
   createTransferPayload,
   deriveOwnerPubkey,
@@ -259,6 +260,8 @@ const LOCAL_BINDING_MANIFEST = new Set<string>([
   "B12-neg-01",
   // bond-continuity-break (#79)
   "S6-neg-01",
+  // transfer-authority-state (#80)
+  "X11-neg-01",
 ]);
 
 // A binding may only execute a vector that is (a) locked, (b) required-tier
@@ -1798,6 +1801,20 @@ describe("B2 vector bindings — bond-continuity-break (#79)", () => {
     }
     // positive control: a valid same-tx successor preserves continuity (no release).
     expect(bondContinuityBreak({ preMaturity: true, currentBondOutpointSpent: true, sameTxValidSuccessorBond: true }).released).toBe(false);
+  });
+});
+
+// ---- transfer-authority-state (#80) ----
+describe("B2 vector bindings — transfer-authority-state (#80)", () => {
+  it("X11-neg-01: a transfer against any non-owned lifecycle state makes no state change; owned is the only transferable state", () => {
+    const vector = loadVector("transfer-authority.json", "X11-neg-01");
+    assertBindable(vector);
+    // the 5-state negative battery: every non-owned state is non-transferable.
+    for (const state of ["provisional", "live-auction", "nullified", "broken-bond", "nonexistent"] as const) {
+      expect(transferAuthorityByState({ nameLifecycleState: state }).transferable).toBe(accepts(vector)); // false === reject
+    }
+    // positive companion: the owned state is transferable.
+    expect(transferAuthorityByState({ nameLifecycleState: "owned" }).transferable).toBe(true);
   });
 });
 

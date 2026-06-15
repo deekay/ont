@@ -96,3 +96,7 @@ export * from "./lot-commitment-match.js";
 // release gate — a pre-maturity bond-outpoint spend with no same-tx valid successor releases the name,
 // regardless of key (no signer channel). Rides nothing external — resolved chain facts enter as inputs.
 export * from "./bond-continuity-break.js";
+// The transfer-authority-by-state predicate (#80, riding #59's verdict tier): the pure X11 gate —
+// transfer authority requires an owned state; every non-owned lifecycle state is non-transferable.
+// Rides nothing external — the resolved nameLifecycleState enters as a caller input.
+export * from "./transfer-authority-state.js";
