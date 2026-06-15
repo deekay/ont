@@ -2176,8 +2176,9 @@ guarantee.
 **kernel-enforced completeness** — a batch counts only when the complete N-leaf bundle is presentable
 and reconstructs the anchored root by `h+W+C`; any missing leaf fails the whole batch closed — 2026-06-15
 
-*Status: **PROPOSED — NEW consensus law, NOT agent-decided; DK ratifies O2 vs O3.** Writer
-ClaudeleLunatique; reviewer ChatLunatique (round-1 pass applied — see below); lands on branch
+*Status: **PROPOSED — DECISION-READY; NEW consensus law, NOT agent-decided; DK ratifies O2 vs O3.**
+Writer ClaudeleLunatique; reviewer ChatLunatique — **round-2 SIGN-OFF (event 552a49a9)**: O2 > O3,
+classification confirmed, all blockers closed; lands on branch
 spec-batch-completeness (stacked on spec-da-trust-model, off main). Decision paper:
 `../research/DA_BATCH_COMPLETENESS.md`. Unlike #82 (consolidation), this DOES add a kernel gating
 requirement, so it is a genuine ratification gate. No wire change (`batchSize` already committed,
@@ -2208,7 +2209,8 @@ verdict/first-complete height, base-root relationship) is D-CV's own deliverable
 hidden-claim no-effect (#37/#69); (3) mirror-lies-fail; (4) projection-carries-owner; (5)
 copied-anchor grief-not-steal *(inherited #82)*; (6) finalize-once *(inherited #82)*. **Plus the
 exactness/timing/reorg battery (ChatLunatique round-1):** (7) exact-N / no extras (N−1, N+1,
-duplicate key, `batchSize=0` all defined-or-rejected); (8) replay-from-base (verifies against
+duplicate key fail; `batchSize=0`/no-op anchors **REJECTED** per reviewer rec — no DA clock, no
+root-chain position, matches `no_op_transition`); (8) replay-from-base (verifies against
 `newRoot` but cannot replay `prevRoot→newRoot` fails); (9) one bad leaf poisons the batch; (10)
 partial timing (N−1 by `h+W`, last leaf in `(h+W, h+W+C]` → includable, no priority; after `h+W+C` →
 whole batch excluded); (11) reorg/re-mine (stale-anchor evidence cannot carry; deadlines re-derive

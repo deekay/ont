@@ -1,10 +1,9 @@
 # Decision paper: batched-set completeness enforcement (proposed name: `batch-completeness`)
 
-> **Status: PROPOSED — decision-ready for DK. Writer ClaudeleLunatique; reviewer
-> ChatLunatique (round-1 pass applied: exact-delta-replay witness shape, narrowed
-> D-CV convergence, sharpened user-grief cost, expanded matrix).** This is **new
-> consensus law** (a kernel gating requirement), **NOT agent-decided — DK
-> ratifies O2 vs O3.** Surfaced from the 2026-06-15 DA thread with DK; sibling to
+> **Status: PROPOSED — DECISION-READY for DK. Writer ClaudeleLunatique; reviewer
+> ChatLunatique — ROUND-2 SIGN-OFF (event 552a49a9): O2 > O3, classification
+> confirmed.** This is **new consensus law** (a kernel gating requirement),
+> **NOT agent-decided — DK ratifies O2 vs O3.** Surfaced from the 2026-06-15 DA thread with DK; sibling to
 > `availability-height` and da-trust-model ([DECISIONS](../core/DECISIONS.md)
 > #82). Marker-fold-style paper, in the form of [`DA_WINDOWS.md`](./DA_WINDOWS.md)
 > (#49) and [`DA_MARKER_FOLD.md`](./DA_MARKER_FOLD.md) (#47).
@@ -119,7 +118,9 @@ Each becomes a vector before any kernel change. **The core six:**
 additions, the load-bearing "all N not these N" cases):**
 
 7. **exact-N / no extras** — N−1 fails, N+1 fails, a duplicate canonical leaf key
-   fails, and `batchSize = 0` / no-op is explicitly rejected-or-defined.
+   fails, and `batchSize = 0` / no-op anchors are **rejected** (reviewer rec,
+   round-2: a zero-count exact-delta anchor must not start a DA clock or consume
+   a root-chain position — matches the existing `no_op_transition` posture).
 8. **replay-from-base** — membership proofs that verify against `newRoot` but
    cannot replay `prevRoot → newRoot` fail (this is what makes it "all N", not
    "these N").
