@@ -85,6 +85,7 @@ import type {
 import {
   applyBlockTransactionsWithProvenance,
   createEmptyState,
+  refreshDerivedState,
   type NameRecord,
   type OntState,
 } from "./engine.js";
@@ -189,6 +190,9 @@ const LOCAL_BINDING_MANIFEST = new Set<string>([
   "R10-neg-01",
   "R10-neg-02",
   "T19-pos-01",
+  // recovery completion (R18, via refreshDerivedState) + pending-create purity (G6, no callback)
+  "R18-pos-01",
+  "G6-neg-01",
 ]);
 
 // A binding may only execute a vector that is (a) locked, (b) required-tier
@@ -1267,5 +1271,87 @@ describe("B2 vector bindings — recovery-invoke-authority family (acceptRecover
     // A 64-byte commitment-shaped value (not a BIP340 signature over W13) -> verifySchnorr false.
     const legacy: RiaBundle = { ...b, invokeFacts: { ...b.invokeFacts, signature: "ab".repeat(64) } };
     expect(riaAccepted(legacy)).toBe(accepts(vector)); // reject
+  });
+
+  it("G6-neg-01: recovery pending-create is pure over witnessed evidence — no eval-time availability callback", () => {
+    const vector = loadVector("kernel-wide-glue.json", "G6-neg-01");
+    assertBindable(vector);
+    // Post-engine-B the recovery admission consumes witnessed descriptor evidence as DATA through
+    // acceptRecoverOwner — there is NO availability callback. The only "available" signal is the
+    // verifier-checked §3c witness; a merely producer-asserted witness (the callback-style "is it
+    // available?" bypass) and an absent witness both fail closed, and the verdict is a pure function
+    // of its data inputs (no oracle that could flip it at evaluation time).
+    // primary -> expected.verdict (reject): a producer-asserted "available" witness is not the
+    // verifier-checked one, so there is no acceptance path.
+    const asserted = riaBundle({ witness: { kind: "producer-asserted", witnessedByHeight: RIA_HR + RIA_WR } });
+    expect(riaAccepted(asserted)).toBe(accepts(vector)); // false === reject
+    // absent witness also fails closed (no callback bypass).
+    expect(riaAccepted(riaBundle({ witness: null }))).toBe(false);
+    // purity/determinism: identical data inputs -> identical verdict.
+    const b = riaBundle();
+    expect(acceptRecoverOwner(b.invokeFacts, b.descriptorEvidence, b.nameState, b.recoveryParams)).toEqual(
+      acceptRecoverOwner(b.invokeFacts, b.descriptorEvidence, b.nameState, b.recoveryParams)
+    );
+  });
+});
+
+describe("B2 vector bindings — recovery completion (R18, via refreshDerivedState)", () => {
+  it("R18-pos-01: recovery completion is a deterministic function of (chain height, prior pendingRecovery)", () => {
+    const vector = loadVector("recovery-authority.json", "R18-pos-01");
+    assertBindable(vector);
+    const FINALIZE = 644;
+    const proposed = "dd".repeat(32);
+    const seedPending = (): OntState => {
+      const state = createEmptyState();
+      const record: NameRecord = {
+        name: "alice",
+        status: "immature",
+        currentOwnerPubkey: "11".repeat(32),
+        claimCommitTxid: "a1".repeat(32),
+        claimRevealTxid: "b1".repeat(32),
+        claimHeight: 100,
+        maturityHeight: 1000,
+        requiredBondSats: 50_000n,
+        currentBondTxid: "cc".repeat(32),
+        currentBondVout: 0,
+        currentBondValueSats: 50_000n,
+        lastStateTxid: "cc".repeat(32),
+        lastStateHeight: 500,
+        winningCommitBlockHeight: 100,
+        winningCommitTxIndex: 0,
+        pendingRecovery: {
+          requestedTxid: "cc".repeat(32),
+          requestedHeight: 500,
+          finalizeHeight: FINALIZE,
+          proposedOwnerPubkey: proposed,
+          predecessorStateTxid: "ee".repeat(32),
+          recoveryDescriptorHash: "d1".repeat(32),
+          challengeWindowBlocks: 144,
+        },
+      };
+      state.names.set(record.name, record);
+      return state;
+    };
+    // primary -> expected.verdict (accept): completion fires at the finalize height — the proposed
+    // owner is installed and pendingRecovery clears.
+    const sA = seedPending();
+    refreshDerivedState(sA, FINALIZE);
+    const completed = sA.names.get("alice");
+    const didComplete = completed?.pendingRecovery === undefined && completed?.currentOwnerPubkey === proposed;
+    expect(didComplete).toBe(accepts(vector)); // true === accept
+    // replay determinism: an identical (prior state, height) refresh yields a byte-identical record.
+    const sB = seedPending();
+    refreshDerivedState(sB, FINALIZE);
+    expect(sB.names.get("alice")).toEqual(completed);
+    // no-refresh-timing: refreshing again at a later height is idempotent post-completion (the verdict
+    // is a function of (chain height, prior state), never of refresh-invocation timing).
+    refreshDerivedState(sA, FINALIZE + 50);
+    expect(sA.names.get("alice")?.currentOwnerPubkey).toBe(proposed);
+    expect(sA.names.get("alice")?.pendingRecovery).toBeUndefined();
+    // not-yet: one block before the finalize height, completion does not fire.
+    const sEarly = seedPending();
+    refreshDerivedState(sEarly, FINALIZE - 1);
+    expect(sEarly.names.get("alice")?.pendingRecovery).toBeDefined();
+    expect(sEarly.names.get("alice")?.currentOwnerPubkey).toBe("11".repeat(32));
   });
 });
