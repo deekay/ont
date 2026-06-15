@@ -382,9 +382,20 @@ describe("B2 vector bindings — bond-qualification family (bondQualifiesForEsca
     // second floor (no baked constant): the threshold tracks the supplied floor, not a constant.
     expect(bondQualifiesForEscalation(49_999n, 50_000n).qualifies).toBe(false);
     expect(bondQualifiesForEscalation(50_000n, 50_000n).qualifies).toBe(true);
-    // total fail-closed companions: a negative amount does not qualify, and the call never throws.
-    expect(bondQualifiesForEscalation(-1n, 100_000n).qualifies).toBe(false);
-    expect(() => bondQualifiesForEscalation(100_000n, 100_000n)).not.toThrow();
+    // Total fail-closed (the #64 / #63 discipline) — pin every claim #64 makes: a non-bigint or
+    // negative amount/floor does not qualify AND never throws (the exported boundary sees arbitrary
+    // JS). A loose view exercises the non-bigint cases the typed signature forbids at call sites.
+    const callLoose = bondQualifiesForEscalation as unknown as (
+      a: unknown,
+      b: unknown
+    ) => { qualifies: boolean; reason: string };
+    expect(bondQualifiesForEscalation(-1n, 100_000n).qualifies).toBe(false); // negative amount
+    expect(bondQualifiesForEscalation(100_000n, -1n).qualifies).toBe(false); // negative floor
+    expect(callLoose("100000", 100_000n).qualifies).toBe(false); // non-bigint amount (string)
+    expect(callLoose(100_000n, 100_000).qualifies).toBe(false); // non-bigint floor (number)
+    expect(() => bondQualifiesForEscalation(100_000n, 100_000n)).not.toThrow(); // valid call
+    expect(() => bondQualifiesForEscalation(-1n, -1n)).not.toThrow(); // negative inputs
+    expect(() => callLoose("x", null)).not.toThrow(); // arbitrary malformed inputs
   });
 });
 
