@@ -14,16 +14,18 @@
 > [`B1_WIRE_HARDENING.md`](./B1_WIRE_HARDENING.md) /
 > [`B2_KERNEL_HARDENING.md`](./B2_KERNEL_HARDENING.md).
 >
-> **The headline (rev 4, amended rev 6+): B3 is mostly ratified-construction, with
-> ONE open consensus decision (D-SB-avail, §5.2).** Round 2 established that the
+> **The headline (rev 4, amended rev 6+; D-SB-avail RESOLVED 2026-06-15): B3 is
+> ratified-construction — the one open consensus decision (D-SB-avail, §5.2) is now
+> RATIFIED as #84 availability-height (O1+O3).** Round 2 established that the
 > rules I had parked as "DK decisions" were already **ratified law** — #51–#56
 > (PR-1/2/3/4/16/23) and the **#66 spec-PR-matrix ratification of PR-5..36**. So most
 > of B3 is *pure construction*: produce and cryptographically verify witnesses that
 > **conform to** the ratified rules, plus their concrete byte layouts (themselves B3
 > deliverables, DK-ratified at promotion, as the B1 wire format was). Those
-> deliverables are **FREE** (buildable now). **Exception:** D-SB-avail — the
-> first-servable-HEIGHT attribution (§6c) — is **GATED on a DK consensus decision**
-> (§5.2); its sibling D-SB-bind (content binding) is FREE and built. The other
+> deliverables are **FREE** (buildable now). **Former exception now resolved:**
+> D-SB-avail — the first-servable-HEIGHT attribution (§6c) — was GATED on a DK
+> consensus decision; **DK ratified `availability-height` (#84) as O1+O3**, so it is
+> now FREE/buildable too (§5.2 verifier contract). The only remaining
 > non-construction item is the `g(name)` gate-fee *schedule*, a launch-freeze
 > parameter (§5.1). Nothing here is normative until its per-section promotion is
 > ratified.
@@ -62,7 +64,7 @@
 
 ## §2 — B3 deliverables, each conforming to ratified rules
 
-All **FREE** (buildable now) **except D-SB-avail (GATED on the §5.2 DK decision)**.
+All **FREE** (buildable now) — D-SB-avail's former gate (§5.2) is RATIFIED as #84.
 "Conforms to" names the ratified rule the witness must satisfy; B3 supplies the
 construction + concrete bytes, never a new rule.
 
@@ -72,7 +74,7 @@ construction + concrete bytes, never a new rule.
 | D-AM | Accumulator membership-proof construction | `verifyAccumulatorMembership` (`@ont/protocol`) | cited (accumulator doc) |
 | D-PB | Proof-bundle structural assembly | `verifyProofBundleStructure` | structural |
 | D-SB-bind | Served-bytes **content** binding: `prevRoot + servedDelta → newRoot` under batchSize | `da-verdict.ts` `ServedEvidence` (binding half) | **FREE** [#51 / #52 / #53; built] |
-| D-SB-avail | Served-bytes **first-servable-HEIGHT** attribution (mints `VerifiedAvailabilityHeight`) | `da-verdict.ts` includable/holdsPriority | **GATED on DK** (§5.2 consensus-law) |
+| D-SB-avail | Served-bytes **first-servable-HEIGHT** attribution (mints `VerifiedAvailabilityHeight`) | `da-verdict.ts` includable/holdsPriority | **FREE** [#84 availability-height O1+O3; §5.2 contract] |
 | D-RC | Recovery descriptor-evidence **timing** witness (given engine-resolved head/interval, attests `D` witnessed by `≤ h_r+W_r`; does **not** resolve the current head) | `recovery-invoke-authority.ts` §3c | **#50-b1 / §3c** |
 | D-BC | Bond-continuity / release-fact witness (spend facts only; **no canonical release on tied facts**) | `reopen-resolution.ts` (release-height derivation + same-height tiebreak stay kernel) | **#56**; tiebreak **#70** |
 | D-CW | Completeness witness + lot block/soft-close range | `transcript-completeness.ts` (T2) | **PR-19 / PR-29** (#66); concrete format = T2-neg-02 |
@@ -239,11 +241,12 @@ to downstream (`gate-fee.ts`; DECISIONS #62; return-queue F1/F2/F3). These are
 freeze with the other launch parameters (W/C/K, `W_r`, bond curve). **Rec:** route
 `g(name)` to the launch-parameter freeze; do not block B3 construction on it.
 
-### §5.2 D-SB-avail — first-servable-height attribution (§6c) — **NEW; DK consensus-law**
-**Mini-design (design-first, per CL r-on-b89c8df). The first genuine new-consensus-
-law item B3 has surfaced.** Full decision-ready paper for DK:
-[`docs/research/DA_AVAILABILITY_HEIGHT.md`](../research/DA_AVAILABILITY_HEIGHT.md)
-(proposed name `availability-height`). Summary below.
+### §5.2 D-SB-avail — first-servable-height attribution (§6c) — **RATIFIED #84 availability-height (O1+O3); now FREE/buildable**
+**RESOLVED.** DK ratified `availability-height` (#84) as **O1 + O3** (event 4e11b64b,
+2026-06-15). The mini-design below is preserved as the decision record; the **verifier
+contract this slice builds** is stated immediately after it. Full paper:
+[`docs/research/DA_AVAILABILITY_HEIGHT.md`](../research/DA_AVAILABILITY_HEIGHT.md);
+DECISIONS #84.
 
 *The question.* D-SB-bind binds the served-bytes **content** (bytes → anchored
 commitment under `prevRoot→newRoot`). The kernel's `includable` (≤ `h+W+C`) /
@@ -303,11 +306,44 @@ The spec work DK would ratify: the `firstServableHeight` derivation rule (O1's
 present-content-witness verdict) + whether the challenge stays diagnostic only or
 becomes a rebuttable mechanism with exact response/range/reorg rules.
 
-*Ripple / status:* until DK rules, **D-SB-avail cannot mint
-`VerifiedAvailabilityHeight`**; D-SB-bind (content binding) stands and the kernel
-verdicts already consume the height (ratified #49). This is drafted decision-ready;
-**not** agent-decided. Pending CL's adversarial pass on this classification before it
-goes to DK.
+*Ripple / status:* **RATIFIED #84 (O1+O3) — D-SB-avail may now mint
+`VerifiedAvailabilityHeight`.** D-SB-bind (content binding) stands and the kernel
+verdicts already consume the height (ratified #49).
+
+#### Verifier contract (the slice this builds)
+
+Per O1, `firstServableHeight = h` (the anchor's **confirmed mined height**), gated on
+the **presented** content witness reconstructing the anchored commitment; absent that,
+fail closed. Per the O1 amendment, the height **always collapses to `h`** for a
+non-faulted batched claim — there is **no late-served `(h+W, h+W+C]` height** for the
+accumulator path (priority races route to L1, O3). The height is never producer-
+attested (#51 (iii)); it is the confirmed mined height tied to the same anchor the
+presented bytes reconstruct.
+
+`verifyAvailabilityHeight({ baseLeaves, servedDelta, binding, confirmedAnchorMinedHeight })`
+→ `{ bound, firstServableHeight: VerifiedAvailabilityHeight }`:
+1. **Reconstruction (O1 fail-closed over presented bytes):** runs `bindServedBytes`
+   (D-SB-bind) — throws if the presented base+delta do not reconstruct `anchoredRoot`
+   (incomplete / extra / hidden / non-insert-only / stale prevRoot).
+2. **Height provenance (no producer attestation):** `confirmedAnchorMinedHeight` is the
+   confirmed-chain mined height (sourced from a verified D-BI bitcoin inclusion); it
+   must be a non-negative integer **and equal `binding.anchorHeight`**, so the stamped
+   height is the confirmed mined height of the very anchor the bytes reconstruct.
+3. **Mint (O1):** `firstServableHeight = confirmedAnchorMinedHeight` as the branded
+   `VerifiedAvailabilityHeight`. Only this path mints it; a bare number cannot reach
+   `toServedEvidence`.
+
+Conformance (E-AV battery): E-AV1 presented-bytes-reconstruct → mints `h`, and the
+kernel reads includable + holdsPriority; E-AV2 bytes do not reconstruct (missing /
+extra / wrong root) → fail closed, no mint; E-AV3 height provenance — a confirmed
+height disagreeing with the binding anchor (a producer-attested height) → fail closed;
+E-AV4 O1 collapse — the minted height is exactly `h`, never a presentation time.
+
+*Open design point for review:* the confirmed mined height enters as a validated
+number documented as D-BI-sourced; a tighter coupling would consume the verified
+`BitcoinInclusion` object directly. Flagged for CL — the number-with-equality-gate is
+the minimal honest contract for this slice; the object coupling can fold in when D-PB
+assembles the full bundle.
 
 ## §6 — Mining map (existing code → deliverable)
 | Existing | Mineable into |

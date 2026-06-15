@@ -20,3 +20,9 @@ export {
   type BoundServedBatch,
   type VerifiedAvailabilityHeight,
 } from "./served-bytes.js";
+
+export {
+  verifyAvailabilityHeight,
+  type AvailabilityInput,
+  type VerifiedAvailability,
+} from "./served-availability.js";
