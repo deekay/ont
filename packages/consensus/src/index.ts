@@ -50,3 +50,7 @@ export * from "./bond-qualification.js";
 // (settlementLockBlocks === maturityBlocks) and the S15 materialization gate (ownership only from
 // an accepted winning bid); both pure, riding nothing external. See DECISIONS b2-settlement-boundary (#65).
 export * from "./settlement.js";
+// The recovery-invoke authorization/evidence gate (#67, riding #59's verdict tier): the pure
+// acceptRecoverOwner predicate (R7/R10/R6/R3/R2/R4/R5 + §3c evidence-gated admission). Rides the
+// audited @ont/wire digests/verifier only. See DECISIONS b2-recovery-invoke-authority-boundary (#67).
+export * from "./recovery-invoke-authority.js";

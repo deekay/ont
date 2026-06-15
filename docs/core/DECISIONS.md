@@ -1597,6 +1597,54 @@ PR-17/34/35 + §3c; the winner-selection, claim-counting, reopen, occupancy, and
 may be built. Each follows tests-first + writer/reviewer (ChatLunatique) + the boundary-manifest
 discipline. The #57–65 boundary entries are ratified; the branch merge to main remains DK's op.
 
+67. b2-recovery-invoke-authority-boundary: the recovery-invoke authorization/evidence-gate predicate
+enters @ont/consensus as a pure CONSENSUS_VERDICTS decider riding @ont/wire B1 primitives — 2026-06-15
+
+*Status: **Proposed** (writer ClaudeleLunatique, reviewer ChatLunatique; lands on branch
+clean-build-b2-kernel, DK merges). A boundary-manifest addition under #44, riding the
+CONSENSUS_VERDICTS tier established by #59 — a new pure verdict module, NOT a tier-widening. Unlike
+the empty-allowlist verdicts, it rides @ont/wire B1 primitives (`recoverAuthDigest`,
+`recoveryDescriptorDigest`, `verifySchnorr`, `RECOVERY_DESCRIPTOR_INVOKABLE_VERSION`) like
+`value-record-authority.ts` — its `VERDICTS_ALLOWED_BY_FILE` entry is exactly `@ont/wire`. NO new
+consensus law: it lands the already-ratified #50-b1 acceptance predicate (RECOVERY_AUTH §3), the
+ratified §3c evidence-timing rule, the PR-18 current-interval binding, and the PR-34 path-split (all
+#66) — no DK ruling required beyond #66. This is **slice (A)** of the recovery-invoke rewrite; the
+engine integration (slice B) is a separate follow-on. Covered by conformance: `trust-surface.test.ts`
+(`recovery-invoke-authority.ts` in CONSENSUS_VERDICTS with the `@ont/wire` allowlist),
+`recovery-invoke-authority.test.ts` (the conjunct-by-conjunct + totality/closed-shape battery).
+Authored under DK's keep-going grant.*
+
+**The rule.** One narrow pure predicate — the AUTHORIZATION/EVIDENCE-GATE half of a non-cancel
+`RecoverOwner` invoke, NOT full transaction acceptance:
+- `acceptRecoverOwner(invokeFacts, descriptorEvidence, nameState, recoveryParams)` → `{accepted, reason}`.
+  Accepts only when every conjunct holds: **R7** descriptor profile is the invokable version (v2;
+  v1 parses but cannot invoke); **R10** a fresh BIP340 invoke signature in the 64-byte slot over the
+  W13 `ont-recover-owner` digest (`recoverAuthDigest`), verified against the descriptor's
+  `recoveryPubkey` (NOT a commitment parsed from the slot); **R6** `recoveryDescriptorDigest(descriptor)`
+  equals the invoke's `recoveryDescriptorHash`; **R3** that same digest equals the name-state's current
+  descriptor head-hash fact (hash-based; sequence is a companion check, never a substitute); **R2** the
+  arming signature verifies against the name's CURRENT `ownerPubkey` (not the descriptor's self-claimed
+  owner); **R4** `descriptor.ownershipRef` equals the current-interval ref (stops old-interval replay —
+  Decision #40's seller-reclaims-after-sale target); **R5** `prevStateTxid` equals the state head; and
+  **§3c** the descriptor evidence is demonstrably witnessed (a verifier-checked witness object) by
+  `h_r + W_r`, `1 <= W_r <= challengeWindowBlocks`. Fail-closed: late/absent/unverified evidence → not
+  authorized → the engine opens no recovery state.
+
+It DELIBERATELY EXCLUDES (engine integration / slice B): the bond-spend + qualifying-successor +
+outpoint-conflict mechanics (R11), the immature gate (R12), single-pending (R13), `pendingRecovery`
+construction, the X13 transfer block, bond rotation, finalization (R18), and the CANCEL path — a
+CANCEL-flagged or any nonzero-flag event presented as an invoke fails closed here, pinning the split.
+The §8.3 BIP322 wallet proof is non-authorizing corroboration: no field, no witnessing deadline,
+cannot block or substitute for the descriptor evidence. `W_r` is a launch-freeze parameter (B2 does
+not fix its value); the "demonstrably witnessed" format is a B3 evidence-layer deliverable — B2
+consumes an opaque, already-verifier-checked witness (`{ kind: "b3-verified-recovery-descriptor-witness",
+witnessedByHeight }`), exactly as the DA verdict consumes a served-bytes witness (S4). Total /
+fail-closed + closed-shape (the #63/#64/#65 discipline): every malformed input rejects and never
+throws (all @ont/wire digest/verify calls are guarded), and no extra field on any owned input object
+or on the witness is admitted as authority. Spec: RECOVERY_AUTH §3 + §3c; `WIRE_FORMAT.md` §5/§8.2a;
+`B2_KERNEL_HARDENING.md` R-rows; DECISIONS #50/#59/#66. This satisfies #44's "boundary may change only
+with a DECISIONS entry + conformance coverage"; the boundary freezes at launch.
+
 ## Fairness Principles To Carry Into The Launch Rewrite
 
 The rewritten launch draft should explicitly state:
