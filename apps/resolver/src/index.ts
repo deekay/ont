@@ -30,8 +30,7 @@ import {
   serializeLaunchAuctionPolicy,
   type ExperimentalLaunchAuctionCatalogEntry,
   type NameRecord,
-  type LaunchAuctionPolicy,
-  type RecoveryWalletProofAvailabilityChecker
+  type LaunchAuctionPolicy
 } from "@ont/core";
 import {
   createDatabaseConfig,
@@ -203,10 +202,13 @@ async function main(): Promise<void> {
     database === null
       ? await loadRecoveryWalletProofStoreFile(recoveryProofStorePath)
       : await loadRecoveryWalletProofStoreDatabase(database, recoveryProofStoreDocumentKey);
-  const recoveryWalletProofAvailable = createRecoveryWalletProofAvailabilityChecker(
-    recoveryDescriptors,
-    recoveryProofs
-  );
+  // #50-b1: the §8.3 wallet proof is non-authorizing corroboration — the kernel no longer consults
+  // a wallet-proof availability callback (that authority surface was removed in engine B). Recovery
+  // authorization is now over witnessed descriptor-v2 evidence (acceptRecoverOwner). The resolver
+  // does not yet RESOLVE that evidence from its descriptor store into the kernel's recoveryEvidence
+  // input — that wiring is the B3/B4 evidence layer — so it supplies no recovery evidence in B2 and
+  // recovery invokes are ignored until then. The descriptor/proof stores below are still served
+  // (corroboration + history endpoints), just disconnected from kernel authorization.
   let source: "fixture" | "rpc" | "esplora";
   let descriptor: string;
   let syncMode: "fixture" | "rpc-oneshot" | "rpc-polling" | "esplora-oneshot" | "esplora-polling";
@@ -224,7 +226,6 @@ async function main(): Promise<void> {
         {
           experimentalLaunchAuctionPolicy,
           experimentalLaunchAuctionCatalog,
-          recoveryWalletProofAvailable
         }
       );
       restoredFromSnapshot = true;
@@ -239,7 +240,6 @@ async function main(): Promise<void> {
         launchHeight,
         experimentalLaunchAuctionPolicy,
         experimentalLaunchAuctionCatalog,
-        recoveryWalletProofAvailable
       });
     }
 
@@ -268,7 +268,6 @@ async function main(): Promise<void> {
           launchHeight,
           experimentalLaunchAuctionPolicy,
           experimentalLaunchAuctionCatalog,
-          recoveryWalletProofAvailable
         });
       }
     }
@@ -323,7 +322,6 @@ async function main(): Promise<void> {
               launchHeight: indexer.getLaunchHeight(),
               experimentalLaunchAuctionPolicy,
               experimentalLaunchAuctionCatalog,
-              recoveryWalletProofAvailable
             });
             const rebuildPoller = new BitcoinRpcBlockPoller({
               rpc,
@@ -363,7 +361,6 @@ async function main(): Promise<void> {
         {
           experimentalLaunchAuctionPolicy,
           experimentalLaunchAuctionCatalog,
-          recoveryWalletProofAvailable
         }
       );
       restoredFromSnapshot = true;
@@ -378,7 +375,6 @@ async function main(): Promise<void> {
         launchHeight,
         experimentalLaunchAuctionPolicy,
         experimentalLaunchAuctionCatalog,
-        recoveryWalletProofAvailable
       });
     }
 
@@ -410,7 +406,6 @@ async function main(): Promise<void> {
           launchHeight,
           experimentalLaunchAuctionPolicy,
           experimentalLaunchAuctionCatalog,
-          recoveryWalletProofAvailable
         });
       }
     }
@@ -471,7 +466,6 @@ async function main(): Promise<void> {
               launchHeight: indexer.getLaunchHeight(),
               experimentalLaunchAuctionPolicy,
               experimentalLaunchAuctionCatalog,
-              recoveryWalletProofAvailable
             });
             const rebuildPoller = new BitcoinEsploraBlockPoller({
               esplora,
@@ -516,7 +510,6 @@ async function main(): Promise<void> {
       launchHeight: loaded.launchHeight,
       experimentalLaunchAuctionPolicy,
       experimentalLaunchAuctionCatalog,
-      recoveryWalletProofAvailable
     });
     indexer.ingestBlocks(loaded.blocks);
   }
@@ -1636,38 +1629,6 @@ function getCurrentRecoveryDescriptorHistory(
     hasGaps: hasRecoverySequenceGaps(chain),
     hasForks: false,
     descriptors
-  };
-}
-
-function createRecoveryWalletProofAvailabilityChecker(
-  recoveryDescriptors: RecoveryDescriptorStore,
-  recoveryProofs: RecoveryWalletProofStore
-): RecoveryWalletProofAvailabilityChecker {
-  return (request) => {
-    const proof = getRecoveryWalletProof(recoveryProofs, request.proofHash);
-    const descriptor = getRecoveryDescriptorByHash(
-      recoveryDescriptors,
-      request.recoveryDescriptorHash
-    );
-
-    if (proof === null || descriptor === null) {
-      return false;
-    }
-
-    const verification = verifyRecoveryWalletProof({
-      descriptor,
-      proof,
-      expected: {
-        name: request.name,
-        prevStateTxid: request.prevStateTxid,
-        recoveryDescriptorHash: request.recoveryDescriptorHash,
-        newOwnerPubkey: request.newOwnerPubkey,
-        successorBondVout: request.successorBondVout,
-        challengeWindowBlocks: request.challengeWindowBlocks
-      }
-    });
-
-    return verification.ok && verification.proofHash === request.proofHash;
   };
 }
 
