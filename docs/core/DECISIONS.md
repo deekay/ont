@@ -2172,6 +2172,36 @@ is at all-data-on-L1 for contested names and honest-mirror-market for the long t
 availability is a bootstrapped liveness property that decentralizes over time, not a cryptographic
 guarantee.
 
+83. batch-completeness: promote `RootAnchor.batchSize` from committed-but-informational to
+**kernel-enforced completeness** — a batch counts only when the complete N-leaf bundle is presentable
+and reconstructs the anchored root by `h+W+C`; any missing leaf fails the whole batch closed — 2026-06-15
+
+*Status: **PROPOSED — NEW consensus law, NOT agent-decided; DK ratifies O2 vs O3.** Writer
+ClaudeleLunatique; awaits ChatLunatique adversarial pass; lands on branch spec-batch-completeness
+(stacked on spec-da-trust-model, off main). Decision paper:
+`../research/DA_BATCH_COMPLETENESS.md`. Unlike #82 (consolidation), this DOES add a kernel gating
+requirement, so it is a genuine ratification gate. No wire change (`batchSize` already committed,
+WIRE §4.4); the change is a conjunct of `includable`. NO implementation until ratified (tests-first).*
+
+**The question.** `batchSize` is committed on-chain but the kernel `includable` predicate does not
+require the served-bytes witness to demonstrate all N leaves. Promote it to a gating requirement?
+
+**Recommendation: O2 (kernel-enforced whole-batch completeness).** `includable(anchor, evidence, W,
+C)` requires the witness to reconstruct the anchored root over all N committed leaves (or prove
+non-membership for absent slots) by `h+W+C`; a missing leaf fails the whole batch closed. Rationale:
+matches §6c (batch-level exclusion already); makes the committed count meaningful (auditable
+completeness via the da-trust-model mirror market; bond-free long-tail contention discovery);
+withholding is self-harm + detectable; no cheap hidden-collision grief (#37/#69 guard). Cost: an
+honest producer must keep all N retrievable through `h+W+C` or lose the batch — mitigated by
+content-addressed mirroring. Alternative O3 (per-leaf) is gentler but loses the completeness
+guarantee. **Convergence:** O2 needs the D-CV projection to carry per-leaf owner identity — exactly
+ChatLunatique's open D-CV blocker — so batch-completeness + the D-CV fix land together.
+
+**Ratification gate (6-test matrix, each → a conformance vector):** (1) full-N required (N−1 → not
+includable); (2) hidden-claim no-effect (#37/#69); (3) mirror-lies-fail (bytes must reconstruct the
+root); (4) projection-carries-owner (distinct-owner collision ≠ same-owner duplicate); (5)
+copied-anchor grief-not-steal *(inherited #82)*; (6) finalize-once *(inherited #82)*.
+
 ## Fairness Principles To Carry Into The Launch Rewrite
 
 The rewritten launch draft should explicitly state:
