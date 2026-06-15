@@ -28,8 +28,9 @@ export {
 } from "./served-availability.js";
 
 export {
-  assembleBatchClaimProofBundle,
-  type BatchClaimProofBundleInput,
+  buildAccumulatorBatchClaimBundle,
+  type BuildBatchClaimBundleInput,
+  type BundleAnchorRef,
   type BundleOwnership,
   type BundleValueRecord,
   type OntProofBundle,

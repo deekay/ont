@@ -1,27 +1,28 @@
-// D-PB — proof-bundle ASSEMBLY (B3; structural, conforms to the kernel's
+// D-PB — proof-bundle ASSEMBLY (B3; FREE / structural, conforms to the kernel's
 // `verifyProofBundleStructure` / `verifyProofBundleAgainstBitcoin`). The kernel owns the
-// VERIFIER; B3 owns the BUILDER. It assembles the `ont-proof-bundle`
-// (`accumulator_batch_claim`) a claimant publishes, from the already-VERIFIED component
-// witnesses the earlier B3 slices mint:
+// VERIFIER; B3 owns the BUILDER. `buildAccumulatorBatchClaimBundle` assembles the
+// `accumulator_batch_claim` `ont-proof-bundle` a claimant publishes from the already-built
+// sub-witnesses the earlier slices produce:
 //   - the D-AM membership proof (`BuiltMembershipProof`),
-//   - the D-BI Bitcoin inclusion (`BuiltBitcoinInclusion`), and
-//   - the D-SB-avail verified availability (`VerifiedAvailability`), which carries the
-//     bound batch facts AND the branded first-servable height.
+//   - the cited batch anchor + (optionally) its D-BI Bitcoin inclusion (`BuiltBitcoinInclusion`),
+//   - ownership facts + an optional already-signed value-record chain.
 //
-// NON-DECIDING (the §1 contract): the builder constructs a bundle the kernel verifier
-// decides on. It never returns a verdict, never decides ownership, and — critically —
-// fails closed (throws) on any cross-section incoherence, so it can never assemble a
-// bundle the verifier would reject. Forged / incoherent inputs yield NO bundle, not a
-// false-accepting one (forged evidence ≡ no-witness, fail-closed).
+// COMPOSITION STANCE (CL's D-SB-avail ruling — consume verified facts, don't re-derive). D-PB
+// takes the OUTPUTS of D-AM / D-BI and assembles them; it does NOT re-run PoW / Merkle /
+// membership and it does NOT call the verifier. Its correctness obligation is exactly
+// "assembles a bundle the resident verifier accepts," asserted by running the resident
+// `verifyProofBundleStructure` + `verifyProofBundleAgainstBitcoin` over the built bundle in the
+// tests.
 //
-// THE D-PB TIGHTENING (B3_EVIDENCE_HARDENING.md §5.2, RESOLVED → realized here). The only
-// height that reaches the bundle is the branded `VerifiedAvailabilityHeight` minted by
-// D-SB-avail. The builder consumes the whole `VerifiedAvailability` object, so a bare
-// number can never be stamped as the anchor height. The stamped `batchAnchor.anchorHeight`
-// IS that verified height, and it is gated to the SAME anchor whose served bytes
-// reconstruct `anchoredRoot` (D-SB-avail) AND whose D-BI inclusion is PoW/Merkle-proven —
-// `inclusion.height === bound.anchorHeight === firstServableHeight`. This replaces §5.2's
-// "raw number" with the branded verified-anchor-height coupling that section left to D-PB.
+// NON-DECIDING (the §1 contract). The builder returns no verdict and decides no ownership; it
+// fails closed (throws) on the cheap assembly-coherence obligations the resident validator
+// enforces, so it never silently emits a bundle the verifier would reject. A hostile assembly
+// has the same acceptance effect as no-witness (E-ND1).
+//
+// SCOPE (CL design review on `4c0e3fd`). Assembly-only: the branded verified-anchor-height
+// coupling (consuming a D-SB-avail `VerifiedAvailability` so the stamped height is the minted
+// brand) is a NAMED FOLLOW-UP (§11 "deferred coupling"), kept out of this slice so D-SB-avail
+// stays closed. Here the anchor txid + height are gated to match the embedded D-BI inclusion.
 import {
   computeValueRecordHash,
   normalizeName,
@@ -32,7 +33,6 @@ import {
 
 import type { BuiltBitcoinInclusion } from "./bitcoin-inclusion.js";
 import type { BuiltMembershipProof } from "./membership.js";
-import type { VerifiedAvailability } from "./served-availability.js";
 
 /** Ownership facts the bundle commits (the claimed current owner + ownership reference). */
 export interface BundleOwnership {
@@ -42,24 +42,33 @@ export interface BundleOwnership {
   readonly ownershipRef: string;
 }
 
-/** Inputs to the batched-claim proof-bundle assembler — verified component witnesses. */
-export interface BatchClaimProofBundleInput {
+/** The cited batch anchor (RootAnchor tx) — gated to match the embedded D-BI inclusion. */
+export interface BundleAnchorRef {
+  readonly anchorTxid: string;
+  readonly anchorHeight: number;
+}
+
+/** Inputs to the batched-claim proof-bundle assembler — already-built component witnesses. */
+export interface BuildBatchClaimBundleInput {
   /** The raw ONT name being claimed; `normalizedName` is derived, never caller-supplied. */
   readonly name: string;
   readonly assuranceTier: string;
   readonly verificationGoal: string;
   readonly ownership: BundleOwnership;
-  /** D-AM: membership proof folding to the anchored/served accumulator root. */
+  /** D-AM: membership proof for `H(normalizedName)` committing the claimed owner. */
   readonly membership: BuiltMembershipProof;
-  /** D-BI: Bitcoin inclusion for the batch anchor tx (the cited on-chain anchor). */
-  readonly inclusion: BuiltBitcoinInclusion;
-  /** D-SB-avail: the bound batch + branded first-servable height (the height provenance). */
-  readonly availability: VerifiedAvailability;
+  /** The cited batch anchor (txid + height). */
+  readonly anchor: BundleAnchorRef;
   /**
-   * OPTIONAL, already-signed value records (B5 / wallet signs — D-PB NEVER signs). When
-   * present the builder places them as the bundle's `valueRecordChain.records` (computing
-   * each `recordHash`) and gates owner / ref / sequence coherence; the kernel verifier
-   * re-checks signatures + hashes.
+   * D-BI: the anchor's Bitcoin inclusion. OPTIONAL: present → a Bitcoin-settled bundle (its
+   * txid + height MUST match `anchor`); absent → a structurally-valid but not-Bitcoin-settled
+   * bundle (passes `…Structure`, fails `…AgainstBitcoin` on `btc.inclusion.present`).
+   */
+  readonly inclusion?: BuiltBitcoinInclusion;
+  /**
+   * OPTIONAL, already-signed value records (B5 / wallet signs — D-PB NEVER signs). When present
+   * the builder places them as `valueRecordChain.records` (computing each `recordHash`) and gates
+   * owner / ref / sequence / previous-hash coherence; the kernel re-checks signatures + hashes.
    */
   readonly valueRecords?: readonly SignedValueRecord[];
 }
@@ -99,10 +108,9 @@ export interface OntProofBundle {
   };
   readonly batchAnchor: {
     readonly anchorTxid: string;
-    /** The branded D-SB-avail height (= bound.anchorHeight = inclusion.height). */
     readonly anchorHeight: number;
   };
-  readonly bitcoinInclusion: {
+  readonly bitcoinInclusion?: {
     readonly anchors: readonly {
       readonly txid: string;
       readonly height: number;
@@ -116,26 +124,140 @@ export interface OntProofBundle {
   };
 }
 
-// Referenced by the green implementation; imported now so the stub's contract is explicit.
-void computeValueRecordHash;
-void normalizeName;
-void sha256Hex;
-void utf8ToBytes;
+const fail = (reason: string): never => {
+  throw new Error(`@ont/evidence.buildAccumulatorBatchClaimBundle: ${reason}`);
+};
+
+/** Lay an already-signed value-record chain into bundle shape; gate cheap coherence. */
+function placeValueRecords(
+  records: readonly SignedValueRecord[],
+  ownership: BundleOwnership,
+): BundleValueRecord[] {
+  const out: BundleValueRecord[] = [];
+  let previousRecordHash: string | null = null;
+  for (const [index, record] of records.entries()) {
+    if (record.ownerPubkey.toLowerCase() !== ownership.currentOwnerPubkey.toLowerCase()) {
+      fail(`value record ${index + 1} owner key does not match the claimed owner`);
+    }
+    if (record.ownershipRef.toLowerCase() !== ownership.ownershipRef.toLowerCase()) {
+      fail(`value record ${index + 1} ownershipRef does not match the bundle ownershipRef`);
+    }
+    if (record.sequence !== index + 1) {
+      fail(`value record ${index + 1} sequence is not contiguous from 1`);
+    }
+    if ((record.previousRecordHash ?? null) !== previousRecordHash) {
+      fail(`value record ${index + 1} previousRecordHash does not chain to the prior record`);
+    }
+    const recordHash = computeValueRecordHash({
+      name: record.name,
+      ownerPubkey: record.ownerPubkey,
+      ownershipRef: record.ownershipRef,
+      sequence: record.sequence,
+      previousRecordHash: record.previousRecordHash,
+      valueType: record.valueType,
+      payloadHex: record.payloadHex,
+      issuedAt: record.issuedAt,
+    });
+    out.push({
+      recordHash,
+      name: record.name,
+      sequence: record.sequence,
+      previousRecordHash: record.previousRecordHash,
+      ownerPubkey: record.ownerPubkey,
+      ownershipRef: record.ownershipRef,
+      valueType: record.valueType,
+      payloadHex: record.payloadHex,
+      issuedAt: record.issuedAt,
+      signature: record.signature,
+    });
+    previousRecordHash = recordHash;
+  }
+  return out;
+}
 
 /**
- * Assemble an `accumulator_batch_claim` proof bundle from verified component witnesses.
- * Fails closed (throws) on any cross-section incoherence — the assembled bundle is the
- * kernel verifier's inverse: it round-trips green through `verifyProofBundleStructure`
- * AND `verifyProofBundleAgainstBitcoin`, and the builder can never emit a bundle the
- * verifier rejects.
+ * Assemble an `accumulator_batch_claim` proof bundle from already-built component witnesses.
+ * Fails closed (throws) on the cheap assembly-coherence obligations the resident validator
+ * enforces — leaf binds the name, value commits the claimed owner, and (when an inclusion is
+ * embedded) the cited anchor txid + height match it. The assembled bundle is the verifier's
+ * inverse: it round-trips green through `verifyProofBundleStructure` and (with an inclusion)
+ * `verifyProofBundleAgainstBitcoin`.
  */
-export function assembleBatchClaimProofBundle(
-  input: BatchClaimProofBundleInput,
+export function buildAccumulatorBatchClaimBundle(
+  input: BuildBatchClaimBundleInput,
 ): OntProofBundle {
-  // D-PB stub (tests-first): the assembly + the coherence / height-coupling gates land on
-  // CL's design-OK. Until then this is a sentinel so the E-PB battery is RED.
-  void input;
-  throw new Error(
-    "@ont/evidence.assembleBatchClaimProofBundle: not implemented (D-PB stub)",
-  );
+  const { name, assuranceTier, verificationGoal, ownership, membership, anchor, inclusion } = input;
+
+  const normalizedName = normalizeName(name);
+
+  // (1) Leaf binds the name: the embedded membership proof must be the proof for H(name).
+  const expectedLeaf = sha256Hex(utf8ToBytes(normalizedName));
+  if (membership.proof.keyHex.toLowerCase() !== expectedLeaf) {
+    fail("membership leaf does not bind the name (expected H(normalizedName))");
+  }
+
+  // (2) Value commits the claimed owner (and is a member, not a non-membership proof).
+  const value = membership.proof.value;
+  if (value === null) {
+    throw new Error(
+      "@ont/evidence.buildAccumulatorBatchClaimBundle: membership is a non-membership proof — no committed value to back an ownership claim",
+    );
+  }
+  if (value.toLowerCase() !== ownership.currentOwnerPubkey.toLowerCase()) {
+    fail("accumulator value does not commit to the claimed current owner");
+  }
+
+  // (3) One consistent anchor: when a D-BI inclusion is embedded, the cited batch anchor txid
+  //     AND height must both match it (the verifier cites the anchor by txid, but a wrong height
+  //     would otherwise pass the structure check that only requires anchorHeight to exist).
+  if (inclusion !== undefined) {
+    if (anchor.anchorTxid.toLowerCase() !== inclusion.txid.toLowerCase()) {
+      fail("batch anchor txid does not match the embedded D-BI inclusion");
+    }
+    if (anchor.anchorHeight !== inclusion.height) {
+      fail("batch anchor height does not match the embedded D-BI inclusion");
+    }
+  }
+
+  const records = input.valueRecords?.length ? placeValueRecords(input.valueRecords, ownership) : null;
+
+  return {
+    format: "ont-proof-bundle",
+    bundleVersion: 0,
+    proofSource: "accumulator_batch_claim",
+    assuranceTier,
+    verificationGoal,
+    name,
+    normalizedName,
+    ownershipProof: {
+      currentOwnerPubkey: ownership.currentOwnerPubkey,
+      ownershipRef: ownership.ownershipRef,
+    },
+    accumulatorProof: {
+      root: membership.rootHex,
+      leaf: membership.proof.keyHex,
+      value,
+      siblings: membership.proof.siblings,
+    },
+    batchAnchor: {
+      anchorTxid: anchor.anchorTxid,
+      anchorHeight: anchor.anchorHeight,
+    },
+    ...(inclusion !== undefined
+      ? {
+          bitcoinInclusion: {
+            anchors: [
+              {
+                txid: inclusion.txid,
+                height: inclusion.height,
+                blockHeaderHex: inclusion.blockHeaderHex,
+                merkle: inclusion.merkle,
+                pos: inclusion.pos,
+              },
+            ],
+          },
+        }
+      : {}),
+    ...(records !== null ? { valueRecordChain: { records } } : {}),
+  };
 }
