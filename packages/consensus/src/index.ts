@@ -100,3 +100,7 @@ export * from "./bond-continuity-break.js";
 // transfer authority requires an owned state; every non-owned lifecycle state is non-transferable.
 // Rides nothing external — the resolved nameLifecycleState enters as a caller input.
 export * from "./transfer-authority-state.js";
+// The fee-fact-eligibility predicate (#81, riding #59's verdict tier): the pure F9 gate — an anchor
+// contributes a fee fact only once K-deep on the current canonical chain, valued at its own intrinsic
+// fee. #49-independent (K-depth is a resolved fact); rides nothing external.
+export * from "./fee-fact-eligibility.js";

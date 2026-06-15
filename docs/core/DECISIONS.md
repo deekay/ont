@@ -2089,6 +2089,35 @@ transfer-block (engine, #67/PR-34) already owns that case. Object input `{ nameL
 field can ride the boundary to grant a transfer over a non-owned state. This satisfies #44's "boundary
 may change only with a DECISIONS entry + conformance coverage"; the boundary freezes at launch.
 
+81. b2-fee-fact-eligibility-boundary: the fee-fact-eligibility predicate enters @ont/consensus as a
+pure CONSENSUS_VERDICTS decider — an anchor contributes a fee fact only once K-deep on the current
+canonical chain, valued at its own intrinsic fee; a reorged-before-K anchor contributes nothing —
+riding nothing external — 2026-06-15
+
+*Status: **Proposed** (writer ClaudeleLunatique, reviewer ChatLunatique; lands on branch
+clean-build-b2-kernel, DK merges). A boundary-manifest addition under #44, riding the
+CONSENSUS_VERDICTS tier (#59). Empty external allowlist: it consumes a resolved K-depth fact + the
+anchor's own intrinsic fee, with no host I/O. NO new consensus law: it lands the already-ratified F9
+(an anchor reorged out before K-depth contributes no fee fact and no name; a re-mined replacement is
+gated on its own intrinsic fee, never the orphaned tx's). Covered by conformance:
+`trust-surface.test.ts` (`fee-fact-eligibility.ts` in CONSENSUS_VERDICTS, empty allowlist),
+`fee-fact-eligibility.test.ts`, and the F9-neg-01 binding.*
+
+**The rule.** `feeFactEligibility({ reachedKDepthOnCanonicalChain, intrinsicFeeSats })` →
+`{ contributesFeeFact, feeFactSats, reason }`: `reachedKDepthOnCanonicalChain === false` → no fee
+fact (`feeFactSats:null`) — the reorged-out / pre-K anchor contributes nothing; `=== true` → the fee
+fact is THIS anchor's OWN `intrinsicFeeSats` (source selection — a re-mined replacement contributes
+its own fee, never the orphan's). **#49-independent**: K-depth enters as a RESOLVED boolean — the
+predicate never sees K or the raw confirmation depth (the caller composes the #49 K-depth check).
+**No orphan / previous / first-seen fee or confirmationDepth / K input channel**: the closed shape
+admits ONLY the two fields, so an orphaned tx's fee cannot ride the boundary. `gate-fee.ts`
+(`gateFeeValidation`) stays separate and reorg/confirmation-unaware — the g(name) economic gate is
+B3, and may reject a lower own fee downstream, but that is not F9's call (existence + which fee only).
+Total / fail-closed + closed-shape (the #63–#80 discipline): a malformed, extra-field, non-boolean
+K-depth, or non-nonnegative-bigint fee input contributes no fee fact and never throws. This satisfies
+#44's "boundary may change only with a DECISIONS entry + conformance coverage"; the boundary freezes
+at launch.
+
 ## Fairness Principles To Carry Into The Launch Rewrite
 
 The rewritten launch draft should explicitly state:

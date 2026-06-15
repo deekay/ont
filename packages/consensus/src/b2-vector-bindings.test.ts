@@ -90,6 +90,7 @@ import { acceptPostFinalAttempt } from "./post-final-attempt.js";
 import { lotCommitmentMatch } from "./lot-commitment-match.js";
 import { bondContinuityBreak } from "./bond-continuity-break.js";
 import { transferAuthorityByState } from "./transfer-authority-state.js";
+import { feeFactEligibility } from "./fee-fact-eligibility.js";
 import {
   createTransferPayload,
   deriveOwnerPubkey,
@@ -264,6 +265,8 @@ const LOCAL_BINDING_MANIFEST = new Set<string>([
   "X11-neg-01",
   // engine-transfer maturity preservation (S12, binding to resident engine behavior)
   "S12-pos-01",
+  // fee-fact-eligibility (#81) — the last buildable predicate
+  "F9-neg-01",
 ]);
 
 // A binding may only execute a vector that is (a) locked, (b) required-tier
@@ -1855,6 +1858,26 @@ describe("B2 vector bindings — transfer-authority-state (#80)", () => {
     }
     // positive companion: the owned state is transferable.
     expect(transferAuthorityByState({ nameLifecycleState: "owned" }).transferable).toBe(true);
+  });
+});
+
+// ---- fee-fact-eligibility (#81) ----
+describe("B2 vector bindings — fee-fact-eligibility (#81)", () => {
+  it("F9-neg-01: a reorged-before-K anchor contributes no fee fact; a K-deep anchor's fee fact is its own intrinsic fee", () => {
+    const vector = loadVector("gate-fee-validation.json", "F9-neg-01");
+    assertBindable(vector);
+    // caseReorgedBeforeK: not yet K-deep on the current canonical chain -> no fee fact (and no name).
+    const reorged = feeFactEligibility({ reachedKDepthOnCanonicalChain: false, intrinsicFeeSats: 100_000n });
+    expect(reorged.contributesFeeFact).toBe(accepts(vector)); // false === reject
+    expect(reorged.feeFactSats).toBeNull();
+    // independent of any orphan fee: there is no orphan-fee channel, so a huge fee cannot resurrect the fact.
+    expect(feeFactEligibility({ reachedKDepthOnCanonicalChain: false, intrinsicFeeSats: 100_000n, orphanFeeSats: 9_999_999n } as never).contributesFeeFact).toBe(false);
+    // caseReminedLowerFee (source selection, not economics): a K-deep re-mined replacement contributes
+    // its OWN (lower) intrinsic fee, never an orphan's higher fee.
+    expect(feeFactEligibility({ reachedKDepthOnCanonicalChain: true, intrinsicFeeSats: 1_000n })).toMatchObject({
+      contributesFeeFact: true,
+      feeFactSats: 1_000n,
+    });
   });
 });
 
