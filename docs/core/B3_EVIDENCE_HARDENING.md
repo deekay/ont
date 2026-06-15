@@ -1,45 +1,38 @@
 # B3 evidence-layer hardening — steps 1–2: rule extraction and source check
 
-> **Status: DRAFT rev 3 — steps 1–2 (invariant extraction + source check).
-> ChatLunatique review round 1 (`65750eb`) returned 4 decomposition blockers +
-> 2 edits; all addressed here — see §8 (review record).** Branch
-> `clean-build-b3`, stacked on `main` @ the B2 buildable-complete merge
+> **Status: DRAFT rev 4 — steps 1–2 (invariant extraction + source check).
+> ChatLunatique review rounds 1–2 returned blockers; all addressed — see §8.**
+> Branch `clean-build-b3`, stacked on `main` @ the B2 buildable-complete merge
 > (`03495bd`). Produced 2026-06-15 on DK's "continue the adversarial build
-> process" greenlight (event `d031752d`). Per the normative-hardening amendment
-> this phase runs the five steps (rule extraction → source check → adversarial
-> content pass → attacks become negative tests → sign-off), in the form of
-> [`B1_WIRE_HARDENING.md`](./B1_WIRE_HARDENING.md) and
-> [`B2_KERNEL_HARDENING.md`](./B2_KERNEL_HARDENING.md). Output of **steps 1–2**
-> for the L3 evidence layer (future `@ont/evidence`). **Nothing here is law
-> yet**; the open consensus questions are parked decision-ready for DK in §5
-> (parking rule: new consensus law is DK's to rule, never agent-decided).
+> process" greenlight (event `d031752d`). Steps-1–2 output for the L3 evidence
+> layer (future `@ont/evidence`), in the form of
+> [`B1_WIRE_HARDENING.md`](./B1_WIRE_HARDENING.md) /
+> [`B2_KERNEL_HARDENING.md`](./B2_KERNEL_HARDENING.md).
 >
-> **The boundary that organizes this rev.** ChatLunatique's round-1 finding:
-> several deliverables were claimed in-scope/ratified when they actually turn on
-> open consensus rulings. Per the canon boundary rule — *anything that changes
-> whether an anchor counts or which root is canonical is kernel law, not
-> evidence construction* ([SOFTWARE_CANON.md](./SOFTWARE_CANON.md)) — each B3
-> deliverable is now tagged **FREE** (pure witness construction against
-> already-ratified rules; build now) or **GATED** (B3 implements *after* a named
-> spec-PR ruling). §2 carries the split; §5 carries the docket.
+> **The headline (rev 4): B3 has no open consensus decision blocking it.** Round 2
+> established that the rules I had parked as "DK decisions" are already **ratified
+> law** — #51–#56 (PR-1/2/3/4/16/23) and the **#66 spec-PR-matrix ratification of
+> PR-5..36**. So B3 is *pure construction*: produce and cryptographically verify
+> witnesses that **conform to** the ratified rules, plus their concrete byte
+> layouts (themselves B3 deliverables, DK-ratified at promotion time per the
+> normative-hardening flow — exactly as the B1 wire format was). Every deliverable
+> is **FREE** (buildable now). The lone non-construction item is the `g(name)`
+> gate-fee *schedule*, a launch-freeze parameter (§5). Nothing here is normative
+> until its per-section promotion is ratified.
 
 ## §0 — Purpose / scope / tests (the required component statement)
 
 - **Purpose.** Construct and **cryptographically verify** the evidence the B2
   ownership kernel consumes — turning "the publisher says so" into "anyone can
   check it." B3 decides nothing; it witnesses.
-- **Scope (in), buildable now (FREE).** Bitcoin inclusion verification (D-BI),
-  accumulator membership-proof construction (D-AM), proof-bundle structural
-  assembly (D-PB), recovery descriptor-head witness (D-RC, §3c half), the
-  served-bytes root-reconstruction binding mechanics (D-SB binding half), and
-  bond-continuity / release-fact witnessing (D-BC witness half).
-- **Scope (in), drafted but GATED on a ruling.** The served-evidence
-  *verifier-checkable shape* (D-SB / PR-1), completeness witness + range (D-CW /
-  T2-neg-02), canonical-root derivation (D-CV / PR-3·5·9·16 + Model B), and
-  gate-fee economic evidence (D-GF / g(name) + PR-2). Specified here; **no
-  implementation until the cited ruling lands.**
-- **Scope (out).** No ownership decisions (kernel), no adapters (B4), no
-  surfaces (B5).
+- **Scope (in).** Bitcoin inclusion verification (D-BI), accumulator
+  membership-proof construction (D-AM), proof-bundle structural assembly (D-PB),
+  recovery descriptor-head witness (D-RC), bond-continuity / release-fact
+  witnessing (D-BC), the served-bytes witness + its concrete byte layout (D-SB),
+  the completeness witness + range (D-CW), canonical-root derivation (D-CV), and
+  the gate-fee *fact* witness (D-GF). All conform to ratified rules (§2).
+- **Scope (out).** No ownership decisions (kernel); no adapters (B4); no surfaces
+  (B5); and **not** the `g(name)` fee-schedule numbers (launch-freeze, §5).
 - **Tests.** The gate is adversarial (§4): the convergence battery + a
   hostile-evidence battery, run as production tests **against the real B2
   kernel** — forged evidence must equal the no-witness (fail-closed) case.
@@ -47,249 +40,208 @@
 ## §1 — The defining contract: B3 is NON-DECIDING
 
 - **EV is a witness, not a callback.** The kernel consumes a verified witness
-  **as data** and re-checks it itself; `da-verdict.ts` and
-  `transcript-completeness.ts` already encode this (opaque input object, never a
-  handle, endpoint, or bare boolean).
-- **The hostile-evidence property, stated precisely (CL finding 6).** A swapped
-  or buggy `@ont/evidence` can never make the kernel **accept** something it
-  should reject — forged or invalid evidence cannot flip a verdict to a false
-  accept. It *can* fail to produce a valid witness; then the kernel fails closed,
-  which is the **correct** verdict, not a corruption of one. The bar (§4.2):
-  forged evidence produces exactly the no-witness, fail-closed outcome.
+  **as data** and re-checks it itself (`da-verdict.ts` / `transcript-
+  completeness.ts` encode this: opaque input object, never a handle/endpoint/bool).
+- **The hostile-evidence property, precisely.** A swapped or buggy `@ont/evidence`
+  can never make the kernel **accept** what it should reject — forged/invalid
+  evidence cannot flip a verdict to a false accept. It *can* fail to produce a
+  valid witness; then the kernel fails closed, which is the **correct** verdict.
+  Missing valid evidence can absolutely turn an otherwise-accepting path to reject
+  — that is the design, not a regression. The bar (§4.2): forged evidence ≡ the
+  no-witness, fail-closed outcome.
 - **Consequence.** The hostile-evidence battery (§4.2) is the primary B3
   deliverable — the executable proof of this contract.
 
-## §2 — B3 deliverables, traced to the kernel contracts they feed
+## §2 — B3 deliverables, each conforming to ratified rules
 
-| # | Deliverable | Feeds (kernel contract) | Status |
+All **FREE** (buildable now). "Conforms to" names the ratified rule the witness
+must satisfy; B3 supplies the construction + concrete bytes, never a new rule.
+
+| # | Deliverable | Feeds | Conforms to (ratified) |
 | --- | --- | --- | --- |
-| D-BI | Bitcoin header/inclusion verification (Merkle + PoW) | `proof-bundle.ts` → `verifyProofBundleAgainstBitcoin` / `bitcoinInclusion` | **FREE** [cited] |
-| D-AM | Accumulator membership-proof construction | `proof-bundle.ts` → `verifyAccumulatorMembership` (`@ont/protocol`) | **FREE** [cited] |
-| D-PB | Proof-bundle structural assembly (both sources) | `verifyProofBundleStructure` | **FREE** (structural); against-Bitcoin via D-BI |
-| D-RC | Recovery descriptor-head witness (witnessed by `h_r+W_r`) | `recovery-invoke-authority.ts` §3c; `engine.ts:104-127`; `indexer.ts:47-51` | **FREE** [ratified #50-b1/§3c]; R11 bond-spend/successor edge rides **PR-34** |
-| D-BC | Bond-continuity / release-fact witness (spend facts only) | `reopen-resolution.ts` (release-height **derivation stays kernel**) | **FREE** witness side; release rule is kernel |
-| D-SB | Served-bytes witness: bytes → `anchoredRoot` under `batchSize`, bound to one anchor | `da-verdict.ts` `ServedEvidence` | binding **FREE**; the verifier-checkable `firstServableHeight` shape is **GATED on PR-1** |
-| D-CW | Completeness witness + lot block/soft-close range | `transcript-completeness.ts` (T2) | **GATED on T2-neg-02** (§5.5) |
-| D-CV | Canonical-root derivation (multi-publisher merge) | `batch-exclusion.ts` (consumes the derived root) | **GATED on PR-3 · PR-5 · PR-9 · PR-16 + Model B** (§5.3) |
-| D-GF | Gate-fee economic evidence: prevout/intrinsic-fee witness, Σ g over committed leaves, N-source, mismatch verdict | `gate-fee.ts` amount-adequacy conjunct | **GATED on g(name) schedule + PR-2 Σg granularity** (§5.4) |
+| D-BI | Bitcoin header/inclusion verification (Merkle + PoW) + canonical-header-source pinning | `proof-bundle.ts` `verifyProofBundleAgainstBitcoin` | cited (BITCOIN_ANCHORED_NAME_ACCUMULATOR.md) |
+| D-AM | Accumulator membership-proof construction | `verifyAccumulatorMembership` (`@ont/protocol`) | cited (accumulator doc) |
+| D-PB | Proof-bundle structural assembly | `verifyProofBundleStructure` | structural |
+| D-SB | Served-bytes witness + **concrete byte layout** | `da-verdict.ts` `ServedEvidence` | **#51** served-evidence-interface; #49 S3/S4 |
+| D-CW | Completeness witness + lot block/soft-close range | `transcript-completeness.ts` (T2) | **PR-19 / PR-29** (#66); concrete format = T2-neg-02 |
+| D-CV | Canonical-root derivation (delta-merge) | `batch-exclusion.ts` | **#53** prevRoot=`R_{h−K}` + **#54** + **#55** + **PR-5 / PR-9** (#66) |
+| D-GF | Gate-fee **fact** witness: prevout/intrinsic fee + Σ g over the **full committed set** | `gate-fee.ts` amount-adequacy conjunct | **#52** (Σ g full-set, per-leaf-drop); `g(name)` schedule = launch-freeze (§5) |
+| D-RC | Recovery descriptor-head witness (witnessed by `h_r+W_r`) | `recovery-invoke-authority.ts` §3c | **#50-b1 / §3c** |
+| D-BC | Bond-continuity / release-fact witness (spend facts only) | `reopen-resolution.ts` (release-height derivation stays kernel) | **#56** settlement-bond-continuity |
+| (D-RB) | Recovery bond-spend / qualifying-successor chain-fact witness — **separate** from D-RC, engine-slice/B4-side | engine recovery integration | **PR-34** (#66); excluded from `acceptRecoverOwner` |
 
 ## §3 — Evidence-layer invariants (E-series) + source check
 
-Tags: **[cited]** has a spec home; **[ratified: #N]** rests on a ratified
-decision; **[candidate-stays]** no ratifying source yet; **[GATED: PR-x]** B3
-implements after the ruling — listed for completeness, **not buildable
-pre-ruling**.
+All tags now resolve to **ratified** or **cited**; the work is construction +
+concrete bytes, DK-ratified at promotion.
 
-### Bitcoin inclusion — D-BI (FREE)
-- **E-BI1 — PoW-backed headers.** A cited anchor tx is accepted only if its
-  block header has valid PoW and chains to a pinned checkpoint. *[cited:
-  BITCOIN_ANCHORED_NAME_ACCUMULATOR.md "Data availability rules"; mine
-  `@ont/bitcoin`].* Test: tamper bits/nonce ⇒ reject; wrong-chain/orphan header ⇒ reject.
-- **E-BI2 — Merkle inclusion.** Anchor txid must Merkle-prove into the cited
-  block's merkle root. *[cited].* Test: swap a sibling hash ⇒ reject.
+### Bitcoin inclusion — D-BI
+- **E-BI1 — PoW + Merkle inclusion (what the verifier proves today).** Header is
+  80 bytes, meets its PoW target, and Merkle-commits the anchor txid. *[cited;
+  `proof-bundle.ts:307-365`].* Test: tamper bits/nonce ⇒ reject; swap a sibling
+  hash ⇒ reject.
+- **E-BI2 — canonical-header-source pinning is a distinct obligation.** PoW +
+  Merkle alone prove *work*, not *best-chain*; canonical pinning runs only when a
+  `headerSource` is supplied (`proof-bundle.ts:355-363`). B3 must **supply the
+  headerSource** so wrong-chain / orphan headers reject. *[cited].* Test:
+  orphan-but-valid-PoW header ⇒ reject only with headerSource.
 - **E-BI3 — producers MUST emit `bitcoinInclusion`.** Closes the STATUS gap.
-  *[candidate-stays — proposed B3 rule].* Test: a bundle missing it is
-  structurally valid but **not** Bitcoin-settled.
+  *[candidate-stays — proposed B3 rule].*
 
-### Accumulator membership — D-AM (FREE)
-- **E-AM1 — membership verifies against the anchored root** via
-  `verifyAccumulatorMembership`. *[cited].*
-- **E-AM2 — insertion-unique, commuting inserts** (the basis for
-  order-independent merge). *[cited].*
-- **E-AM3 — non-membership / wrong-root fails.** *[cited].* Test: proof against
-  a sibling root ⇒ reject.
+### Accumulator membership — D-AM
+- **E-AM1 — membership verifies against the anchored root** (`verifyAccumulator-
+  Membership`). *[cited].* **E-AM2 — insertion-unique, commuting inserts.**
+  *[cited].* **E-AM3 — non-membership / wrong-root fails.** *[cited].*
 
 ### Served-bytes witness — D-SB
-- **E-SB1 — root reconstruction binds to the anchor (FREE).** Re-hash served
-  leaves, reconstruct the root under `batchSize`, compare byte-identical to
-  `anchoredRoot`; bound to THIS anchor. *[ratified: da-windows (#49) S3/S4;
-  D8].* Test: one flipped leaf byte ⇒ mismatch ⇒ reject; witness for anchor A vs
-  anchor B ⇒ reject.
-- **E-SB2 — `firstServableHeight` must be verifier-checkable, not attested
-  (GATED: PR-1).** B2 reads `firstServableHeight` opaquely and does **not** prove
-  it; the witness shape that makes servability independently checkable is PR-1.
-  Until PR-1, B3 must not ship a witness that lets a producer assert the height.
-  *[GATED: PR-1 — §5.2].* Required negative test: a **forged-early
-  `firstServableHeight`** / producer-attested servability **rejects** — this is
-  the "trust me, I saw it" field we must kill (CL finding 2).
-- **E-SB3 — wrong-anchor binding fails closed.** Root / `batchSize` / anchor
-  mismatch ⇒ NOT includable / NOT priority. *[ratified: D4 fail-closed].*
-- **E-SB4 — withholding cannot be faked.** No bytes by the deadline ⇒ no valid
-  witness; the kernel fails closed. *[cited: DA_MARKER_FOLD.md §6c].* Test
-  (§4.1): withhold ⇒ fail closed.
-- **E-SB5 — no clock / receipt time / endpoint identity as authority.** Only the
-  anchor's current-chain mined height may enter. *[cited: `da-verdict.ts`
-  D2/D3].* Test: a receipt-timestamp / endpoint-id field is never used to satisfy
-  a deadline.
+- **E-SB1 — root reconstruction binds to the anchor.** Re-hash served leaves,
+  reconstruct under `batchSize`, compare byte-identical to `anchoredRoot`; bound
+  to THIS anchor. *[ratified: #49 S3/S4; #51 (i)].*
+- **E-SB2 — independently verifiable, no submitter trust (#51).** The witness +
+  confirmed-chain facts alone must determine a single first-servable height
+  comparable to `h+W`; **no producer-attested height, no external I/O** (#51
+  (ii)+(iii)). The concrete byte layout is the B3 deliverable. *[ratified: #51].*
+  Required negative: a **forged independently-verifiable first-servable proof**
+  (and any producer-attested servability) **rejects** — the "trust me, I saw it"
+  kill.
+- **E-SB3 — wrong-anchor binding fails closed.** *[ratified: #51 (i); D4].*
+  **E-SB4 — withholding ⇒ no valid witness ⇒ fail closed.** *[cited: §6c].*
+  **E-SB5 — no clock / receipt time / endpoint identity as authority.**
+  *[ratified: #51 (iii); `da-verdict.ts` D3].*
 
-### Recovery descriptor-head witness — D-RC (FREE; §3c half)
-- **E-RC1 — verifier-checkable descriptor witness.** B3 attests the name's armed
-  descriptor-v2 head was witnessed by `h_r+W_r` (`W_r` launch-freeze,
-  `1 ≤ W_r ≤ challengeWindowBlocks`); B2's `acceptRecoverOwner` consumes
+### Recovery descriptor-head witness — D-RC
+- **E-RC1 — verifier-checkable descriptor witness.** Armed descriptor-v2 head
+  witnessed by `h_r+W_r`; B2's `acceptRecoverOwner` consumes
   `{ kind: "b3-verified-recovery-descriptor-witness", witnessedByHeight }` and
-  **remains the decider** (R2–R8 stay in the kernel). *[ratified: recovery-auth
-  (#50-b1); §3c].*
-- **E-RC2 — fail closed on late/absent/unverified evidence.** *[ratified: §3c].*
-  Test: witness at `h_r+W_r+1` ⇒ no authorization; a descriptor witnessed from an
-  **old ownership interval** (R4) ⇒ reject.
+  **remains the decider**. `h_r+W_r` is the **whole** descriptor-authorization
+  evidence deadline. *[ratified: #50-b1 / §3c].*
+- **E-RC2 — fail closed** on late/absent/unverified evidence; a descriptor from
+  an **old ownership interval** (R4) rejects. *[ratified: §3c].*
 - **E-RC3 — §8.3 BIP322 wallet proof is non-authorizing corroboration.** No
-  witnessing deadline; cannot block or substitute for the descriptor evidence.
-  *[cited: `recovery-invoke-authority.ts`].*
-- **E-RC4 — bond-spend / qualifying-successor evidence (R11) rides PR-34
-  (GATED).** The invoke's bond-spend + successor + outpoint-conflict mechanics
-  are a second evidence surface not settled by the §3c descriptor witness.
-  *[GATED: PR-34 — §5.6].*
+  deadline; cannot block/substitute. *[cited].*
+- *Note:* the R11 bond-spend / qualifying-successor / outpoint-conflict surface is
+  **deliberately excluded from `acceptRecoverOwner`** (`recovery-invoke-
+  authority.ts:34-40`), so it is **not** a second descriptor witness; it is a
+  separate recovery chain-fact witness (D-RB), conforming to ratified PR-34.
 
-### Bond-continuity / release facts — D-BC (FREE witness side)
-- **E-BC1 — witness the Bitcoin-derived bond-spend / release facts only.** B3
-  surfaces the spend facts `reopen-resolution.ts` consumes; the latest-release-
-  height **derivation and re-auction rule stay in the kernel**. *[cited:
-  `reopen-resolution.ts`; #41/#79].* Test: a fabricated release fact not backed
-  by an on-chain spend ⇒ rejected before the kernel sees it.
+### Bond-continuity / release facts — D-BC
+- **E-BC1 — witness the Bitcoin-derived bond-spend / release facts only**; the
+  latest-release-height **derivation + re-auction rule stay in the kernel**.
+  *[ratified: #56].* Test: a fabricated release fact with no on-chain spend ⇒
+  rejected before the kernel sees it.
 
-### Completeness witness — D-CW (GATED: T2-neg-02 — §5.5)
+### Completeness witness — D-CW
 - **E-CW1 — verifier-checkable completeness over a Bitcoin-derived range.** The
   counted-bid set is provably complete over the lot's block/soft-close range,
-  range **derived from Bitcoin-witnessed heights**, checkable without trusting
-  the producer. *[GATED: T2-neg-02 — §5.5].*
+  range **derived from Bitcoin-witnessed heights**. The boundary semantics are
+  ratified (PR-19 / PR-29, #66); the concrete witness format + range encoding is
+  the B3 deliverable (T2-neg-02). *[ratified: PR-19/PR-29; format = B3].*
 - **E-CW2 — producer-assertion is never trusted.** *[ratified: T2 / canon Item 4].*
-- **E-CW3 — hide-then-reveal governed by the range rule**, not retroactive
-  decertification. *[GATED: T2-neg-02 — §5.5].*
+- **E-CW3 — hide-then-reveal governed by the ratified range rule**, not
+  retroactive decertification. *[ratified: PR-19/PR-29].*
 
-### Canonical-root derivation — D-CV (GATED: PR-3·5·9·16 + Model B — §5.3)
-*All E-CV invariants are **B3-implements-after-ruling**; listed for completeness.*
-- **E-CV1 — Model B leaderless merge is canonical; Model A retires.** *[GATED:
-  §5.3].*
-- **E-CV2 — order-independent convergence** (same canonical root, any order).
-  *[cited: convergence doc; proven in `da-convergence-sim.test.ts` — productionize
-  after the rulings].*
-- **E-CV3 — same-leaf conflict = first-writer-wins primitive, fed to the kernel's
-  notice-window policy** (`runBatchRail`, not raw `mergeBlock`). *[GATED: §5.3].*
-- **E-CV4 — a malicious delta cannot unseat a finalized name or fork the root.**
-  *[cited: convergence adversary analysis].* Test (§4.1).
+### Canonical-root derivation — D-CV
+*Conforms to ratified linkage/order rules; "Model B" (leaderless delta-merge) is
+the ratified mechanism (#53 names delta-merge) — "retiring Model A" is a B3
+implementation cleanup (mine the Model-B sim, quarantine the rest), not a
+consensus decision.*
+- **E-CV1 — `prevRoot` = K-deep confirmed root `R_{h−K}`** (delta-merge), not the
+  tip; ineligible anchors consume no position; `prevRoot==newRoot` rejects.
+  *[ratified: #53].*
+- **E-CV2 — one valid RootAnchor per tx; same-block apply order
+  `(height, tx-index, vout)`, skip-bad.** *[ratified: #54, #55].*
+- **E-CV3 — earliest VALID anchor governs** the deadline clock + proof-bundle
+  txid; post-exclusion re-anchor starts a fresh window. *[ratified: PR-5 (#66)].*
+- **E-CV4 — reorg ⇒ re-derive from the current best chain**; no first-seen /
+  old-chain height as authority. *[ratified: PR-9 (#66); #49 S1].* Test: witness
+  valid pre-reorg whose anchor is reorged out re-derives to invalid.
+- **E-CV5 — order-independent convergence** (same canonical root, any processing
+  order); a malicious delta cannot unseat a finalized name. *[cited: convergence
+  doc; proven in `da-convergence-sim.test.ts`].* Test (§4.1).
 
-### Gate-fee economic evidence — D-GF (GATED: g(name) + PR-2 — §5.4)
-- **E-GF1 — prevout/intrinsic-fee witness + Σ g over the committed leaf set.** B3
-  witnesses the actual fee from the Bitcoin tx and reconciles it against the
-  committed batch; the **g(name) schedule and amount-adequacy verdict** are the
-  ruling. *[GATED: g(name) schedule + PR-2 Σg granularity — §5.4].* Negative:
-  a **self-declared Σg** (not derived from committed leaves) rejects.
+### Gate-fee fact witness — D-GF
+- **E-GF1 — prevout/intrinsic-fee witness + Σ g over the FULL committed leaf
+  set.** B3 witnesses the actual tx fee and reconciles it against the full
+  committed set (**dropped leaves still count in Σ g**, #52); a leaf-level
+  malformed leaf drops only itself (#52). The `g(name)` *schedule* (the amount
+  basis) is launch-freeze (§5). *[ratified: #52].* Negative: a **self-declared Σ
+  g** not derived from committed leaves rejects; missing prevout fee witness ⇒
+  fail closed.
 
-### Cross-cutting (the §1 contract, made executable)
+### Cross-cutting (the §1 contract)
 - **E-ND1 — swapping evidence cannot make the kernel accept** (forged ⇒
-  fail-closed, identical to no-witness). *[ratified: canon B3 gate].* Test: §4.2.
-- **E-ND2 — zero ownership logic in B3** (no claim-gate / auction / transfer /
-  recovery *decision*); enforced by a quarantine-style import + surface test.
-  *[ratified: canon L3 "non-deciding"].*
-- **E-ND3 — transport affects liveness, not integrity.** Which endpoint served
-  bytes, over what protocol, changes *whether* a witness is gathered, never
-  *what* it proves. A "trust me, I saw it" field is a bug, not a witness.
-  *[ratified: §1 contract; `da-verdict.ts` S4].*
-- **E-ND4 — reorg ⇒ re-derive from current-chain mined heights** (no first-seen /
-  local height as authority). *[cited: da-windows (#49) S1; PR-9].* Test: a
-  witness valid pre-reorg whose anchor is reorged out re-derives to invalid.
+  fail-closed ≡ no-witness; missing valid evidence may reject — by design).
+  *[ratified: canon B3 gate].* Test: §4.2.
+- **E-ND2 — zero ownership logic in B3** (quarantine-style import + surface test).
+  *[ratified: canon L3].*
+- **E-ND3 — transport affects liveness, not integrity** ("trust me, I saw it" is
+  a bug). *[ratified: §1; `da-verdict.ts` S4].*
+- **E-ND4 — reorg ⇒ re-derive from current-chain mined heights.** *[ratified:
+  PR-9; #49 S1].*
 
 ## §4 — The adversarial gate
 
-### §4.1 Convergence attack battery (production tests vs the B2 kernel)
-1. **Withholding** ⇒ kernel fails closed. (E-SB4)
-2. **Hide-then-reveal** (late bytes / late bid) ⇒ no retroactive priority or
-   decertification. (E-SB4 / E-CW3)
-3. **Multi-publisher merge** ⇒ one canonical root; a malicious delta cannot
-   unseat a finalized name. (E-CV2 / E-CV4 — after §5.3 rulings)
+### §4.1 Convergence attack battery (vs the B2 kernel)
+1. **Withholding** ⇒ fail closed (E-SB4). 2. **Hide-then-reveal** ⇒ no
+retroactive priority/decertification (E-SB4 / E-CW3). 3. **Multi-publisher merge**
+⇒ one canonical root; a malicious delta cannot unseat a finalized name (E-CV5).
 
-### §4.2 Hostile-evidence battery (the §1 contract)
-Each forged witness must produce exactly the no-witness, fail-closed outcome:
-- forged-early `firstServableHeight` / producer-attested servability;
-- wrong-chain / orphan block header;
+### §4.2 Hostile-evidence battery (forged ≡ no-witness, fail-closed)
+- forged independently-verifiable `firstServableHeight` / producer-attested
+  servability;
+- wrong-chain / orphan block header (with headerSource);
 - stale pre-reorg anchor height;
-- missing prevout fee witness; self-declared Σg;
+- missing prevout fee witness; self-declared Σ g;
 - recovery descriptor evidence from an **old ownership interval**;
-- (once DK rules) canonical-root PR-3 / PR-5 / PR-9 / PR-16 cases.
+- fabricated bond-break / release fact with no on-chain spend.
 
 ### §4.3 Scale
-Measure issuance throughput / proof sizes at target batch sizes; update **R11**
-in [RISKS.md](../RISKS.md). *(Numbers, not a correctness gate.)*
+Measure issuance throughput / proof sizes; update **R11** in
+[RISKS.md](../RISKS.md). *(Numbers, not a correctness gate.)*
 
-## §5 — Open decisions parked for DK (recommendations; DK rules)
+## §5 — The one parked item: `g(name)` gate-fee schedule (launch-freeze)
 
-The B3 decision docket. Drafted decision-ready; **not** agent-decided. The FREE
-deliverables (§2) proceed without these; the GATED ones wait.
+There is **no open consensus decision blocking B3** — #51–#56 and the #66
+spec-PR-matrix ratification cleared the docket. The single non-construction item:
 
-### §5.1 PR-2 — DA verdict granularity table (conflict C5)
-Disposition per failure class. Fee → whole-batch and DA-deadline → whole-batch
-are recorded; the **open fork is leaf-level commitment / well-formedness:
-per-leaf-drop vs batch-poison** (ruleIds D4, D8, A4, A6, B9). C6 (leaf =
-`H(ownerPubkey)`) reads settled by commitment-match (#52) [**CL: confirm tier**].
-**Open sub-question (CL):** do dropped leaves still count in Σ g? The registry
-text says "Σ gᵢ over the full committed set regardless of drops"; a per-leaf-drop
-reading would exclude them — **these conflict; DK must pick.** **Rec:**
-per-leaf-drop for malformedness, Σ g over the *surviving* committed set (flag the
-registry-text tension). Packet: [`B2_SPEC_PR_PACKETS.md`](./B2_SPEC_PR_PACKETS.md)
-PR-2 — ruling makeable now; only the concrete bytes are B3-gated.
+- **`g(name)` fee schedule.** B2 left the fee-amount adequacy basis (the `g(name)`
+  schedule numbers, `fee ≥ Σ g`) to downstream (`gate-fee.ts`; DECISIONS #62;
+  return-queue F1/F2/F3). These are **launch-freeze parameters**, not B3
+  consensus rules: B3 supplies the witnessed fee *fact* (D-GF / E-GF1, conforming
+  to #52's full-committed-set basis); the *numbers* freeze with the other launch
+  parameters (W/C/K, `W_r`, bond curve). **Recommendation:** route `g(name)` to
+  the launch-parameter freeze; do not block B3 construction on it.
 
-### §5.2 PR-1 — served-evidence verifier-checkable witness shape *(new — CL finding 2)*
-B2 consumes `firstServableHeight` opaquely and does not prove it; the DA docs
-mark the served-evidence definition the hard half still open. **Rec:** a witness
-shape that re-derives servability from on-chain + served-bytes facts (challenge
-response by `h+W+C`), with **no producer-attested height** admissible. Until
-ruled, D-SB ships only the binding/reconstruction half (E-SB1).
-
-### §5.3 Canonical-root cluster — PR-3 + PR-5 + PR-9 + PR-16 + Model B *(new — CL finding 1)*
-One decision packet, because each changes *which root is canonical* (kernel law):
-PR-3 root-chain transition / `prevRoot`-anchor identity; PR-5 first-anchor-wins =
-earliest-VALID-anchor; PR-9 reorg re-derivation + replay determinism; PR-16
-intra-block / intra-tx total order; plus ratifying **Model B** (leaderless merge)
-and retiring Model A. **Rec:** ratify Model B + PR-3/5/9/16 together; B's
-convergence is already proven in sim. D-CV implements only after this packet.
-
-### §5.4 Gate-fee economics — g(name) schedule + amount-adequacy *(new — CL finding 4)*
-B2 left fee-amount adequacy, the `g(name)` schedule, and batchSize-vs-leaf-count
-reconciliation to downstream (`gate-fee.ts`; DECISIONS #62; return-queue F1/F2/F3
-ride `g(name)` deferred to B3). **Split:** the fee-*fact* witness (prevout fee, Σ
-over committed leaves, N-source) is B3 (D-GF); the **`g(name)` schedule + adequacy
-verdict is a launch-freeze parameter + spec ruling** (not pure evidence). **Rec:**
-route `g(name)` to the launch-parameter freeze; B3 supplies only the witnessed
-fee fact. Do not let it fall between B2 and B3.
-
-### §5.5 T2-neg-02 — completeness-witness format + soft-close range
-The concrete witness format + the lot's block/soft-close range (the one vector B2
-deferred). **Under-specified points to settle (CL):** which anchor pins the range
-(opening vs reopen lot); how soft-close extensions move the terminal height; how
-same-block bids at the boundary are included; what reorg depth makes the range
-stable. **Rec:** a closed block interval pinned by the lot's opening anchor,
-terminal height advanced by each soft-close extension, boundary same-block bids
-included, range stable at the PR-9 reorg depth. Needs a named spec PR.
-
-### §5.6 PR-34 — recovery bond-spend / qualifying-successor evidence
-The R11 bond-spend + successor + outpoint-conflict surface (E-RC4) is a second
-recovery evidence stream not settled by the §3c descriptor witness. **Rec:** rule
-PR-34 (and PR-33 descriptor-chain) so D-RC's bond-spend half can be specified; the
-§3c descriptor-head half (E-RC1–RC3) proceeds now.
+Should any genuinely new consensus question surface mid-build, it parks for DK
+under the standing rule — but none is open today.
 
 ## §6 — Mining map (existing code → deliverable)
 | Existing | Mineable into |
 | --- | --- |
-| `packages/bitcoin` (Merkle+PoW verifier, tested vs mainnet) | D-BI — harden + close the emit gap (E-BI3) |
-| `@ont/protocol/accumulator-membership.ts` | D-AM — membership primitive; build the construction side |
-| `packages/core/src/research/{delta-merge-sim,da-convergence-sim}.ts` + tests | D-CV — productionize Model B **after §5.3** |
+| `packages/bitcoin` (Merkle+PoW verifier, tested vs mainnet) | D-BI — harden; supply headerSource (E-BI2); close emit gap (E-BI3) |
+| `@ont/protocol/accumulator-membership.ts` | D-AM |
+| `packages/core/src/research/{delta-merge-sim,da-convergence-sim}.ts` + tests | D-CV — productionize the ratified delta-merge; quarantine Model A |
 | `apps/resolver` `runBatchRail`/`mergeBlock` | D-CV — canonical-root derivation the resolver never wired |
-| `@ont/consensus/proof-bundle.ts` `verifyProofBundleStructure` | D-PB — structural contract B3 assembles to |
-| `recovery-descriptor.ts` (B1) + `docs/research/RECOVERY_EVIDENCE_TIMING.md` | D-RC — descriptor-head witness |
-| `gate-fee.ts` + the fee-fact-eligibility (#81) selection | D-GF — fee-fact witness (schedule is launch-param, §5.4) |
+| `@ont/consensus/proof-bundle.ts` | D-PB |
+| `recovery-descriptor.ts` (B1) + `docs/research/RECOVERY_EVIDENCE_TIMING.md` | D-RC |
+| `gate-fee.ts` + fee-fact-eligibility (#81) | D-GF (schedule is launch-freeze, §5) |
 
 ## §7 — Carry-forwards
 - **T2-neg-02** (soft-close completeness range): the one required vector B2
-  deferred — lands via §5.5 + E-CW1/CW3.
+  deferred — lands via D-CW (conform to ratified PR-19/PR-29; format is B3).
 - **`bitcoinInclusion` emit gap** (STATUS "Prototype"): closed by E-BI3.
 - **`batch-rail.ts` re-key to bond-opens (#37)** before the resolver consumes it.
 
 ## §8 — Review record
-- **Round 1 (ChatLunatique, `65750eb`).** Mechanical gates clean; 4 decomposition
-  blockers + 2 edits. (1) canonical-root merge in-scope while its rulings unparked
-  → split FREE/GATED, PR-3·5·9·16 + Model B to §5.3, E-CV downgraded. (2) E-SB4
-  overclaimed the served-bytes witness → PR-1 gate + forged-early-height negative
-  (E-SB2). (3) recovery descriptor evidence missing from §2 → D-RC/E-RC (added in
-  rev 2). (4) gate-fee `g(name)` evidence missing → D-GF + §5.4. (5) D-CV
-  mis-traced to `reopen-resolution` → split out D-BC. (6) "no verdict changes"
-  imprecise → §1 reworded. §5 recs + §4 battery expanded per the round-1 gate bar.
+- **Round 1 (CL, `65750eb`).** 4 decomposition blockers + 2 edits → rev 2/3:
+  D-RC added; gate-fee D-GF added; D-CV/reopen mis-trace split out as D-BC; §1
+  wording fixed; FREE/GATED split introduced.
+- **Round 2 (CL, `2dee8a1`).** Established the rulings I had parked are **already
+  ratified**: #51 served-evidence-interface (PR-1), #52 commitment-match (PR-2:
+  leaf=`H(ownerPubkey)`, per-leaf-drop, Σ g over full set), #53 root-chain-linkage
+  (PR-3), #55 same-block-order (PR-16), and the #66 ratification of PR-5..36
+  (incl. PR-5 earliest-valid, PR-9 reorg, PR-34 recovery bond-spend). Rev 4:
+  collapsed every GATED item to FREE-conforming-to-ratified-rule; deleted the §5
+  decision docket down to the lone `g(name)` launch-freeze parameter; fixed
+  E-BI1 (split canonical-header-source into E-BI2); retagged E-SB to #51 with the
+  forge-the-verifiable-proof negative; clarified R11 is excluded from D-RC.
