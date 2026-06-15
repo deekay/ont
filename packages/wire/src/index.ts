@@ -376,13 +376,23 @@ export const verifyValueRecord = (e: Record<string, unknown>): boolean =>
 
 // §8.2 recovery descriptor
 export const RECOVERY_DESCRIPTOR_FORMAT = "ont-recovery-descriptor";
-export const RECOVERY_DESCRIPTOR_VERSION = 1;
+export const RECOVERY_DESCRIPTOR_VERSION_V1 = 1;
+export const RECOVERY_DESCRIPTOR_VERSION_V2 = 2;
+export const RECOVERY_DESCRIPTOR_INVOKABLE_VERSION = RECOVERY_DESCRIPTOR_VERSION_V2;
+export const RECOVERY_DESCRIPTOR_VERSION = RECOVERY_DESCRIPTOR_VERSION_V1;
 const RD_REQUIRED = ["format", "descriptorVersion", "name", "ownerPubkey", "ownershipRef", "sequence",
   "previousDescriptorHash", "recoveryAddress", "signingProfile", "challengeWindowBlocks", "issuedAt", "signature"];
+const RD_OPTIONAL = ["recoveryPubkey"];
 const PROFILE_GRAMMAR = /^[a-z0-9._-]{1,32}$/;
 export const normalizeSigningProfile = (s: string): string => s.trim().toLowerCase();
+const recoveryDescriptorVersion = (e: Record<string, unknown>): number => {
+  if (e.descriptorVersion === RECOVERY_DESCRIPTOR_VERSION_V1) return RECOVERY_DESCRIPTOR_VERSION_V1;
+  if (e.descriptorVersion === RECOVERY_DESCRIPTOR_VERSION_V2) return RECOVERY_DESCRIPTOR_VERSION_V2;
+  return reject("descriptorVersion must be exactly 1 or 2 (§8.2/§8.2a)");
+};
 export function recoveryDescriptorDigest(e: Record<string, unknown>): Uint8Array {
-  return sha256(concat(lenPrefix(RECOVERY_DESCRIPTOR_FORMAT), Uint8Array.of(RECOVERY_DESCRIPTOR_VERSION),
+  const version = recoveryDescriptorVersion(e);
+  const base = concat(lenPrefix(RECOVERY_DESCRIPTOR_FORMAT), Uint8Array.of(version),
     lenPrefix(str(e, "name")), hexToBytes(checkHex32(e.ownerPubkey, "ownerPubkey")),
     hexToBytes(checkHex32(e.ownershipRef, "ownershipRef")), u64(BigInt(safeInt(e, "sequence"))),
     nullFlag(e.previousDescriptorHash == null ? null : hexToBytes(checkHex32(e.previousDescriptorHash, "previousDescriptorHash"))),
@@ -390,12 +400,18 @@ export function recoveryDescriptorDigest(e: Record<string, unknown>): Uint8Array
     // §8.2 never-diverge: the profile enters the digest NORMALIZED — the hash
     // is referenced on-chain and must not vary with JSON rendering.
     lenPrefix(normalizeSigningProfile(str(e, "signingProfile"))),
-    u32(checkU32(e.challengeWindowBlocks, "challengeWindowBlocks")), lenPrefix(str(e, "issuedAt"))));
+    u32(checkU32(e.challengeWindowBlocks, "challengeWindowBlocks")), lenPrefix(str(e, "issuedAt")));
+  return sha256(version === RECOVERY_DESCRIPTOR_VERSION_V2
+    ? concat(base, hexToBytes(checkHex32(e.recoveryPubkey, "recoveryPubkey")))
+    : base);
 }
 export function parseRecoveryDescriptor(json: string): Record<string, unknown> {
-  const e = parseClosedEnvelope(json, RD_REQUIRED, []);
+  const e = parseClosedEnvelope(json, RD_REQUIRED, RD_OPTIONAL);
   if (e.format !== RECOVERY_DESCRIPTOR_FORMAT) reject("format must match exactly (§8.2)");
-  if (e.descriptorVersion !== RECOVERY_DESCRIPTOR_VERSION) reject("descriptorVersion must be exactly 1 (§8.2)");
+  const version = recoveryDescriptorVersion(e);
+  if (version === RECOVERY_DESCRIPTOR_VERSION_V1 && "recoveryPubkey" in e)
+    reject("recoveryPubkey is only valid on descriptorVersion 2 (§8.2a)");
+  if (version === RECOVERY_DESCRIPTOR_VERSION_V2) checkHex32(e.recoveryPubkey, "recoveryPubkey");
   if (!isCanonicalName(str(e, "name"))) reject("non-canonical name");
   const profile = normalizeSigningProfile(str(e, "signingProfile"));
   if (!PROFILE_GRAMMAR.test(profile)) reject("signingProfile fails grammar [a-z0-9._-]{1,32} (§8.2)");

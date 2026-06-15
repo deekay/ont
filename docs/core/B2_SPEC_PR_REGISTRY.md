@@ -114,9 +114,9 @@ Priority legend: **P0** = blocks B2 vector authoring now (a kernel predicate can
 
 #### PR-13. Kernel-wide window-boundary convention (conflict C9, non-DA windows)
 
-**Flags (2):** F12-01, T6-02
+**Flags (6):** A13-01, B2-01, B6-02, B20-01, F12-01, T6-02
 - **Scope:** Define ONE half-open-interval (or inclusive, per #49 S2) convention in the shared-definitions section and apply it to every non-DA window not covered by #49 S2 — notice-window close, collision window, bond-landing `h+W_notice`, auction close, soft-close, maturity — with edge−1/edge/edge+1 vectors for each. (#49 S2 already pins the DA `h+W` / `h+W+C` half; this extends that convention kernel-wide.)
-- **Unblocks ruleIds:** A13, B2, F12, T6, B20 (non-DA boundary halves).
+- **Unblocks ruleIds:** A13, B2, B6, F12, T6, B20 (non-DA boundary halves; A13-01/B2-01/B6-02/B20-01 are the now-spec-blocked flags listed above, reclassified from #49-provisional in the 2026-06-14 batch-1 review).
 - **Blocking dependency:** New named spec decision; partly leverages #49 S2 (DA half already ruled). The maturity instance overlaps PR-12; the auction-close instance overlaps PR-19.
 - **Priority:** P1.
 
@@ -148,7 +148,7 @@ Priority legend: **P0** = blocks B2 vector authoring now (a kernel predicate can
 
 **Flags (6):** R4-01, X4-01, X4-02, X5-01, X12-01, X12-02
 - **Scope:** Define "name state head" (= txid of the most recent applied state-changing event) and "ownership interval reference" (= head value at the most recent interval-opening event), enumerate exhaustively which events advance the head vs open intervals, require `prevStateTxid == head` as the Transfer target selector, and forbid two names sharing a head (or define a deterministic selector). Define a per-name-unique initial head for batched-final names (name-disambiguated derivation from the shared anchor txid, or a wire change adding name binding to Transfer) so the first transfer of a batched name is deterministic.
-- **Unblocks ruleIds:** X4, X12, R4 (interval/ownershipRef definition), and the descriptor-interval-binding consumers (see PR-22).
+- **Unblocks ruleIds:** X4, X12, R4 (interval/ownershipRef definition), and the descriptor-interval-binding consumers (see PR-22); **+ the recovery interval-opening facet (V2/V5/V13: does the recovery interval open at invocation vs challenge-window close, fixing which owner key/ref is current mid-recovery) — reclassified here 2026-06-14 after #50-b1 was found not to rule it.**
 - **Blocking dependency:** New named state-head spec decision. The invoke-advances-head facet stays parameterized on #50.
 - **Priority:** P1 (X12 is unsatisfiable for the batched path until the initial head is defined).
 
@@ -284,7 +284,7 @@ Priority legend: **P0** = blocks B2 vector authoring now (a kernel predicate can
 
 **Flags (10):** R8-01, R11-01, R12-01, R13-01, R15-01, R16-01, R16-02, R19-01, G6-01, G6-03
 - **Scope:** State the RecoverOwner transaction-shape acceptance predicate (whether `output[successorBondVout].scriptPubKey` MUST equal the descriptor's `recoveryAddress`; bond-value thresholds cross-ref S*); whether the proof's `chainTip` fields carry kernel meaning or are explicitly advisory; the recovery-evidence observation/timing rule (by when, relative to invoke's mined height, descriptor + corroborating proof must be served/witnessed — the recovery analogue of the DA served-bytes window: define `h_r`, witnessing window `W_r`, inclusive boundary, and the `W_r ≤ challengeWindowBlocks` validity constraint so a recovery cannot finalize before its evidence deadline); single-pendingRecovery as a rule with second-invoke semantics (ignored vs supersedes) and owner-transfer-vs-invoke ordering during pendingRecovery; the maturity boundary for invocation and window/maturity-straddle resolution; the RecoverOwner `flags`-bit registry (assign the CANCEL bit, e.g. 0x01, wire-normative); and the cancel-binding acceptance predicate (exact field-equality set incl. whether `successorBondVout` is included, `prevStateTxid` = the open pendingRecovery request txid not a state txid, strict-before-deadline boundary).
-- **Unblocks ruleIds:** R8, R11 (transaction-shape half), R12, R13, R15, R16 (both flags), R19, and the recovery-evidence half of G6 (the #50-only finalization half is Part B).
+- **Unblocks ruleIds:** R8, R11 (transaction-shape half), R12, R13, R15, R16 (both flags), R19, and the recovery-evidence half of G6 (the #50-only finalization half is Part B); **+ X13 transfer-vs-recovery precedence during pendingRecovery — reclassified here 2026-06-14 after #50-b1 was found not to rule it.**
 - **Blocking dependency:** New named recovery spec decision; several facets reference **#50 (recovery-auth)** for the signer but the transaction-shape/timing/flags/cancel-binding rules are derivable once stated. The §8.2/§8.3 amendments land at #50 ratification.
 - **Priority:** P1.
 
@@ -311,12 +311,12 @@ Priority legend: **P0** = blocks B2 vector authoring now (a kernel predicate can
 These flags ARE derivable under a live provisional decision; they are not spec-blocked. They become conformance vectors with `authorityTier: provisional`, the named `decisionDeps`, and a `flipMarker` recording what the vector becomes if DK rules the other way. Listed here (not as PRs) because they cannot lock until DK ratifies #49 / #50.
 
 #### Group #49 — da-windows (K/W/C window algebra; flip if DK reverses S1–S6 / re-parameterizes)
-- **Flags:** A3, A11, A13, D3 (both flags), D6, D9, D12, D13, F9, F11, T17, T18, B1, B2, B3, B4, B6, B10, B20, Z4, Z9, Z13, and the #49 half of G6.
+- **Flags:** A3, A11, D3 (both flags), D6, D9, D12, D13, F9, F11, T17, T18, B1, B3, B4, B10, Z4, Z9, Z13, and the #49 half of G6. (A13, B2, B6, B20 — the non-DA boundary halves — were reclassified to spec-blocked/PR-13 in the 2026-06-14 batch-1 review; they are not #49-provisional.)
 - **decisionDeps:** `da-windows (#49)`.
-- **flipMarker semantics:** if DK reverses to the weak `W ≤ K` form, the include-then-retract negatives (D9, Z13) flip to accept; if the inclusive-deadline S2 convention is reversed to half-open, the boundary-exact vectors (A13, D3, D13, B2, B6, B20, T18) flip their edge verdict; if (K,W,C) re-parameterize, the placeholder-(6,2,3) values (D12) re-instantiate (two-parameterization vectors guard against a baked-in constant).
+- **flipMarker semantics:** if DK reverses to the weak `W ≤ K` form, the include-then-retract negatives (D9, Z13) flip to accept; if the inclusive-deadline S2 convention is reversed to half-open, the DA-boundary-exact vectors (D3, D13, T18) flip their edge verdict; if (K,W,C) re-parameterize, the placeholder-(6,2,3) values (D12) re-instantiate (two-parameterization vectors guard against a baked-in constant).
 
 #### Group #50 — recovery-auth (fresh BIP340 recovery-key under v2 descriptor; standing counter-design b2h)
-- **Flags:** T19, V2 (current-owner-key-mid-recovery facet), V5, V13 (current-owner-key facet), R7, R9, R10 (both flags), X13, and the #50 half of G6.
+- **Flags:** T19, R7, R9, R10 (both flags), and the #50 half of G6. *(2026-06-14: V2/V5/V13 [the interval-opening axis — does the recovery interval open at invocation vs challenge-window close, fixing which owner key/ref is current mid-recovery] and X13 [transfer-vs-recovery precedence] were reclassified provisional-vector → spec-blocked after #50 ratified b1: b1 rules signer/evidence shape ONLY, not those axes. Routed to PR-17 [V2/V5/V13] and PR-34 [X13].)*
 - **decisionDeps:** `recovery-auth (#50)`.
-- **flipMarker semantics:** if DK flips to b2h (cold-hardware / BIP322-evidence custody), the signer-identity vectors flip — the on-chain `signature` is then verified BIP322-by-recovery-address (R9/R10) rather than BIP340-by-`recoveryPubkey`; the descriptor-v2 `recoveryPubkey` requirement (R7) and the wallet-proof demotion-to-corroboration (R8 in Part A is the advisory-chainTip half) re-engage as authorizing under b2h; X13's thief-transfers-away-to-void interaction re-evaluates under whichever cancel/authorization predicate b2h pins; the "current owner key mid-recovery" definition (V2/V13) flips to whatever interval-opening b2h chooses (invoke vs challenge-window-close).
+- **flipMarker semantics:** if DK flips to b2h (cold-hardware / BIP322-evidence custody), the signer-identity vectors flip — the on-chain `signature` is then verified BIP322-by-recovery-address (R9/R10) rather than BIP340-by-`recoveryPubkey`; the descriptor-v2 `recoveryPubkey` requirement (R7) and the wallet-proof demotion-to-corroboration (R8 in Part A is the advisory-chainTip half) re-engage as authorizing under b2h. *(V2/V5/V13 interval-opening and X13 transfer-precedence are no longer in this group — reclassified to PR-17 / PR-34 on 2026-06-14, since #50-b1 rules only the signer/evidence shape.)*
 

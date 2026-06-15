@@ -117,7 +117,8 @@ const descriptorDigest = (d) =>
     lenPrefix(d.name), fromHex(d.ownerPubkey), fromHex(d.ownershipRef), u64(d.sequence),
     nullFlag(d.previousDescriptorHash == null ? null : fromHex(d.previousDescriptorHash)),
     lenPrefix(d.recoveryAddress), lenPrefix(d.signingProfile.trim().toLowerCase()),
-    u32(d.challengeWindowBlocks), lenPrefix(d.issuedAt)));
+    u32(d.challengeWindowBlocks), lenPrefix(d.issuedAt),
+    ...(d.descriptorVersion === 2 ? [fromHex(d.recoveryPubkey)] : [])));
 const proofMessage = (p) => {
   const chainTip = p.chainTipBlockHash == null || p.chainTipHeight == null
     ? "unspecified" : `${p.chainTipBlockHash}@${decimal(p.chainTipHeight)}`;
@@ -439,6 +440,27 @@ const rd = {
 };
 const rdDigest = descriptorDigest(rd);
 const rdSig = schnorr.sign(rdDigest, owners[0].priv, ZERO_AUX);
+const rdRecovery = { priv: fromHex("04".repeat(32)) };
+rdRecovery.pub = schnorr.getPublicKey(rdRecovery.priv);
+const rdWrongRecovery = { priv: fromHex("05".repeat(32)) };
+rdWrongRecovery.pub = schnorr.getPublicKey(rdWrongRecovery.priv);
+const rdV2 = { ...rd, descriptorVersion: 2, recoveryPubkey: hex(rdRecovery.pub) };
+const rdV2Digest = descriptorDigest(rdV2);
+const rdV2Sig = schnorr.sign(rdV2Digest, owners[0].priv, ZERO_AUX);
+const rdV2Invoke = { ...rc, recoveryDescriptorHash: rdV2Digest };
+const rdV2InvokeDigest = recoverDigest(rdV2Invoke);
+const rdV2InvokeSig = schnorr.sign(rdV2InvokeDigest, rdRecovery.priv, ZERO_AUX);
+const rdV2WrongPubkey = { ...rdV2, recoveryPubkey: hex(rdWrongRecovery.pub) };
+const rdV2WrongPubkeyDigest = descriptorDigest(rdV2WrongPubkey);
+const rdV2WrongPubkeySig = schnorr.sign(rdV2WrongPubkeyDigest, owners[0].priv, ZERO_AUX);
+const recoverFieldsJson = (f) => ({
+  prevStateTxid: hex(f.prevStateTxid),
+  newOwnerPubkey: hex(f.newOwnerPubkey),
+  flags: f.flags,
+  successorBondVout: f.successorBondVout,
+  challengeWindowBlocks: f.challengeWindowBlocks,
+  recoveryDescriptorHash: hex(f.recoveryDescriptorHash),
+});
 const descriptorFile = {
   spec: SPEC, section: "§8.2",
   vectors: [
@@ -457,9 +479,31 @@ const descriptorFile = {
     { id: "descriptor-reject-profile-too-long", kind: "reject",
       cite: "§8.2 signingProfile {1,32}",
       envelope: { ...rd, signingProfile: "a".repeat(33), signature: hex(rdSig) } },
-    { id: "descriptor-reject-version-2", kind: "reject",
-      cite: "§8.2 descriptorVersion must equal 1",
+    { id: "descriptor-v2-valid", kind: "valid",
+      cite: "§8.2a descriptorVersion 2 adds recoveryPubkey(32); v2 digest appends recoveryPubkey after issuedAt",
+      envelope: { ...rdV2, signature: hex(rdV2Sig) }, digest: hex(rdV2Digest),
+      signerXOnlyPubkey: hex(owners[0].pub), recoverySignerXOnlyPubkey: hex(rdRecovery.pub),
+      invoke: { fields: recoverFieldsJson(rdV2Invoke),
+        digest: hex(rdV2InvokeDigest), signature: hex(rdV2InvokeSig) },
+      note: "v2 owner-arming signature verifies against ownerPubkey; invoke signature verifies against recoveryPubkey" },
+    { id: "descriptor-v1-not-invokable", kind: "valid",
+      cite: "§8.2a: descriptorVersion 1 stays parse-valid wire but is not invokable (no recoveryPubkey)",
+      envelope: { ...rd, signature: hex(rdSig) }, digest: hex(rdDigest),
+      signerXOnlyPubkey: hex(owners[0].pub), invokable: false },
+    { id: "descriptor-v2-reject-missing-recovery-pubkey", kind: "reject",
+      cite: "§8.2a descriptorVersion 2 requires recoveryPubkey(32)",
       envelope: { ...rd, descriptorVersion: 2, signature: hex(rdSig) } },
+    { id: "descriptor-v2-reject-recovery-pubkey-not-hex32", kind: "reject",
+      cite: "§8.2a recoveryPubkey is 32-byte lowercase hex",
+      envelope: { ...rdV2, recoveryPubkey: "ff", signature: hex(rdV2Sig) } },
+    { id: "descriptor-v2-reject-wrong-recovery-pubkey-for-invoke", kind: "reject",
+      cite: "recovery-auth #50 b1 / §8.2a: invoke signature must verify against the descriptor's recoveryPubkey",
+      envelope: { ...rdV2WrongPubkey, signature: hex(rdV2WrongPubkeySig) },
+      digest: hex(rdV2WrongPubkeyDigest), signerXOnlyPubkey: hex(owners[0].pub),
+      invoke: { fields: recoverFieldsJson({ ...rdV2Invoke, recoveryDescriptorHash: rdV2WrongPubkeyDigest }),
+        digest: hex(recoverDigest({ ...rdV2Invoke, recoveryDescriptorHash: rdV2WrongPubkeyDigest })),
+        signature: hex(rdV2InvokeSig), signerXOnlyPubkey: hex(rdRecovery.pub) },
+      note: "descriptor parses and owner signature verifies; rejection is the invoke-signature check against recoveryPubkey" },
     { id: "descriptor-valid-noncanonical-profile-input", kind: "valid",
       cite: "§8.2 signingProfile enters the digest NORMALIZED — ' BIP322 ' and 'bip322' MUST produce the same descriptor hash (never-diverge; the hash is referenced on-chain)",
       envelope: { ...rd, signingProfile: " BIP322 ", signature: hex(rdSig) },

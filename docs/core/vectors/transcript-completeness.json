@@ -1,0 +1,297 @@
+[
+  {
+    "id": "T1-neg-01",
+    "ruleId": "T1",
+    "area": "Transcript completeness",
+    "authorityTier": "ratified",
+    "sources": [
+      "docs/core/SOFTWARE_CANON.md Layer vocabulary — the boundary rule [ratified core] 'whether a transcript is complete enough to award — it lives in the kernel, as a pure predicate over witnessed inputs'",
+      "docs/core/SOFTWARE_CANON.md Layer vocabulary, L2 row [ratified core] 'No DB, no network, no clock, no UI'",
+      "docs/spec/ONT_ACQUISITION_STATE_MACHINE.md Design Rule [candidate]"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "Any rule below whose source implies the indexer/resolver 'recognizes' or 'accepts' something is server-authority leakage bait; the kernel restatement must strip the actor.",
+      "predicateSignature": "transcriptVerdict(encodedEventBytes, priorNameState, witnessedChainFacts) -> {verdict}  [NO I/O, network, DB, wall-clock, or adapter/evidence-layer judgment]",
+      "fixture": {
+        "caseHostileEvidenceStub": "a hostile/swapped evidence-layer stub supplying the SAME witnessed facts cannot change any transcript verdict (the kernel verdict function has no other input channel)",
+        "caseZeroIO": "the transcript predicate module imports no I/O/DB/network/clock dependency (the B2 zero-I/O lock)",
+        "priorState": "any baseline"
+      },
+      "scopeNote": "Verdict authority is RATIFIED SOFTWARE_CANON boundary rule + L2 ('the completeness verdict lives in the kernel as a pure predicate over witnessed inputs; No DB/network/clock/UI; no layer outside the kernel may override'). The state-machine [candidate] is corroboration, NOT the verdict authority. Tier ratified (corrected from the seed's candidate — heuristic matched the [candidate] state-machine source string). Parallel to the A10/G7/V1 purity vectors.",
+      "authoringStatus": "authored: structural purity vector; tier verified = ratified; reviewer sign-off complete; locked."
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "t1-01-pure-predicate-no-actor-no-override",
+      "invariant": "the transcript verdict is a pure deterministic predicate over (event bytes, prior state, witnessed chain facts); a hostile/swapped evidence-layer stub cannot change it and no layer outside the kernel overrides it",
+      "rationale": "The no-actor / pure-deterministic-predicate posture is grounded in ratified core canon (no DB/network/clock/UI; the completeness verdict lives in the kernel as a pure predicate, and no layer outside the kernel may override it). A swapped/hostile evidence-layer stub cannot change a verdict — this is the kernel's fail-closed boundary posture, derivable today at ratified tier; the state-machine [candidate] only corroborates. No provisional dependency."
+    },
+    "status": "locked",
+    "attackFlagRef": "T1-01",
+    "flipMarker": null
+  },
+  {
+    "id": "T2-neg-01",
+    "ruleId": "T2",
+    "area": "Transcript completeness",
+    "authorityTier": "ratified",
+    "sources": [
+      "docs/core/SOFTWARE_CANON.md Item 4 — Tests before implementation [ratified core] 'a forged summary must provably be unable to ... falsely finalize a name'",
+      "docs/core/STATUS.md Known-incomplete [canonical status] 'does not prove the listed set is the complete set'",
+      "docs/core/SOFTWARE_CANON.md Item 5, B3 gate [ratified core]"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "The sufficient completeness witness is undefined (B3 deliverable): a kernel that accepts any producer-asserted completeness claim recreates the STATUS-disclosed omitted-bid hole even while this rule reads as satisfied.",
+      "predicateSignature": "completenessVerdict(transcript{producerCompletenessFlag, enumerationEvidence?}, witnessedChainFacts{lot block range}, priorState) -> {verdict}",
+      "fixture": {
+        "caseProducerAsserted": "a transcript asserting completeness (producer flag) with NO enumeration evidence over the lot's block range -> ruled incomplete (reject); fail-closed on an absent/producer-asserted witness",
+        "priorState": "an auction lot awaiting settlement"
+      },
+      "scopeNote": "Verdict authority is RATIFIED canon Item 4 ('a forged summary must provably be unable to falsely finalize a name') + the B3 gate: the kernel's fail-closed posture on an absent/producer-asserted completeness witness. DELIBERATELY EXCLUDES (B3): the sufficient-completeness-witness FORMAT. STATUS corroborates the omitted-bid hole. Fail-closed-on-absent-witness carve-out applies even though the format is B3.",
+      "authoringStatus": "authored: predicate-input shape proposed; reviewer sign-off complete; locked."
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "t2-01-fail-closed-producer-asserted-completeness",
+      "invariant": "a transcript asserting completeness without enumeration evidence over the lot's block range is ruled incomplete; a producer-asserted completeness claim is never trusted",
+      "rationale": "Although the completeness witness FORMAT is a B3 deliverable, the gate carve-out applies: a flag purely about the kernel's fail-closed posture on absent/producer-asserted evidence is derivable now at ratified tier. STATUS discloses the omitted-bid hole and canon Item 4 (ratified) forbids a forged summary from finalizing — a transcript asserting completeness without enumeration evidence MUST be rejected."
+    },
+    "status": "locked",
+    "attackFlagRef": "T2-01",
+    "flipMarker": null
+  },
+  {
+    "id": "T2-neg-02",
+    "ruleId": "T2",
+    "area": "Transcript completeness",
+    "authorityTier": "ratified",
+    "sources": [
+      "docs/core/B2_KERNEL_HARDENING.md T2 [rule text] 'over the auction's full block range (including soft-close extensions)'",
+      "docs/spec/AUCTION.md Auction Timing [candidate] soft-close extension",
+      "docs/core/SOFTWARE_CANON.md Item 4 [ratified core] omission cannot finalize"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "If 'the auction's block range' excludes soft-close extension blocks, a late extension-window bid can be omitted while the transcript still looks complete — the range definition must be close-after-extensions, not the initial close.",
+      "predicateSignature": "completenessVerdict(transcript, witnessedChainFacts{auction block range incl. soft-close extensions}, priorState) -> {verdict}",
+      "fixture": {
+        "caseOmittedExtensionBid": "a transcript omitting a witnessed bid confirmed in a soft-close EXTENSION block (post-initial-close, pre-extended-close) -> fail completeness (the range is close-after-extensions, not the initial close)",
+        "priorState": "an auction with a soft-close extension"
+      },
+      "scopeNote": "Verdict authority RATIFIED via #66 (PR-19 soft-close): the range-includes-soft-close-extensions depends on the AUCTION soft-close mechanism (ratified through PR-19). Canon Item 4 (ratified) corroborates omission-can't-finalize. The vector pins the range DEFINITION, not the unfrozen W/C window VALUES (still launch-freeze). Ratified tier via #66 (authored at candidate AUCTION soft-close tier).",
+      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; reviewer sign-off complete; locked. Promoted candidate→ratified 2026-06-15 (#66, DK event 43d30e67) via PR-19."
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "t2-02-completeness-range-includes-soft-close-extensions",
+      "invariant": "a transcript omitting a bid confirmed in a soft-close extension block fails completeness; the completeness range is close-after-extensions, not the initial close",
+      "rationale": "Rule T2 itself states the range is 'the auction's full block range (including soft-close extensions)'. The structural property — a bid in an extension block must be inside the completeness range — is derivable from the rule's own text plus the AUCTION soft-close mechanism, independent of the unfrozen W/C parameter VALUES; the omission-after-extension vector pins the range definition, not the numeric window. Canon Item 4 (ratified) corroborates that omission cannot finalize. Ratified via #66 (PR-19; authored at candidate)."
+    },
+    "status": "locked",
+    "attackFlagRef": "T2-02",
+    "flipMarker": null
+  },
+  {
+    "id": "T7-neg-01",
+    "ruleId": "T7",
+    "area": "Transcript completeness",
+    "authorityTier": "ratified",
+    "sources": [
+      "docs/core/DECISIONS.md Entry 37 — bond-opens [ratified] 'a name is acquired only by (a) an uncontested cheap claim that finalizes, or (b) the winning bond in an auction'",
+      "docs/spec/AUCTION.md Real Mechanism Choices [candidate] 'a valid bonded opening bid is what creates the auction'",
+      "docs/spec/ONT_ACQUISITION_STATE_MACHINE.md Contested Auction [candidate]"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "AUCTION.md still carries the legacy scheduled-catalog compatibility path as an open question — old-model leakage bait for B2: the kernel must not inherit an 'unopened catalog entry' state machine from quarantined fixtures.",
+      "predicateSignature": "transcriptVerdict(transcript{acceptedBids}, witnessedChainFacts, priorState) -> {verdict, owner?}",
+      "fixture": {
+        "caseZeroAcceptedBids": "a transcript with only below-floor attempts / zero accepted bids -> no auction, no winner, no owner (an unopened lot is not a failed auction)",
+        "caseNoCatalogLeakage": "no inherited 'unopened catalog entry' state awards or persists a lot",
+        "priorState": "a contested name with no qualifying bid"
+      },
+      "scopeNote": "Verdict authority is RATIFIED DECISIONS #37 ('a name is acquired only by (a) an uncontested cheap claim that finalizes, or (b) the winning bond in an auction'): zero accepted bids -> no auction / no owner. AUCTION/state-machine [candidate] are corroboration. The no-old-model-leakage (no inherited 'unopened catalog' state) is the negative. Tier ratified (corrected from the seed's candidate — heuristic matched the [candidate] AUCTION source). Parallel to S15/Q10.",
+      "authoringStatus": "authored: predicate-input shape proposed; tier verified = ratified; reviewer sign-off complete; locked."
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "t7-01-zero-accepted-bids-no-owner",
+      "invariant": "a lot with zero accepted bids resolves to no auction and no owner; an unopened lot is not a failed auction; no inherited 'unopened catalog' state awards or persists a lot",
+      "rationale": "Rule T7 is cited and rests on bond-opens (#37, ratified): a name is acquired only by an uncontested finalizing claim or a winning auction bond. Zero-accepted-bids => no auction / no owner is derivable from #37 (ratified verdict authority); the candidate state-machine/AUCTION only corroborate. The legacy 'unopened catalog entry' must not be inherited (a no-old-model-leakage negative)."
+    },
+    "status": "locked",
+    "attackFlagRef": "T7-01",
+    "flipMarker": null
+  },
+  {
+    "id": "T9-neg-01",
+    "ruleId": "T9",
+    "area": "Transcript completeness",
+    "authorityTier": "ratified",
+    "sources": [
+      "docs/core/DECISIONS.md Entry 37 — bond-opens [ratified] 'largest bond wins / the winning bond in an auction'",
+      "docs/spec/CONTESTED_AUCTION_REFERENCE.md Basic Flow [candidate] 'the highest valid bonded bidder wins'",
+      "docs/spec/ONT_ACQUISITION_STATE_MACHINE.md Contested Auction [candidate] 'the largest bond wins'",
+      "docs/core/STATUS.md Components — Contested-auction bonded bid [canonical status] 'enforces highest-bid-wins'"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "'Highest accepted' is only sound after T2 completeness and T8 acceptance filtering — stating this rule without those two lets a producer manufacture 'highest' by omission or by mislabeling rejected bids as accepted.",
+      "predicateSignature": "winnerSelection(completeTranscript{acceptedBids}) -> {winner}  -- precondition: T2-complete, T8-filtered",
+      "fixture": {
+        "caseLowerDeclaredWinner": "a transcript whose declared winner amount is LOWER than another accepted bid's amount -> reject (the legacy lower-bid-as-winner attack)",
+        "casePhantomWinnerTxid": "a declared winner txid referencing NO accepted bid in the set -> reject",
+        "positiveControl": "the winner equals the unique highest accepted bid",
+        "preconditionNote": "soundness composes with T2 (completeness) + T8 (acceptance filtering); this vector tests the highest-wins award over an already-complete/filtered set",
+        "priorState": "a complete auction transcript"
+      },
+      "scopeNote": "Verdict authority is RATIFIED DECISIONS #37 'largest bond wins' (same award rule as Q9-pos, which ChatLunatique confirmed ratified): given a complete transcript, the highest accepted qualifying bonded bid wins; a lower accepted bid declared winner is rejected. CONTESTED_AUCTION_REFERENCE / state-machine [candidate] are restatements; STATUS confirms the proof-bundle soundness check. Tier ratified (corrected from the seed's candidate; #37 added to sources to ground it — the seed cited only candidate restatements). The complete-transcript precondition is the T-area composition (T2/T8).",
+      "authoringStatus": "authored: predicate-input shape proposed; tier verified = ratified (#37); reviewer sign-off complete; locked."
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "t9-01-highest-accepted-wins-lower-declared-rejected",
+      "invariant": "given a complete transcript, the highest accepted qualifying bonded bid wins; a settlement declaring any lower accepted bid as winner, or a winner txid referencing no accepted bid, is rejected",
+      "rationale": "T9 is the #37 award rule (largest/highest bond wins) — the same ratified verdict ChatLunatique confirmed for Q9-pos; CONTESTED_AUCTION_REFERENCE/state-machine restate it (candidate) and STATUS confirms the bundle enforces highest-bid-wins. The verdict 'a lower accepted bid declared winner MUST be rejected' is derivable now at ratified tier (#37). The flag's dependency on T2/T8 is a composition note, not a missing-rule for T9's own highest-wins predicate."
+    },
+    "status": "locked",
+    "attackFlagRef": "T9-01",
+    "flipMarker": null
+  },
+  {
+    "id": "T20-neg-01",
+    "ruleId": "T20",
+    "area": "Transcript completeness",
+    "authorityTier": "ratified",
+    "sources": [
+      "docs/spec/AUCTION.md Window Schedule — Decay Rule [candidate] 'frozen, monotonic, height-keyed schedule'",
+      "docs/spec/WIRE_FORMAT.md 8. Off-chain owner-signed shapes [normative] (issuedAt is off-chain only)",
+      "docs/core/SOFTWARE_CANON.md Layer vocabulary, L2 row [ratified core] 'no clock'"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "Wire events carry an issuedAt timestamp in off-chain shapes (§8): any transcript rule that ever consults issuedAt instead of mined height reintroduces wall-clock into consensus — flag for the B2 hunting list.",
+      "predicateSignature": "deadlineVerdict(transcript, witnessedChainFacts{block heights}, heightKeyedSchedule[launch-freeze]) -> {verdict}  [heights only; no issuedAt/wall-clock input]",
+      "fixture": {
+        "caseInjectedIssuedAt": "a transcript whose deadline outcome would vary with an injected issuedAt/timestamp -> unaffected (invariant); the verdict function admits only heights and event bytes (no wall-clock input channel)",
+        "priorState": "an auction with height-keyed deadlines"
+      },
+      "scopeNote": "The tested verdict (deadline invariant under an injected issuedAt; no wall-clock input channel) rests on ratified canon 'no clock' + normative WIRE §8 (issuedAt is off-chain only) + the AUCTION height-keyed decay schedule, ratified via #66 (PR-25). Ratified tier via #66 (authored at candidate AUCTION decay tier). The unfrozen decay-schedule VALUES are excluded (launch-freeze).",
+      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; reviewer sign-off complete; locked. Promoted candidate→ratified 2026-06-15 (#66, DK event 43d30e67) via PR-25."
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "t20-01-deadlines-heights-only-no-wallclock",
+      "invariant": "transcript deadlines are computed only from witnessed block heights under a height-keyed schedule; the verdict function admits no issuedAt/timestamp input, so an injected issuedAt cannot change any deadline outcome",
+      "rationale": "issuedAt lives only in §8 off-chain owner-signed shapes; it is never a consensus transcript input. T20's rule mandates heights-only, monotonic, height-keyed deadlines, grounded in the AUCTION decay schedule (ratified via PR-25) + canon's ratified no-clock layer rule + normative §8 (issuedAt off-chain). The fail-closed 'verdict function exposes no timestamp input' posture is derivable; ratified via #66 (PR-25; authored at candidate), independent of the unfrozen schedule values."
+    },
+    "status": "locked",
+    "attackFlagRef": "T20-01",
+    "flipMarker": null
+  },
+  {
+    "id": "T21-neg-01",
+    "ruleId": "T21",
+    "area": "Transcript completeness",
+    "authorityTier": "ratified",
+    "sources": [
+      "docs/core/STATUS.md Components — Contested-auction bonded bid [canonical status] 'enforces ... distinct-bid well-formedness (was a gap)'",
+      "docs/core/SOFTWARE_CANON.md Item 4 — Tests before implementation [ratified core] 'a forged summary must provably be unable to ... falsely finalize a name'"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "The rule's prescriptive home is a STATUS component capability note plus canon's test mandate, not a spec/ MUST sentence — restate it in the B2 kernel spec section during hardening so the authority is not a status table.",
+      "predicateSignature": "completenessVerdict(transcript{bidTxids}, priorState) -> {verdict}  [each counted bid a distinct, well-formed L1 txid]",
+      "fixture": {
+        "caseDuplicateTxid": "a transcript listing the same bid txid more than once -> reject (NOT silently deduplicated)",
+        "caseMalformedTxid": "a transcript padded with malformed (non-32-byte-hex) txids -> reject",
+        "positiveControl": "an all-distinct, valid-txid set passes",
+        "priorState": "an auction transcript"
+      },
+      "scopeNote": "Verdict authority is RATIFIED canon Item 4 ('a forged summary must provably be unable to falsely finalize'): duplicate-stuffing or malformed-txid padding is a forged summary and is rejected, never silently deduplicated. STATUS is the capability note (the rule's documentation home, to be restated in the B2 kernel spec during hardening — a home concern, not a verdict gap). Tier ratified.",
+      "authoringStatus": "authored: predicate-input shape proposed; reviewer sign-off complete; locked."
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "t21-01-distinct-wellformed-txids-no-silent-dedupe",
+      "invariant": "each counted bid must be a distinct, well-formed L1 transaction; a transcript repeating a txid or padding with duplicate/malformed txids is rejected (not silently deduplicated); an all-distinct valid set passes",
+      "rationale": "T21 is cited; the distinct-L1-transaction verdict (reject duplicate-stuffed or malformed txids, no silent dedupe) is derivable from canon Item 4 (ratified, 'a forged summary must provably be unable to falsely finalize') — a duplicate/malformed-stuffed transcript is a forged summary. STATUS's canonical-status note ('enforces distinct-bid well-formedness') is the rule's current documentation home; the flag only asks that it be restated in the B2 kernel spec section during hardening — a home concern, not a verdict gap. Tier ratified (canon Item 4)."
+    },
+    "status": "locked",
+    "attackFlagRef": "T21-01",
+    "flipMarker": null
+  },
+  {
+    "id": "T22-neg-01",
+    "ruleId": "T22",
+    "area": "Transcript completeness",
+    "authorityTier": "ratified",
+    "sources": [
+      "docs/core/SOFTWARE_CANON.md Layer vocabulary — the boundary rule [ratified core] (kernel verdict is a pure predicate over witnessed inputs)",
+      "docs/spec/AUCTION.md Bond Breaks And Reauction [candidate] 'the indexer recognizing a reopened auction only if its anchor equals the latest recorded bond-break release block'",
+      "docs/core/B2_KERNEL_HARDENING.md T22 attack flag (server-authority leakage)"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "The cited sentence names 'the indexer' as the recognizer — server-authority leakage as written; the kernel restatement must make release-block matching a pure predicate over witnessed bond-spend facts.",
+      "predicateSignature": "reopenVerdict(reopenBid, witnessedChainFacts{bond-spend facts}, priorState) -> {verdict}  [no actor 'recognizes'; pure predicate over witnessed facts]",
+      "fixture": {
+        "caseHostileStub": "a hostile evidence-layer / 'indexer' stub cannot change the reopen verdict; release-block matching is decided purely over witnessed bond-spend facts (no actor input channel) — parallel to T1's no-actor posture",
+        "priorState": "a name with a recorded bond-break release"
+      },
+      "scopeNote": "Verdict authority is RATIFIED canon boundary rule (the verdict is a pure predicate over witnessed chain facts; no actor 'recognizes'). The AUCTION reopen CONTEXT is candidate, but the no-ACTOR / actor-stripping aspect this vector tests is ratified canon — parallel to T1. Tier ratified (corrected from the seed's candidate). DELIBERATELY EXCLUDES (separately spec-blocked): the reopen auctionId grammar.",
+      "authoringStatus": "authored: structural/no-actor vector; tier verified = ratified; reviewer sign-off complete; locked."
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "t22-01-reopen-no-actor-pure-predicate",
+      "invariant": "release-block matching for a reopened lot is a pure predicate over witnessed bond-spend facts; a hostile evidence-layer/'indexer' stub cannot change the reopen verdict (no actor input channel)",
+      "rationale": "Like T1, the actor-stripping / pure-predicate posture is derivable from ratified canon (the verdict is a pure predicate over witnessed chain facts; no actor 'recognizes'). The release-block matching must be a pure predicate over witnessed bond-spend facts — a swapped-evidence-stub / no-actor-channel vector pins this at ratified tier (canon boundary) without needing the (separately spec-blocked) reopen auctionId grammar."
+    },
+    "status": "locked",
+    "attackFlagRef": "T22-01",
+    "flipMarker": null
+  },
+  {
+    "id": "T22-neg-02",
+    "ruleId": "T22",
+    "area": "Transcript completeness",
+    "authorityTier": "ratified",
+    "sources": [
+      "docs/core/SOFTWARE_CANON.md Item 4 — Tests before implementation [ratified core] 'an omitted auction bid ... must provably be unable to mint, steal, or falsely finalize a name'",
+      "docs/spec/AUCTION.md Bond Breaks And Reauction [candidate] 'Reauction identity | Anchored to the release block'",
+      "docs/core/B2_KERNEL_HARDENING.md T22 attack flag (witness completeness, cf. T2)"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "'Latest recorded bond-break release block' presumes a witnessed bond-continuity history; if that witness is incomplete the reopen gate is decided on partial facts — the release-block witness needs the same completeness treatment as the bid set (T2).",
+      "predicateSignature": "reopenVerdict(reopenBid{anchor}, witnessedChainFacts{bond-continuity history}, priorState) -> {verdict}",
+      "fixture": {
+        "caseIncompleteWitness": "a reopen lot whose anchor cannot be witnessed as the latest recorded bond-break release block (incomplete/partial bond-continuity evidence) -> does NOT open an auction (fail-closed on absent witness, mirroring T2)",
+        "priorState": "a name with partial bond-continuity history"
+      },
+      "scopeNote": "Verdict authority is RATIFIED canon Item 4 ('an omitted auction bid must provably be unable to mint, steal, or falsely finalize'): the kernel's fail-closed posture on an incomplete bond-continuity reopen-witness — a reopen gate decided on partial facts must fail-closed rather than open an auction on unproven release-block facts. Parallel to T2-01. DELIBERATELY EXCLUDES (B3): the bond-continuity/release-block witness FORMAT. Tier ratified (corrected from the seed's candidate).",
+      "authoringStatus": "authored: predicate-input shape proposed; tier verified = ratified; reviewer sign-off complete; locked."
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "t22-02-fail-closed-incomplete-reopen-witness",
+      "invariant": "a reopen whose anchor cannot be witnessed as the latest recorded bond-break release block (incomplete bond-continuity evidence) does not open an auction; the reopen gate fails closed on partial facts",
+      "rationale": "Parallel to the T2-01 witness carve-out: the bond-continuity/release-block witness FORMAT is B3, but the kernel's fail-closed posture on an incomplete bond-continuity witness is derivable now at ratified tier from canon Item 4 (omission cannot mint/steal) — a reopen gate decided on partial facts MUST fail-closed rather than open an auction on unproven release-block facts."
+    },
+    "status": "locked",
+    "attackFlagRef": "T22-02",
+    "flipMarker": null
+  }
+]

@@ -10,14 +10,17 @@ import {
   RECOVER_OWNER_FLAG_CANCEL,
   type RecoverOwnerEventPayload,
   decodeOntPayload,
-  extractRecoveryWalletProofHashFromCommitment,
   getEventTypeName,
-  type TransferEventPayload,
-  verifyRecoverOwnerCancelAuthorization,
-  verifyTransferAuthorization
+  type TransferEventPayload
 } from "@ont/protocol";
+import { recoverAuthDigest, transferAuthDigest, verifySchnorr } from "@ont/wire";
 
 import { getClaimedNameStatus } from "./state.js";
+import {
+  acceptRecoverOwner,
+  type RecoveryDescriptorEvidence,
+  type RecoveryParams,
+} from "./recovery-invoke-authority.js";
 
 export interface NameRecord {
   readonly name: string;
@@ -98,23 +101,35 @@ export interface OntState {
   readonly names: Map<string, NameRecord>;
 }
 
-export interface RecoveryWalletProofAvailabilityRequest {
-  readonly name: string;
-  readonly recoveryTxid: string;
-  readonly blockHeight: number;
-  readonly proofCommitment: string;
-  readonly proofHash: string;
-  readonly prevStateTxid: string;
-  readonly recoveryDescriptorHash: string;
-  readonly newOwnerPubkey: string;
-  readonly successorBondVout: number;
-  readonly challengeWindowBlocks: number;
+/**
+ * Verifier-resolved recovery descriptor-chain facts for a name — descriptor-chain EVIDENCE, NOT
+ * kernel state (the kernel never tracks an armed head / interval; #50-b1 + §3c). The evidence layer
+ * (indexer / @ont/evidence) resolves the current armed descriptor head and ownership interval from
+ * witnessed W15 posts; the kernel checks the invoke's referenced descriptor against these via
+ * acceptRecoverOwner (R3 head hash, R3' head sequence, R4 current-interval ownershipRef). Absence
+ * or mismatch makes the invoke an ignored no-op (fail closed).
+ */
+export interface ResolvedRecoveryDescriptorState {
+  /** The candidate descriptor the invoke references (its §8.2a record) + the §3c witness. */
+  readonly descriptorEvidence: RecoveryDescriptorEvidence;
+  /** Digest of the name's CURRENT armed descriptor head (R3). */
+  readonly recoveryDescriptorHeadHash: string;
+  /** Sequence of the current armed descriptor head (R3' companion). */
+  readonly recoveryDescriptorHeadSequence: number;
+  /** The name's current ownership-interval ref (R4 anti old-interval-replay). */
+  readonly currentOwnershipRef: string;
 }
 
 export interface OntEventApplicationOptions {
-  readonly recoveryWalletProofAvailable?: (
-    request: RecoveryWalletProofAvailabilityRequest
-  ) => boolean;
+  /**
+   * Witnessed recovery descriptor evidence keyed by name, plus the launch-freeze recovery params
+   * (W_r). The caller (indexer / evidence layer) PRE-RESOLVES this as DATA; the kernel consumes it
+   * purely — no evaluation-time availability callback (G6 / R19). Absent name = ignored invoke.
+   */
+  readonly recoveryEvidence?: {
+    readonly byName: ReadonlyMap<string, ResolvedRecoveryDescriptorState>;
+    readonly params: RecoveryParams;
+  };
 }
 
 export function createEmptyState(): OntState {
@@ -332,6 +347,64 @@ function applyAuctionBid(
   };
 }
 
+// B1 §5 owner-key signature verification, ridden directly off the @ont/wire normative
+// digests (b2-core-deciders-wire-auth-digests (#61), amending #59/#60). Fail closed: a
+// malformed field that makes the wire digest/verify throw yields a rejecting verdict,
+// never an exception (preserves the X3/R15 no-throw guarantee). The §5 equivalence pins
+// (engine.test.ts, engine.recovery.test.ts) prove these match the legacy @ont/protocol
+// digests byte-for-byte, so the migration is behavior-preserving.
+function verifyTransferSignature(input: {
+  readonly prevStateTxid: string;
+  readonly newOwnerPubkey: string;
+  readonly flags: number;
+  readonly successorBondVout: number;
+  readonly ownerPubkey: string;
+  readonly signature: string;
+}): boolean {
+  try {
+    return verifySchnorr(
+      input.signature,
+      transferAuthDigest({
+        prevStateTxid: input.prevStateTxid,
+        newOwnerPubkey: input.newOwnerPubkey,
+        flags: input.flags,
+        successorBondVout: input.successorBondVout
+      }),
+      input.ownerPubkey
+    );
+  } catch {
+    return false;
+  }
+}
+
+function verifyRecoverOwnerCancelSignature(input: {
+  readonly prevStateTxid: string;
+  readonly newOwnerPubkey: string;
+  readonly flags: number;
+  readonly successorBondVout: number;
+  readonly challengeWindowBlocks: number;
+  readonly recoveryDescriptorHash: string;
+  readonly ownerPubkey: string;
+  readonly signature: string;
+}): boolean {
+  try {
+    return verifySchnorr(
+      input.signature,
+      recoverAuthDigest({
+        prevStateTxid: input.prevStateTxid,
+        newOwnerPubkey: input.newOwnerPubkey,
+        flags: input.flags,
+        successorBondVout: input.successorBondVout,
+        challengeWindowBlocks: input.challengeWindowBlocks,
+        recoveryDescriptorHash: input.recoveryDescriptorHash
+      }),
+      input.ownerPubkey
+    );
+  } catch {
+    return false;
+  }
+}
+
 function applyTransfer(state: OntState, event: ParsedOntEvent): EventApplicationResult {
   const payload = event.payload as TransferEventPayload;
   const record = findNameRecordByLastStateTxid(state, payload.prevStateTxid);
@@ -344,8 +417,20 @@ function applyTransfer(state: OntState, event: ParsedOntEvent): EventApplication
     };
   }
 
+  // X13 (PR-34): while a recovery is pending, an owner-key Transfer is BLOCKED — it mutates
+  // nothing. The owner's only in-window veto is the explicit RecoverOwner CANCEL bit. This fires
+  // on pendingRecovery presence regardless of transfer signature validity (prevents a stolen owner
+  // key from exfiltrating the name beyond the recovery descriptor during the challenge window).
+  if (record.pendingRecovery !== undefined) {
+    return {
+      validationStatus: "ignored",
+      reason: "transfer_blocked_pending_recovery",
+      affectedName: record.name
+    };
+  }
+
   if (
-    !verifyTransferAuthorization({
+    !verifyTransferSignature({
       prevStateTxid: payload.prevStateTxid,
       newOwnerPubkey: payload.newOwnerPubkey,
       flags: payload.flags,
@@ -489,6 +574,18 @@ function applyRecoverOwnerRequest(
     };
   }
 
+  // Witnessed recovery descriptor evidence, pre-resolved by the evidence layer (indexer). Fail
+  // closed if absent (R1: no witnessed descriptor head for this name => the invoke opens nothing).
+  const resolved = options.recoveryEvidence?.byName.get(record.name);
+  if (options.recoveryEvidence === undefined || resolved === undefined) {
+    return {
+      validationStatus: "ignored",
+      reason: "recovery_no_witnessed_descriptor_evidence",
+      affectedName: record.name
+    };
+  }
+  const recoveryAddress = resolved.descriptorEvidence.descriptor.recoveryAddress;
+
   const successorBondOutput = event.outputs[payload.successorBondVout];
   if (
     successorBondOutput === undefined ||
@@ -498,6 +595,17 @@ function applyRecoverOwnerRequest(
     return {
       validationStatus: "ignored",
       reason: "recovery_invalid_successor_bond",
+      affectedName: record.name
+    };
+  }
+
+  // PR-34 successor-bond-script binding: the rotated bond output must pay the descriptor's
+  // recoveryAddress, so the recovered name's new bond is actually controlled by the recovery key.
+  // A missing destination (the model cannot prove control) fails closed, same as a mismatch.
+  if (typeof recoveryAddress !== "string" || successorBondOutput.address !== recoveryAddress) {
+    return {
+      validationStatus: "ignored",
+      reason: "recovery_successor_bond_address_mismatch",
       affectedName: record.name
     };
   }
@@ -512,34 +620,35 @@ function applyRecoverOwnerRequest(
     };
   }
 
-  let proofHash: string;
-  try {
-    proofHash = extractRecoveryWalletProofHashFromCommitment(payload.signature);
-  } catch {
+  // Authorization + §3c evidence-gated admission. The bond/lifecycle mechanics above (R11/R12/R13)
+  // stay in the engine; acceptRecoverOwner is the pure authorization/evidence gate. Until it
+  // accepts, NO pendingRecovery opens, NO bond rotates, NO transfer block or finalization starts
+  // (an unauthorized/unwitnessed invoke mutates no consensus state — forfeit is a no-op).
+  const verdict = acceptRecoverOwner(
+    {
+      prevStateTxid: payload.prevStateTxid,
+      newOwnerPubkey: payload.newOwnerPubkey,
+      flags: payload.flags,
+      successorBondVout: payload.successorBondVout,
+      challengeWindowBlocks: payload.challengeWindowBlocks,
+      recoveryDescriptorHash: payload.recoveryDescriptorHash,
+      signature: payload.signature,
+      minedHeight: event.blockHeight
+    },
+    resolved.descriptorEvidence,
+    {
+      ownerPubkey: record.currentOwnerPubkey,
+      headTxid: record.lastStateTxid,
+      currentOwnershipRef: resolved.currentOwnershipRef,
+      recoveryDescriptorHeadHash: resolved.recoveryDescriptorHeadHash,
+      recoveryDescriptorHeadSequence: resolved.recoveryDescriptorHeadSequence
+    },
+    options.recoveryEvidence.params
+  );
+  if (!verdict.accepted) {
     return {
       validationStatus: "ignored",
-      reason: "recovery_invalid_wallet_proof_commitment",
-      affectedName: record.name
-    };
-  }
-
-  const proofAvailable = options.recoveryWalletProofAvailable?.({
-    name: record.name,
-    recoveryTxid: event.txid,
-    blockHeight: event.blockHeight,
-    proofCommitment: payload.signature,
-    proofHash,
-    prevStateTxid: payload.prevStateTxid,
-    recoveryDescriptorHash: payload.recoveryDescriptorHash,
-    newOwnerPubkey: payload.newOwnerPubkey,
-    successorBondVout: payload.successorBondVout,
-    challengeWindowBlocks: payload.challengeWindowBlocks
-  }) ?? false;
-
-  if (!proofAvailable) {
-    return {
-      validationStatus: "ignored",
-      reason: "recovery_wallet_proof_unavailable",
+      reason: "recovery_unauthorized",
       affectedName: record.name
     };
   }
@@ -588,7 +697,11 @@ function applyRecoverOwnerCancel(
     };
   }
 
-  if (event.blockHeight >= record.pendingRecovery.finalizeHeight) {
+  // PR-35: a valid CANCEL at the EXACT finalize height is IN-WINDOW (finalization is evaluated
+  // after all events in the finalize-height block apply — refreshDerivedState runs after the
+  // block's transactions, so a same-height CANCEL clears pendingRecovery before finalization
+  // fires). Only a cancel strictly AFTER the finalize height is too late.
+  if (event.blockHeight > record.pendingRecovery.finalizeHeight) {
     return {
       validationStatus: "ignored",
       reason: "recovery_cancel_too_late",
@@ -609,7 +722,7 @@ function applyRecoverOwnerCancel(
   }
 
   if (
-    !verifyRecoverOwnerCancelAuthorization({
+    !verifyRecoverOwnerCancelSignature({
       prevStateTxid: payload.prevStateTxid,
       newOwnerPubkey: payload.newOwnerPubkey,
       flags: payload.flags,

@@ -1,0 +1,163 @@
+[
+  {
+    "id": "A1-neg-01",
+    "ruleId": "A1",
+    "area": "Anchor acceptance",
+    "authorityTier": "normative",
+    "sources": [
+      "docs/core/B2_KERNEL_HARDENING.md A1 (lines 96-105), proposed tests (−): 'A 0x0b payload truncated at every byte offset, and one with a single trailing byte ... no batch opens'",
+      "docs/spec/WIRE_FORMAT.md §4 Event layouts (normative) — 'a decoder MUST reject truncated payloads (at any byte offset) and trailing bytes'; §3 Event frame (normative) — 'A decoder MUST reject any event type byte not in the registry'",
+      "docs/core/B2_VECTOR_SCHEMA.json authorityTier normative→vector-now"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "Silent-skip means an almost-valid anchor is invisible rather than invalidating: an attacker can craft a payload that decodes under a buggy lenient decoder but not under the spec decoder — conformance must sweep near-miss encodings.",
+      "predicateSignature": "anchorAcceptance(eventBytes, witnessedChainFacts{minedHeight,txid,positionInBlock,confirmationDepth,txFeeSats}, priorKernelState, witnessedServedEvidence) -> {verdict, reason}",
+      "fixture": {
+        "baseGoldenAnchor": {
+          "ref": "packages/wire/vectors/events.json — the 0x0b RootAnchor golden (positive control)",
+          "hex": "4f4e54010b24ba75b09004e044b254d238c53fa7c057111a65f4959335968970a70a75083e22d10d5ce4947e2f186d299a8f648f96032d0e22d3d4cc55930e7ac31e47ddc40000002a",
+          "decoded": { "magic": "ONT", "version": "0x01", "eventType": "0x0b RootAnchor", "prevRoot": "24ba75b09004e044b254d238c53fa7c057111a65f4959335968970a70a75083e", "newRoot": "22d10d5ce4947e2f186d299a8f648f96032d0e22d3d4cc55930e7ac31e47ddc4", "batchSize": 42 },
+          "note": "73 bytes, frame(5) ‖ prevRoot(32) ‖ newRoot(32) ‖ batchSize(u32). Pinned byte-identical against the BDK spike (canon Item 2). This vector REUSES the B1 wire golden + frame-sweep negatives at the @ont/consensus anchor-acceptance boundary rather than minting new bytes."
+        },
+        "nearMissNegatives": [
+          "truncation at every byte offset 1..72 (the B1 frame/event truncation sweep, re-asserted at the kernel boundary)",
+          "one trailing byte appended → 74 bytes",
+          "wrong magic (any 3 bytes != 'ONT')",
+          "version != 0x01 (fail-closed: 'not 1 ⇒ reject' per §3)",
+          "event type byte not in the registry (unassigned/reserved)",
+          "retired type 0x0d (was AvailabilityMarker; never reuse — rejected exactly like unassigned)"
+        ],
+        "reuseFrom": "packages/wire/vectors/{events.json,frame.json}",
+        "chainFacts": "not consulted: decode-reject precedes any chain-fact or membership evaluation (a confirmed-tx context is assumed but never reached for a near-miss payload)",
+        "priorKernelState": "any baseline; the post-input state MUST be byte-identical to it"
+      },
+      "scopeNote": "Cited-now: WIRE_FORMAT §3 frame + §4/§4.4 RootAnchor exact 73-byte layout (normative). The kernel boundary re-asserts the B1 wire-decode law; no new rule. DELIBERATELY EXCLUDES (separate A1 attack flag, spec-blocked): the multiple-OP_RETURN-output skip-vs-reject / first-vs-all question — NOT asserted here.",
+      "authoringStatus": "authored: predicate-input shape proposed (reuses the B1 wire golden + frame-sweep negatives); status stays proposed pending reviewer sign-off before lock."
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "a1-02-near-miss-no-batch-opens",
+      "invariant": "no batch opens; kernel state byte-identical to pre-input; decode-reject precedes chain-fact/membership evaluation",
+      "rationale": "This flag is about near-miss / almost-valid encodings being rejected by the spec decoder — exactly what A1's normative basis pins: decode EXACTLY per the wire spec, reject truncated/trailing/wrong-magic/wrong-version. A second implementer derives 'near-miss encodings are not anchor candidates' purely from normative WIRE_FORMAT §3/§4. Unlike the multi-output flag, this needs no missing rule — it is the byte-offset/near-miss sweep the rule already proposes as tests."
+    },
+    "status": "locked",
+    "attackFlagRef": "A1-02",
+    "flipMarker": null
+  },
+  {
+    "id": "A4-neg-01",
+    "ruleId": "A4",
+    "area": "Anchor acceptance",
+    "authorityTier": "candidate",
+    "sources": [
+      "docs/core/B2_KERNEL_HARDENING.md A4 (lines 132-140), proposed test (−): 'A served byte set whose leaf count contradicts the anchored batchSize does not satisfy the anchor's commitment'",
+      "docs/spec/ONT_DATA_AVAILABILITY_AGREEMENT.md §8b (candidate) — 'The anchor commits the batch (root + batchSize); every node verifies fetched bytes against that on-chain commitment'; §6b (candidate)",
+      "docs/core/B2_VECTOR_SCHEMA.json authorityTier candidate→vector-now"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "Legacy code records batchSize for observability only and never cross-checks it against served leaves (indexer.ts:762) — a publisher can understate batchSize to shrink the Σ-gates the fee check requires while the root commits more leaves. The batchSize-consistency check must be stated explicitly at B2 hardening because the gate-fee rule's N must come from the commitment-checked batch, not the publisher's self-declared field.",
+      "predicateSignature": "anchorAcceptance(eventBytes, witnessedChainFacts, priorKernelState, witnessedServedEvidence) -> {verdict, reason}",
+      "fixture": {
+        "acceptedAnchor": {
+          "ref": "packages/wire/vectors/events.json — the 0x0b RootAnchor golden (batchSize 42)",
+          "anchoredCommitment": { "newRoot": "22d10d5ce4947e2f186d299a8f648f96032d0e22d3d4cc55930e7ac31e47ddc4", "batchSize": 42 },
+          "note": "the anchored (newRoot, batchSize) pair fixes the authoritative leaf count N = 42"
+        },
+        "servedByteSet": {
+          "case_a": { "leafCount": 41, "note": "served set understates: count 41 != anchored batchSize 42" },
+          "case_b": { "leafCount": 43, "note": "served set overstates: count 43 != anchored batchSize 42" }
+        },
+        "chainFacts": "anchor mined and confirmed (K-deep); fixed witnessed inputs",
+        "priorKernelState": "baseline; the post-input state MUST be byte-identical to it (zero state effect)"
+      },
+      "scopeNote": "Cited-now (candidate tier): DA §8b/§6b — verify fetched bytes against the on-chain (root + batchSize) commitment; fail-closed on a leaf-count contradiction (the 'fail-closed on absent/inconsistent evidence is vector-now even if witness format is B3' carve-out). DELIBERATELY EXCLUDES (spec-blocked, NOT asserted): (a) the served-bytes witness wire shape (typed hole, D-gaps / B3); (b) per-leaf membership-proof construction and what 'the bytes match the commitment' verifies (A4/A6 owner-binding, conflict C6 / B3). This vector asserts ONLY leaf-count vs anchored batchSize.",
+      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; the served-bytes witness FORMAT is a B3 hole, so the fixture pins only the count-vs-batchSize contradiction. reviewer sign-off complete; locked."
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "a4-01-batchsize-count-mismatch",
+      "invariant": "the served set does not satisfy the anchor's commitment; the authoritative N for Σ-gates comes from the commitment-checked batch (42), never the served/self-declared count; zero state effect",
+      "rationale": "A4 is verdict 'cited' on candidate-tier DA agreement §8b/§6b: the anchor commits the batch via root + batchSize and a served byte set inconsistent with the commitment (including a leaf count contradicting batchSize) does not satisfy the anchor. The batchSize-consistency reject is directly derivable from this candidate authority (candidate text is acceptable where the verdict is candidate-stays/cited). No provisional decision and no invented rule: the served-bytes WITNESS FORMAT is B3, but the kernel's fail-closed posture on a batchSize-inconsistent leaf count is derivable now — this is the 'fail-closed on absent/inconsistent evidence is vector-now even if format is B3' carve-out."
+    },
+    "status": "locked",
+    "attackFlagRef": "A4-01",
+    "flipMarker": null
+  },
+  {
+    "id": "A6-neg-01",
+    "ruleId": "A6",
+    "area": "Anchor acceptance",
+    "authorityTier": "normative",
+    "sources": [
+      "docs/core/B2_KERNEL_HARDENING.md A6 (lines 153-162) — 'The leaf-shape half stays cited'; proposed test (−): 'A leaf naming Alice (non-canonical bytes) is rejected, not normalized'",
+      "docs/spec/WIRE_FORMAT.md §2 Names (normative) — 'A decoder MUST reject a payload whose name bytes are non-canonical'",
+      "docs/core/B2_VECTOR_SCHEMA.json authorityTier normative→vector-now"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "Legacy normalizes leaf names instead of rejecting non-canonical input (indexer.ts:804-809) — direct conflict with the wire's reject-don't-normalize law; the witness format must mandate canonical name bytes.",
+      "predicateSignature": "anchorAcceptance(eventBytes, witnessedChainFacts, priorKernelState, witnessedServedEvidence) -> {verdict, reason}",
+      "fixture": {
+        "leaf": {
+          "nameBytesHex": "416c696365",
+          "nameBytesAscii": "Alice",
+          "nonCanonicalReason": "contains uppercase 'A' (0x41); canonical names match [a-z0-9]{1,32}",
+          "canonicalForm": "alice",
+          "note": "a batched-claim leaf presenting a non-canonical name; the kernel must REJECT, not normalize to 'alice'"
+        },
+        "chainFacts": "anchor accepted; leaf presented for merge against the anchored root",
+        "priorKernelState": "baseline; the post-input state MUST be byte-identical to it (zero state effect)"
+      },
+      "scopeNote": "Cited-now (normative): WIRE_FORMAT §2 — 'a name inside any encoded payload appears only in canonical form; a decoder MUST reject a payload whose name bytes are non-canonical (e.g. A-Z)'; A6's leaf-SHAPE half is cited. DELIBERATELY EXCLUDES (A6 candidate-stays / spec-blocked, conflict C6, NOT asserted): the owner-binding construction (H(ownerPubkey) vs raw ownerPubkey). This vector asserts ONLY reject-don't-normalize of the leaf name bytes.",
+      "authoringStatus": "authored: predicate-input shape proposed; byte-pinned non-canonical name. reviewer sign-off complete; locked."
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "a6-02-noncanonical-name-reject-not-normalize",
+      "invariant": "non-canonical name bytes are REJECTED, never normalized to 'alice'; the kernel/leaf boundary mirrors WIRE_FORMAT §2 reject-don't-normalize; zero state effect",
+      "rationale": "A6's leaf-SHAPE half stays cited and this flag is squarely on it: reject-don't-normalize for non-canonical name bytes. The authority is normative WIRE_FORMAT §2 ('a name inside any encoded payload appears only in canonical form; a decoder MUST reject a payload whose name bytes are non-canonical'). A second implementer derives 'a leaf naming Alice (non-canonical bytes) is rejected, not normalized' directly from this normative law. No provisional decision, no missing rule — the kernel pins the wire's reject-don't-normalize law at the leaf boundary."
+    },
+    "status": "locked",
+    "attackFlagRef": "A6-02",
+    "flipMarker": null
+  },
+  {
+    "id": "A10-neg-01",
+    "ruleId": "A10",
+    "area": "Anchor acceptance",
+    "authorityTier": "ratified",
+    "sources": [
+      "docs/core/B2_KERNEL_HARDENING.md A10 (lines 199-208), proposed test (−): 'The predicate's type signature admits no wall-time, URL, or callback parameter ... the legacy batchDataProvider seam MUST NOT reappear inside the kernel'",
+      "docs/core/SOFTWARE_CANON.md The boundary rule (ratified) — 'pure predicate over witnessed inputs'; L2 ownership kernel 'No DB, no network, no clock, no UI'",
+      "docs/core/B2_VECTOR_SCHEMA.json authorityTier ratified→vector-now"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "DA §6c's challenge phrasing tempts an implementation to poll mirrors at verdict time; the served-evidence must arrive as a B3-witnessed input or purity is silently broken.",
+      "predicateSignature": "anchorAcceptance(eventBytes, witnessedChainFacts{minedHeight,txid,positionInBlock,confirmationDepth,txFeeSats}, priorKernelState, witnessedServedEvidence) -> {verdict, reason} — servedEvidence arrives as a WITNESSED INPUT, never fetched live",
+      "fixture": {
+        "kind": "structural/architectural negative — not a byte-input/verdict fixture",
+        "assertion": "the anchor-acceptance/DA predicate's type signature admits NO wall-time, URL, or callback parameter; @ont/consensus production modules import no host I/O / network / process / timer / clock channel and read no host-time/network/storage global; the legacy batchDataProvider live-fetch seam cannot reappear inside the kernel",
+        "dischargedBy": "packages/consensus/src/b2-boundary.test.ts (executable zero-I/O purity gate, committed @ 8459041) + the A10 predicate-signature constraint",
+        "priorKernelState": "n/a (structural)"
+      },
+      "scopeNote": "Cited-now (ratified): SOFTWARE_CANON boundary rule + L2 'No DB, no network, no clock, no UI'. Discharged by the committed purity gate. DELIBERATELY EXCLUDES (deferred): the B3 served-evidence witness FORMAT — this vector asserts ONLY the purity posture / signature constraint, not the evidence shape.",
+      "authoringStatus": "authored: structural vector — the executable discharge is the committed b2-boundary.test.ts; status stays proposed pending reviewer sign-off on the signature-constraint framing."
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "a10-02-no-live-availability-seam",
+      "invariant": "an availability decision cannot be 'checked live' at verdict time; served-evidence must be a B3-witnessed input. The 'reject' is structural: the impure construction (mirror-poll / URL / callback / wall-clock in the predicate) is inexpressible at the boundary",
+      "rationale": "A10 is verdict 'cited' on the ratified SOFTWARE_CANON boundary rule (the anchor-acceptance verdict is a pure predicate over witnessed inputs; 'No DB, no network, no clock, no UI'). This flag — that §6c must NOT be implemented as a live mirror-poll, the served-evidence must arrive as a witnessed input — is the fail-closed-purity posture, derivable now from ratified authority. The B3 evidence FORMAT is deferred, but the kernel's purity posture (no network fetch in the predicate, type signature admits no URL/callback) is exactly the vector-now carve-out: purity on absent-live-fetch is derivable even though the witness format is B3."
+    },
+    "status": "locked",
+    "attackFlagRef": "A10-02",
+    "flipMarker": null
+  }
+]

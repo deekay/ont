@@ -1,0 +1,70 @@
+[
+  {
+    "id": "A3-neg-01",
+    "ruleId": "A3",
+    "area": "Anchor acceptance",
+    "authorityTier": "ratified",
+    "sources": [
+      "docs/core/B2_KERNEL_HARDENING.md A3 (lines 118-129), Step-2 correction: 'da-windows (#49 ... merged) pins the strong form K >= W + C as S6 — the rule restates per §6e and conflict C3 is resolved by that ruling' (line 121)",
+      "docs/spec/ONT_DATA_AVAILABILITY_AGREEMENT.md §6c (candidate) + §6e S1-S6 da-windows (ratified 2026-06-14) — decidable predicate over witnessed evidence",
+      "docs/core/DECISIONS.md entry 49 da-windows (RATIFIED 2026-06-14)"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "provisional-vector",
+      "attackFlagText": "DA agreement §6c describes the challenge outcome as having 'an objective, eventually-consistent answer' — 'eventually-consistent' is not a pure predicate; the B2 rule must be restated as decidable at a fixed height over a witnessed evidence set or the kernel cannot be pure.",
+      "predicateSignature": "daChallengeOutcome(witnessedEvidenceSet, currentHeight, eligibleAt{H>=h+K}, W[#49 provisional=2], C[#49 provisional=3], K[#49 provisional=6], priorKernelState) -> {verdict}",
+      "fixture": {
+        "caseBelowEligibleBoundary": "the same anchor evaluated at currentHeight = h+K-1 (provisional K=6) -> not yet eligible; as a fixed-height predicate the not-yet-eligible claim confers no award; at h+K exactly it becomes eligible (pins the H>=h+K boundary block close-1/close)",
+        "caseS6Violation": "a window parameterization where K < W + C violates the S6 strong-form invariant -> the kernel cannot produce a pure, replay-stable verdict; the windows must satisfy K >= W + C",
+        "WCK": "#49 provisional consensus parameters (S7 provisional W=2, C=3, K=6); S2 eligibleAt(anchor,H,K):=H>=h+K; S6 strong form K >= W + C",
+        "priorState": "baseline; a single witnessed evidence set, no qualifying bond"
+      },
+      "scopeNote": "Originated provisional on da-windows (#49, RATIFIED 2026-06-14): the A3 rule SHAPE (the §6c challenge outcome restated as a pure predicate decidable at a fixed height over the witnessed evidence set — S2 eligibleAt H>=h+K, S3 includable/holdsPriority, S4 evidence-in/verdict-out, identical on replay) is derivable, but the h+K eligibility boundary and the K >= W + C strong-form invariant are governed by #49 (RATIFIED — S2/S5/S6/S7). A3 is the precise concern #49 resolves; per the gate, depends-on-#49 (provisional-origin, now ratified), (provisional-origin). Authored with provisional W=2, C=3, K=6; the verdict was authored under the ratified #49 algebra.",
+      "authoringStatus": "authored from a provisional vector (decisionDeps + flipMarker shed on ratification); status locked (per-area adversarial review passed; authorityTier RATIFIED 2026-06-14 (DK ratified da-windows #49 O1 / recovery-auth #50 b1); lineage in DECISIONS #49/#50, registry Part B, decision papers, git)."
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "a3-01-not-decidable-at-fixed-height-below-h+K",
+      "invariant": "the DA challenge outcome is a pure predicate decidable at a fixed height over the witnessed evidence set (S2 eligibleAt H>=h+K, S3 includable/holdsPriority, S4 evidence-in/verdict-out): below h+K the claim is not yet eligible and confers no award, and the windows must satisfy the strong form K >= W + C; identical on every deterministic replay",
+      "rationale": "This flag is the precise concern da-windows (#49) resolves: §6c's 'eventually-consistent' phrasing is restated as a decidable predicate over witnessed evidence at a fixed height. A3's verdict (decidable from witnessed inputs alone, identical on every replay, K >= W + C) is derivable, but it rides on #49 which is RATIFIED 2026-06-14 (S2 eligibleAt, S6 strong form, S7 provisional W=2/C=3/K=6). Per the gate, depends-on-#49 (provisional-origin, now ratified), (provisional-origin)."
+    },
+    "status": "locked",
+    "attackFlagRef": "A3-01",
+    "flipMarker": null
+  },
+  {
+    "id": "A11-pos-01",
+    "ruleId": "A11",
+    "area": "Anchor acceptance",
+    "authorityTier": "ratified",
+    "sources": [
+      "docs/core/B2_KERNEL_HARDENING.md A11 (lines 210-218), flag (line 218)",
+      "docs/core/DECISIONS.md entry 26 (ratified, insertion-only) + entry 49 da-windows (provisional — includable/holdsPriority post-DA state)",
+      "docs/spec/ONT_DATA_AVAILABILITY_AGREEMENT.md §5 (candidate, insertion-only uniqueness) / §6e S3 (candidate)"
+    ],
+    "kind": "positive",
+    "inputs": {
+      "sourceCategory": "provisional-vector",
+      "attackFlagText": "Uniqueness is enforced against kernel state, which depends on the DA verdicts of earlier batches: a name 'already inserted' by a later-forfeited batch must not block honest re-claiming — the insertion-uniqueness check must be defined over the post-DA-verdict state, and the spec does not yet say so.",
+      "predicateSignature": "anchorAcceptance(candidateAnchor, priorKernelState{post-DA-verdict occupancy}, witnessedDAVerdicts{includable/holdsPriority per #49}, W[#49=2], C[#49=3], K[#49=6]) -> {verdict}",
+      "fixture": {
+        "caseForfeitedThenReclaim": "name N's ONLY prior insertion came from batch B1 whose anchor later FORFEITS DA (excluded / never reaches eligibility at its window); evaluated over post-DA-verdict occupancy, N is absent (B1's insertion was never finalized), so an honest claim of N at a fresh valid anchor B2 is ACCEPTED",
+        "postDaVerdictState": "the kernel occupancy state AFTER each prior batch's DA verdict is applied (S3 includable/holdsPriority, #49 provisional); the forfeited batch contributes no occupancy",
+        "priorState": "name N marked inserted by B1 in pre-verdict state; B1 subsequently forfeits DA, so N is absent from post-DA-verdict occupancy",
+        "scopeExclusion": "this vector does NOT assert the first-anchor-wins (earliest-VALID-anchor) merge or same-(name,owner) idempotency — those are PR-5 / PR-6 definition-block claims, not #49; it tests only post-DA-verdict occupancy"
+      },
+      "scopeNote": "Originated provisional on da-windows (#49, RATIFIED 2026-06-14): A11 (anchors are insertion-only; a claim must not take an already-FINAL name) is cited on ratified #26 + candidate DA §5, but the flag's demand — insertion-uniqueness must be defined over the POST-DA-verdict state so a later-forfeited batch does not block honest re-claiming — consumes the eligibility verdict pinned by #49 S3 (includable/holdsPriority). What this vector tests is exactly that: a forfeited earlier batch is ABSENT from post-DA-verdict occupancy and so does not block a fresh honest claim. Depends-on-#49 (provisional-origin, now ratified), (provisional-origin). The broader first-anchor-wins (earliest-VALID-anchor) definition and same-(name,owner) idempotency are PR-5 / PR-6 territory and are NOT asserted here (context only). Authored with provisional W=2/C=3/K=6.",
+      "authoringStatus": "authored from a provisional vector (decisionDeps + flipMarker shed on ratification); status locked (per-area adversarial review passed; authorityTier RATIFIED 2026-06-14 (DK ratified da-windows #49 O1 / recovery-auth #50 b1); lineage in DECISIONS #49/#50, registry Part B, decision papers, git)."
+    },
+    "expected": {
+      "verdict": "accept",
+      "reason": "a11-01-forfeited-insertion-does-not-block-reclaim",
+      "invariant": "insertion-uniqueness is evaluated over the post-DA-verdict kernel state: a name whose only prior insertion came from a batch that later forfeits DA is ABSENT from post-DA-verdict occupancy, so it does not block an honest re-claim at a fresh valid anchor; identical on deterministic replay. (The broader first-anchor-wins / same-(name,owner)-idempotency definition is PR-5 / PR-6 territory and is NOT asserted by this vector.)",
+      "rationale": "A11 (anchors are insertion-only; a claim must not take an already-final name) is cited on ratified DECISIONS #26 and candidate DA §5. The flag's specific demand — insertion-uniqueness must be defined over POST-DA-verdict state so a later-forfeited batch does not block honest re-claiming — is derivable, but the post-DA-verdict occupancy IS the eligibility verdict pinned by da-windows (#49) S3 (includable/holdsPriority). The forfeited-batch-confers-no-occupancy / re-claim-allowed verdict depends on the #49 eligibility algebra. Originated as a provisional-vector under #49 (now ratified). (First-anchor-wins / idempotency are PR-5 / PR-6, not asserted here.)"
+    },
+    "status": "locked",
+    "attackFlagRef": "A11-01",
+    "flipMarker": null
+  }
+]

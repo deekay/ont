@@ -1,0 +1,136 @@
+[
+  {
+    "id": "B1-neg-02",
+    "ruleId": "B1",
+    "area": "Batched-path transitions",
+    "authorityTier": "ratified",
+    "sources": [
+      "docs/spec/AUCTION.md Provisional Utility [candidate] — provisional row 'DA-valid'",
+      "docs/spec/ONT_DATA_AVAILABILITY_AGREEMENT.md §6e da-windows (#49) [provisional; candidate tier] S4 'evidence in, verdict out'",
+      "docs/core/DECISIONS.md §49 da-windows [RATIFIED 2026-06-14]"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "provisional-vector",
+      "attackFlagText": "the table row for provisional says 'DA-valid' — eligibility verdicts are inputs, so an implementation caching state across a flipped DA verdict desynchronizes",
+      "predicateSignature": "batchedPathState(priorState, witnessedDAVerdict[#49 S2/S3/S4 includable/holdsPriority], currentHeight) -> {state, verdict}",
+      "fixture": {
+        "caseCachedStateAcrossFlippedVerdict": "an implementation that SERVES CACHED state across a flipped DA verdict (rather than re-deriving from the witnessed verdict) desynchronizes -> REJECT (non-conformant)",
+        "caseReDerivedAccepts": "the conformant kernel recomputes state from the witnessed DA verdict (eligibility verdicts are pure-predicate INPUTS, S4 evidence-in/verdict-out) -> the companion accept",
+        "priorState": "a provisional-utility name whose DA verdict subsequently flips"
+      },
+      "scopeNote": "Originated provisional on da-windows (#49, RATIFIED 2026-06-14): the verdict (state is re-derived from the witnessed DA verdict, never cached; eligibility verdicts are pure-predicate INPUTS) is derivable, but the DA-eligibility verdict the state consumes is governed by #49 S2/S3/S4 (includable/holdsPriority, evidence-in/verdict-out), RATIFIED 2026-06-14. This is a DA-validity-CONSUMER (it counts/recomputes from the DA verdict), not a non-DA boundary edge. Originated as a provisional-vector under #49 (now ratified).",
+      "authoringStatus": "authored from a provisional vector (decisionDeps + flipMarker shed on ratification); status locked (per-area adversarial review passed; authorityTier RATIFIED 2026-06-14 (DK ratified da-windows #49 O1 / recovery-auth #50 b1); lineage in DECISIONS #49/#50, registry Part B, decision papers, git)."
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "b1-02-cached-state-across-flipped-da-verdict-rejected",
+      "invariant": "batched-path state is recomputed from the witnessed DA verdict and never cached across a flipped verdict (DA-eligibility verdicts are pure-predicate inputs, #49 S4); an implementation serving cached state across a flip desynchronizes and is rejected; identical on deterministic replay",
+      "rationale": "The verdict (state must be re-derived, never cached across a flipped DA verdict; eligibility verdicts are pure-predicate inputs) is derivable, but the DA-eligibility verdict the state caches is governed by the da-windows algebra (#49 S2/S3/S4), which is ratified 2026-06-14. The vector that pins 'state is recomputed from the witnessed DA verdict, never cached' depends on the #49 includable/holdsPriority semantics."
+    },
+    "status": "locked",
+    "attackFlagRef": "B1-02",
+    "flipMarker": null
+  },
+  {
+    "id": "B3-neg-01",
+    "ruleId": "B3",
+    "area": "Batched-path transitions",
+    "authorityTier": "ratified",
+    "sources": [
+      "docs/spec/ONT_ACQUISITION_STATE_MACHINE.md Public Notice [candidate] — 'exactly one cheap claim and no qualifying bond'",
+      "docs/core/DECISIONS.md §37 bond-opens [ratified] — 'One cheap claim, no bond by the deadline -> finalizes'",
+      "docs/spec/ONT_DATA_AVAILABILITY_AGREEMENT.md §6e da-windows (#49) [provisional] S1 one clock"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "provisional-vector",
+      "attackFlagText": "'exactly one' silently depends on the three eligibility verdicts from other kernel areas; if any verdict is evaluated at a different height than window close, the claim count can differ between honest nodes",
+      "predicateSignature": "exactlyOneEligible(claims, daVerdicts[evaluated at one height per #49 S1 one-clock], windowCloseHeight) -> {verdict}",
+      "fixture": {
+        "caseCountHeightDesync": "a DA-excluded/late-served claim whose eligibility is evaluated at a DIFFERENT height than the uniform count height -> the 'exactly one' count differs between honest nodes (desync) -> REJECT (non-conformant)",
+        "caseUniformCountAccepts": "all claims' DA-eligibility evaluated uniformly at the one-clock height -> 'exactly one' is honest-node-invariant -> the companion accept",
+        "scopeExclusion": "this vector tests the UNIFORMITY of the evaluation height (the #49 S1 one-clock property), NOT the exact at-close inclusivity (a claim landing exactly at the close height) — that non-DA exact edge is PR-13",
+        "priorState": "a name with one cheap claim and one DA-excluded colliding claim near window close"
+      },
+      "scopeNote": "Originated provisional on da-windows (#49, RATIFIED 2026-06-14): the 'exactly one eligible claim' verdict is from ratified #37 + candidate state machine, but the HEIGHT at which DA-eligibility is evaluated for the count rides on #49 S1/S3 (one clock, includable/holdsPriority), RATIFIED 2026-06-14. DA-validity-COUNTING consumer. Tests the one-clock height-uniformity (honest-node-invariant count), explicitly NOT the exact at-close edge (that non-DA edge is PR-13, cf. A13). Originated as a provisional-vector under #49 (now ratified).",
+      "authoringStatus": "authored from a provisional vector (decisionDeps + flipMarker shed on ratification); status locked (per-area adversarial review passed; authorityTier RATIFIED 2026-06-14 (DK ratified da-windows #49 O1 / recovery-auth #50 b1); lineage in DECISIONS #49/#50, registry Part B, decision papers, git)."
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "b3-01-eligibility-count-height-desync-rejected",
+      "invariant": "the 'exactly one eligible claim' count evaluates every claim's DA-eligibility at the same one-clock height (#49 S1), so it is honest-node-invariant; evaluating any claim's eligibility at a different height desynchronizes the count and is rejected; identical on deterministic replay. (Tests height-uniformity, not the exact at-close inclusivity, which is PR-13.)",
+      "rationale": "The 'exactly one eligible claim' count must be evaluated at the same height (window close) on every honest node, and the DA-eligibility verdict component is governed by the da-windows algebra (#49 S1/S3, one clock, includable/holdsPriority). The verdict is derivable from ratified #37 plus candidate state machine, but the height at which DA-eligibility is evaluated for the count rides on the provisional #49 semantics."
+    },
+    "status": "locked",
+    "attackFlagRef": "B3-01",
+    "flipMarker": null
+  },
+  {
+    "id": "B4-neg-01",
+    "ruleId": "B4",
+    "area": "Batched-path transitions",
+    "authorityTier": "ratified",
+    "sources": [
+      "docs/spec/CONTESTED_AUCTION_REFERENCE.md Core Rule [candidate] — 'two or more DA-valid claims... no bond... nullified'",
+      "docs/spec/ONT_DATA_AVAILABILITY_AGREEMENT.md §6e da-windows (#49) [provisional] S3 includable/holdsPriority",
+      "docs/core/B2_KERNEL_HARDENING.md B4 lines 881-890"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "provisional-vector",
+      "attackFlagText": "CONTESTED_AUCTION_REFERENCE says 'DA-valid claims' while the state machine says 'cheap claims' — an ineligible (withheld) colliding claim must NOT nullify, or withholding becomes a free denial weapon",
+      "predicateSignature": "collisionNullify(victimName, collidingClaims, daVerdicts[#49 S3 includable/holdsPriority], priorState) -> {verdict}",
+      "fixture": {
+        "caseWithheldClaimDoesNotNullify": "a withheld / DA-excluded colliding claim is presented against a victim name -> it does NOT nullify (only DA-eligible claims count toward a collision) -> REJECT the nullification; the victim's name survives (else withholding is a free denial weapon)",
+        "caseTwoDAValidNullify": "the contrast: two genuinely DA-valid bondless colliding claims DO nullify (no owner) — the companion that pins the 'DA-valid' counting basis",
+        "priorState": "a victim name with one withheld colliding claim"
+      },
+      "scopeNote": "Originated provisional on da-windows (#49, RATIFIED 2026-06-14): the verdict (only DA-eligible claims count toward a collision; a withheld/excluded colliding claim does NOT nullify) resolves the CONTESTED_AUCTION_REFERENCE-vs-state-machine doc conflict in favor of 'DA-valid', derivable, but 'DA-valid/eligible' is defined by #49 S3 includable/holdsPriority, RATIFIED 2026-06-14. DA-validity-COUNTING consumer (the #49 class ChatLunatique confirmed, alongside F11). Originated as a provisional-vector under #49 (now ratified).",
+      "authoringStatus": "authored from a provisional vector (decisionDeps + flipMarker shed on ratification); status locked (per-area adversarial review passed; authorityTier RATIFIED 2026-06-14 (DK ratified da-windows #49 O1 / recovery-auth #50 b1); lineage in DECISIONS #49/#50, registry Part B, decision papers, git)."
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "b4-02-withheld-colliding-claim-does-not-nullify",
+      "invariant": "only DA-eligible claims count toward a name collision (#49 S3); a withheld / DA-excluded colliding claim does NOT nullify the victim's name (rejecting the nullification) — closing the free-denial-by-withholding weapon; two DA-valid bondless colliding claims do nullify; identical on deterministic replay",
+      "rationale": "The verdict resolves the apparent doc conflict in favor of 'DA-valid' (an ineligible/withheld colliding claim must NOT nullify, else withholding becomes free denial), which is derivable: only DA-eligible claims count toward the collision per the B3 'exactly one eligible' framing. But 'DA-valid/eligible' is defined by the da-windows includable/holdsPriority algebra (#49 S3), which is provisional, so the vector that an excluded colliding claim does not nullify depends on #49."
+    },
+    "status": "locked",
+    "attackFlagRef": "B4-02",
+    "flipMarker": null
+  },
+  {
+    "id": "B10-pos-01",
+    "ruleId": "B10",
+    "area": "Batched-path transitions",
+    "authorityTier": "ratified",
+    "sources": [
+      "docs/spec/ONT_DATA_AVAILABILITY_AGREEMENT.md §6c/§5 [candidate] — uniform exclusion, only D's own leaves move",
+      "docs/core/B2_KERNEL_HARDENING.md B10 lines 947-955 ('Blocked on decision: da-windows')",
+      "docs/core/DECISIONS.md §49 da-windows [RATIFIED 2026-06-14] S5 (K,W,C) are inputs"
+    ],
+    "kind": "positive",
+    "inputs": {
+      "sourceCategory": "provisional-vector",
+      "attackFlagText": "the rule's shape is final but its trigger heights (W, C, K) are the open da-windows decision — any test fixture must parameterize them",
+      "predicateSignature": "batchExclusion(excludedBatch, allNames, W[#49=2], C[#49=3], K[#49=6, S5 inputs], priorState) -> {state}",
+      "fixture": {
+        "caseExcludedBatchVanishes": "a DA-excluded batch D: D's claims vanish from the counts, EVERY other name is byte-identical, and NO final owner is unseated -> ACCEPT the correct post-exclusion state (exclusion removes only D's own leaves)",
+        "caseTwoParameterizations": "the fixtures run at two distinct (K,W,C) parameterizations satisfying K>=W+C (#49 S7) so no baked trigger-height constant passes",
+        "params": "#49 S5: (K,W,C) per-network inputs; provisional (6,2,3)",
+        "priorState": "a kernel state with a final owner on one name and an in-flight batch D on others"
+      },
+      "scopeNote": "Originated provisional on da-windows (#49, RATIFIED 2026-06-14): the rule (a DA-excluded batch's claims vanish uniformly; exclusion removes only the batch's own leaves and unseats no final owner) is cited and final in shape, but the trigger heights W/C/K are exactly the #49 decision (B10 marked 'Blocked on decision: da-windows'). The verdict is a parameterized function; the parameters come from the now-ratified #49 and the fixtures run at two parameterizations (S7). Originated as a provisional-vector under #49 (now ratified).",
+      "authoringStatus": "authored from a provisional vector (decisionDeps + flipMarker shed on ratification); status locked (per-area adversarial review passed; authorityTier RATIFIED 2026-06-14 (DK ratified da-windows #49 O1 / recovery-auth #50 b1); lineage in DECISIONS #49/#50, registry Part B, decision papers, git); re-instantiates trigger heights on DK's #49 parameterization ruling."
+    },
+    "expected": {
+      "verdict": "accept",
+      "reason": "b10-01-excluded-batch-leaves-vanish-others-intact",
+      "invariant": "a DA-excluded batch's claims vanish from the counts uniformly; exclusion removes only that batch's own leaves, every other name is byte-identical, and no final owner is unseated; the verdict is a function of the (K,W,C) inputs (#49 S5) and holds at two parameterizations (S7); identical on deterministic replay",
+      "rationale": "The rule (DA-excluded batch's claims vanish uniformly; exclusion removes only the batch's own leaves, unseats no final owner) is cited and its shape is final, but the trigger heights W/C/K are exactly the da-windows decision. The hardening doc marks B10 'Blocked on decision: da-windows'. The verdict is derivable as a parameterized function; the parameters come from the now-ratified #49."
+    },
+    "status": "locked",
+    "attackFlagRef": "B10-01",
+    "flipMarker": null
+  }
+]

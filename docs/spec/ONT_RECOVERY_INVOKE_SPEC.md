@@ -57,13 +57,15 @@ In the resolver: routes for `POST /recovery-descriptors` and
    - (c) the owner-key cancel signature, in the veto path only.
 
    The cancel-authorization function exists and is clearly the veto-path
-   signer. The invoke-path signer is **decided — recovery-auth (#50),
-   provisional pending DK**: path (b), as a fresh BIP340 signature by a
-   `recoveryPubkey` committed in a v2 descriptor (see
+   signer. The invoke-path signer is **RATIFIED — recovery-auth (#50) b1,
+   2026-06-14**: path (b), a fresh BIP340 signature by a `recoveryPubkey`
+   committed in a v2 descriptor (see
    [`../research/RECOVERY_AUTH.md`](../research/RECOVERY_AUTH.md); the
    BIP322 evidence path stays the standing counter-design there). The
    architect builder takes a recovery-wallet BIP340 signing key. The
-   WIRE_FORMAT §8.2/§8.3 amendments land at DK ratification.
+   WIRE_FORMAT §8.2a/§8.3 amendments landed at ratification (2026-06-14).
+   (The recovery interval-opening point and transfer-vs-recovery precedence
+   are separate, still-open axes — not settled by b1; see PR-17 / PR-34.)
 
 3. **`buildRecoverOwnerCancelArtifacts`** — the veto-path builder. Simpler:
    the owner key signs the cancellation, the funding key signs the inputs.

@@ -85,6 +85,44 @@ describe("parseBitcoinBlocksFixture", () => {
     ]);
   });
 
+  it("carries an optional payment-output address (parsed destination, omitted when absent)", () => {
+    const [block] = parseBitcoinBlocksFixture({
+      blocks: [
+        {
+          hash: "abc",
+          height: 1,
+          transactions: [
+            {
+              txid: "tx1",
+              outputs: [
+                { valueSats: "42", scriptType: "payment", address: "bc1qexampledestination000000000000000000" },
+                { valueSats: "0", scriptType: "payment" },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+    expect(block?.transactions[0]?.outputs[0]?.address).toBe("bc1qexampledestination000000000000000000");
+    expect(block?.transactions[0]?.outputs[1]?.address).toBeUndefined();
+  });
+
+  it("rejects a non-string fixture output address", () => {
+    expect(() =>
+      parseBitcoinBlocksFixture({
+        blocks: [
+          {
+            hash: "abc",
+            height: 1,
+            transactions: [
+              { txid: "tx1", outputs: [{ valueSats: "1", scriptType: "payment", address: 5 as unknown as string }] },
+            ],
+          },
+        ],
+      })
+    ).toThrow(/address must be a string/);
+  });
+
   it("loads the shared demo-chain fixture from disk", () => {
     const fixturePath = resolve(CURRENT_DIR, "../../../fixtures/demo-chain.json");
     const blocks = loadBitcoinBlocksFixture(fixturePath);

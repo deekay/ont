@@ -1,0 +1,104 @@
+[
+  {
+    "id": "T17-neg-01",
+    "ruleId": "T17",
+    "area": "Transcript completeness",
+    "authorityTier": "ratified",
+    "sources": [
+      "docs/core/B2_KERNEL_HARDENING.md T17 'Blocked on decision: da-windows' + sources (ONT_ACQUISITION_STATE_MACHINE Public Notice/Contested Auction [candidate], DECISIONS #47 marker-fold)",
+      "docs/core/STATUS.md 'da-windows (#49), 2026-06-13, ratified 2026-06-14 ... K >= W + C'"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "provisional-vector",
+      "attackFlagText": "The verdict consumes the DA predicate (separate kernel area): if the DA challenge window (h+W+C) can end after the notice deadline (h+W_notice), the claim set at deadline time is not yet decidable — the window interleaving is exactly what da-windows must rule, and any implementation choice before that ruling is improvisation.",
+      "predicateSignature": "noticeDeadlineOutcome(claimSet{DA-decided}, qualifyingBond?, W[#49=2], C[#49=3], K[#49 K>=W+C], priorKernelState) -> {verdict}",
+      "fixture": {
+        "caseTwoDAValidBondlessNullify": "two DA-valid claims, no qualifying bond, evaluated at the notice deadline -> NULLIFY (no owner, never an award) -> reject any award",
+        "caseOneDAValidFinalize": "one DA-valid claim, no bond -> finalize (accept) — the companion positive disposition",
+        "caseBondEscalate": "a qualifying bond present -> escalate to auction (the #37 escalation trigger)",
+        "decidability": "#49 S6 (K>=W+C) guarantees the DA challenge window resolves before the name finalizes, so every claim's DA-validity is settled at the deadline; the claims here are unambiguously DA-decided (NOT at the exact edge)",
+        "priorState": "a name with competing in-window claims near the notice deadline"
+      },
+      "scopeNote": "Originated provisional on da-windows (#49, RATIFIED 2026-06-14): the finalize/nullify/escalate resolution logic is #37 / §6d (ratified/candidate), but the DECIDABILITY of the claim set at the notice deadline rests on #49 S6 (K>=W+C ensures the DA challenge resolves before finalization, so DA-validity is settled). Authored over claims whose DA-validity is unambiguous; the EXACT notice-deadline inclusivity (a claim landing exactly at the close height) is NOT asserted here — that non-DA exact edge is PR-13 (cf. A13). Originated as a provisional-vector under #49 (now ratified), (provisional-origin).",
+      "authoringStatus": "authored from a provisional vector (decisionDeps + flipMarker shed on ratification); status locked (per-area adversarial review passed; authorityTier RATIFIED 2026-06-14 (DK ratified da-windows #49 O1 / recovery-auth #50 b1); lineage in DECISIONS #49/#50, registry Part B, decision papers, git); ratified per DK's #49 K>=W+C interleaving ruling."
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "t17-01-two-da-valid-bondless-nullify",
+      "invariant": "under #49 S6 (K>=W+C) the DA-validity of every claim is decided before the name finalizes, so the notice-deadline verdict is computable: two DA-valid bondless claims nullify (no owner, never an award), one DA-valid bondless claim finalizes, a qualifying bond escalates; identical on deterministic replay. The exact notice-deadline inclusivity (a claim at the close height) is NOT decided here — that non-DA edge is PR-13.",
+      "rationale": "T17 is cited but explicitly 'Blocked on decision: da-windows'. The notice-deadline finalize/nullify/escalate verdict is derivable once the window interleaving is ruled, and da-windows (#49, ratified 2026-06-14) supplies the direction (one clock from anchor height, K >= W+C, inclusive boundaries). marker-fold (#47, ratified) keys deadlines off anchor mined height. The verdict depends on the provisional #49 ruling, so it is provisional-vector (now ratified)."
+    },
+    "status": "locked",
+    "attackFlagRef": "T17-01",
+    "flipMarker": null
+  },
+  {
+    "id": "T18-neg-01",
+    "ruleId": "T18",
+    "area": "Transcript completeness",
+    "authorityTier": "ratified",
+    "sources": [
+      "docs/spec/ONT_ACQUISITION_STATE_MACHINE.md Public Notice [candidate] 'claims that arrive after a name is already final are already-owned attempts'",
+      "docs/core/STATUS.md 'da-windows (#49) ... inclusive boundaries' (ratified 2026-06-14)",
+      "docs/core/B2_KERNEL_HARDENING.md T18 attack flag"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "provisional-vector",
+      "attackFlagText": "'Already final' must be height-exact: a claim in the same block as the deadline boundary needs an inclusive/exclusive ruling, or reorg edges let a late claim flip between contest and inert across implementations.",
+      "predicateSignature": "transcriptAdmit(claim, confirmedHeight, holdsPriorityDeadline{h+W}, W[#49=2], priorKernelState) -> {verdict}",
+      "fixture": {
+        "casePastDeadlineInert": "a claim confirmed at h+W+1 (past the holdsPriority deadline) -> the name is already-final relative to it -> already-owned attempt -> REJECT (does not enter the transcript)",
+        "caseSameBlockAsHplusW": "a claim confirmed in the same block as the holdsPriority deadline h+W -> under #49 S2/S3 inclusive it is in-window (still contests, admitted) -> handled per the inclusive ruling (the companion at-boundary disposition)",
+        "edge": "the holdsPriority deadline h+W is a DA edge governed by #49 S2/S3; W provisional = 2",
+        "priorState": "a name approaching its holdsPriority deadline with a late-arriving claim"
+      },
+      "scopeNote": "Originated provisional on da-windows (#49, RATIFIED 2026-06-14): T18's core (a post-final claim does not enter the transcript) is candidate-derivable, but the height-EXACT disposition of a claim in the same block as the holdsPriority deadline rests on #49 S2/S3's inclusive-boundary ruling. This is the DA holdsPriority edge (h+W) — a genuine DA edge (#49 S2/S3), distinct from the non-DA notice-close / collision / maturity exact edges that route to PR-13 (cf. A13). ChatLunatique confirmed T18 stays #49 as a DA edge (batch-1 re-check). Originated as a provisional-vector under #49 (now ratified).",
+      "authoringStatus": "authored from a provisional vector (decisionDeps + flipMarker shed on ratification); status locked (per-area adversarial review passed; authorityTier RATIFIED 2026-06-14 (DK ratified da-windows #49 O1 / recovery-auth #50 b1); lineage in DECISIONS #49/#50, registry Part B, decision papers, git); ratified per DK's #49 S2/S3 boundary-inclusivity ruling."
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "t18-01-past-holdsPriority-deadline-claim-inert",
+      "invariant": "a claim confirmed past the holdsPriority deadline (h+W+1 under #49 S2/S3) is an already-owned attempt and does not enter the transcript (reject); a claim in the same block as h+W is in-window per the #49 inclusive ruling; height-exact and identical on deterministic replay across reorg edges. This is the DA holdsPriority edge (h+W), not a non-DA PR-13 edge.",
+      "rationale": "T18's core rule (post-final claim/bid does not enter the transcript) is candidate-derivable, but THIS flag is about height-exact inclusive/exclusive disposition of a claim in the same block as the deadline boundary. That boundary inclusivity is exactly what da-windows (#49, provisional) rules ('inclusive boundaries'); until ratified the same-block-as-deadline verdict derives from the now-ratified decision."
+    },
+    "status": "locked",
+    "attackFlagRef": "T18-01",
+    "flipMarker": null
+  },
+  {
+    "id": "T19-pos-01",
+    "ruleId": "T19",
+    "area": "Transcript completeness",
+    "authorityTier": "ratified",
+    "sources": [
+      "docs/core/B2_KERNEL_HARDENING.md T19 verdict candidate-stays + 'Blocked on decision: recovery-auth' + step-2 correction",
+      "docs/spec/WIRE_FORMAT.md line 408 'RecoverOwner authorization semantics | decided — recovery-auth (#50, ratified 2026-06-14)'",
+      "docs/spec/ONT_RECOVERY_INVOKE_SPEC.md What's missing in code, item 2 [candidate] 'invoke-path signer isn't yet defined'"
+    ],
+    "kind": "positive",
+    "inputs": {
+      "sourceCategory": "provisional-vector",
+      "attackFlagText": "challengeWindowBlocks rides inside the event the recoverer broadcasts; nothing cited binds it to the armed descriptor's value at the kernel layer — a recoverer choosing a 1-block window neuters the veto unless an equality check with the descriptor is ratified (the descriptor digest covers its own challengeWindowBlocks, but the cross-check is unstated kernel work).",
+      "predicateSignature": "recoverInvokeAdmit(invoke{challengeWindowBlocks, recoveryKeySig}, armedDescriptor{challengeWindowBlocks, recoveryPubkey}, priorKernelState) -> {verdict}",
+      "fixture": {
+        "caseMatchingWindowAdmitted": "an invoke whose challengeWindowBlocks EQUALS the armed descriptor's value, signed by the descriptor's recovery key (#50-b1 fresh BIP340 over the W13 descriptor digest) -> ACCEPT (admitted to the transcript)",
+        "caseMismatchedWindowRejected": "an invoke whose challengeWindowBlocks != the armed descriptor's value -> REJECT (cross-object equality enforced; closes the 1-block-window veto-neuter) — the companion negative",
+        "caseOwnerCancelAborts": "an owner-key-signed cancel inside the window aborts the pending recovery",
+        "priorState": "a name with an armed recovery descriptor (challengeWindowBlocks fixed at arming)"
+      },
+      "scopeNote": "Originated provisional on recovery-auth (#50, RATIFIED 2026-06-14): T19 is candidate-stays, blocked on #50, with the step-2 fail-closed default flagged as invented. The verdict (bind the event's challengeWindowBlocks to the armed descriptor; admit the invoke only under the #50 signer model) rests on #50's invoke-path SIGNER / evidence shape — exactly what #50-b1 (fresh recovery-key BIP340 under descriptor v2) resolves. Unlike the interval-opening / transfer-precedence vectors (V2/V5/X13, whose axes are orthogonal to the signer shape), T19 tests the signer + cross-object check, so b1<->b2h IS its flip axis. Originated as a provisional-vector under #50 (now ratified); #50 carries a STANDING b2h counter-design.",
+      "authoringStatus": "authored from a provisional vector (decisionDeps + flipMarker shed on ratification); status locked (per-area adversarial review passed; authorityTier RATIFIED 2026-06-14 (DK ratified da-windows #49 O1 / recovery-auth #50 b1); lineage in DECISIONS #49/#50, registry Part B, decision papers, git); ratified per DK's #50 invoke-path signer ruling (b1 vs b2h)."
+    },
+    "expected": {
+      "verdict": "accept",
+      "reason": "t19-01-matching-window-invoke-admitted",
+      "invariant": "under #50-b1 (fresh recovery-key BIP340 over the armed descriptor digest) a RecoverOwner invoke is admitted only if its challengeWindowBlocks equals the armed descriptor's value and it is signed by the descriptor's recovery key; a mismatched-window invoke is rejected (closing the 1-block-window veto-neuter) and an owner-key cancel inside the window aborts the recovery; identical on deterministic replay",
+      "rationale": "T19 is candidate-stays, blocked on recovery-auth, with the step-2 fail-closed default flagged as invented. Decision #50 (recovery-auth, ratified 2026-06-14) now supplies the direction (fresh recovery-key BIP340 under descriptor v2; the cross-object challengeWindowBlocks equality and invoke-path signer land at ratification). The verdict for this flag (binding the event's challengeWindowBlocks to the armed descriptor) is derivable under #50 but depends on the provisional ruling — and #50 carries a STANDING counter-design (b2h)."
+    },
+    "status": "locked",
+    "attackFlagRef": "T19-01",
+    "flipMarker": null
+  }
+]

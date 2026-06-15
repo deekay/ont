@@ -83,9 +83,67 @@
       }
     },
     {
-      "id": "descriptor-reject-version-2",
+      "id": "descriptor-v2-valid",
+      "kind": "valid",
+      "cite": "§8.2a descriptorVersion 2 adds recoveryPubkey(32); v2 digest appends recoveryPubkey after issuedAt",
+      "envelope": {
+        "format": "ont-recovery-descriptor",
+        "descriptorVersion": 2,
+        "name": "example",
+        "ownerPubkey": "7fb0dc13cea75a622e8ba13d1c3abdeba2258649dd3069f2aa98357777eb2dba",
+        "ownershipRef": "6e44ded5de059bb2917a073ec1ceb50eb9e3d430436d913e177b96d31d45f804",
+        "sequence": 1,
+        "previousDescriptorHash": null,
+        "recoveryAddress": "tb1q28r7kchkssmxzlaan86zcuksgcy9yecnargmak",
+        "signingProfile": "bip322",
+        "challengeWindowBlocks": 144,
+        "issuedAt": "2026-06-12T00:00:00.000Z",
+        "recoveryPubkey": "462779ad4aad39514614751a71085f2f10e1c7a593e4e030efb5b8721ce55b0b",
+        "signature": "16eedafb7faf1ed03148412022a9c1a353fc6dc892e4f7084095075dc02add5a4695f29cb9c459e1fc9218101a1634382b8e821a118fd490d9bdaa3be27fa17a"
+      },
+      "digest": "1ee720d7276abdf3b6255b2b56011995a3bef99d70c3dd663840b472ba2ae70a",
+      "signerXOnlyPubkey": "7fb0dc13cea75a622e8ba13d1c3abdeba2258649dd3069f2aa98357777eb2dba",
+      "recoverySignerXOnlyPubkey": "462779ad4aad39514614751a71085f2f10e1c7a593e4e030efb5b8721ce55b0b",
+      "invoke": {
+        "fields": {
+          "prevStateTxid": "7cf2b1832808d612782db10e354dfcdf0aaed7bfcb6db06fe9ae16026323b75f",
+          "newOwnerPubkey": "bb6993ecc9feec6f631e24977e460eb3df2654b103fbeb75a969f17d5a911afe",
+          "flags": 1,
+          "successorBondVout": 0,
+          "challengeWindowBlocks": 144,
+          "recoveryDescriptorHash": "1ee720d7276abdf3b6255b2b56011995a3bef99d70c3dd663840b472ba2ae70a"
+        },
+        "digest": "8448b722c3ebc1d04fb51802d0cf127c6bacb8224afdefe16e4827fa9eddb8c6",
+        "signature": "f99ea39b558f5296b8da1629cbd5f55fdd9aaf955cb1e24dc593a837fb84076801a193fa119bc91fec342c5ef9849f016bb64f510d1c5670bc7bbb1929d0b669"
+      },
+      "note": "v2 owner-arming signature verifies against ownerPubkey; invoke signature verifies against recoveryPubkey"
+    },
+    {
+      "id": "descriptor-v1-not-invokable",
+      "kind": "valid",
+      "cite": "§8.2a: descriptorVersion 1 stays parse-valid wire but is not invokable (no recoveryPubkey)",
+      "envelope": {
+        "format": "ont-recovery-descriptor",
+        "descriptorVersion": 1,
+        "name": "example",
+        "ownerPubkey": "7fb0dc13cea75a622e8ba13d1c3abdeba2258649dd3069f2aa98357777eb2dba",
+        "ownershipRef": "6e44ded5de059bb2917a073ec1ceb50eb9e3d430436d913e177b96d31d45f804",
+        "sequence": 1,
+        "previousDescriptorHash": null,
+        "recoveryAddress": "tb1q28r7kchkssmxzlaan86zcuksgcy9yecnargmak",
+        "signingProfile": "bip322",
+        "challengeWindowBlocks": 144,
+        "issuedAt": "2026-06-12T00:00:00.000Z",
+        "signature": "68201e98f9fcafe43c436edf0cef8212c015c24f4aad0f4b2e99d05dde2fd708fd82eb225436800550562c9e0fc804f9c11baf56d8b8b3d1e666998e60c9805c"
+      },
+      "digest": "e02d0f92325c4f713a46faa9296cb5985c4ca6b70e4322c8a8a36b76712049a8",
+      "signerXOnlyPubkey": "7fb0dc13cea75a622e8ba13d1c3abdeba2258649dd3069f2aa98357777eb2dba",
+      "invokable": false
+    },
+    {
+      "id": "descriptor-v2-reject-missing-recovery-pubkey",
       "kind": "reject",
-      "cite": "§8.2 descriptorVersion must equal 1",
+      "cite": "§8.2a descriptorVersion 2 requires recoveryPubkey(32)",
       "envelope": {
         "format": "ont-recovery-descriptor",
         "descriptorVersion": 2,
@@ -100,6 +158,62 @@
         "issuedAt": "2026-06-12T00:00:00.000Z",
         "signature": "68201e98f9fcafe43c436edf0cef8212c015c24f4aad0f4b2e99d05dde2fd708fd82eb225436800550562c9e0fc804f9c11baf56d8b8b3d1e666998e60c9805c"
       }
+    },
+    {
+      "id": "descriptor-v2-reject-recovery-pubkey-not-hex32",
+      "kind": "reject",
+      "cite": "§8.2a recoveryPubkey is 32-byte lowercase hex",
+      "envelope": {
+        "format": "ont-recovery-descriptor",
+        "descriptorVersion": 2,
+        "name": "example",
+        "ownerPubkey": "7fb0dc13cea75a622e8ba13d1c3abdeba2258649dd3069f2aa98357777eb2dba",
+        "ownershipRef": "6e44ded5de059bb2917a073ec1ceb50eb9e3d430436d913e177b96d31d45f804",
+        "sequence": 1,
+        "previousDescriptorHash": null,
+        "recoveryAddress": "tb1q28r7kchkssmxzlaan86zcuksgcy9yecnargmak",
+        "signingProfile": "bip322",
+        "challengeWindowBlocks": 144,
+        "issuedAt": "2026-06-12T00:00:00.000Z",
+        "recoveryPubkey": "ff",
+        "signature": "16eedafb7faf1ed03148412022a9c1a353fc6dc892e4f7084095075dc02add5a4695f29cb9c459e1fc9218101a1634382b8e821a118fd490d9bdaa3be27fa17a"
+      }
+    },
+    {
+      "id": "descriptor-v2-reject-wrong-recovery-pubkey-for-invoke",
+      "kind": "reject",
+      "cite": "recovery-auth #50 b1 / §8.2a: invoke signature must verify against the descriptor's recoveryPubkey",
+      "envelope": {
+        "format": "ont-recovery-descriptor",
+        "descriptorVersion": 2,
+        "name": "example",
+        "ownerPubkey": "7fb0dc13cea75a622e8ba13d1c3abdeba2258649dd3069f2aa98357777eb2dba",
+        "ownershipRef": "6e44ded5de059bb2917a073ec1ceb50eb9e3d430436d913e177b96d31d45f804",
+        "sequence": 1,
+        "previousDescriptorHash": null,
+        "recoveryAddress": "tb1q28r7kchkssmxzlaan86zcuksgcy9yecnargmak",
+        "signingProfile": "bip322",
+        "challengeWindowBlocks": 144,
+        "issuedAt": "2026-06-12T00:00:00.000Z",
+        "recoveryPubkey": "62c0a046dacce86ddd0343c6d3c7c79c2208ba0d9c9cf24a6d046d21d21f90f7",
+        "signature": "f8585d34329a5843d19bfbe6318630b8fceb78de83ffe0a512ab5bafb15fe9b2855b9f7c51d7e53a7aac4773dbc4005cc84cdc6d258f61e8cfc15b871b3f6952"
+      },
+      "digest": "60fbfe56ead443e1ca8710ae3c359afee17bc400c12d59739da41aead43d02d0",
+      "signerXOnlyPubkey": "7fb0dc13cea75a622e8ba13d1c3abdeba2258649dd3069f2aa98357777eb2dba",
+      "invoke": {
+        "fields": {
+          "prevStateTxid": "7cf2b1832808d612782db10e354dfcdf0aaed7bfcb6db06fe9ae16026323b75f",
+          "newOwnerPubkey": "bb6993ecc9feec6f631e24977e460eb3df2654b103fbeb75a969f17d5a911afe",
+          "flags": 1,
+          "successorBondVout": 0,
+          "challengeWindowBlocks": 144,
+          "recoveryDescriptorHash": "60fbfe56ead443e1ca8710ae3c359afee17bc400c12d59739da41aead43d02d0"
+        },
+        "digest": "8cd8afb468faf371c678867a6cbb71cc6f60fc57c1bac9cf67541d0a76ce7b0d",
+        "signature": "f99ea39b558f5296b8da1629cbd5f55fdd9aaf955cb1e24dc593a837fb84076801a193fa119bc91fec342c5ef9849f016bb64f510d1c5670bc7bbb1929d0b669",
+        "signerXOnlyPubkey": "462779ad4aad39514614751a71085f2f10e1c7a593e4e030efb5b8721ce55b0b"
+      },
+      "note": "descriptor parses and owner signature verifies; rejection is the invoke-signature check against recoveryPubkey"
     },
     {
       "id": "descriptor-valid-noncanonical-profile-input",

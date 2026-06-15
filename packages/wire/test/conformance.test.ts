@@ -299,7 +299,7 @@ describe("§8 closed field sets (all three envelopes)", () => {
       required: ["format", "descriptorVersion", "name", "ownerPubkey", "ownershipRef", "sequence",
         "previousDescriptorHash", "recoveryAddress", "signingProfile", "challengeWindowBlocks",
         "issuedAt", "signature"],
-      optional: [],
+      optional: ["recoveryPubkey"],
     },
     "ont-recovery-wallet-proof": {
       version: ["proofVersion", 1],
@@ -312,6 +312,12 @@ describe("§8 closed field sets (all three envelopes)", () => {
   const shapeOk = (e: any, format: string) => {
     const s = SHAPES[format];
     const allowed = [...s.required, ...s.optional];
+    if (format === "ont-recovery-descriptor") {
+      const required = e.descriptorVersion === 2 ? [...s.required, "recoveryPubkey"] : s.required;
+      return e.format === format && (e.descriptorVersion === 1 || e.descriptorVersion === 2) &&
+        required.every((k) => k in e) && Object.keys(e).every((k) => allowed.includes(k)) &&
+        (e.descriptorVersion === 2 || !("recoveryPubkey" in e));
+    }
     return e.format === format && e[s.version[0]] === s.version[1] &&
       s.required.every((k) => k in e) && Object.keys(e).every((k) => allowed.includes(k));
   };
@@ -349,19 +355,38 @@ describe("§8 closed field sets (all three envelopes)", () => {
 
 describe("§8.2 recovery descriptor", () => {
   const rd = VEC("recovery-descriptor.json");
+  const byId = Object.fromEntries(rd.vectors.map((v: any) => [v.id, v]));
   const digest = (e: any) =>
     sha256(cat(lenPrefix("ont-recovery-descriptor"), Uint8Array.of(e.descriptorVersion),
       lenPrefix(e.name), fromHex(e.ownerPubkey), fromHex(e.ownershipRef), u64(e.sequence),
       nullFlag(e.previousDescriptorHash == null ? null : fromHex(e.previousDescriptorHash)),
       // §8.2 never-diverge: profile enters the digest normalized
       lenPrefix(e.recoveryAddress), lenPrefix(e.signingProfile.trim().toLowerCase()),
-      u32(e.challengeWindowBlocks), lenPrefix(e.issuedAt)));
+      u32(e.challengeWindowBlocks), lenPrefix(e.issuedAt),
+      ...(e.descriptorVersion === 2 ? [fromHex(e.recoveryPubkey)] : [])));
   const PROFILE_RE = /^[a-z0-9._-]{1,32}$/;
 
   it("recomputes descriptor digests (the on-chain-referenced hash)", () => {
     for (const v of rd.vectors.filter((v: any) => v.kind === "valid")) {
       expect(hex(digest(v.envelope)), v.id).toBe(v.digest);
     }
+  });
+  it("v1 remains parse-valid but not invokable; v2 invoke signatures verify only against recoveryPubkey", () => {
+    const v1 = byId["descriptor-v1-not-invokable"];
+    expect(v1.envelope.descriptorVersion).toBe(1);
+    expect("recoveryPubkey" in v1.envelope).toBe(false);
+    expect(v1.invokable).toBe(false);
+
+    const v2 = byId["descriptor-v2-valid"];
+    expect(v2.envelope.descriptorVersion).toBe(2);
+    expect(hex(digest(v2.envelope))).toBe(v2.digest);
+    expect(schnorr.verify(fromHex(v2.invoke.signature), fromHex(v2.invoke.digest),
+      fromHex(v2.envelope.recoveryPubkey))).toBe(true);
+
+    const wrong = byId["descriptor-v2-reject-wrong-recovery-pubkey-for-invoke"];
+    expect(hex(digest(wrong.envelope))).toBe(wrong.digest);
+    expect(schnorr.verify(fromHex(wrong.invoke.signature), fromHex(wrong.invoke.digest),
+      fromHex(wrong.envelope.recoveryPubkey))).toBe(false);
   });
   it("signingProfile grammar accepts valids (incl. future profiles) and rejects rejects", () => {
     for (const v of rd.vectors.filter((v: any) => v.id.includes("profile"))) {

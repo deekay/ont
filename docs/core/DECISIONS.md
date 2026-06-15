@@ -1040,11 +1040,15 @@ Implications:
 49. da-windows: the K/W/C window algebra is pinned pre-B2; the values stay
 launch-freeze work — 2026-06-13
 
-*Status: **PROVISIONAL — pending DK ratification.** Adopted under the
-autonomous-session protocol (DK grant, event 9c1e1ba7): writer
-ClaudeleLunatique, reviewer ChatLunatique CONCUR round 1 (adversarial
-pass; O2/O3 counter-cases argued and found weak). DK ratifies or flips on
-return.*
+*Status: **RATIFIED — O1 (DK, event 8c3b4beb, 2026-06-14).** Adopted
+provisional under the autonomous-session protocol (DK grant, event
+9c1e1ba7): writer ClaudeleLunatique, reviewer ChatLunatique CONCUR round 1
+(adversarial pass; O2/O3 counter-cases argued and found weak). DK ratified
+O1 — the algebra (S1–S6) is fixed; the values (S7) stay launch-freeze.
+**DK directive (event 8c3b4beb): the DA residual — the 1-of-N archive
+assumption (DA agreement §8) + the unfunded long-term archival economics
+(OPEN_QUESTIONS §1.2) — is surfaced as the #1 external-review priority, not
+buried as paperwork; an archival-economics research note is owed.***
 
 *Short name: **da-windows**. Pre-B2 named decision (OPEN_QUESTIONS §1
 item 2; DA agreement §10 item 1). Paper:
@@ -1086,15 +1090,20 @@ C3): the weaker `W ≤ K` form permits include-then-retract at `W = K`,
 50. recovery-auth: the on-chain RecoverOwner invoke is authorized by a fresh
 BIP340 recovery-key signature under a v2 descriptor — 2026-06-13
 
-*Status: **PROVISIONAL — pending DK ratification.** Adopted under the
-autonomous-session protocol (DK grant, event 9c1e1ba7): writer
-ClaudeleLunatique, reviewer ChatLunatique — round 1 COUNTER (wallet-proof
-role misstated; the BIP322-evidence path engaged as the strongest
-counter-design), round 2 CONCUR on audited-kernel/minimal-surface
-grounds. **The values call is DK's on return: smallest audited kernel
-(b1) vs cold-hardware recovery custody (b2h). b2h stays the standing
-counter-design** — paper §4 is its complete spec skeleton. DK ratifies
-or flips.*
+*Status: **RATIFIED — b1 (DK, event 3edddac1, 2026-06-14).** Adopted
+provisional under the autonomous-session protocol (DK grant, event
+9c1e1ba7): writer ClaudeleLunatique, reviewer ChatLunatique — round 1
+COUNTER (wallet-proof role misstated; the BIP322-evidence path engaged as
+the strongest counter-design), round 2 CONCUR on
+audited-kernel/minimal-surface grounds. **DK ruled b1** (smallest audited
+kernel): "the recovery key doesn't need to be usable via a generic non-ONT
+wallet." Clarification recorded at ratification: 12-word/seed
+recoverability holds under both b1 and b2h, so it did not decide the call;
+b1's marginal kernel surface is zero, and the ONT-aware signing it needs is
+no more than a normal transfer already requires. **b2h remains the standing
+counter-design** (paper §4) — reopens only on the custody-feedback trigger
+below. **Product copy must not imply generic-wallet recovery; an ONT-aware
+recovery-signer / custody story is owed (B5).***
 
 *Short name: **recovery-auth**. Pre-B2 named decision (B1 routed item;
 WIRE_FORMAT §9 routing row; invoke-spec "What's missing" item 2). Paper:
@@ -1129,13 +1138,19 @@ distinction is **descriptor-only evidence + one fixed BIP340 digest**
 (b1) versus **descriptor + wallet-proof evidence + BIP322/script/text
 verification inside the audited kernel** (b2h).
 
-**Deferred ripples (await DK ratification — normative text):** the
-WIRE_FORMAT §8.2 descriptor-v2 amendment and the §8.3 wallet-proof
-narrowing (invoke-authorization object → evidence-layer corroboration)
-are named amendments to normative §8 and land only when DK ratifies.
-Until then, B2 hardening drafts against this decision citing it as
-provisional; the invoke-spec item-2 note and the §9 routing row
-(candidate/analysis tier) carry provisional notes now.
+**Ripples (now landing — DK ratified b1):** the WIRE_FORMAT §8.2
+descriptor-v2 amendment and the §8.3 wallet-proof narrowing
+(invoke-authorization object → evidence-layer corroboration) are named
+amendments to normative §8 and land in this ratification pass; the
+invoke-spec item-2 note and the §9 routing row resolve to b1. b1 rules the
+**signer/evidence shape only** — so the #50-keyed *signer/evidence-shape*
+provisional vectors (R7, R9, R10×2, T19, and the #50 half of G6) flip
+provisional→ratified (b2h flipMarkers retire). The **interval-opening**
+(V2/V5: does the recovery interval open at invocation vs at challenge-window
+close) and **transfer-vs-recovery-precedence** (X13) facets are explicitly
+**NOT** ruled by b1 — those vectors' own scopeNotes name them as distinct
+axes — so they are reclassified `spec-blocked` (PR-17 / PR-34) pending their
+own DK decisions, not ratified here.
 
 **Negative tests B2 must carry:** replayed-arming-sig-as-invoke,
 descriptor-hash mismatch, non-head descriptor, stale `prevStateTxid`,
@@ -1146,6 +1161,962 @@ Max" item) showing BIP340 recovery custody is impractical for the
 wallets that matter — reopens toward b2h, whose full skeleton is paper
 §4; the abort-only watcher credential (OPEN_QUESTIONS §4.1) landing with
 invoke-side field needs — touches the predicate by named amendment.
+
+51. served-evidence-interface: the B2 DA-eligibility predicate consumes
+`servedEvidence` as an opaque verifier-checkable interface; concrete bytes are B3 — 2026-06-14
+
+*Status: **RATIFIED (DK, event 38369933, 2026-06-14).** Writer ClaudeleLunatique,
+reviewer ChatLunatique. Spec-PR PR-1.*
+
+**The rule.** `eligible(anchor, servedEvidence, W, C)` consumes `servedEvidence` as
+an opaque interface satisfying: (i) cryptographically bound to its anchor;
+(ii) determines a single first-servable height comparable to `h+W`;
+(iii) independently verifiable from the `servedEvidence` object plus
+confirmed-chain facts (no external I/O, no submitter trust), so two verifiers with
+the same chain AND the same evidence derive the same verdict. The concrete byte
+layout is the B3 deliverable (P2). Detail + amendment text:
+[B2_SPEC_PR_PACKETS.md](./B2_SPEC_PR_PACKETS.md) PR-1.
+
+52. commitment-match: committed leaf = `H(ownerPubkey)`; a malformed leaf is
+dropped (not batch-poison), with claimant-verifiable own-leaf inclusion — 2026-06-14
+
+*Status: **RATIFIED (DK, events 38369933 + 9b0c380a, 2026-06-14).** Writer
+ClaudeleLunatique, reviewer ChatLunatique. Spec-PR PR-2 (conflicts C5, C6).*
+
+**The rule.** (1) The committed leaf value is `H(ownerPubkey)` (docs-win over the
+legacy raw-pubkey code). (2) A leaf-level well-formedness failure **drops only that
+leaf**; the rest of the batch stands (not batch-poison) — **conditioned on** the
+leaf-drop being non-silent: a claimant can verify its own committed leaf from the
+available batch (which the ratified DA rules supply), so a drop is observable and
+remediable before cheap finality (the leaf-drop *timing* invariant — ChatLunatique
+guardrail). Fee/DA-deadline failures stay whole-batch. `Σ gᵢ` is summed over the
+full committed leaf set regardless of drops. The contested-name case escalates to
+the bonded auction (bond-opens (#37)), so a silent drop cannot steal a contested
+name. Detail: [B2_SPEC_PR_PACKETS.md](./B2_SPEC_PR_PACKETS.md) PR-2.
+
+53. root-chain-linkage: an accepted anchor's `prevRoot` equals the K-deep confirmed
+root `R_{h−K}` (delta-merge), not the live chain tip — 2026-06-14
+
+*Status: **RATIFIED (DK, event 38369933, 2026-06-14).** Writer ClaudeleLunatique,
+reviewer ChatLunatique. Spec-PR PR-3 (conflict C2).*
+
+**The rule.** `prevRoot` must equal the confirmed root `R_{h−K}` (K-deep below the
+anchor); anchors are **not** tip-linked (strict tip-linkage is the A7-01 grief
+surface — a tiny first anchor invalidates every concurrent honest publisher). A
+structurally-valid but ineligible (fee/DA-failing) anchor consumes no
+`prevRoot→newRoot` position; a re-anchor of an existing `newRoot` or a
+`prevRoot==newRoot` no-op is rejected; the earliest valid instance in the
+same-block order (#55) owns the deadline clock + proof-bundle txid. `K` is the
+da-windows (#49) parameter. Detail: [B2_SPEC_PR_PACKETS.md](./B2_SPEC_PR_PACKETS.md) PR-3.
+
+54. one-anchor-per-tx: a Bitcoin tx carries at most one valid RootAnchor; >1 valid
+anchor rejects the whole tx — 2026-06-14
+
+*Status: **RATIFIED (DK, events 38369933 + 9b0c380a, 2026-06-14).** Writer
+ClaudeleLunatique, reviewer ChatLunatique. Spec-PR PR-4 (conflict C7).*
+
+**The rule.** At most one valid decodable RootAnchor per transaction; a tx carrying
+more than one valid RootAnchor is **rejected in whole** (fail-closed, no partial
+fee attribution). Malformed / non-ONT OP_RETURN outputs are ignored — they neither
+count toward the one-anchor limit nor poison it (the skip-bad disposition, coupled
+to same-block-order (#55)). The tx's intrinsic fee `F` attributes to the single
+anchor, so no fee can satisfy more than one anchor's gate. Detail + byte-level
+classification: [B2_SPEC_PR_PACKETS.md](./B2_SPEC_PR_PACKETS.md) PR-4 +
+[B2_SKIP_BAD_CLASSIFICATION.md](./B2_SKIP_BAD_CLASSIFICATION.md).
+
+55. same-block-order: ONT events apply in ascending (block height, intra-block
+tx-index, output index); a junk output is skipped (skip-bad), never poisons siblings — 2026-06-14
+
+*Status: **RATIFIED (DK, events 38369933 + 9b0c380a, 2026-06-14).** Writer
+ClaudeleLunatique, reviewer ChatLunatique. Spec-PR PR-16 (conflict C20; gaps G2/G3).*
+
+**The rule.** Within a confirmed block, ONT events apply in ascending
+`(height, tx-index, vout)` — the commit-priority tuple, consistent with ratified
+Decision #25 (the publisher-spec txid tiebreak is superseded). Multiple ONT events
+per tx apply in vout order; **skip-bad** — undecodable / non-ONT / inactive-version
+outputs are ignored with **zero partial side effects** and never poison sibling
+events. Earliest-in-order consumes a contested outpoint; later contenders reject.
+Accepted bids reset the min-increment basis for later same-block bids. A
+height-`h`-triggered transition evaluates after all height-`h` events apply.
+Ordering governs determinism/grief only — **a contested name is awarded solely by
+the qualifying bond (bond-opens (#37))**, never by ordering. The "real ONT event vs
+ignorable output" boundary is a hard byte-level definition with a future-version
+**activation-height gate** (a future-version payload is invalid + zero-side-effects
+before its named activation, so v1-skips-but-v2-processes cannot silently hardfork):
+[B2_SKIP_BAD_CLASSIFICATION.md](./B2_SKIP_BAD_CLASSIFICATION.md). Detail:
+[B2_SPEC_PR_PACKETS.md](./B2_SPEC_PR_PACKETS.md) PR-16.
+
+56. settlement-bond-continuity: a winning bond spent before settlement materializes
+no owner (the name reopens); the runner-up is not promoted — 2026-06-14
+
+*Status: **RATIFIED (DK, event 9b0c380a, 2026-06-14).** Writer ClaudeleLunatique,
+reviewer ChatLunatique. Spec-PR PR-23.*
+
+**The rule.** A winning bid materializes ownership only if its winning bond is
+unspent from confirmation through the settlement evaluation point. If the bond is
+spent before settlement, the auction materializes **no owner** and the name reopens
+under a release-height rule keyed to the breaking spend; **no runner-up is
+promoted** (a runner-up has no obligation to keep a bond alive after losing —
+runner-up-wins is fragile and collusion-prone). A losing bid whose bond is spent
+pre-settlement is removed from future auction-state effects after the spend is
+observed. **Accepted residual (named, not hidden):** a bidder can pay fees + lock
+capital to win, break continuity, and force a reopen — a *denial loop*, observable
+and bounded by the auction's bid/finality economics. No cooldown / higher reopen
+floor / failed-winner exclusion is a default B2 rule unless launch-parameter
+modeling or external review shows the loop is too cheap (then a later named
+decision adds one). Model: [PR23_DENIAL_LOOP.md](../research/PR23_DENIAL_LOOP.md).
+
+57. b2-scanner-boundary: the B2 transaction scanner enters @ont/consensus as
+audited consensus-support (not a state-decider), and the package consumes the B1
+normative @ont/wire grammar — 2026-06-14
+
+*Status: **Ratified** (DK event 43d30e67, 2026-06-15; writer ClaudeleLunatique, reviewer ChatLunatique; lands on
+branch clean-build-b2-kernel, DK merges). A boundary-manifest change under #44 —
+the new tier + dependency are covered by conformance: `trust-surface.test.ts`
+(manifest split + per-tier import allowlist) and `scanner.test.ts`. Authored under
+DK's keep-building / ask-later grant (event 83243101, 2026-06-14).*
+
+**The rule.** @ont/consensus now has two audited tiers. **CORE_DECIDERS**
+(`engine.ts`, `state.ts`, `proof-bundle.ts`) hold owner-key authority and
+replay/state decisions — a name moves only if these say so; they ride
+@ont/protocol + @ont/bitcoin. **CONSENSUS_SUPPORT** (`scanner.ts`) is non-mutating
+but consensus-bearing input normalization: it classifies a Bitcoin transaction's
+OP_RETURN outputs into ordered valid ONT events plus zero-side-effect diagnostics,
+enforcing skip-bad, future-version activation gating, same-block-order (#55), and
+the one-anchor-per-tx (#54) `>1`-RootAnchor whole-tx reject. It rides the B1
+normative @ont/wire grammar (B1 → B2: the kernel consumes @ont/wire for what the
+active codec understands) + @ont/bitcoin, and has **zero authority to mutate name
+state**. The scanner is audited — two implementations that scan differently fork
+before the deciders ever see a byte — but it is deliberately *not* a decider, so it
+is listed separately from CORE_DECIDERS rather than expanding that set. Spec:
+[B2_SKIP_BAD_CLASSIFICATION.md](./B2_SKIP_BAD_CLASSIFICATION.md). This satisfies
+#44's "boundary may change only with a DECISIONS entry + conformance coverage"; the
+boundary freezes permanently at launch.
+
+58. b2-consensus-params-boundary: the consensus-parameter surface enters
+@ont/consensus as a third audited tier (CONSENSUS_PARAMS) — pure, state-deciding
+nothing, the parametric input the audited rules are evaluated against — 2026-06-14
+
+*Status: **Ratified** (DK event 43d30e67, 2026-06-15; writer ClaudeleLunatique, reviewer ChatLunatique; lands on
+branch clean-build-b2-kernel, DK merges). A boundary-manifest change under #44 —
+the new tier is covered by conformance: `trust-surface.test.ts` (third-tier split
++ per-tier import allowlist) and `params.test.ts`. Authored under DK's
+keep-building / ask-later grant (event 83243101, 2026-06-14).*
+
+**The rule.** @ont/consensus now has three audited tiers. **CORE_DECIDERS**
+(`engine.ts`, `state.ts`, `proof-bundle.ts`) and **CONSENSUS_SUPPORT**
+(`scanner.ts`) are unchanged (#57). The new **CONSENSUS_PARAMS** tier
+(`params.ts`) is the pure consensus-parameter surface canon Item 5 names
+("ChatLunatique signs the CONSENSUS_PARAMS surface"): it validates and carries
+the parameterization the deciders + support are evaluated against. It mutates no
+name state and decides nothing on its own, so it is not a decider; but it is
+consensus-bearing — two implementations that validated parameters differently
+would diverge — so it is audited. It depends on **no external package** (values
+enter as caller inputs; no `@ont/*`, no host I/O), which is why it gets its own
+empty-allowlist tier rather than joining the deciders' or the scanner's. This
+first increment populates only the required-tier DA-window slice — the `(K, W, C)`
+triple that rules D9 / D12 / G9 govern: integer block counts, `K ≥ 1`, `W ≥ 1`,
+`C ≥ 1`, and the D9 window-fit invariant `K ≥ W + C`, with the parametric
+DA-deadline derivations (`confirmedRootEligible`, availability/challenge deadline
+heights). The values themselves are never baked — `createDaWindowParams` has no
+default — so no S7 placeholder value can fossilize: da-windows (#49) S6 ratifies
+the structural validity constraints the constructor enforces (`K ≥ W + C`, the
+K/W/C lower bounds), while the concrete `(K, W, C)` values remain caller-supplied
+launch-freeze parameters (S7). The broader closed
+CONSENSUS_PARAMS set (G10: notice/auction/soft-close windows, gate schedule,
+opening floors, qualifying-bond minimum, maturity, accepted-payload cap,
+challenge-window bounds) is candidate-stays / launch-parameter-freeze work and is
+deliberately not modeled yet; it joins this surface as those rulings land. Spec:
+[B2_KERNEL_HARDENING.md](./B2_KERNEL_HARDENING.md) D9/D12/G9. This satisfies #44's
+"boundary may change only with a DECISIONS entry + conformance coverage"; the
+boundary freezes permanently at launch.
+
+59. b2-consensus-verdicts-boundary: the DA-verdict predicate enters @ont/consensus
+as a fourth audited tier (CONSENSUS_VERDICTS) — pure, consensus-deciding but
+state-mutating nothing — 2026-06-14
+
+*Status: **Ratified** (DK event 43d30e67, 2026-06-15; writer ClaudeleLunatique, reviewer ChatLunatique; lands on
+branch clean-build-b2-kernel, DK merges). A boundary-manifest change under #44 —
+the new tier is covered by conformance: `trust-surface.test.ts` (fourth-tier split
++ per-tier import allowlist) and `da-verdict.test.ts`. Authored under DK's
+keep-building / ask-later grant (event 83243101, 2026-06-14).*
+
+**The rule.** @ont/consensus now has four audited tiers, and "consensus-deciding"
+is no longer synonymous with "state-mutating." **CORE_DECIDERS** (`engine.ts`,
+`state.ts`, `proof-bundle.ts`) are the **state/replay deciders** — they mutate
+name state, and a name's owner moves only if these say so; they ride
+@ont/protocol + @ont/bitcoin. **CONSENSUS_SUPPORT** (`scanner.ts`, #57) and
+**CONSENSUS_PARAMS** (`params.ts`, #58) are unchanged. The new
+**CONSENSUS_VERDICTS** tier (`da-verdict.ts`) holds **pure verdict deciders** —
+consensus-deciding predicates that compute a verdict the state deciders consume
+but mutate no state themselves. The DA-verdict predicate decides a batch's
+data-availability verdict (`includable` at the challenge deadline h+W+C,
+`holdsPriority` at the availability deadline h+W) from the anchor's witnessed
+facts plus an opaque, already-B3-verified served-bytes witness and nothing else
+(da-windows (#49) S2/S3/S4; B2_KERNEL_HARDENING.md D1–D8). A claim counts only if
+this verdict says so (D10), so it is consensus-deciding and must be audited — but
+it performs no state mutation, so it is listed separately from CORE_DECIDERS
+rather than expanding that set. The tier is pure: empty external allowlist,
+depending only on node builtins and the audited parameter surface (`./params.js`).
+Byte→root witness construction is the B3 deliverable (D8), not part of this
+predicate. Spec: [B2_KERNEL_HARDENING.md](./B2_KERNEL_HARDENING.md) D1–D8;
+da-windows (#49) S2/S3/S4. This satisfies #44's "boundary may change only with a
+DECISIONS entry + conformance coverage"; the boundary freezes permanently at
+launch.
+
+60. b2-consensus-verdicts-wire-primitives: the CONSENSUS_VERDICTS tier may import
+the audited B1 @ont/wire digest/verification primitives (not the legacy
+@ont/protocol records) — admitting the value-record authority predicate — 2026-06-14
+
+*Status: **Ratified** (DK event 43d30e67, 2026-06-15; writer ClaudeleLunatique, reviewer ChatLunatique; lands on
+branch clean-build-b2-kernel, DK merges). A boundary-manifest amendment of #59
+under #44 — covered by conformance: `trust-surface.test.ts` (the verdict allowlist
+pinned **per file** — `da-verdict.ts` mechanically empty-external, `@ont/wire`
+admitted only for `value-record-authority.ts`) and `value-record-authority.test.ts`.
+Authored under DK's keep-building / ask-later grant (event 83243101, 2026-06-14).*
+
+**The rule.** #59 created the **CONSENSUS_VERDICTS** tier with an empty external
+allowlist (`da-verdict.ts` rides only witnessed facts + the parameter surface).
+The value-record authority predicate (`value-record-authority.ts`) is the same
+class of object — a pure, consensus-deciding, state-mutating-nothing verdict — but
+it must verify a §8.1 Schnorr signature and recompute a §8.1 record digest, which
+are B1 primitives. This amendment broadens the tier's allowlist from empty to
+**`@ont/wire`** (plus the audited relative modules), and **not** to `@ont/protocol`.
+The distinction is load-bearing: `@ont/wire` is the B1-normative active codec with
+`VALUE_RECORD_VERSION = 1` (the §8.1 authority record), whereas `@ont/protocol`
+carries the legacy `VALUE_RECORD_VERSION = 2` record, which WIRE §8.1 declares
+evidence-only / never valid. A value-record authority predicate that imported the
+legacy v2 primitives would sign and verify the wrong digest, so the kernel must
+ride the wire v1 primitives. The tier property is unchanged: pure verdicts that
+mutate no state and perform no host I/O — `da-verdict.ts` continues to import
+nothing external, while `value-record-authority.ts` imports only the wire v1
+digest/verification functions. Spec: [B2_KERNEL_HARDENING.md](./B2_KERNEL_HARDENING.md)
+V1–V13; DECISIONS #17/#18; WIRE_FORMAT §8.1. This satisfies #44's "boundary may
+change only with a DECISIONS entry + conformance coverage"; the boundary freezes
+permanently at launch.
+
+61. b2-core-deciders-wire-auth-digests: engine.ts (a CORE_DECIDER) verifies the B1 §5
+owner-key auth digests via @ont/wire, not the legacy @ont/protocol verifiers — 2026-06-14
+
+*Status: **Ratified** (DK event 43d30e67, 2026-06-15; writer ClaudeleLunatique, reviewer ChatLunatique; lands on branch
+clean-build-b2-kernel, DK merges). A boundary-manifest amendment of #57/#59/#60 under #44,
+framed as a refactor over already-pinned equivalent digests — no new consensus law, no DK
+ruling required. Covered by conformance: `trust-surface.test.ts` (the per-file
+CORE_DECIDERS allowlist + the engine-no-legacy-verifier import-surface test), the §5
+equivalence pins (`engine.test.ts` X2, `engine.recovery.test.ts` R15), and the full
+transfer/cancel suites. Authored under DK's keep-going grant (event 4892d54d, 2026-06-14).*
+
+**The rule.** #57/#59 set CORE_DECIDERS riding {@ont/protocol, @ont/bitcoin}; #60 admitted
+@ont/wire to the separate CONSENSUS_VERDICTS tier. This amendment lets the state-mutating
+decider `engine.ts` verify the B1 §5 owner-key signatures (Transfer, and the RecoverOwner
+cancel veto) directly off the @ont/wire normative digests — `transferAuthDigest`,
+`recoverAuthDigest`, `verifySchnorr` — instead of the legacy @ont/protocol
+`verifyTransferAuthorization` / `verifyRecoverOwnerCancelAuthorization`. The §5 equivalence
+pins prove the @ont/protocol and @ont/wire digests are byte-identical, so the migration is
+behavior-preserving; the win is that the kernel's owner-key authorization now rides the
+single B1-normative digest source and any future drift is build-failing. The allowlist is
+pinned **per file** (the #60 pattern): only `engine.ts` gains @ont/wire, and only for the
+auth digests; `state.ts` and `proof-bundle.ts` stay {@ont/protocol, @ont/bitcoin}.
+@ont/protocol remains for event codec/types/constants (a separate codec migration, not this
+slice). Engine signature checks are fail-closed: a malformed field that makes the wire
+digest/verify throw yields a rejecting verdict, never an exception (the X3/R15 no-throw
+guarantee is preserved). Spec: WIRE_FORMAT §5; DECISIONS #57/#59/#60; the
+all-auth-digests-ride-wire follow-up flagged at #60. This satisfies #44's "boundary may
+change only with a DECISIONS entry + conformance coverage"; the boundary freezes at launch.
+
+62. b2-gate-fee-boundary: the gate-fee validation predicate enters @ont/consensus as a
+pure CONSENSUS_VERDICTS decider riding nothing external — 2026-06-14
+
+*Status: **Ratified** (DK event 43d30e67, 2026-06-15; writer ClaudeleLunatique, reviewer ChatLunatique; lands on branch
+clean-build-b2-kernel, DK merges). A boundary-manifest addition under #44, riding the
+CONSENSUS_VERDICTS tier established by #59 — a new pure verdict module, NOT a
+tier-widening: its external allowlist is empty (the strictest, like `da-verdict.ts`). No
+new consensus law (the g(name) fee schedule is explicitly deferred to B3), no DK ruling
+required. Covered by conformance: `trust-surface.test.ts` (`gate-fee.ts` in
+CONSENSUS_VERDICTS with an empty `VERDICTS_ALLOWED_BY_FILE` entry), `b2-boundary.test.ts`
+(zero-I/O purity), and the F8-pos-01 binding in `b2-vector-bindings.test.ts`. Authored
+under DK's keep-going grant (event 62b47b5e, 2026-06-14).*
+
+**The rule.** `gateFeeValidation(anchorFacts, committedBatchContents, fee)` is a pure
+deterministic gate-fee verdict over witnessed inputs only — it carries NO publisher
+identity, endpoint, or source parameter, so an N=1 self-posted anchor and a
+publisher-batched anchor validate by the identical rule (the I5 censorship-resistance
+floor, fee mechanics §5; F8). It rides nothing external (empty allowlist) and mutates no
+state. SCOPE: this B2 slice pins the boundary SHAPE plus the structurally-derivable
+fail-closed checks — a non-negative fee amount, and the committed batch must bind to the
+anchor's (`anchoredRoot`, `batchSize`) commitment. It DELIBERATELY EXCLUDES the g(name)
+fee schedule, the fee-amount adequacy economics (fee >= Σ g), and batchSize-vs-leaf-count
+reconciliation — all B3, which fill in along this same identity-free signature. Spec:
+`ONT_ISSUANCE_FEE_MECHANICS.md` §5; `SOFTWARE_CANON.md` L2 boundary rule (pure predicate
+over witnessed inputs, zero-I/O); DECISIONS #59. This satisfies #44's "boundary may
+change only with a DECISIONS entry + conformance coverage"; the boundary freezes at launch.
+
+63. b2-transcript-completeness-boundary: the transcript-completeness predicate enters
+@ont/consensus as a pure CONSENSUS_VERDICTS decider riding nothing external — 2026-06-14
+
+*Status: **Ratified** (DK event 43d30e67, 2026-06-15; writer ClaudeleLunatique, reviewer ChatLunatique; lands on branch
+clean-build-b2-kernel, DK merges). A boundary-manifest addition under #44, riding the
+CONSENSUS_VERDICTS tier established by #59 — a new pure verdict module, NOT a
+tier-widening: its external allowlist is empty (the strictest, like `da-verdict.ts` and
+`gate-fee.ts`/#62). No new consensus law (canon Item 4 + the SOFTWARE_CANON boundary rule
+are ratified core), no DK ruling required. Covered by conformance: `trust-surface.test.ts`
+(`transcript-completeness.ts` in CONSENSUS_VERDICTS with an empty `VERDICTS_ALLOWED_BY_FILE`
+entry), `b2-boundary.test.ts` (zero-I/O purity), and the T1/T2/T21 bindings in
+`b2-vector-bindings.test.ts`. Authored under DK's keep-going grant (event 62b47b5e,
+2026-06-14).*
+
+**The rule.** `transcriptCompleteness(transcript, completenessWitness)` is a pure
+deterministic verdict over witnessed inputs only — it carries NO actor / source / endpoint
+/ producer / evidence-layer parameter, so no out-of-kernel layer can override it (T1; the
+SOFTWARE_CANON L2 boundary rule). The no-source-identity guarantee is enforced at runtime by
+closed-shape field checks — each B2 object admits only its closed key set (`transcript`:
+`bids`; counted bid: `txid`; placeholder witness: `kind`), so a producer/source/endpoint/actor
+field on any object is rejected, not silently ignored — not only in the TypeScript type. It fails closed when completeness is not witnessed by a
+verifier-checkable B3 witness — absent, producer-asserted, or otherwise not
+verifier-checkable ⇒ incomplete, never certified (T2; canon Item 4) — and rejects a counted
+bid set that is not distinct and well-formed (32-byte lowercase-hex L1 txids; duplicate or
+malformed txids rejected, never silently deduplicated — T21; canon Item 4). It rides nothing
+external (empty allowlist) and mutates no state. SCOPE: this B2 slice pins purity + the
+fail-closed completeness posture + txid integrity. It DELIBERATELY EXCLUDES the auction
+winner / amount / bidder identity / bid qualification (auction resolution — T7/T9), the
+concrete completeness-witness format and the lot's block range / soft-close range semantics
+(B3; the range issue is T2-neg-02, candidate — the witness is consumed opaquely), and the
+T17 / T18 / T22 / T19 surfaces (DA claim-counting, transcript-entry-vs-holdsPriority,
+reopen/bond-continuity, and #50-b1 recovery invoke admission respectively). Spec:
+`SOFTWARE_CANON.md` Item 4 + the L2 boundary rule; `B2_KERNEL_HARDENING.md` T1/T2/T21;
+DECISIONS #59. This satisfies #44's "boundary may change only with a DECISIONS entry +
+conformance coverage"; the boundary freezes at launch.
+
+64. b2-bond-qualification-boundary: the bond-qualification predicate enters @ont/consensus as
+a pure CONSENSUS_VERDICTS decider riding nothing external — 2026-06-15
+
+*Status: **Ratified** (DK event 43d30e67, 2026-06-15; writer ClaudeleLunatique, reviewer ChatLunatique; lands on branch
+clean-build-b2-kernel, DK merges). A boundary-manifest addition under #44, riding the
+CONSENSUS_VERDICTS tier established by #59 — a new pure verdict module, NOT a tier-widening:
+its external allowlist is empty (the strictest, like `da-verdict.ts` / `gate-fee.ts` (#62) /
+`transcript-completeness.ts` (#63)). No new consensus law (DECISIONS #37 bond-opens is ratified),
+no DK ruling required. Covered by conformance: `trust-surface.test.ts`
+(`bond-qualification.ts` in CONSENSUS_VERDICTS with an empty `VERDICTS_ALLOWED_BY_FILE` entry),
+`b2-boundary.test.ts` (zero-I/O purity), and the B6-neg-01 binding in
+`b2-vector-bindings.test.ts`. Authored under DK's keep-going grant (event 62b47b5e, 2026-06-14).*
+
+**The rule.** `bondQualifiesForEscalation(bondAmountSats, bondFloorSats)` is a pure deterministic
+verdict: a bond qualifies to escalate iff its amount is at or above the supplied floor (#37
+bond-opens — "a bond, not a bare claim, opens the auction"). It is named around qualification,
+not state transition. SCOPE: this asserts ONLY the #37 qualification test. It DELIBERATELY
+EXCLUDES the candidate "contested" state and the auction state machine, auction RESOLUTION (who
+wins), the claim-count trigger (there is no claim-count parameter, so a bare claim can never
+escalate), and the bond-floor schedule (the floor is a launch-freeze PARAMETER supplied to the
+predicate; B2 does not fix its value). It rides nothing external (empty allowlist) and mutates no
+state. Total / fail-closed (the #63 discipline): a non-bigint or negative amount/floor does not
+qualify and never throws. Spec: `DECISIONS.md` #37 bond-opens; `B2_KERNEL_HARDENING.md` B6;
+DECISIONS #59. This satisfies #44's "boundary may change only with a DECISIONS entry +
+conformance coverage"; the boundary freezes at launch.
+
+65. b2-settlement-boundary: the settlement predicates enter @ont/consensus as pure
+CONSENSUS_VERDICTS deciders riding nothing external — 2026-06-15
+
+*Status: **Ratified** (DK event 43d30e67, 2026-06-15; writer ClaudeleLunatique, reviewer ChatLunatique; lands on branch
+clean-build-b2-kernel, DK merges). A boundary-manifest addition under #44, riding the
+CONSENSUS_VERDICTS tier established by #59 — a new pure verdict module, NOT a tier-widening:
+its external allowlist is empty (the strictest, like `da-verdict.ts` / `gate-fee.ts` (#62) /
+`transcript-completeness.ts` (#63) / `bond-qualification.ts` (#64)). No new consensus law
+(DECISIONS #12 maturity-binding, #37 bond-opens, and WIRE_FORMAT §4.3 are ratified/normative),
+no DK ruling required. Covered by conformance: `trust-surface.test.ts` (`settlement.ts` in
+CONSENSUS_VERDICTS with an empty `VERDICTS_ALLOWED_BY_FILE` entry), `b2-boundary.test.ts`
+(zero-I/O purity), and the S5-neg-01 / S15-neg-01 bindings in `b2-vector-bindings.test.ts`.
+Authored under DK's keep-going grant (event 62b47b5e, 2026-06-14).*
+
+**The rule.** Two narrow pure predicates, deliberately not one combined verdict so neither
+implies maturity-height computation nor full materialization:
+- `settlementLockMatchesMaturity(lockCommitment, maturityBlocks)` (S5; #12 + WIRE §4.3): a
+  winning bid's `settlementLockBlocks` commitment must equal the protocol maturity parameter; a
+  differing value does not settle. It validates ONLY this equality — no maturity-height
+  computation, no maturity-anchor choice, no bid validation, no record settle. `maturityBlocks`
+  is a launch-freeze parameter.
+- `settlementMaterializes(acceptedWinningBid | null)` (S15; #37): the materialization GATE —
+  ownership materializes only from an actual accepted winning bid; `null` (no winner / zero bids
+  / a settled phase with no valid accepted winner) yields no owner. The accepted winner is an
+  INPUT from winner selection (Q); B2 does not resolve it, and this gate does not construct the
+  NameRecord.
+
+Both ride nothing external (empty allowlist) and mutate no state. They DELIBERATELY EXCLUDE:
+auction RESOLUTION / winner selection (→ Q, candidate); the full NameRecord construction
+(`ownerPubkey`, bond outpoint, amount, maturity height); maturity-anchor reconciliation (S3);
+settlement-bond-continuity (#56, engine-side); and recovery (#50). Total / fail-closed +
+closed-shape (the #63/#64 discipline): a malformed (non-object, extra-field, non-integer/negative)
+input does not settle/materialize and never throws, so no source/catalog/phase field is admitted
+as authority. Spec: `DECISIONS.md` #12 + #37; `WIRE_FORMAT.md` §4.3; `B2_KERNEL_HARDENING.md`
+S5/S15; DECISIONS #59. This satisfies #44's "boundary may change only with a DECISIONS entry +
+conformance coverage"; the boundary freezes at launch.
+
+66. b2-spec-pr-batch: DK ratified the B2 spec-PR matrix (PR-5..36) as recommended, plus the
+boundary-manifest amendments (#57–#65) and the §3c recovery-evidence-timing rule — 2026-06-15
+
+*Status: **RATIFIED (DK, event 43d30e67, 2026-06-15).** Writer ClaudeleLunatique, reviewer
+ChatLunatique; ELI5 ratification list posted (event 6e85b371), DK approved the 6 individual rows
++ the batch as recommended. The per-PR detail is the authoritative ratified record in
+[`B2_SPEC_PR_DECISION_MATRIX.md`](./B2_SPEC_PR_DECISION_MATRIX.md) (header flipped to RATIFIED);
+this entry is the ledger event + the named sub-decisions. The boundary entries #57–#65 are ratified
+by this decision (status lines flipped). No code is pushed; origin stays the return gate.*
+
+**The ratified set.** All ~30 open spec-PRs (PR-5..15, PR-17..36; PR-1/2/3/4/16/23 were already
+#51–#56) are ratified as written. The 6 individual-review rows were ruled **as recommended**:
+- **PR-9** — kernel state re-derives from the current best chain on reorg; no first-seen / old-chain
+  priority survives.
+- **PR-10** — settlement/ownership finality has its own depth parameter, separate from DA `K`.
+- **PR-13** — one inclusive boundary convention for all non-DA windows ("by height h+X" includes h+X).
+- **PR-17 (recovery-interval-opening)** — a RecoverOwner invoke does NOT rotate the ownership interval;
+  the new interval opens only at recovery **finalization**. During an open `pendingRecovery` the
+  pre-recovery owner stays "current owner". (Carries the atomic-name-sale note — see below.)
+- **PR-34 (transfer-vs-recovery, X13)** — while a `pendingRecovery` is open an owner-key Transfer is
+  **BLOCKED** (mutates nothing); the owner's only in-window veto is the explicit CANCEL bit (0x01).
+  Anti-theft: prevents a stolen owner key from exfiltrating the name beyond the recovery descriptor.
+- **PR-35 (recovery-finalize-timing)** — finalization is evaluated after the finalize-height block;
+  only an in-window CANCEL prevents it (ruled together with PR-34).
+
+**§3c recovery-evidence-timing (evidence-gated).** A non-cancel RecoverOwner invoke is accepted only
+if its witnessed descriptor evidence is demonstrably witnessed by `h_r + W_r`; an unwitnessed invoke
+opens no `pendingRecovery` and mutates no state (fail-closed, no state created until the evidence
+verifies). Per [`RECOVERY_EVIDENCE_TIMING.md`](../research/RECOVERY_EVIDENCE_TIMING.md).
+
+**atomic-name-sale (DK fold-in on PR-17).** Name transfers are often name-for-bitcoin sales. A
+completed transfer rotates the ownership interval (PR-18), so the seller's armed recovery descriptor
+dies and the buyer is safe from claw-back post-sale. Consensus cannot condition a Bitcoin payment on
+ONT-validity, and a seller can race a head-change / pending recovery to void the transfer while
+keeping the payment (a mature name carries no forced outpoint spend). **Decision: atomic
+name-for-bitcoin is a B5 / market-layer protocol**, built on the B2 enablers
+(transfer-kills-seller-recovery + a deterministic, fully pre-checkable transfer predicate), NOT a B2
+consensus primitive. A native consensus "sale" event (a Transfer variant binding a committed payment
+output + a state-outpoint spend) stays a **live future option** — an additive named spec-PR (the wire
+registry reserves unassigned event types) if the market proves it worth the kernel complexity.
+
+**Consequences.** The 30 candidate-tier conformance vectors (pending-DK) may be promoted to
+ratified-tier and bound; the recovery-invoke engine rewrite (#50-b1) is greenlit on the now-ratified
+PR-17/34/35 + §3c; the winner-selection, claim-counting, reopen, occupancy, and fee×K-deep surfaces
+may be built. Each follows tests-first + writer/reviewer (ChatLunatique) + the boundary-manifest
+discipline. The #57–65 boundary entries are ratified; the branch merge to main remains DK's op.
+
+67. b2-recovery-invoke-authority-boundary: the recovery-invoke authorization/evidence-gate predicate
+enters @ont/consensus as a pure CONSENSUS_VERDICTS decider riding @ont/wire B1 primitives — 2026-06-15
+
+*Status: **Proposed** (writer ClaudeleLunatique, reviewer ChatLunatique; lands on branch
+clean-build-b2-kernel, DK merges). A boundary-manifest addition under #44, riding the
+CONSENSUS_VERDICTS tier established by #59 — a new pure verdict module, NOT a tier-widening. Unlike
+the empty-allowlist verdicts, it rides @ont/wire B1 primitives (`recoverAuthDigest`,
+`recoveryDescriptorDigest`, `verifySchnorr`, `RECOVERY_DESCRIPTOR_INVOKABLE_VERSION`) like
+`value-record-authority.ts` — its `VERDICTS_ALLOWED_BY_FILE` entry is exactly `@ont/wire`. NO new
+consensus law: it lands the already-ratified #50-b1 acceptance predicate (RECOVERY_AUTH §3), the
+ratified §3c evidence-timing rule, the PR-18 current-interval binding, and the PR-34 path-split (all
+#66) — no DK ruling required beyond #66. This is **slice (A)** of the recovery-invoke rewrite; the
+engine integration (slice B) is a separate follow-on. Covered by conformance: `trust-surface.test.ts`
+(`recovery-invoke-authority.ts` in CONSENSUS_VERDICTS with the `@ont/wire` allowlist),
+`recovery-invoke-authority.test.ts` (the conjunct-by-conjunct + totality/closed-shape battery).
+Authored under DK's keep-going grant.*
+
+**The rule.** One narrow pure predicate — the AUTHORIZATION/EVIDENCE-GATE half of a non-cancel
+`RecoverOwner` invoke, NOT full transaction acceptance:
+- `acceptRecoverOwner(invokeFacts, descriptorEvidence, nameState, recoveryParams)` → `{accepted, reason}`.
+  Accepts only when every conjunct holds: **R7** descriptor profile is the invokable version (v2;
+  v1 parses but cannot invoke); **R10** a fresh BIP340 invoke signature in the 64-byte slot over the
+  W13 `ont-recover-owner` digest (`recoverAuthDigest`), verified against the descriptor's
+  `recoveryPubkey` (NOT a commitment parsed from the slot); **R6** `recoveryDescriptorDigest(descriptor)`
+  equals the invoke's `recoveryDescriptorHash`; **R3** that same digest equals the name-state's current
+  descriptor head-hash fact (hash-based; sequence is a companion check, never a substitute); **R2** the
+  arming signature verifies against the name's CURRENT `ownerPubkey` (not the descriptor's self-claimed
+  owner); **R4** `descriptor.ownershipRef` equals the current-interval ref (stops old-interval replay —
+  Decision #40's seller-reclaims-after-sale target); **R5** `prevStateTxid` equals the state head; and
+  **§3c** the descriptor evidence is demonstrably witnessed (a verifier-checked witness object) by
+  `h_r + W_r`, `1 <= W_r <= challengeWindowBlocks`. Fail-closed: late/absent/unverified evidence → not
+  authorized → the engine opens no recovery state.
+
+It DELIBERATELY EXCLUDES (engine integration / slice B): the bond-spend + qualifying-successor +
+outpoint-conflict mechanics (R11), the immature gate (R12), single-pending (R13), `pendingRecovery`
+construction, the X13 transfer block, bond rotation, finalization (R18), and the CANCEL path — a
+CANCEL-flagged or any nonzero-flag event presented as an invoke fails closed here, pinning the split.
+The §8.3 BIP322 wallet proof is non-authorizing corroboration: no field, no witnessing deadline,
+cannot block or substitute for the descriptor evidence. `W_r` is a launch-freeze parameter (B2 does
+not fix its value); the "demonstrably witnessed" format is a B3 evidence-layer deliverable — B2
+consumes an opaque, already-verifier-checked witness (`{ kind: "b3-verified-recovery-descriptor-witness",
+witnessedByHeight }`), exactly as the DA verdict consumes a served-bytes witness (S4). Total /
+fail-closed + closed-shape (the #63/#64/#65 discipline): every malformed input rejects and never
+throws (all @ont/wire digest/verify calls are guarded), and no extra field on any owned input object
+or on the witness is admitted as authority. Spec: RECOVERY_AUTH §3 + §3c; `WIRE_FORMAT.md` §5/§8.2a;
+`B2_KERNEL_HARDENING.md` R-rows; DECISIONS #50/#59/#66. This satisfies #44's "boundary may change only
+with a DECISIONS entry + conformance coverage"; the boundary freezes at launch.
+
+68. b2-auction-resolution-boundary: the auction opening-floor, bid-acceptance, and
+winner-selection predicates enter @ont/consensus as pure CONSENSUS_VERDICTS deciders riding
+nothing external — 2026-06-15
+
+*Status: **Proposed** (writer ChatLunatique, reviewer ClaudeleLunatique; lands on branch
+clean-build-b2-kernel, DK merges). A boundary-manifest addition under #44, riding the
+CONSENSUS_VERDICTS tier established by #59 — a new pure verdict module, NOT a tier-widening.
+Its external allowlist is empty: no `@ont/core` auction simulator/policy, no indexer/resolver,
+no research/simulation code, no host I/O. NO new consensus law: it lands the already-ratified
+auction rules from #37/#25 and #66 (PR-14, PR-19, PR-20, PR-21). Covered by conformance:
+`trust-surface.test.ts` (`auction-resolution.ts` in CONSENSUS_VERDICTS with an empty allowlist),
+`auction-resolution.test.ts` (predicate battery), and the Q/T/G auction bindings in
+`b2-vector-bindings.test.ts`. Authored under DK's keep-going grant.*
+
+**The rule.** Three narrow pure predicates:
+- `openingFloor(nameFacts, floorParams)` (Q2; PR-14/#11): given the canonical name byte length
+  and caller-supplied launch floor parameters, names of length `<=4` use the short-name halving
+  curve clamped by the long-name floor, while names of length `>=5` use the flat long-name floor.
+  Concrete prices remain launch-freeze inputs.
+- `acceptAuctionBid(bidFacts, bondFacts, priorAuctionState, auctionParams)` (Q1/Q3/Q4/Q7/Q10;
+  PR-19/PR-21/#37): acceptance is a conjunction over the opening/increment minimum, timing,
+  B3-verified lot binding, and bond facts. The bond output must be a B3-verified bidder-controlled
+  payment output whose value is **at least** `bidAmountSats` (PR-21: over-bonding is allowed);
+  missing, under-bonded, OP_RETURN, provably-unspendable, or unknown outputs reject. Non-accepted
+  bids have `stateEffect: "none"` and cannot open an auction, create a contested state, count as a
+  claim/collision, or extend soft-close.
+- `selectAuctionWinner(transcript, transcriptCompletenessVerdict, declaredWinner?)` (Q9/T7/T9/G1;
+  #37/#25): winner selection is defined only over a complete transcript. Zero accepted bids yields
+  no winner / no owner; rejected bids never win; the largest accepted bid wins; same-block
+  equal-amount ties resolve to the lower transaction index; a lower or phantom declared winner
+  rejects.
+
+The module deliberately excludes: production indexer integration; the concrete completeness-witness
+format; positive bond-script-class enumeration; bidder-control proof construction; one-bond-one-bid
+and same-bidder replacement-chain validation (Q8/F13/F14/T12). Those are later B3/auction slices.
+Total / fail-closed + closed-shape (the #63–#67 discipline): malformed inputs or extra fields reject
+and never throw, so no catalog/source/producer field is admitted as authority. This satisfies #44's
+"boundary may change only with a DECISIONS entry + conformance coverage"; the boundary freezes at
+launch.
+
+69. b2-notice-window-resolution-boundary: the cheap-claim notice-window resolution predicate
+enters @ont/consensus as a pure CONSENSUS_VERDICTS decider that rules a name
+finalize/nullify/escalate/provisional at the notice deadline, riding nothing external — 2026-06-15
+
+*Status: **Proposed** (writer ClaudeleLunatique, reviewer ChatLunatique; lands on branch
+clean-build-b2-kernel, DK merges). A boundary-manifest addition under #44, riding the
+CONSENSUS_VERDICTS tier established by #59 — a new pure verdict module, NOT a tier-widening. Its
+external allowlist is empty: it consumes resolved per-claim DA verdicts + a launch W_notice
+parameter and delegates bond qualification to the resident #37 predicate (`bond-qualification.ts`,
+an intra-package import), with no `@ont/core` indexer/resolver, no research/simulation code, and no
+host I/O. NO new consensus law: it lands the already-ratified rules #37 (bond-opens), #47
+(marker-fold deadline clock), #49 (da-windows K>=W+C), and PR-6 (distinct-owner counting). Covered
+by conformance: `trust-surface.test.ts` (`notice-window.ts` in CONSENSUS_VERDICTS with an empty
+allowlist), `notice-window.test.ts` (predicate battery), and the T17/F11 bindings in
+`b2-vector-bindings.test.ts`. Authored under DK's keep-going grant.*
+
+**The rule.** One narrow pure predicate, `resolveNoticeWindow(input)`:
+- A13: the notice window opens at the name's earliest-valid anchor mined height; the verdict is
+  derived only at `currentHeight >= anchorHeight + W_notice` (a `>=` gate; before it the name is
+  `provisional`). W_notice is a launch-freeze parameter, not a value this rule fixes.
+- T17/F11/#37: exactly one distinct-owner DA-valid claim and no qualifying bond -> `finalized`; two
+  or more distinct-owner DA-valid claims and no qualifying bond -> `nullified` (no owner, the name
+  reopens); any qualifying bond (against a claim, or bond-first) -> `escalated` to auction. A bare
+  collision can deny, never award.
+- PR-6 / first-anchor-wins (B5): a "competing claim" counts DISTINCT `(name, owner)` only; a
+  same-owner duplicate or re-anchor is idempotent (A12), deduped by owner key before counting.
+- D10: a claim whose DA verdict resolved NOT priority-bearing does not count for any lifecycle
+  purpose; a withheld competing claim (resolved excluded) does not nullify an available claim.
+
+**#49-independent.** The predicate consumes each claim's ALREADY-RESOLVED DA verdict — the
+`{decided, holdsPriority}` output of `da-verdict.ts`, composed by the engine over a served-bytes
+witness — and never recomputes `includable`/`holdsPriority` and never sees W/C/K. The #49-governed
+window algebra lives in the supplied DA verdict; this rule only counts the resolved priority-bearing
+claims, so da-windows values may move without touching this module (the tests vary the supplied DA
+facts to show the holdsPriority `h+W` boundary, F11). As a D10 nullification-by-withholding guard,
+any UNDECIDED claim verdict fails the resolution closed (`undecidable`) — never a premature
+finalize/nullify; under #49 `K>=W+C` an honest deadline evaluation never carries one.
+
+The module deliberately excludes: the auction itself (escalate emits the outcome; winner selection
+is `auction-resolution.ts` #68); the exact notice-deadline INCLUSIVITY of a claim landing AT the
+close height (that non-DA edge is PR-13, cf. A13); the in-window membership filter and the choice of
+governing anchor among competing claims (engine first-anchor-wins composition); whole-batch-vs-per-
+leaf DA granularity (D4); and indexer/resolver integration. Total / fail-closed + closed-shape (the
+#63–#68 discipline): malformed or extra-field inputs return a non-award verdict and never throw, so
+no producer-asserted "qualifies"/"daValid" field is admitted as authority. This satisfies #44's
+"boundary may change only with a DECISIONS entry + conformance coverage"; the boundary freezes at
+launch.
+
+70. b2-reopen-resolution-boundary: the reopen / re-auction generation predicate enters
+@ont/consensus as a pure CONSENSUS_VERDICTS decider that recognizes a reopen lot keyed off the
+latest KERNEL-DERIVED bond-break release height, riding nothing external — 2026-06-15
+
+*Status: **Proposed** (writer ClaudeleLunatique, reviewer ChatLunatique; lands on branch
+clean-build-b2-kernel, DK merges). A boundary-manifest addition under #44, riding the
+CONSENSUS_VERDICTS tier established by #59 — a new pure verdict module, NOT a tier-widening. Its
+external allowlist is empty: it consumes witnessed bond-break facts + the parsed reopen-lot anchor,
+with no `@ont/core` indexer/resolver, no research/simulation code, and no host I/O. NO new consensus
+law: it lands the already-ratified rules T22, B19, S7, S9, #5 (bond-continuity break → release), #18
+(pre-maturity bond continuity), #56 (settlement-bond-continuity), and #42 (no-adapter-authority).
+Covered by conformance: `trust-surface.test.ts` (`reopen-resolution.ts` in CONSENSUS_VERDICTS with an
+empty allowlist), `reopen-resolution.test.ts` (predicate battery), and the T22/B19 bindings in
+`b2-vector-bindings.test.ts`. Authored under DK's keep-going grant.*
+
+**The rule.** One narrow pure predicate, `resolveReopen(input)`:
+- B19 / #56 / #42: the latest bond-break release height is a KERNEL-DERIVED chain fact, derived from
+  the witnessed bond-break facts (`bondContinuity.breaks`) — never an adapter-asserted number. A
+  reopen lot is recognized iff it is anchored exactly to the unique latest release; a reopen with no
+  witnessed break, or anchored to a stale/fabricated/future height, is refused (no auction, no
+  transcript).
+- S7 / S9 / B19 generations: the first auction is `opening`-{name} with anchor 0 (recognized only
+  with a complete witness and no prior break); a reopen is `reopen`-{name}-after-{r} with a positive
+  anchor equal to the latest release. Anchor 0 is reserved for `opening` only — a `reopen`-after-0
+  cannot collapse into first-generation semantics.
+- T22-01: the verdict is a PURE function of (reopen lot, witnessed breaks) — there is no actor /
+  indexer "recognizer" channel.
+- T22-02: an INCOMPLETE bond-continuity witness fails closed (reject) BEFORE any matching.
+
+**Parked (S8 / `release height` def).** The deterministic latest-rule needs a TX-LEVEL TIEBREAK for
+multiple same-height breaking observations, and that tiebreak is a genuinely-unstated/candidate
+clause — NOT ruled. So the predicate derives the latest only when it is UNIQUE; two or more breaks
+sharing the max height fail closed (`reopen-same-height-break-tiebreak-unspecified`) rather than
+inventing the tiebreak. `breaks` carries `{releaseHeight}` only; a `txOrder` field lands when the
+tiebreak is ruled by a spec PR.
+
+The module deliberately excludes: the auctionId string grammar (opening-{name} /
+reopen-{name}-after-{r}) and its §6 lot-commitment preimage (a B3-verified lot binding, consumed
+elsewhere as a parsed fact); bond-break DETECTION itself (S7/B18 lives in the engine/settlement; this
+predicate consumes the resolved break facts); nullification-reopen (B24) and its cooldown / re-claim
+mechanics (separate, candidate); and reorg of release facts (Z*). The engine composes a recognized
+reopen into auction-resolution (#68). Total / fail-closed + closed-shape (the #63–#69 discipline):
+malformed or extra-field inputs return a non-recognition verdict and never throw, so no
+adapter/source/producer field is admitted as authority. This satisfies #44's "boundary may change
+only with a DECISIONS entry + conformance coverage"; the boundary freezes at launch.
+
+71. b2-occupancy-boundary: the name-occupancy predicate enters @ont/consensus as a pure
+CONSENSUS_VERDICTS decider — the insertion-only / no-takeover-of-final gate over a name's resolved
+post-DA-verdict occupancy — riding nothing external — 2026-06-15
+
+*Status: **Proposed** (writer ClaudeleLunatique, reviewer ChatLunatique; lands on branch
+clean-build-b2-kernel, DK merges). A boundary-manifest addition under #44, riding the
+CONSENSUS_VERDICTS tier established by #59 — a new pure verdict module, NOT a tier-widening. Its
+external allowlist is empty: it consumes the name's resolved governing occupancy, with no `@ont/core`
+indexer/resolver, no research/simulation code, and no host I/O. NO new consensus law: it lands the
+already-ratified A11 (anchors are insertion-only; a batched claim must not take an already-final
+name), #26 (root anchors/markers do not authorize transfers or value updates), and D10 (a DA-failed
+claim counts for no lifecycle purpose). Covered by conformance: `trust-surface.test.ts`
+(`occupancy.ts` in CONSENSUS_VERDICTS with an empty allowlist), `occupancy.test.ts` (predicate
+battery), and the A11-pos-01 binding in `b2-vector-bindings.test.ts`. Authored under DK's keep-going
+grant.*
+
+**The rule.** One narrow pure predicate, `resolveNameOccupancy({ priorOccupancy })` — `priorOccupancy`
+is the name's RESOLVED governing occupancy (`null` or one of three kinds), never re-derived here:
+- `null` (unoccupied / fully reopened) → admit a fresh insertion.
+- `{ kind: "forfeited" }` (a DA-decided non-priority prior insertion) → admit. This is the A11-pos-01
+  crux: occupancy is enforced over POST-DA-VERDICT state, so a name "inserted" only by a
+  later-forfeited (DA-failed) batch does not occupy it and must not block honest re-claiming (D10).
+- `{ kind: "contestable-provisional" }` (the caller has established the candidate is inside the live
+  competition window) → admit a competing insertion; the collision / finalize / nullify outcome is
+  notice-window (#69), not this gate.
+- `{ kind: "final" }` (a DA-valid finalized owner holds the name) → refuse; insertion-only, the
+  existing owner is unchanged (no takeover).
+
+**#49-independent.** The predicate consumes the resolved governing occupancy as a fact — the caller
+(engine) has already composed the DA verdict (`da-verdict.ts`) and the lifecycle verdict
+(notice-window / auction) and reduced any multiple prior insertions (first-anchor-wins, A12) into one
+governing occupancy. It never recomputes W/C/K and never reduces insertions itself. Auction-pending
+and nullified-reopen states are NOT mapped to an admitting kind; a reducer must deliberately
+introduce a future occupancy kind for them — they are not silently insertable.
+
+The verdict carries ONLY an admit/refuse decision plus a classification — there is no owner/value/
+transfer field, so the predicate is structurally insertion-only (no mutation path; #26). Deliberately
+excluded: the multiple-insertion reduction (engine, A12); how the DA / finality verdicts were
+computed (upstream); the competing-claim outcome (notice-window #69); and non-canonical-name-byte
+rejection (A6 — a separate A-area name-canonicalization concern). Total / fail-closed + closed-shape
+(the #63–#70 discipline): malformed, unknown-kind, or extra-field input fails closed to a
+non-admitting `undecidable` verdict and never throws, so no producer-asserted occupancy outside the
+three resolved kinds is admitted as authority. This satisfies #44's "boundary may change only with a
+DECISIONS entry + conformance coverage"; the boundary freezes at launch.
+
+72. b2-batch-exclusion-locality-boundary: the batch-exclusion locality predicate enters
+@ont/consensus as a pure CONSENSUS_VERDICTS decider — the insert-only batched-insertion derivation
+that makes the DA-exclusion locality / state-equivalence property checkable — riding nothing
+external — 2026-06-15
+
+*Status: **Proposed** (writer ClaudeleLunatique, reviewer ChatLunatique; lands on branch
+clean-build-b2-kernel, DK merges). A boundary-manifest addition under #44, riding the
+CONSENSUS_VERDICTS tier established by #59 — a new pure verdict module, NOT a tier-widening. Its
+external allowlist is empty: the DA verdict enters as a consumed `excludedBatchIds` input, with no
+`@ont/core`, no research/simulation code, and no host I/O. NO new consensus law: it lands the
+already-ratified B10 (a DA-excluded batch's claims vanish uniformly; exclusion removes only that
+batch's leaves and unseats no final owner) and D7 (the resulting state equals the as-if-the-excluded-
+batch-never-existed world), over the DA §5 insert-only/commutative merge. Covered by conformance:
+`trust-surface.test.ts` (`batch-exclusion.ts` in CONSENSUS_VERDICTS with an empty allowlist),
+`batch-exclusion.test.ts` (predicate battery), and the B10-pos-01 / D7-pos-01 bindings in
+`b2-vector-bindings.test.ts`. Authored under DK's keep-going grant.*
+
+**The rule.** `deriveBatchedInsertions({ batches, excludedBatchIds, priorFinalNames })` derives the
+per-name insertion provenance of the non-excluded batches as a deterministic sorted projection. The
+bindings PROVE the property: excluding batch X removes only X's own leaves (every name not in X is
+byte-identical), the result equals the as-if-X-never-anchored derivation, and no `priorFinalNames`
+entry is unseated. The DA verdict is a CONSUMED witnessed input (`excludedBatchIds`), never recomputed
+from local fetch success (B10 attack flag) — so the module is #49-independent (no W/C/K appear).
+
+**Insert-only invariant + cross-area coupling (D7 §5).** The merge models ONLY name insertions — a
+batch never mutates an existing name. This is the DA §5 commutative-merge fact the locality guarantee
+rests on; it is a cross-area coupling the batched-path (B) area MUST hold (if batches ever admit
+non-insert ops, exclusion stops being self-contained). `priorFinalNames` is a PRESERVATION fact, not a
+new occupancy reducer: a leaf targeting an already-final name is an insert-only no-op (never a fresh
+insertion, never an unseat; #26/B7), and this predicate does not re-decide takeover (that is occupancy
+#71 / B7). Deliberately excluded: finalization / collision / nullify (notice-window #69), the
+first-anchor-wins reduction (A12, engine), and the A6 name grammar (names are caller-parsed canonical
+facts). Total / fail-closed + closed-shape (the #63–#71 discipline): malformed, extra-field, duplicate
+batchId, or duplicate/unknown excluded id fails closed (`derived:false`) and never throws, so the
+derivation can never become order-dependent or admit a producer-asserted exclusion. This satisfies
+#44's "boundary may change only with a DECISIONS entry + conformance coverage"; the boundary freezes
+at launch.
+
+73. b2-bond-window-clock-boundary: the qualifying-bond notice-window test (`bondInNoticeWindow`, in
+`notice-window.ts`) reads the bond's re-derived current-chain mined height (#49 S1 one-clock), and
+fails closed on the unruled notice-close edge — 2026-06-15
+
+*Status: **Proposed** (writer ClaudeleLunatique, reviewer ChatLunatique; lands on branch
+clean-build-b2-kernel, DK merges). A boundary-manifest clarification under #44, an addition to the
+already-resident `notice-window.ts` verdict surface (#69) — kept as its own entry because #69
+explicitly excluded in-window membership filtering. Empty external allowlist (height inputs only).
+NO new consensus law: it lands Z9 (the notice-window outcome derives purely from the current
+canonical chain; reorgs re-derive) read through the #49 S1 one-clock rule. Covered by conformance:
+`notice-window.test.ts` (`bondInNoticeWindow` battery) and the Z9-neg-01 binding in
+`b2-vector-bindings.test.ts`.*
+
+**The rule.** `bondInNoticeWindow(bondMinedHeight, anchorHeight, noticeWindowBlocks)` returns a
+tri-state verdict (`in-window` / `out-of-window` / `boundary-unspecified`, plus `undecidable` on
+malformed input). `bondMinedHeight` MUST be the bond's RE-DERIVED height on the current best chain
+(#49 S1: every deadline keys off the current canonical chain; reorgs re-derive; no first-seen /
+receipt time) — a test reading a first-seen or superseded-chain height is non-conformant (Z9-neg-01).
+
+**Parked: the notice-close edge.** The exact close boundary (`h === anchorHeight + W_notice`) is the
+unruled PR-13 / G4 / F12 edge — whether a bond mined exactly at the close is inside is stated nowhere.
+This predicate deliberately does NOT freeze it: it returns `boundary-unspecified`
+(`bond-window-close-boundary-unspecified`) at that exact height so no implementation silently freezes
+the edge ahead of a spec ruling. The Z9-neg-01 binding uses interior heights so the only variable is
+first-seen vs re-derived height. Total / fail-closed: malformed input fails closed to `undecidable`
+and never throws. This satisfies #44's "boundary may change only with a DECISIONS entry + conformance
+coverage"; the boundary freezes at launch.
+
+74. b2-window-schedule-boundary: the window-schedule predicate enters @ont/consensus as a pure
+CONSENSUS_VERDICTS decider — a lifecycle window's length is a function of anchor height + a frozen
+height-keyed schedule plus an extend-only adjustment, with no market-signal input channel — riding
+nothing external — 2026-06-15
+
+*Status: **Proposed** (writer ClaudeleLunatique, reviewer ChatLunatique; lands on branch
+clean-build-b2-kernel, DK merges). A boundary-manifest addition under #44, riding the
+CONSENSUS_VERDICTS tier established by #59 — a new pure verdict module, NOT a tier-widening. Empty
+external allowlist: anchor height + a frozen value-free schedule enter as caller inputs; no
+`@ont/core`, no research/simulation code, no host I/O. NO new consensus law: it lands the
+already-ratified B22 (the window function's only inputs are anchor height + frozen schedule constants;
+a market/state-derived signal that would shorten a window is rejected by construction) and Z11
+(extend-only; a computed window below the height-keyed floor is rejected; windows reduce only by
+passage of block height). Covered by conformance: `trust-surface.test.ts` (`window-schedule.ts` in
+CONSENSUS_VERDICTS with an empty allowlist), `window-schedule.test.ts` (predicate battery), and the
+B22-neg-01 / Z11-neg-01 bindings in `b2-vector-bindings.test.ts`. Authored under DK's keep-going grant.*
+
+**The rule.** `windowSchedule({ anchorHeight, floorConstants, adaptiveExtensionBlocks? })` returns
+`{ computed, blocks, floorBlocks, reason }`:
+- The floor is a deterministic function of anchor height over `floorConstants.segments` — a non-empty
+  list of `{ fromHeight, floorBlocks }` STRICTLY ascending by `fromHeight`; the floor is the
+  `floorBlocks` of the last segment whose `fromHeight <= anchorHeight`. The floor may decay by height
+  (windows reduce only by passage of block height), never by a market signal.
+- `blocks = floorBlocks + extension`, where `extension` is 0 if absent and otherwise a safe
+  nonnegative integer — **extend-only**: a negative (shrink) adjustment fails closed
+  (`window-schedule-shrink-rejected`) rather than being normalized to 0, so `blocks >= floorBlocks`
+  always holds.
+- **No market-signal input channel by construction**: the input is closed-shape at the top level AND
+  inside `floorConstants` and each segment, so a market field (`claimVolume`, `bondTotals`,
+  `distinctKeys`, `marketMaturity`, …) is rejected, never read.
+
+The concrete launch schedule VALUES remain launch-freeze (the schedule enters as frozen caller
+constants; the conformance tests use two distinct constant sets so no value is baked). Total /
+fail-closed + closed-shape (the #63–#73 discipline): malformed, extra-field, unordered-segment,
+negative/non-integer extension, or overflow input fails closed (`computed:false`, `blocks`/`floorBlocks`
+null) and never throws. This satisfies #44's "boundary may change only with a DECISIONS entry +
+conformance coverage"; the boundary freezes at launch.
+
+75. b2-name-canonicalization-boundary: the name-canonicalization predicate enters @ont/consensus as a
+pure CONSENSUS_VERDICTS decider — a batched-claim leaf's name bytes are accepted only if already
+canonical; non-canonical bytes are REJECTED, never normalized — riding the audited B1 @ont/wire
+canonical-name primitive — 2026-06-15
+
+*Status: **Proposed** (writer ClaudeleLunatique, reviewer ChatLunatique; lands on branch
+clean-build-b2-kernel, DK merges). A boundary-manifest addition under #44, riding the
+CONSENSUS_VERDICTS tier (#59). Its external allowlist is `@ont/wire` only: it rides the B1 normative
+`isCanonicalName` primitive (NAME_RE `/^[a-z0-9]{1,32}$/`) — the same authority the wire decoder uses
+— so the kernel and wire agree on canonicality by construction, not by a re-stated regex. NO new
+consensus law: it lands the already-normative A6 / WIRE_FORMAT §2 reject-don't-normalize rule. Covered
+by conformance: `trust-surface.test.ts` (`name-canonicalization.ts` in CONSENSUS_VERDICTS, `@ont/wire`
+allowlist), `name-canonicalization.test.ts`, and the A6-neg-01 binding.*
+
+**The rule.** `acceptCanonicalLeafName(nameBytesHex)` → `{ canonical, reason }`: the lowercase-hex leaf
+name bytes are decoded and checked against `isCanonicalName`; non-canonical bytes (uppercase,
+out-of-charset, empty, or over 32 bytes) REJECT and are NEVER normalized (no lowercasing, trimming, or
+substitution — the verdict is canonical-or-not, never a rewritten value). This kills the legacy
+normalize-on-ingest behavior. SCOPE: only the A6 reject-don't-normalize half (a6-02); the full leaf
+well-formedness (accumulator key == sha256(canonical name), owner-binding == H(ownerPubkey)) is the B3
+leaf-format / commitment-match concern (owner-binding construction is candidate-stays, riding C6).
+Total / fail-closed: malformed hex or non-canonical content rejects and never throws. This satisfies
+#44's "boundary may change only with a DECISIONS entry + conformance coverage"; the boundary freezes
+at launch.
+
+76. b2-claim-path-eligibility-boundary: the claim-path-eligibility predicate enters @ont/consensus as
+a pure CONSENSUS_VERDICTS decider — a name whose canonical byte length is at or below the launch
+short-name threshold T cannot finalize via the cheap-claim path (bond-first only) — riding nothing
+external — 2026-06-15
+
+*Status: **Proposed** (writer ClaudeleLunatique, reviewer ChatLunatique; lands on branch
+clean-build-b2-kernel, DK merges). A boundary-manifest addition under #44, riding the
+CONSENSUS_VERDICTS tier (#59). Empty external allowlist: it consumes a canonical byte LENGTH (a
+number) + the launch threshold — never the name itself, so it carries no normalization concern
+(canonicality is #75). NO new consensus law: it lands the already-ratified F15 / PR-15 short-name
+no-cheap-path rule. Covered by conformance: `trust-surface.test.ts` (`claim-path-eligibility.ts` in
+CONSENSUS_VERDICTS, empty allowlist), `claim-path-eligibility.test.ts`, and the F15-pos-01 binding.*
+
+**The rule.** `claimPathEligibility(canonicalNameByteLength, thresholdT)` → `{ cheapClaimAllowed,
+reason }`: `length <= T` is bond-first only (`cheapClaimAllowed:false`); `length > T` allows a cheap
+claim. `T` is a launch-freeze parameter, not a baked-in constant (the conformance tests run at two
+thresholds so no value is baked). It is a separate predicate from #75 by design — it takes the
+validated canonical byte length, not a name. Total / fail-closed: a non-positive-integer length or
+threshold fails closed (no cheap path) and never throws. This satisfies #44's "boundary may change
+only with a DECISIONS entry + conformance coverage"; the boundary freezes at launch.
+
+77. b2-post-final-attempt-boundary: the post-final-attempt predicate enters @ont/consensus as a pure
+CONSENSUS_VERDICTS decider — a claim OR bond landing at or after a name's finality is refused as an
+already-owned attempt with no state effect, the incumbent record byte-unchanged — riding nothing
+external — 2026-06-15
+
+*Status: **Proposed** (writer ClaudeleLunatique, reviewer ChatLunatique; lands on branch
+clean-build-b2-kernel, DK merges). A boundary-manifest addition under #44, riding the
+CONSENSUS_VERDICTS tier (#59). Empty external allowlist: it consumes a resolved `final` incumbent +
+the attempt kind, with no host I/O. NO new consensus law: it lands the already-ratified B7 (post-final
+already-owned), grounded in the state machine (post-final claims are already-owned), #37's in-window
+phrasing (a qualifying bond opens an auction only inside the notice window, so a post-final bond opens
+none), and first-anchor-wins / PR-5 (ordering/bonds never touch a final name). Covered by conformance:
+`trust-surface.test.ts` (`post-final-attempt.ts` in CONSENSUS_VERDICTS, empty allowlist),
+`post-final-attempt.test.ts`, and the B7-neg-01 binding.*
+
+**The rule.** `acceptPostFinalAttempt({ incumbent: { status: "final", ownerKey }, attempt: { kind:
+"claim" | "bond" } })` → `{ refused, stateEffect, incumbentUnchanged, reason }`: for a valid final
+incumbent, ANY attempt (claim or bond) is `refused` with `stateEffect: "none"` (no insertion, no
+auction opened, no window reopen/extend, no nullify) and `incumbentUnchanged: true`. This is a
+state-shape gate distinct from occupancy #71 — occupancy admits/refuses a fresh INSERTION over a
+name's occupancy; this gate is the broader post-final no-effect invariant covering both a claim AND a
+bond (the bond half has no other resident home). It does not decide finality itself (the caller
+composes notice-window #69 / auction #68 / settlement #65 to reach `final`) and does not model the
+auction. Total / fail-closed + closed-shape (the #63–#76 discipline): a non-final incumbent (the gate's
+precondition is a final name), a malformed attempt, or any extra field fails closed (`refused:false`,
+`stateEffect:"undecidable"`) and never throws — so the gate never silently admits a change and never
+overclaims for a non-final name. This satisfies #44's "boundary may change only with a DECISIONS entry
++ conformance coverage"; the boundary freezes at launch.
+
+78. b2-lot-commitment-match-boundary: the lot-commitment-match predicate enters @ont/consensus as a
+pure CONSENSUS_VERDICTS decider — a bid's claimed lot commitment is accepted only if it equals the
+WIRE §6 recomputation over its (auctionId, name, unlockBlock); a mismatch is refused — riding the
+audited B1 @ont/wire computeLotCommitment primitive — 2026-06-15
+
+*Status: **Proposed** (writer ClaudeleLunatique, reviewer ChatLunatique; lands on branch
+clean-build-b2-kernel, DK merges). A boundary-manifest addition under #44, riding the
+CONSENSUS_VERDICTS tier (#59). External allowlist is `@ont/wire` only: it rides the B1
+`computeLotCommitment` primitive (`sha256(lenPrefix("ont-auction-lot") ‖ lenPrefix(text(auctionId)) ‖
+lenPrefix(name) ‖ lenPrefix(decimal(unlockBlock)))`) — the same authority the wire encoder uses — and
+imports no legacy `@ont/protocol` normalization. NO new consensus law: it lands the already-ratified
+B12 (a bid whose recomputed lot commitment mismatches its claimed lot is refused; no parallel lot for
+a single name). Covered by conformance: `trust-surface.test.ts` (`lot-commitment-match.ts` in
+CONSENSUS_VERDICTS, `@ont/wire` allowlist), `lot-commitment-match.test.ts`, and the B12-neg-01 binding.*
+
+**The rule.** `lotCommitmentMatch({ claimedLotCommitment, auctionId, name, unlockBlock })` →
+`{ matches, reason }`: recompute the WIRE §6 lot commitment over `(auctionId, name, unlockBlock)` and
+compare to `claimedLotCommitment`; a mismatch refuses (no parallel lot minted). SCOPE: only the
+recompute-and-compare check — the auctionId GRAMMAR (`opening-{name}` / `reopen-{name}-after-{r}`,
+PR-28) is NOT validated here (`computeLotCommitment` treats auctionId as opaque preimage text per WIRE
+§6); broader lot-witness / indexer integration and release-anchor matching (reopen #70 / S9) stay
+their own slices. The name preimage must be canonical (the primitive rides the same `isCanonicalName`
+as #75). Total / fail-closed + closed-shape (the #63–#77 discipline): a malformed bid (non-hex32
+claimed commitment, non-string auctionId/name, non-integer unlockBlock, extra field) rejects, and the
+wire primitive — which throws on a non-canonical name / out-of-range unlockBlock — is wrapped so any
+throw becomes a fail-closed reject, never an exception. This satisfies #44's "boundary may change
+only with a DECISIONS entry + conformance coverage"; the boundary freezes at launch.
+
+79. b2-bond-continuity-break-boundary: the bond-continuity-break predicate enters @ont/consensus as a
+pure CONSENSUS_VERDICTS decider — a pre-maturity bond-outpoint spend with no same-tx valid successor
+releases the name, regardless of which key signed the spend — riding nothing external — 2026-06-15
+
+*Status: **Proposed** (writer ClaudeleLunatique, reviewer ChatLunatique; lands on branch
+clean-build-b2-kernel, DK merges). A boundary-manifest addition under #44, riding the
+CONSENSUS_VERDICTS tier (#59). Empty external allowlist: it consumes resolved chain facts, with no
+host I/O. NO new consensus law: it lands the already-ratified S6 / S7 / B18 / #5 (a broken bond before
+maturity releases the name). Covered by conformance: `trust-surface.test.ts`
+(`bond-continuity-break.ts` in CONSENSUS_VERDICTS, empty allowlist), `bond-continuity-break.test.ts`,
+and the S6-neg-01 binding.*
+
+**The rule.** `bondContinuityBreak({ preMaturity, currentBondOutpointSpent, sameTxValidSuccessorBond })`
+→ `{ decided, released, reason }`. Four valid fact combinations are all `decided`: mature spend →
+no-release (X8: a mature name imposes no continuity requirement); pre-maturity unspent → no-release;
+pre-maturity spent with a same-tx valid successor → no-release (rotated); pre-maturity spent with NO
+same-tx valid successor → `released` (continuity broke; the name reopens). `sameTxValidSuccessorBond`
+is a consumed resolved engine/B3 fact (full successor output/script validation is outside this slice).
+
+**NO signer / key / authorized input channel (the S6 crux).** Continuity is an ONT rule, not a Bitcoin
+timelock: the release is a consequence of an OBSERVED spend, never a key-authorized event. The bond
+outpoint is spendable by whoever holds the funding-wallet key, distinct from the owner key (#41), so
+there is no owner-signature exemption. The closed shape admits ONLY the three booleans; ANY signer /
+funding-key / owner-key / authorized field is rejected (`undecided`), so no key can be consulted to
+avert the release. Total / fail-closed + closed-shape (the #63–#78 discipline): a malformed or
+extra-field input is `undecided` (fail closed — NOT silently a valid no-break) and never throws. This
+satisfies #44's "boundary may change only with a DECISIONS entry + conformance coverage"; the boundary
+freezes at launch.
+
+80. b2-transfer-authority-by-state-boundary: the transfer-authority-by-state predicate enters
+@ont/consensus as a pure CONSENSUS_VERDICTS decider — a Transfer has authority only over a name in the
+`owned` lifecycle state; every non-owned state is non-transferable — riding nothing external —
+2026-06-15
+
+*Status: **Proposed** (writer ClaudeleLunatique, reviewer ChatLunatique; lands on branch
+clean-build-b2-kernel, DK merges). A boundary-manifest addition under #44, riding the
+CONSENSUS_VERDICTS tier (#59). Empty external allowlist: it consumes the resolved name lifecycle state,
+with no host I/O. NO new consensus law: it lands the already-ratified X11 (a Transfer against any
+non-owned state makes no state change; transfer authority requires an owned state). A dedicated pure
+predicate rather than an engine binding because the engine's NameRecord.status enum
+(pending/immature/mature/invalid/unclaimed) collapses the X11 non-owned battery — live-auction,
+nullified, and broken-bond are not distinct record statuses (ChatLunatique-concurred). Covered by
+conformance: `trust-surface.test.ts` (`transfer-authority-state.ts` in CONSENSUS_VERDICTS, empty
+allowlist), `transfer-authority-state.test.ts`, and the X11-neg-01 binding.*
+
+**The rule.** `transferAuthorityByState({ nameLifecycleState })` → `{ transferable, reason }`:
+`transferable` is true ONLY for `"owned"`; every non-owned state — `provisional`, `live-auction`,
+`nullified`, `broken-bond`, `nonexistent` — is non-transferable (no state change). It consumes the
+RESOLVED `nameLifecycleState` (the caller composes notice-window #69 / auction #68 /
+bond-continuity-break #79 / occupancy #71); it does not derive the state, verify the transfer
+signature, or model bond continuity. Recovery-pending is deliberately NOT a state here — the X13
+transfer-block (engine, #67/PR-34) already owns that case. Object input `{ nameLifecycleState }`
+(not a raw string) so the boundary keeps closed-shape discipline. Total / fail-closed + closed-shape
+(the #63–#79 discipline): an unknown lifecycle state, a non-object input, or any extra field
+(actor/signature/owner-key) is rejected (not transferable) and never throws — so no signer/authority
+field can ride the boundary to grant a transfer over a non-owned state. This satisfies #44's "boundary
+may change only with a DECISIONS entry + conformance coverage"; the boundary freezes at launch.
+
+81. b2-fee-fact-eligibility-boundary: the fee-fact-eligibility predicate enters @ont/consensus as a
+pure CONSENSUS_VERDICTS decider — an anchor contributes a fee fact only once K-deep on the current
+canonical chain, valued at its own intrinsic fee; a reorged-before-K anchor contributes nothing —
+riding nothing external — 2026-06-15
+
+*Status: **Proposed** (writer ClaudeleLunatique, reviewer ChatLunatique; lands on branch
+clean-build-b2-kernel, DK merges). A boundary-manifest addition under #44, riding the
+CONSENSUS_VERDICTS tier (#59). Empty external allowlist: it consumes a resolved K-depth fact + the
+anchor's own intrinsic fee, with no host I/O. NO new consensus law: it lands the already-ratified F9
+(an anchor reorged out before K-depth contributes no fee fact and no name; a re-mined replacement is
+gated on its own intrinsic fee, never the orphaned tx's). Covered by conformance:
+`trust-surface.test.ts` (`fee-fact-eligibility.ts` in CONSENSUS_VERDICTS, empty allowlist),
+`fee-fact-eligibility.test.ts`, and the F9-neg-01 binding.*
+
+**The rule.** `feeFactEligibility({ reachedKDepthOnCanonicalChain, intrinsicFeeSats })` →
+`{ contributesFeeFact, feeFactSats, reason }`: `reachedKDepthOnCanonicalChain === false` → no fee
+fact (`feeFactSats:null`) — the reorged-out / pre-K anchor contributes nothing; `=== true` → the fee
+fact is THIS anchor's OWN `intrinsicFeeSats` (source selection — a re-mined replacement contributes
+its own fee, never the orphan's). **#49-independent**: K-depth enters as a RESOLVED boolean — the
+predicate never sees K or the raw confirmation depth (the caller composes the #49 K-depth check).
+**No orphan / previous / first-seen fee or confirmationDepth / K input channel**: the closed shape
+admits ONLY the two fields, so an orphaned tx's fee cannot ride the boundary. `gate-fee.ts`
+(`gateFeeValidation`) stays separate and reorg/confirmation-unaware — the g(name) economic gate is
+B3, and may reject a lower own fee downstream, but that is not F9's call (existence + which fee only).
+Total / fail-closed + closed-shape (the #63–#80 discipline): a malformed, extra-field, non-boolean
+K-depth, or non-nonnegative-bigint fee input contributes no fee fact and never throws. This satisfies
+#44's "boundary may change only with a DECISIONS entry + conformance coverage"; the boundary freezes
+at launch.
 
 ## Fairness Principles To Carry Into The Launch Rewrite
 

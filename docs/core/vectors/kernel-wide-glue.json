@@ -1,0 +1,113 @@
+[
+  {
+    "id": "G1-pos-01",
+    "ruleId": "G1",
+    "area": "Kernel-wide glue (ordering, evidence deadlines, parameter surface)",
+    "authorityTier": "ratified",
+    "sources": [
+      "docs/core/DECISIONS.md Decision Log entry 25 (lines 374-384)",
+      "docs/RISKS.md lines 504, 493-494 (Tie-break gaming = Low value, scoped to cheap-claim merge ties)",
+      "docs/core/B2_KERNEL_HARDENING.md G1 (line 2241)"
+    ],
+    "kind": "positive",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "A miner can place its own tied bid earlier in a block it mines; #25 accepts this for determinism/legibility, but the spec should say so explicitly — RISKS.md's 'tie-break gaming is low value' analysis (analysis tier) is argued for cheap-claim merge ties, not for bonded bid ties, where the tie winner does win the name.",
+      "predicateSignature": "winnerSelection(orderedAuctionBids, witnessedChainFacts{blockHeight, txIndexPerBid}, priorAuctionState) -> {verdict, winner}",
+      "fixture": {
+        "name": "alice",
+        "sameBlockTiedBids": [
+          { "label": "bidA", "txIndex": 2, "tiedUnderAuctionRules": true, "note": "placed by the block's own miner at the lower tx index" },
+          { "label": "bidB", "txIndex": 5, "tiedUnderAuctionRules": true }
+        ],
+        "tieCondition": "both bids confirmed in the same block and otherwise tied under all auction rules (equal effective bid)",
+        "chainFacts": "single block at height H; the two bids occupy tx indices 2 and 5",
+        "priorState": "open auction for 'alice', no prior winner",
+        "expectedWinner": "bidA (lower tx index)",
+        "negativeCounterpart": "an impl that awards bidB (later tx order) OR treats the miner's self-placement as disallowed -> fails"
+      },
+      "scopeNote": "Cited-now (ratified): DECISIONS #25 — same-block tied AuctionBids resolved by block transaction order. SCOPED to AuctionBid ties only (the #25 domain). DELIBERATELY does NOT extend #25 to anchor ordering (A9 / PR-16 total-order, spec-blocked) and introduces NO miner-self-placement-detection rule. RISKS.md 'tie-break gaming low value' is merge-ordering-scoped analysis (lines 493-494, 504) — it neither blocks nor overrides #25.",
+      "authoringStatus": "authored: predicate-input shape proposed; reviewer sign-off complete; locked."
+    },
+    "expected": {
+      "verdict": "accept",
+      "reason": "g1-02-earlier-tx-order-tied-bid-wins",
+      "invariant": "the earlier-tx-order tied AuctionBid wins the name even when placed by the block's own miner; a later-ordered tied bid MUST NOT win; no self-placement-detection rule is applied",
+      "rationale": "The verdict — the earlier-ordered tied bid (even a miner's own) wins the name — is directly stated by ratified Decision #25 ('the bid appearing earlier in the block's transaction order wins'). The attack flag's worry (that RISKS.md's 'tie-break gaming is low value' is mis-scoped to cheap-claim merge ties, not bonded bid ties) does not change the verdict: #25 governs same-block tied AuctionBids unconditionally. A vector pinning the earlier-ordered bonded tied bid as winner is legally derivable today, independent of any provisional decision. RISKS.md confirms the 'low value' analysis is explicitly merge-ordering-scoped (lines 493-494, 504), so it neither blocks nor overrides #25."
+    },
+    "status": "locked",
+    "attackFlagRef": "G1-02",
+    "flipMarker": null
+  },
+  {
+    "id": "G5-pos-01",
+    "ruleId": "G5",
+    "area": "Kernel-wide glue (ordering, evidence deadlines, parameter surface)",
+    "authorityTier": "candidate",
+    "sources": [
+      "docs/spec/ONT_DATA_AVAILABILITY_AGREEMENT.md §5 The key decomposition (disjoint insertions commute)",
+      "docs/core/SOFTWARE_CANON.md Item 5 B2 gate (lines 140-141, property tests over event orderings)",
+      "docs/GLOSSARY.md first-anchor-wins lines 76-79 (ordering inside a window never awards a contested name)",
+      "docs/core/B2_KERNEL_HARDENING.md G5 (lines 2283-2290)"
+    ],
+    "kind": "positive",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "The commutativity claim's proof lives in a research simulation (analysis-tier evidence, packages/core/src/research/delta-merge-sim.ts); the B2 property test is what turns the claim into law — if any conflicting-leaf edge falsifies it, the spec text must change by named PR, not the test soften.",
+      "predicateSignature": "batchedPathMerge(orderedAcceptedBatches, priorKernelState) -> {verdict, derivedRoot, nameState}",
+      "fixture": {
+        "disjointBatches": "N accepted batches inserting pairwise-DISJOINT names (no name shared across batches)",
+        "test": "evaluate the kernel over every permutation of batch arrival / merge order",
+        "expectedInvariance": "one identical derived root + name state across all permutations -> accept",
+        "negativeCounterpart": "an impl whose derived root for disjoint-name batches depends on arrival order -> fails the permutation sweep",
+        "orderSensitiveHalf": "same-name (conflicting-leaf) batches are NOT commutative; order-sensitivity is confined to conflicting leaves and MUST NOT be assumed invariant",
+        "priorState": "baseline"
+      },
+      "scopeNote": "Cited-now (candidate + ratified gate): DA §5 commutativity claim (candidate) + SOFTWARE_CANON B2-gate permutation-invariance obligation (ratified). SCOPED to disjoint insertions ONLY — the order-sensitive (same-name conflict) half is pinned as documented order-sensitivity, never assumed invariant. DELIBERATELY EXCLUDES: same-name conflict resolution / priority ordering (first-anchor-wins, batched-path B area / spec). No #49/#50 dependency.",
+      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; reviewer sign-off complete; locked."
+    },
+    "expected": {
+      "verdict": "accept",
+      "reason": "g5-01-disjoint-insertions-commute",
+      "invariant": "disjoint batched-path insertions are permutation-invariant (one identical derived root + name state regardless of arrival/merge order); order-independence is asserted ONLY where the spec claims it (disjoint), never on conflicting leaves",
+      "rationale": "The order-independence verdict for disjoint batched-path insertions is claimed in DA §5 (candidate, 'Disjoint insertions commute ... the root is a function of the set of leaves, not the order or arrival time') and the permutation-invariance test obligation is mandated by the ratified B0 B2 gate ('property tests over event orderings (reorg/permutation invariance where the spec claims it)'), reinforced by GLOSSARY first-anchor-wins (candidate). A second implementer can derive 'disjoint-name batches produce one identical root regardless of permutation' from candidate+ratified text alone — the flag merely notes the proof currently sits in analysis-tier sim, which is exactly what the B2 property vector promotes to law. No dependency on #49/#50."
+    },
+    "status": "locked",
+    "attackFlagRef": "G5-01",
+    "flipMarker": null
+  },
+  {
+    "id": "G7-neg-01",
+    "ruleId": "G7",
+    "area": "Kernel-wide glue (ordering, evidence deadlines, parameter surface)",
+    "authorityTier": "ratified",
+    "sources": [
+      "docs/core/SOFTWARE_CANON.md L2 ownership-kernel row (line 29) and boundary rule (lines 34-42); B2 gate zero-I/O imports test (line 142); ratified fail-closed DA verdict (line 134)",
+      "docs/spec/ONT_DATA_AVAILABILITY_AGREEMENT.md §6e S4 (lines 182-184, evidence in/verdict out, format = B3, never does I/O)",
+      "docs/core/B2_KERNEL_HARDENING.md G7 (lines 2308-2316)"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "The witnessed-evidence input format is a B3 deliverable that does not exist yet; until it is specified, any 'witnessed' parameter is a placeholder shape — a kernel API that types it as a boolean (available: yes/no) quietly re-creates the callback hole, because the boolean's provenance is unverifiable.",
+      "predicateSignature": "kernelVerdict(eventBytes, priorKernelState, witnessedChainFacts, witnessedEvidence) -> {verdict, reason}",
+      "fixture": {
+        "caseA_provenancelessBoolean": "a kernel API that types the witnessed-evidence input as a bare boolean (available:true) with no verifier-checkable provenance -> reject (re-creates the evaluation-time-availability callback hole; provenance unverifiable)",
+        "caseB_absentWitness": "absent / empty witnessed-evidence -> reject (fail-closed: the verdict goes against eligibility)",
+        "positiveCompanion": "two honest evaluators given the SAME opaque verifier-checkable witness emit byte-identical verdicts",
+        "priorState": "baseline"
+      },
+      "scopeNote": "Cited-now (ratified): SOFTWARE_CANON boundary rule + L2 'No DB, no network, no clock' + ratified fail-closed DA verdict; DA §6e S4 (candidate) corroborates evidence-in / verdict-out / never-I/O. SCOPED to the fail-closed posture + provenance requirement, INDEPENDENT of the B3 witnessed-evidence FORMAT (spec-blocked, NOT asserted here — this vector does not define the witness shape, only that a provenance-less boolean is inadmissible and absent evidence fails closed).",
+      "authoringStatus": "authored: predicate-input shape proposed; reviewer sign-off complete; locked."
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "g7-01-fail-closed-absent-or-provenanceless-witness",
+      "invariant": "an absent witness fails closed (against eligibility), identically for every honest evaluator; a provenance-less boolean witness is a conformance failure (it re-creates the evaluation-time-availability callback hole)",
+      "rationale": "Although the witnessed-evidence FORMAT is a B3 deliverable, the verdict this flag demands is the kernel's fail-closed posture on absent/unverifiable evidence — per the task gate, a flag purely about fail-closed posture on absent evidence IS derivable now even though the evidence format is B3. Ratified SOFTWARE_CANON pins it: pure predicate over witnessed inputs, 'No DB, no network, no clock', evidence layer can never override a kernel verdict, and an absent witness must fail closed (DA §6e S4 candidate corroborates). A boolean (available: yes/no) whose provenance is unverifiable re-creates the callback hole and must be a conformance failure — derivable today."
+    },
+    "status": "locked",
+    "attackFlagRef": "G7-01",
+    "flipMarker": null
+  }
+]

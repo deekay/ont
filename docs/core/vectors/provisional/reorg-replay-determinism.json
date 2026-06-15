@@ -1,0 +1,104 @@
+[
+  {
+    "id": "Z4-neg-01",
+    "ruleId": "Z4",
+    "area": "Reorg re-derivation and replay determinism",
+    "authorityTier": "ratified",
+    "sources": [
+      "docs/spec/ONT_DATA_AVAILABILITY_AGREEMENT.md §6e S2 eligibleAt(anchor,H,K):=H>=h+K, S5 (K,W,C) per-network params (candidate; da-windows #49)",
+      "docs/core/DECISIONS.md entry 49 da-windows (RATIFIED 2026-06-14) S2/S5",
+      "docs/core/B2_KERNEL_HARDENING.md Z4 sources (DA §6a candidate) + Blocked on decision: da-windows"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "provisional-vector",
+      "attackFlagText": "K is unpinned (da-windows); a small K re-exposes the §3 boundary divergence the lag exists to absorb — parameter choice is consensus-critical, not tuning.",
+      "predicateSignature": "confirmedRootMembership(anchor, depth, K[#49 provisional=6], witnessedChain{reorgHistory}, priorKernelState) -> {verdict}",
+      "fixture": {
+        "caseDepthKminus1Rejected": "an anchor at depth K-1 (provisional K=6) contributing to the confirmed root -> REJECT (not yet eligible; eligibleAt H>=h+K, #49 S2)",
+        "caseDepthKAccepted": "the same anchor at depth K -> accept (now eligible / in the confirmed root) — the companion positive",
+        "caseSubKReorgInvariant": "a reorg replacing only blocks shallower than K leaves the confirmed-root sequence unchanged (sub-K churn does not move eligibility)",
+        "K": "#49 S5 per-network parameter passed as kernel input (no baked constant); provisional value 6"
+      },
+      "scopeNote": "Originated provisional on da-windows (#49, RATIFIED 2026-06-14): the verdict (an anchor at depth K-1 contributes nothing to the confirmed root; at depth K it does; the confirmed-root sequence is invariant under sub-K reorgs) is derivable from DA §6a/§6e S2 (eligibleAt H>=h+K), but K is the #49 per-network parameter passed as input (S5) — RATIFIED 2026-06-14. K-as-input (not a baked constant) is itself the #49 ruling, and K-choice is consensus-critical (a small K re-exposes the §3 boundary divergence). Originated as a provisional-vector under #49 (now ratified).",
+      "authoringStatus": "authored from a provisional vector (decisionDeps + flipMarker shed on ratification); status locked (per-area adversarial review passed; authorityTier RATIFIED 2026-06-14 (DK ratified da-windows #49 O1 / recovery-auth #50 b1); lineage in DECISIONS #49/#50, registry Part B, decision papers, git); re-parameterizes on DK's #49 K ruling."
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "z4-01-anchor-at-depth-K-minus-1-not-in-confirmed-root",
+      "invariant": "an anchor at depth K-1 contributes nothing to the confirmed root (reject; eligibleAt H>=h+K, #49 S2), at depth K it does, and a reorg replacing only sub-K-deep blocks leaves the confirmed-root sequence unchanged; K is a per-network input (#49 S5), not a baked constant; identical on deterministic replay",
+      "rationale": "Z4's core verdict — an anchor at depth K-1 contributes nothing to the confirmed root; at depth K it does; confirmed-root sequence invariant under sub-K reorgs — is derivable from DA §6a + §6e (S2 eligibleAt H >= h+K), but that algebra is provisional on da-windows (#49, RATIFIED 2026-06-14). K being a per-network parameter passed as input (S5), not a baked constant, is itself the #49 ruling. So the verdict is derivable but rides on the now-ratified decision; the consensus-criticality of K-choice is exactly the #49 parameters-as-inputs point."
+    },
+    "status": "locked",
+    "attackFlagRef": "Z4-02",
+    "flipMarker": null
+  },
+  {
+    "id": "Z9-neg-01",
+    "ruleId": "Z9",
+    "area": "Reorg re-derivation and replay determinism",
+    "authorityTier": "ratified",
+    "sources": [
+      "docs/spec/ONT_DATA_AVAILABILITY_AGREEMENT.md §6e S1 one clock — mined height in current best chain, reorgs re-derive, no receipt-time (candidate; da-windows #49)",
+      "docs/core/DECISIONS.md entry 47 marker-fold (RATIFIED) — windows key off anchor's mined height; entry 49 da-windows (RATIFIED 2026-06-14)",
+      "docs/spec/ONT_ACQUISITION_STATE_MACHINE.md Contested Auction — deadline-derived bond observation (candidate)"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "provisional-vector",
+      "attackFlagText": "Whether the qualifying-bond test reads the bond's own mined height on the current chain (re-derived) or its first-seen height is unstated — same reorg-to-extend family as Z5.",
+      "predicateSignature": "qualifyingBondTest(bond, minedHeightCurrentChain[re-derived per #49 S1], witnessedChain{reorgHistory}, priorKernelState) -> {verdict}",
+      "fixture": {
+        "caseFirstSeenHeightRejected": "a qualifying-bond test that reads the bond's FIRST-SEEN height (rather than the re-derived current-chain mined height) -> REJECT as non-conformant (#49 S1 one-clock: all heights from the current best chain, reorgs re-derive, no receipt-time input)",
+        "caseReDerivedAccepts": "the outcome re-derived purely from the current-canonical-chain bond set (current-chain mined heights) -> accept — the companion positive",
+        "scopeExclusion": "the earliest-vs-current re-mine PRIORITY is a separate, still-spec-blocked question (the other Z5/Z9 flags) and is NOT asserted here; this vector tests only the current-chain-vs-first-seen height SOURCE",
+        "priorState": "a bond whose containing block was reorged and re-mined at a different height"
+      },
+      "scopeNote": "Originated provisional on da-windows (#49, RATIFIED 2026-06-14): whether the qualifying-bond test reads the bond's re-derived current-chain mined height vs its first-seen height is answered by the #49 S1 one-clock rule (all deadlines from the anchor's mined height in the current best chain; reorgs re-derive; no receipt-time) combined with ratified marker-fold (#47, mined-height keying). The bond reads re-derived current-chain mined height, not first-seen — derivable but the algebra is provisional on #49. The earliest-vs-current re-mine priority remains separately spec-blocked (other Z5/Z9 flags); NOT asserted here. Originated as a provisional-vector under #49 (now ratified).",
+      "authoringStatus": "authored from a provisional vector (decisionDeps + flipMarker shed on ratification); status locked (per-area adversarial review passed; authorityTier RATIFIED 2026-06-14 (DK ratified da-windows #49 O1 / recovery-auth #50 b1); lineage in DECISIONS #49/#50, registry Part B, decision papers, git); re-anchors on DK's #49 S1 one-clock ruling."
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "z9-01-first-seen-height-bond-test-rejected",
+      "invariant": "the qualifying-bond test reads the bond's re-derived mined height on the current best chain (#49 S1 one-clock; reorgs re-derive; no receipt-time), so a test reading the bond's first-seen height is non-conformant and rejected; the outcome re-derives purely from the current-canonical-chain bond set; identical on deterministic replay. (The earliest-vs-current re-mine priority is a separate spec-blocked question, not decided here.)",
+      "rationale": "Whether the qualifying-bond test reads the bond's own mined height on the CURRENT chain (re-derived) vs first-seen height is answered by the da-windows one-clock rule (§6e S1: all deadlines from the anchor's mined height in the current best chain; reorgs re-derive h; no receipt-time input) combined with marker-fold (#47, ratified) keying off mined height. The bond's qualification reads re-derived current-chain mined height, not first-seen. This is derivable but the algebra is provisional on da-windows (#49). The 'same reorg-to-extend family as Z5' note is the spec-blocked re-mine-priority piece (separate flag), but the basic current-chain-vs-first-seen choice flows from #49 S1."
+    },
+    "status": "locked",
+    "attackFlagRef": "Z9-02",
+    "flipMarker": null
+  },
+  {
+    "id": "Z13-neg-01",
+    "ruleId": "Z13",
+    "area": "Reorg re-derivation and replay determinism",
+    "authorityTier": "ratified",
+    "sources": [
+      "docs/spec/ONT_DATA_AVAILABILITY_AGREEMENT.md §6e S6 'K >= W+C, K>=1, W>=1, C>=1' and the include-then-retract foreclosure (candidate; da-windows #49)",
+      "docs/core/DECISIONS.md entry 49 da-windows (RATIFIED 2026-06-14) S5/S6/S7 — params as inputs, S6-violation reject + two-parameterization vectors required",
+      "docs/core/B2_KERNEL_HARDENING.md Z13 Step-2/Step-3 restatement — restated to strong form per §6e; Blocked on decision: da-windows"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "provisional-vector",
+      "attackFlagText": "If only W <= K is ratified (without K >= W + C), the challenge window C can extend past K-depth: a batch becomes confirmed-root-eligible while its fail-closed challenge is still open — the verdict and the confirmation boundary cross, exactly the ordering bug the prototype's stronger invariant prevents.",
+      "predicateSignature": "daKernelConstruct(K, W, C) -> {verdict}; daVerdict parameterized by (K,W,C) inputs (no baked constant)",
+      "fixture": {
+        "caseKeqWplusCminus1Rejected": "construction with K = W+C-1 -> REJECT at parameter validation (#49 S6 strong form K >= W + C); the lower-bound violations W=0 / C=0 / K=0 are likewise rejected (S6: K>=1, W>=1, C>=1)",
+        "caseDualParameterizationConsistent": "two distinct valid (K,W,C) parameterizations both satisfying K>=W+C are accepted with boundary-consistent includable / holdsPriority / eligibleAt verdicts -> no baked constant passes both",
+        "params": "#49 S5/S6/S7: (K,W,C) inputs, strong form K>=W+C load-bearing, S6-violation reject + two-parameterization vectors required",
+        "priorState": "kernel construction with candidate (K,W,C) triples"
+      },
+      "scopeNote": "Originated provisional on da-windows (#49, RATIFIED 2026-06-14): Z13 was RESTATED in step-3 to the strong form per §6e S6 (K >= W+C; the weak W<=K is implied-by and superseded-by the strong form). The S6-reject vectors (K=W+C-1 rejected, lower-bound violations rejected) and the dual-parameterization vectors (#49 S7) are derivable from §6e, but §6e is da-windows (#49), RATIFIED 2026-06-14. NOT retired-by-restatement: the restatement made it derivable but provisional. This is the Z-area (reorg/replay-determinism) instance of the same S6/S5/S7 family as D9 (S6) and D12 (S5/S7). Originated as a provisional-vector under #49 (now ratified).",
+      "authoringStatus": "authored from a provisional vector (decisionDeps + flipMarker shed on ratification); status locked (per-area adversarial review passed; authorityTier RATIFIED 2026-06-14 (DK ratified da-windows #49 O1 / recovery-auth #50 b1); lineage in DECISIONS #49/#50, registry Part B, decision papers, git); inverts on DK's #49 S6 strong-form ruling."
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "z13-01-weak-form-and-lower-bound-violations-rejected",
+      "invariant": "the DA kernel enforces #49 S6 at construction: K = W+C-1 (weak-form violation) is rejected, as are the lower-bound violations W=0 / C=0 / K=0; two distinct valid K>=W+C parameterizations both yield boundary-consistent verdicts so no baked constant passes both; identical on deterministic replay. Forecloses the include-then-retract ordering bug where C extends past K-depth.",
+      "rationale": "Z13 was RESTATED in step-3 per da-windows (#49): DA §6e S6 pins the strong K >= W + C invariant (the weak W <= K is 'implied by, and superseded by, the strong form'), and S5 makes (K,W,C) inputs (no baked constant). The flag's hazard (weak-form-only lets C extend past K-depth so a batch becomes confirmed-root-eligible while its fail-closed challenge is still open) is exactly the ordering bug the strong invariant forecloses — derivable from §6e, but §6e is da-windows (#49) which is RATIFIED 2026-06-14. So the S6-reject vectors (K = W+C-1 rejected, etc.) and dual-parameterization vectors are derivable but ride on #49. This is NOT retired-by-restatement: the restatement made it derivable but provisional, and the S6-reject + dual-param vectors land in step 4 per #49 S7."
+    },
+    "status": "locked",
+    "attackFlagRef": "Z13-01",
+    "flipMarker": null
+  }
+]

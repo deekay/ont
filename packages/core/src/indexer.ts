@@ -20,7 +20,6 @@ import {
   type OntEventApplicationOptions,
   type NameRecord,
   type ProvenanceEventRecord,
-  type RecoveryWalletProofAvailabilityRequest,
   refreshDerivedState,
   getClaimedNameStatus
 } from "@ont/consensus";
@@ -45,9 +44,13 @@ export interface IndexerStats {
   readonly trackedNames: number;
 }
 
-export type RecoveryWalletProofAvailabilityChecker = (
-  request: RecoveryWalletProofAvailabilityRequest
-) => boolean;
+/**
+ * Pre-resolved recovery descriptor evidence supply handed to the engine as DATA (no callback): the
+ * indexer/evidence layer resolves witnessed descriptor heads + intervals from W15 posts. B2 plumbs
+ * the typed map (full witnessed resolution is a B3 evidence-layer deliverable); the engine consumes
+ * it purely via acceptRecoverOwner (#50-b1 / §3c). Replaces the removed availability callback.
+ */
+export type RecoveryEvidenceSupply = NonNullable<OntEventApplicationOptions["recoveryEvidence"]>;
 
 export interface ExperimentalAuctionBidPayloadSnapshot {
   readonly flags: number;
@@ -228,7 +231,7 @@ export class InMemoryOntIndexer {
   private readonly recentCheckpointLimit: number;
   private readonly experimentalLaunchAuctionCatalog: readonly ExperimentalLaunchAuctionCatalogEntry[];
   private readonly experimentalLaunchAuctionPolicy: LaunchAuctionPolicy;
-  private readonly recoveryWalletProofAvailable: RecoveryWalletProofAvailabilityChecker | undefined;
+  private readonly recoveryEvidence: RecoveryEvidenceSupply | undefined;
   private readonly state: OntState;
   private readonly spentOutpoints: Map<string, ExperimentalSpentOutpointObservation>;
   private readonly transactionProvenance: Map<string, TransactionProvenanceSnapshot>;
@@ -251,7 +254,7 @@ export class InMemoryOntIndexer {
     recentCheckpointLimit?: number;
     experimentalLaunchAuctionCatalog?: readonly ExperimentalLaunchAuctionCatalogEntry[];
     experimentalLaunchAuctionPolicy?: LaunchAuctionPolicy;
-    recoveryWalletProofAvailable?: RecoveryWalletProofAvailabilityChecker;
+    recoveryEvidence?: RecoveryEvidenceSupply;
     batchDataProvider?: AccumulatorBatchDataProvider;
   }) {
     this.launchHeight = input.launchHeight;
@@ -259,7 +262,7 @@ export class InMemoryOntIndexer {
     this.experimentalLaunchAuctionCatalog = [...(input.experimentalLaunchAuctionCatalog ?? [])];
     this.experimentalLaunchAuctionPolicy =
       input.experimentalLaunchAuctionPolicy ?? createDefaultLaunchAuctionPolicy();
-    this.recoveryWalletProofAvailable = input.recoveryWalletProofAvailable;
+    this.recoveryEvidence = input.recoveryEvidence;
     this.state = createEmptyState();
     this.spentOutpoints = new Map();
     this.transactionProvenance = new Map();
@@ -279,7 +282,7 @@ export class InMemoryOntIndexer {
     options?: {
       readonly experimentalLaunchAuctionCatalog?: readonly ExperimentalLaunchAuctionCatalogEntry[];
       readonly experimentalLaunchAuctionPolicy?: LaunchAuctionPolicy;
-      readonly recoveryWalletProofAvailable?: RecoveryWalletProofAvailabilityChecker;
+      readonly recoveryEvidence?: RecoveryEvidenceSupply;
       readonly batchDataProvider?: AccumulatorBatchDataProvider;
     }
   ): InMemoryOntIndexer {
@@ -292,9 +295,9 @@ export class InMemoryOntIndexer {
       ...(options?.experimentalLaunchAuctionPolicy === undefined
         ? {}
         : { experimentalLaunchAuctionPolicy: options.experimentalLaunchAuctionPolicy }),
-      ...(options?.recoveryWalletProofAvailable === undefined
+      ...(options?.recoveryEvidence === undefined
         ? {}
-        : { recoveryWalletProofAvailable: options.recoveryWalletProofAvailable }),
+        : { recoveryEvidence: options.recoveryEvidence }),
       ...(options?.batchDataProvider === undefined
         ? {}
         : { batchDataProvider: options.batchDataProvider })
@@ -313,9 +316,9 @@ export class InMemoryOntIndexer {
     }));
 
     const applicationOptions: OntEventApplicationOptions =
-      this.recoveryWalletProofAvailable === undefined
+      this.recoveryEvidence === undefined
         ? {}
-        : { recoveryWalletProofAvailable: this.recoveryWalletProofAvailable };
+        : { recoveryEvidence: this.recoveryEvidence };
     const provenance = applyBlockTransactionsWithProvenance(
       this.state,
       transactions,

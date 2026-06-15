@@ -1,0 +1,279 @@
+[
+  {
+    "id": "Q1-pos-01",
+    "ruleId": "Q1",
+    "area": "Winner selection and bid acceptance",
+    "authorityTier": "ratified",
+    "sources": [
+      "docs/spec/AUCTION.md Opening Bond Floors",
+      "docs/spec/AUCTION.md Real Mechanism Choices (normative shape)",
+      "docs/core/DECISIONS.md Decision Log #37 Bond opens the auction",
+      "docs/GLOSSARY.md bond",
+      "docs/LAUNCH.md Legacy Scheduled-Catalog Compatibility State"
+    ],
+    "kind": "positive",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "AUCTION.md's floor sentence read alone suggests floor satisfaction suffices; the acceptance predicate is a conjunction (floor AND bond binding AND lot binding AND timing AND rebid mechanics) and must be stated as one predicate in one place, or an implementer will accept a floor-meeting bid with a phantom bond output",
+      "predicateSignature": "bidAcceptance(auctionBid, witnessedChainFacts, floorParams[launch-freeze], priorAuctionState) -> {verdict}",
+      "fixture": {
+        "caseAtFloorAllClauses": "an opening bid at the floor satisfying every acceptance clause (Q2 floor, Q3 bond==bid, Q4 spendable bond, timing) -> accept; the auction exists from the confirmation height",
+        "caseBelowFloor": "a one-sat-below-floor opening bid -> reject, no auction created (floor is necessary-not-sufficient; conjunction must hold)",
+        "floorParams": "the opening floor is a candidate AUCTION value, carried as a launch-freeze input",
+        "priorState": "no accepted bid yet for the lot"
+      },
+      "scopeNote": "Verdict authority RATIFIED via #66 (PR-19 auction economics + #37 bond-opens): the accept/reject boundary is the opening floor — 'a qualifying bond opens the auction' where 'qualifying' = meets-the-floor. The floor VALUE remains a launch-freeze parameter (the criterion is the boundary, not the number). Ratified tier via #66 (authored from AUCTION's ledger-wins header; the seed heuristic's 'normative' from the 'normative shape' heading was wrong vocab).",
+      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; floor is launch-freeze; reviewer sign-off complete; locked. Promoted candidate→ratified 2026-06-15 (#66, DK event 43d30e67) via PR-19 / #37."
+    },
+    "expected": {
+      "verdict": "accept",
+      "reason": "q1-01-at-floor-conjunction-opens-auction",
+      "invariant": "an opening bid is accepted (and creates the auction) iff it is the first accepted bid for the lot AND meets the floor AND satisfies every acceptance conjunct; a one-sat-below-floor bid is rejected and opens no auction — floor is necessary, not sufficient",
+      "rationale": "The acceptance predicate is a conjunction (qualifying bond opens the auction; floor met; Q3/Q4/timing clauses satisfied). #37 supplies 'a qualifying bond opens the auction', and the accept/reject boundary turns on meeting the opening floor (AUCTION.md, ratified through the PR-19 matrix ruling). The positive (at-floor accept) and negative (one-sat-below reject) are derivable from AUCTION + #37; the floor value is a launch-freeze parameter, and the flag's 'state the conjunction in one place' is wording, not a missing rule. Ratified via #66 (PR-19/#37; authored at candidate)."
+    },
+    "status": "locked",
+    "attackFlagRef": "Q1-01",
+    "flipMarker": null
+  },
+  {
+    "id": "Q2-pos-01",
+    "ruleId": "Q2",
+    "area": "Winner selection and bid acceptance",
+    "authorityTier": "ratified",
+    "sources": [
+      "docs/spec/WIRE_FORMAT.md 2. Names",
+      "docs/spec/WIRE_FORMAT.md 4.3 AuctionBid",
+      "docs/core/DECISIONS.md 11. Auction bond curve status",
+      "docs/core/B2_KERNEL_HARDENING.md Q2 Step-3 restatement"
+    ],
+    "kind": "positive",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "The floor must key off canonical name byte length; this is only unambiguous because WIRE_FORMAT §2 rejects non-canonical name bytes — cite, do not re-derive",
+      "predicateSignature": "openingFloor(name, floorParams{oneCharPrice, longNameMinimum}[launch-freeze]) -> floorSats  -- keyed off canonical byte length",
+      "fixture": {
+        "caseLen4Curve": "a length-4 name uses the length-scaled curve floor max(lengthPrice(4), longNameMinimum)",
+        "caseLen5Flat": "a length-5 name uses the flat long-name minimum (the length curve does NOT extend past 4)",
+        "boundaryInvariance": "the <=4 / 5+ clamp boundary holds invariant under two distinct (oneCharPrice, longNameMinimum) parameterizations -> no baked-in constant passes",
+        "canonicality": "the floor keys off canonical byte length; non-canonical name bytes are already rejected upstream (WIRE_FORMAT §2, cited not re-derived)"
+      },
+      "scopeNote": "Verdict authority RATIFIED via #66 (PR-14 floor reconciliation to #11): the floor function floor(name) — the <=4 length-curve / 5+ flat clamp — supersedes the AUCTION.md 5-11 table; the matrix PR-14 ruling lifts the floor STRUCTURE to ratified. WIRE_FORMAT §2 (normative) is cited ONLY for canonical-byte-length (the keying), NOT the floor verdict — encoding context, not the verdict authority. Prices remain launch-freeze parameters-as-inputs (#11 amounts stay pre-launch placeholders). Ratified tier via #66 (authored at candidate).",
+      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; floor params launch-freeze; reviewer sign-off complete; locked. Promoted candidate→ratified 2026-06-15 (#66, DK event 43d30e67) via PR-14 / #11."
+    },
+    "expected": {
+      "verdict": "accept",
+      "reason": "q2-02-floor-keys-off-canonical-byte-length-clamp-at-4",
+      "invariant": "the opening floor keys off canonical name byte length: <=4 uses the length-scaled curve, >=5 uses the flat long-name minimum (curve does not extend past 4); the clamp boundary is invariant under the parameterized prices",
+      "rationale": "Keying the floor off canonical name byte length: the floor function and the <=4/5+ clamp (DECISIONS #11, amounts pre-launch placeholders) supersede the AUCTION 5-11 table, ratified as a structure through PR-14. WIRE_FORMAT §2 (normative) rejects non-canonical name bytes, so it is cited as the canonicality context the floor keys off, not the floor verdict authority. The boundary-invariant verdict is derivable with the prices as launch-freeze inputs. Ratified via #66 (PR-14/#11; authored at candidate)."
+    },
+    "status": "locked",
+    "attackFlagRef": "Q2-02",
+    "flipMarker": null
+  },
+  {
+    "id": "Q3-neg-01",
+    "ruleId": "Q3",
+    "area": "Winner selection and bid acceptance",
+    "authorityTier": "ratified",
+    "sources": [
+      "docs/LAUNCH.md Implementation And Validation Status (bond value = bid at bondVout)",
+      "docs/spec/WIRE_FORMAT.md 4.3 AuctionBid",
+      "docs/spec/CONTESTED_AUCTION_REFERENCE.md Core Rule"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "If 'at least' replaced 'equals exactly', a bidder could post one oversized output and later claim the same output backs a larger rebid without new capital; exact equality plus one-bond-output-per-bid closes this — the spec text must say 'equals exactly'",
+      "predicateSignature": "bidAcceptance(auctionBid{bidAmountSats, bondVout}, witnessedChainFacts{output value at bondVout}, priorAuctionState) -> {verdict}",
+      "fixture": {
+        "caseBelow": "output value at bondVout one sat BELOW bidAmountSats -> reject (under-bond; value must be >= the bid)",
+        "caseMissingOutput": "bondVout index designates no corresponding output -> reject",
+        "caseOverBond": "output value at bondVout one sat ABOVE bidAmountSats -> PASSES this clause (over-bonding allowed, PR-21)",
+        "positiveControl": "output value at bondVout EQUALS bidAmountSats exactly -> passes this clause",
+        "priorState": "an auction context"
+      },
+      "scopeNote": "Verdict authority RATIFIED via #66 (PR-21 bond binding): a valid bid's bondVout output value must be >= bidAmountSats — OVER-BONDING IS ALLOWED. WIRE_FORMAT §4.3 (normative) supplies the bondVout/bidAmountSats field encoding only. CORRECTION 2026-06-15: the #66 promotion mis-framed this clause as exact-equality and mis-cited PR-21; PR-21 (the authoritative #66 record) explicitly rules >= / over-bonding-allowed, so the vector is corrected to match the ratified rule. The bidder-control / spendable-script clause is Q4 + B3.",
+      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; reviewer sign-off complete; locked. Promoted candidate→ratified 2026-06-15 (#66, DK event 43d30e67) via PR-21."
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "q3-01-bond-below-bid-or-missing-rejects-overbond-allowed",
+      "invariant": "the bond output value at bondVout must be >= bidAmountSats (PR-21: over-bonding is allowed); a value strictly below the bid or a missing output at bondVout rejects, while an over-bond (above) and an exact-equal value both pass this clause",
+      "rationale": "PR-21 (#66, ratified) rules the bondVout output value must be >= bidAmountSats, over-bonding allowed. So a value strictly BELOW the bid and a missing output at bondVout reject; an over-bond (one sat above) and an exact-equal value both pass this value clause. Corrected from the promotion's exact-equality mis-citation of PR-21 (a stale candidate reading of LAUNCH 'bond value = bid at bondVout' that PR-21 superseded). The non-returnable/burnable-script rejects are Q4's clause; the full bidder-control script enumeration is B3."
+    },
+    "status": "locked",
+    "attackFlagRef": "Q3-01",
+    "flipMarker": null
+  },
+  {
+    "id": "Q4-neg-01",
+    "ruleId": "Q4",
+    "area": "Winner selection and bid acceptance",
+    "authorityTier": "ratified",
+    "sources": [
+      "docs/GLOSSARY.md bond (returnable; locked, not spent; ONT-level designation over a plain output)",
+      "docs/LAUNCH.md Implementation And Validation Status (Returnable bond output)",
+      "docs/core/B2_KERNEL_HARDENING.md Q4 verdict candidate-stays"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "A bid whose bondVout points at the OP_RETURN payload output itself (or any unspendable script) passes a naive 'output exists with matching value' check while posting a bond that can never be released, moved, or spent for a rebid — breaking the returnability premise and the S* bond-continuity rules downstream",
+      "predicateSignature": "bidAcceptance(auctionBid{bondVout}, witnessedChainFacts{script class at bondVout}, priorAuctionState) -> {verdict}",
+      "fixture": {
+        "caseOpReturn": "bondVout pointing at the OP_RETURN data output (value == bid) -> reject (a data carrier can never be released/spent -> not returnable)",
+        "caseUnspendable": "bondVout pointing at a provably-unspendable script (value == bid) -> reject",
+        "scopeBoundary": "the POSITIVE enumeration (which key-addressed script classes QUALIFY) is candidate-stays spec work, NOT vectorized here; this vector asserts only the fail-closed negative on a non-returnable output",
+        "priorState": "an auction context"
+      },
+      "scopeNote": "Verdict authority RATIFIED via #66 (PR-21 bond shape; GLOSSARY/LAUNCH 'bond = returnable; locked, not spent'): an OP_RETURN / provably-unspendable output can never be released, moved, or spent, so it cannot satisfy the returnability premise -> fail-closed reject. DELIBERATELY EXCLUDES (still spec work): the positive enumeration of which script classes QUALIFY as a bond output. Fail-closed-on-non-returnable-bond is the ratified carve-out even though the qualifying-class enumeration is later work. Ratified tier via #66 (authored at candidate).",
+      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; reviewer sign-off complete; locked. Promoted candidate→ratified 2026-06-15 (#66, DK event 43d30e67) via PR-21."
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "q4-01-non-returnable-bond-output-rejected",
+      "invariant": "a bid whose bondVout designates a data-carrier (OP_RETURN) or provably-unspendable output is rejected, even with a matching value — an unspendable output is not a returnable bond",
+      "rationale": "No spec text yet enumerates which script classes QUALIFY as a bond output, but the NEGATIVE direction this flag targets is derivable: GLOSSARY defines a bond as 'locked, not spent — returnable after release' — an OP_RETURN/provably-unspendable output can never be released, moved, or spent, so it cannot satisfy the returnability premise. This is the kernel's fail-closed posture on a non-returnable bond output (reject), derivable without inventing the positive enumeration. The triage rule makes a fail-closed-on-bad-evidence flag vector-now even when the full format (the qualifying-class enumeration) is later spec work. Ratified via #66 (PR-21; authored at candidate tier)."
+    },
+    "status": "locked",
+    "attackFlagRef": "Q4-01",
+    "flipMarker": null
+  },
+  {
+    "id": "Q7-neg-01",
+    "ruleId": "Q7",
+    "area": "Winner selection and bid acceptance",
+    "authorityTier": "ratified",
+    "sources": [
+      "docs/spec/AUCTION.md Auction Timing (bid inside final 144 blocks moves close to bid block + 144; hard cap None)",
+      "docs/core/DECISIONS.md Decision Log #35 (no hard extension cap)",
+      "docs/core/STATUS.md Launch parameters (soft-close window 144 blocks)"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "Only accepted bids may extend: if rejected bids extended the close, a griefer could hold an auction open forever with below-minimum dust bids at zero bond cost — the negative test is mandatory",
+      "predicateSignature": "closeHeightUpdate(bid, accepted, bidHeight, currentClose, SOFT_CLOSE_BLOCKS[launch-freeze]) -> newClose",
+      "fixture": {
+        "caseRejectedBidNoExtend": "a rejected (below-soft-close-minimum) bid inside the window -> close height UNCHANGED (the mandatory negative)",
+        "positiveCompanion": "an accepted bid at close-1 moves close to (close-1)+SOFT_CLOSE_BLOCKS",
+        "property": "close heights are non-decreasing over any sequence (extend-only, no hard cap)",
+        "softCloseBlocks": "SOFT_CLOSE_BLOCKS is a launch-freeze parameter input"
+      },
+      "scopeNote": "Verdict authority RATIFIED via #66 (PR-19 auction economics; #35 auction form/no-hard-cap): AUCTION.md Auction Timing states the extend-on-accept / extend-only mechanism. The accepted-only-extension verdict is ratified through the PR-19 matrix ruling. The rejected-bid-does-not-extend negative composes with Q1/Q10 (a non-accepted bid contributes nothing). SOFT_CLOSE_BLOCKS remains launch-freeze. Ratified tier via #66 (authored at candidate, when #35 was a working assumption).",
+      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; reviewer sign-off complete; locked. Promoted candidate→ratified 2026-06-15 (#66, DK event 43d30e67) via PR-19 / #35."
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "q7-01-rejected-bid-does-not-extend-close",
+      "invariant": "only an accepted bid inside the soft-close window moves the close height (to max(currentClose, bidHeight+SOFT_CLOSE_BLOCKS)); a rejected/below-minimum bid leaves the close unchanged; close heights are non-decreasing (extend-only, no hard cap)",
+      "rationale": "The accepted-only extension rule and the negative (a rejected/below-minimum bid does NOT move the close height): AUCTION.md Auction Timing states a bid inside the final window moves close to bidHeight + SOFT_CLOSE_BLOCKS on the accepted path, and #35 gives no hard cap. The non-extension-by-rejected-bid verdict follows because a rejected bid contributes nothing (composing with Q1/Q10). SOFT_CLOSE_BLOCKS is launch-freeze. Ratified via #66 (PR-19 + #35; authored at candidate)."
+    },
+    "status": "locked",
+    "attackFlagRef": "Q7-01",
+    "flipMarker": null
+  },
+  {
+    "id": "Q9-pos-01",
+    "ruleId": "Q9",
+    "area": "Winner selection and bid acceptance",
+    "authorityTier": "ratified",
+    "sources": [
+      "docs/core/DECISIONS.md Decision Log #37 (largest bond wins)",
+      "docs/LAUNCH.md Auction Settlement Becomes Ownership (highest accepted bid becomes the winner)",
+      "docs/spec/ONT_ACQUISITION_STATE_MACHINE.md Contested Auction (largest bond wins)",
+      "docs/core/DECISIONS.md 25. Same-block auction tie-break rule"
+    ],
+    "kind": "positive",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "Under open-ascending with enforced increments the largest accepted bid is necessarily the last accepted bid, so 'largest' and 'latest' coincide; if any future rule admits an accepted bid at or below the leader, the two selection rules diverge — the spec must state 'largest, ties per Decision #25' as the normative form and treat last-accepted as a derived property, not the definition",
+      "predicateSignature": "winnerSelection(completeTranscript{acceptedBids}, sameBlockTxOrder) -> {winner: txid/bondVout/ownerPubkey}",
+      "fixture": {
+        "caseLargestAcceptedWins": "among accepted bids, the largest bidAmountSats wins (winner txid/bondVout/ownerPubkey handed to S*)",
+        "caseRejectedLargerLoses": "a larger-amount bid that was REJECTED at acceptance time (e.g. a rebid not spending the prior bond outpoint) does NOT win — the largest ACCEPTED bid does",
+        "caseTie": "two otherwise-tied accepted bids confirmed in the same block -> the earlier-tx-order bid wins (Decision #25)",
+        "priorState": "a complete auction transcript"
+      },
+      "scopeNote": "Verdict authority is RATIFIED: DECISIONS #37 'largest bond wins' + DECISIONS #25 same-block tie-break (both ratified), corroborated by LAUNCH 'highest accepted bid becomes the winner' (candidate) and the state machine. 'Largest accepted wins, ties per #25' is the normative FORM; 'last-accepted' is a derived property, not the definition. The #25 tie-break is extracted as Z3 and consumed here, not re-extracted.",
+      "authoringStatus": "authored: predicate-input shape proposed; reviewer sign-off complete; locked."
+    },
+    "expected": {
+      "verdict": "accept",
+      "reason": "q9-01-largest-accepted-bid-wins-ties-per-25",
+      "invariant": "the winner is the accepted bid with the largest bidAmountSats in the complete transcript; a non-accepted bid never wins regardless of amount; same-block ties resolve to the earlier transaction order (#25)",
+      "rationale": "The normative form 'largest accepted bid wins, ties per Decision #25' is derivable from ratified authority: Decision #37 'largest bond wins' and Decision #25 for the same-block tie-break, corroborated by LAUNCH 'the highest accepted bid becomes the winner' (candidate) and ONT_ACQUISITION_STATE_MACHINE. The verdicts (largest accepted wins; a rejected larger-amount bid does not win) need no invented rule — 'largest' is the definition and 'last-accepted' is a derived property. Tier ratified (#37 + #25)."
+    },
+    "status": "locked",
+    "attackFlagRef": "Q9-01",
+    "flipMarker": null
+  },
+  {
+    "id": "Q9-neg-01",
+    "ruleId": "Q9",
+    "area": "Winner selection and bid acceptance",
+    "authorityTier": "ratified",
+    "sources": [
+      "docs/core/STATUS.md Components — Contested-auction bonded bid (highest-bid-wins + distinct-bid well-formedness enforced)",
+      "docs/core/B2_KERNEL_HARDENING.md Q9 statement (complete transcript precondition) + cross-area note (T* precondition; omitted bid is a T* failure)",
+      "docs/LAUNCH.md Auction Settlement Becomes Ownership"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "Winner selection is only defined over a transcript T* has judged complete; the kernel predicate must take the T* completeness verdict as a precondition so an omitted-bid transcript can never award the next-lower bid",
+      "predicateSignature": "winnerSelection(transcript, transcriptCompleteVerdict[from T*]) -> {verdict}  -- undefined/reject if transcript not complete",
+      "fixture": {
+        "caseOmittedBid": "removing one accepted bid from the transcript -> the completeness predicate FAILS (reject/undefined verdict), NOT a selection of the next-lower bid",
+        "positiveCompanion": "over a T*-complete transcript, the largest accepted bid is selected (Q9-pos)",
+        "crossArea": "T* completeness is a Q9 precondition; an omitted accepted bid is a T* failure, never a Q re-selection",
+        "priorState": "an auction transcript with one accepted bid removed"
+      },
+      "scopeNote": "Verdict authority RATIFIED via #66 (PR-19 winner selection) / kernel-composition: Q9 selects among accepted bids in the COMPLETE transcript; an omitted accepted bid is a T* completeness failure (cross-area), NOT a Q re-selection of the next-lower bid. STATUS notes the proof bundle enforces highest-bid-wins + distinct-bid well-formedness. The fail-closed precondition (selection undefined absent a complete transcript) is derivable; T*'s own witness format is separate spec work, excluded here. Ratified tier via #66 (authored at candidate).",
+      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; reviewer sign-off complete; locked. Promoted candidate→ratified 2026-06-15 (#66, DK event 43d30e67) via PR-19."
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "q9-02-incomplete-transcript-no-selection",
+      "invariant": "winner selection takes the T* completeness verdict as a precondition; removing an accepted bid makes the completeness predicate fail (reject/undefined) rather than awarding the next-lower bid",
+      "rationale": "That winner selection takes T* completeness as a precondition is derivable from the kernel composition: Q9 selects among accepted bids in the auction's COMPLETE transcript; STATUS notes the proof bundle enforces highest-bid-wins + distinct-bid well-formedness. The cross-area note states an omitted accepted bid is a T* failure, never a Q re-selection. The verdict (removing an accepted bid makes the completeness predicate fail rather than awarding the next-lower bid) is derivable now as a fail-closed precondition — it does not invent a rule; it composes Q9 over a T*-complete transcript. T*'s own format work is separate, but the kernel posture (selection undefined absent a complete transcript) is derivable."
+    },
+    "status": "locked",
+    "attackFlagRef": "Q9-02",
+    "flipMarker": null
+  },
+  {
+    "id": "Q10-neg-01",
+    "ruleId": "Q10",
+    "area": "Winner selection and bid acceptance",
+    "authorityTier": "ratified",
+    "sources": [
+      "docs/GLOSSARY.md bond (qualifying bond is the only thing that opens an auction, #37)",
+      "docs/core/DECISIONS.md Decision Log #37 (one cheap claim no bond -> finalizes; zero qualifying bonds -> nullify; bare collision can deny never award)",
+      "docs/LAUNCH.md Legacy Scheduled-Catalog Compatibility State (no auction until valid bonded opening bid)"
+    ],
+    "kind": "negative",
+    "inputs": {
+      "sourceCategory": "vector-now",
+      "attackFlagText": "A non-qualifying AuctionBid is neither a qualifying bond nor a claim — no doc states which bucket it falls into; without the explicit null-effect clause an implementer could count it as a colliding claim (wrongly nullifying a single honest claim) or as a weak contest — both are denial vectors cheaper than the floor",
+      "predicateSignature": "noticeWindowOutcome(claims, bids, floorParams[launch-freeze], priorState) -> {verdict}  -- non-qualifying bid contributes nothing",
+      "fixture": {
+        "caseClaimPlusBelowFloorBid": "a single cheap claim + one below-floor bid inside the notice window -> the claim finalizes EXACTLY as if the bid never existed (the bid does NOT count as a colliding claim -> no nullification, and does NOT open a contest)",
+        "caseBelowFloorBondFirst": "a below-floor bond-first bid with no prior claim -> the name remains unowned/unclaimed",
+        "positiveContrast": "an at-floor qualifying bond -> contested + auction exists",
+        "note": "the floor is a launch-freeze parameter; the verdict is the null-EFFECT of a non-qualifying bid, not the floor value itself"
+      },
+      "scopeNote": "Verdict authority is RATIFIED: DECISIONS #37 'a qualifying bond is the only thing that opens an auction; one cheap claim with no bond by the deadline finalizes; zero qualifying bonds nullify; a bare collision can deny never award', + GLOSSARY (same), corroborated by LAUNCH 'no auction exists until a valid bonded opening bid confirms'. A below-floor/non-qualifying bid neither opens an auction nor counts as a claim/collision -> null effect. The floor threshold is a launch-freeze parameter classifying qualifying-vs-not; the null-EFFECT verdict is #37 ratified.",
+      "authoringStatus": "authored: predicate-input shape proposed; reviewer sign-off complete; locked."
+    },
+    "expected": {
+      "verdict": "reject",
+      "reason": "q10-01-non-qualifying-bid-null-effect",
+      "invariant": "a below-floor / non-qualifying opening bid opens no auction, creates no contested state, and counts as neither a claim nor a collision; the notice-window outcome is computed as if the bid never confirmed",
+      "rationale": "The null-effect of a below-floor/non-qualifying bid is derivable from ratified authority: GLOSSARY 'a qualifying bond (at or above the bond floor) is the only thing that opens an auction (#37)' and Decision #37 'One cheap claim, no bond by the deadline -> finalizes' and the 'zero qualifying bonds' nullification rule, plus LAUNCH 'no auction exists until a valid bonded opening bid confirms.' A below-floor bid is not a qualifying bond and is not a claim, so the notice-window outcome is computed as if it never confirmed. The verdicts (single cheap claim + below-floor bid -> claim finalizes; below-floor bond-first -> unowned/unclaimed) follow directly — a non-qualifying bid neither opens an auction nor counts as a collision. Tier ratified (#37); the floor value is a launch-freeze classifier, not the verdict authority."
+    },
+    "status": "locked",
+    "attackFlagRef": "Q10-01",
+    "flipMarker": null
+  }
+]
