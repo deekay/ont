@@ -3,7 +3,7 @@
     "id": "Z1-neg-01",
     "ruleId": "Z1",
     "area": "Reorg re-derivation and replay determinism",
-    "authorityTier": "candidate",
+    "authorityTier": "ratified",
     "sources": [
       "docs/core/SOFTWARE_CANON.md Layer vocabulary, L2 ownership kernel (ratified) — 'ordered, witnessed inputs in; name state out ... No DB, no network, no clock, no UI'",
       "docs/spec/ONT_DATA_AVAILABILITY_AGREEMENT.md §6c Fail closed (candidate); §6e S4 evidence-in-verdict-out (candidate)",
@@ -20,7 +20,7 @@
         "priorState": "baseline"
       },
       "scopeNote": "Cited-now: SOFTWARE_CANON L2 (ratified, 'ordered, witnessed inputs in; name state out ... No DB, no network, no clock') + DA §6c fail-closed + §6e S4 evidence-in/verdict-out (candidate). SCOPED to the purity / no-local-receipt-time determinism verdict. CONTEXT-ONLY (NOT verdict authority): ONT.md 'two honest observers always get the same answer' (corroboration); the da-convergence-sim 'naive' rule (analysis-tier research sim — names the rejected variant, does not authorize the verdict). DELIBERATELY EXCLUDES (B3): served-evidence-set convergence / witness format — this vector asserts ONLY purity + arrival-order-independence keyed to canonical-chain view + witnessed evidence.",
-      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; reviewer sign-off complete; locked."
+      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; reviewer sign-off complete; locked. Promoted candidate→ratified 2026-06-15 (#66, DK event 43d30e67) via SOFTWARE_CANON L2 (ratified)."
     },
     "expected": {
       "verdict": "reject",
@@ -70,7 +70,7 @@
     "id": "Z11-neg-01",
     "ruleId": "Z11",
     "area": "Reorg re-derivation and replay determinism",
-    "authorityTier": "candidate",
+    "authorityTier": "ratified",
     "sources": [
       "docs/spec/AUCTION.md Decay Rule (candidate) — 'frozen, monotonic, height-keyed schedule. Do not let market-derived system characteristics shrink windows'",
       "docs/spec/AUCTION.md Window Schedule Bottom Line (candidate) — 'Reduce windows by passage of block height only'",
@@ -87,7 +87,7 @@
         "note": "schedule integers are launch-freeze placeholders; the no-shrink rule is parameter-independent"
       },
       "scopeNote": "Cited-now (candidate AUCTION Decay Rule + Window Schedule Bottom Line): the extend-only / no-shrink invariant — market-derived characteristics MUST NOT shorten any window; reduce windows by passage of block height only. SCOPED to the parameter-INDEPENDENT no-shrink rule. NOT a #49/#50 dependency: this is the AUCTION decay schedule, not the K/W/C availability algebra. Only the schedule VALUES are launch-freeze; the rule is asserted parameterized on the schedule (no decisionDeps).",
-      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; reviewer sign-off complete; locked."
+      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; reviewer sign-off complete; locked. Promoted candidate→ratified 2026-06-15 (#66, DK event 43d30e67) via PR-25."
     },
     "expected": {
       "verdict": "reject",

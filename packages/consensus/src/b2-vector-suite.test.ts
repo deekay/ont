@@ -188,8 +188,8 @@ describe("B2 executable vector suite inventory", () => {
       "vector-now": 68,
     });
     expect(countsBy(vectors.map((vector) => (requiredTiers.has(vector.authorityTier) ? "required" : "pending")))).toEqual({
-      pending: 30,
-      required: 64,
+      pending: 8,
+      required: 86,
     });
   });
 
@@ -209,7 +209,7 @@ describe("B2 executable vector suite inventory", () => {
 
   it("does not execute candidate-tier vectors until DK/spec promotion", () => {
     const pendingDk = plans.filter((plan) => plan.state === "pending-dk");
-    expect(pendingDk).toHaveLength(30);
+    expect(pendingDk).toHaveLength(8);
     expect(pendingDk.every((plan) => plan.vector.authorityTier === "candidate")).toBe(true);
   });
 
@@ -225,8 +225,8 @@ describe("B2 executable vector suite inventory", () => {
     }
 
     expect(countsBy(plans.map((plan) => plan.state))).toEqual({
-      "pending-dk": 30,
-      "pending-predicate": 24,
+      "pending-dk": 8,
+      "pending-predicate": 46,
       "ready-for-binding": 40,
     });
   });
@@ -237,9 +237,10 @@ describe("B2 executable vector suite inventory", () => {
       .map((plan) => plan.vector.id)
       .sort();
 
-    expect(pendingRequired).toHaveLength(24);
+    expect(pendingRequired).toHaveLength(46);
     expect(pendingRequired).toContain("R10-neg-01");
     expect(pendingRequired).toContain("B10-pos-01"); // B1/B3/B4/B10-neg/B6 now resident; B10-pos deferred (locality surface)
+    expect(pendingRequired).toContain("D7-pos-01"); // promoted via #66; same deferred DA locality/state-equivalence surface as B10-pos — pending-predicate, not a ready binding target
     expect(pendingRequired).toContain("T7-neg-01"); // T1/T2/T21 are now resident; T7 (auction resolution) stays pending
     expect(pendingRequired).toContain("Q10-neg-01");
   });

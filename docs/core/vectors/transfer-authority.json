@@ -137,7 +137,7 @@
     "id": "X11-neg-01",
     "ruleId": "X11",
     "area": "Transfer authority",
-    "authorityTier": "candidate",
+    "authorityTier": "ratified",
     "sources": [
       "docs/spec/ONT_ACQUISITION_STATE_MACHINE.md Owner-Key Control (candidate) — 'Once a name is final, the owner key is the stable authority layer'",
       "docs/spec/ONT_ACQUISITION_STATE_MACHINE.md State Model (candidate) — owner-key transfer reachable only from Final/Bonded/Mature owner states",
@@ -160,7 +160,7 @@
         "priorState": "varies per battery case"
       },
       "scopeNote": "Cited-now (candidate state-machine Owner-Key Control + State Model; DESIGN §6 'owner can transfer the name the moment the auction settles'): transfer authority attaches ONLY in an owned/final state; all non-owned states reject (fail-closed — only an owned state has a transferable owner key). Candidate text is acceptable authority for this candidate-stays verdict. The 'restate as an explicit MUST at promotion' is a wording note, not a verdict gap.",
-      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; reviewer sign-off complete; locked."
+      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; reviewer sign-off complete; locked. Promoted candidate→ratified 2026-06-15 (#66, DK event 43d30e67) via PR-36."
     },
     "expected": {
       "verdict": "reject",

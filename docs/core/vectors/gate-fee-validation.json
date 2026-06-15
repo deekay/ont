@@ -168,7 +168,7 @@
     "id": "F15-pos-01",
     "ruleId": "F15",
     "area": "Gate-fee validation",
-    "authorityTier": "candidate",
+    "authorityTier": "ratified",
     "sources": [
       "docs/core/STATUS.md line 53 ('Short-name opening bond (≤4 chars, mandatory bond-first — no cheap-claim path) ... 5+ chars use gate + contention', working baseline)",
       "docs/GLOSSARY.md bond-first ('mandatory ... for names of 4 characters or fewer'); docs/core/B2_KERNEL_HARDENING.md F15 verdict cited + neededSpecWork ('threshold value confirms at launch-parameter freeze; parameterize the predicate on the threshold')"
@@ -185,7 +185,7 @@
         "priorState": "baseline"
       },
       "scopeNote": "Cited-now (candidate STATUS line 53 + GLOSSARY bond-first): the RULE — a name at-or-below the threshold takes the mandatory bond-first path (no cheap claim), above it the cheap-claim path is available. The threshold INTEGER is launch-freeze (parameterized, two values so no baked-in constant passes). DELIBERATELY EXCLUDES (spec-blocked): the in-batch-handling flag (F15-01). This vector asserts ONLY the threshold-parameterized path boundary.",
-      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; threshold is launch-freeze param; reviewer sign-off complete; locked."
+      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; threshold is launch-freeze param; reviewer sign-off complete; locked. Promoted candidate→ratified 2026-06-15 (#66, DK event 43d30e67) via PR-15 / PR-14."
     },
     "expected": {
       "verdict": "accept",

@@ -40,7 +40,7 @@
     "id": "D7-pos-01",
     "ruleId": "D7",
     "area": "DA verdict",
-    "authorityTier": "candidate",
+    "authorityTier": "ratified",
     "sources": [
       "docs/core/B2_KERNEL_HARDENING.md D7 (lines 325-332)",
       "docs/spec/ONT_DATA_AVAILABILITY_AGREEMENT.md §5 (lines 102-123) [candidate] — delta only inserts; disjoint insertions commute; §4 (lines 91-100) — 'a hidden delta only fails to register its own names'",
@@ -60,7 +60,7 @@
         "priorState": "baseline"
       },
       "scopeNote": "Cited-now (candidate): DA §4/§5 (delta only inserts; disjoint insertions commute) + state-machine ('exclusion only prevents the withheld data from counting'). The insert-only-batches invariant is a CROSS-AREA dependency owned by the batched-path (B) area — this vector ASSUMES it, does not re-derive it; the flag's coupling caveat is an invariant B must preserve, not a missing-spec gap for D7's own verdict.",
-      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; reviewer sign-off complete; locked."
+      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; reviewer sign-off complete; locked. Promoted candidate→ratified 2026-06-15 (#66, DK event 43d30e67) via ratified DA exclusion rule (= B10 locality/state-equivalence surface; stays pending-predicate, not bound)."
     },
     "expected": {
       "verdict": "accept",

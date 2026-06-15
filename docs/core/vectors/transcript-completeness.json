@@ -68,7 +68,7 @@
     "id": "T2-neg-02",
     "ruleId": "T2",
     "area": "Transcript completeness",
-    "authorityTier": "candidate",
+    "authorityTier": "ratified",
     "sources": [
       "docs/core/B2_KERNEL_HARDENING.md T2 [rule text] 'over the auction's full block range (including soft-close extensions)'",
       "docs/spec/AUCTION.md Auction Timing [candidate] soft-close extension",
@@ -84,7 +84,7 @@
         "priorState": "an auction with a soft-close extension"
       },
       "scopeNote": "Verdict authority is CANDIDATE: the range-includes-soft-close-extensions specifically depends on the AUCTION soft-close mechanism (AUCTION.md, candidate). Canon Item 4 (ratified) corroborates omission-can't-finalize, but the EXTENSION-range definition rests on candidate AUCTION soft-close. The vector pins the range DEFINITION, not the unfrozen W/C window VALUES. Tier candidate.",
-      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; reviewer sign-off complete; locked."
+      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; reviewer sign-off complete; locked. Promoted candidate→ratified 2026-06-15 (#66, DK event 43d30e67) via PR-19."
     },
     "expected": {
       "verdict": "reject",
@@ -169,7 +169,7 @@
     "id": "T20-neg-01",
     "ruleId": "T20",
     "area": "Transcript completeness",
-    "authorityTier": "candidate",
+    "authorityTier": "ratified",
     "sources": [
       "docs/spec/AUCTION.md Window Schedule — Decay Rule [candidate] 'frozen, monotonic, height-keyed schedule'",
       "docs/spec/WIRE_FORMAT.md 8. Off-chain owner-signed shapes [normative] (issuedAt is off-chain only)",
@@ -185,7 +185,7 @@
         "priorState": "an auction with height-keyed deadlines"
       },
       "scopeNote": "The tested verdict (deadline invariant under an injected issuedAt; no wall-clock input channel) is corroborated by ratified canon 'no clock' + normative WIRE §8 (issuedAt is off-chain only). BUT T20's deadline rule rests on the candidate AUCTION height-keyed decay schedule (Z11/Z20 territory) — so the rule as a whole is candidate-grade; tier candidate (conservative, the deadline-schedule framing is candidate AUCTION). The unfrozen decay-schedule VALUES are excluded.",
-      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; reviewer sign-off complete; locked."
+      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; reviewer sign-off complete; locked. Promoted candidate→ratified 2026-06-15 (#66, DK event 43d30e67) via PR-25."
     },
     "expected": {
       "verdict": "reject",

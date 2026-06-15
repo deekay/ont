@@ -89,9 +89,17 @@ bond-qualification (#64), settlement (#65) — i.e. the six `CONSENSUS_VERDICTS`
 scanner (`CONSENSUS_SUPPORT`), params (`CONSENSUS_PARAMS`), and engine (`CORE_DECIDERS`) surfaces.
 
 The other **54 vectors are NOT bound, by design** — none has a resident predicate it can honestly
-bind to. They are not silently skipped; the spine keeps them visible. The 24 **pending-predicate**
-rows (required-tier, no resident predicate) split into the first three groups below; the fourth is
-the 30 **pending-DK** candidate-tier rows. Grouped by what each needs:
+bind to. They are not silently skipped; the spine keeps them visible. After the #66 promotion (below)
+the split is **46 pending-predicate** (required-tier, no resident predicate) and **8 pending-DK**
+candidate-tier rows. Grouped by what each needs:
+
+**Promotion (#66, 2026-06-15, DK event `43d30e67`).** 22 vectors were promoted candidate→ratified
+(the matrix PR-5..36 + #57–65 + §3c ratification) and moved from pending-DK into pending-predicate —
+required-tier but still unbound, each awaiting the predicate/surface its rule needs, predominantly:
+winner-selection (Q1/Q2/Q3/Q4/Q7/Q9-neg), settlement & reopen (S4/S6/S9/S12), auction-timing /
+determinism (B12/B14/B15/B22, T2-neg-02/T20, Z1/Z11), transfer (X11), short-name fee floor (F15),
+batched-path post-final (B7), and DA exclusion locality (D7). These are NOT new bindings; they
+enlarge the same surface-build backlog below (notably winner-selection and settlement/reopen).
 
 - **New surface required (13-row group; ratified ingredients, but a separately-scoped new-predicate
   phase — NOT a same-lane binding):**
@@ -109,9 +117,15 @@ the 30 **pending-DK** candidate-tier rows. Grouped by what each needs:
   R18-pos-01, T19-pos-01, G6-neg-01 (9 vectors).
 - **Deferred locality-or-window surface (a small resident surface would unblock these):**
   B10-pos-01 (exclusion locality: every other name byte-identical / no final owner unseated),
-  Z9-neg-01 (notice-window / bond-window: re-derived current-chain mined height vs first-seen).
-- **Candidate-tier (DK ratification-gated; the 30 pending-DK vectors):** authored, locked, and
-  visible, but never executed until DK/spec promotion (the spine enforces this).
+  Z9-neg-01 (notice-window / bond-window: re-derived current-chain mined height vs first-seen),
+  D7-pos-01 (promoted via #66; same DA exclusion locality/state-equivalence surface as B10-pos).
+- **Candidate-tier (DK ratification-gated; the 8 remaining pending-DK vectors):** A4-neg-01,
+  B1-neg-01, F1-neg-01, F2-neg-01, F2-neg-02, F3-neg-01, G5-pos-01, Z6-pos-01 — held because their
+  citing rule is not in the ratified set: the fee-composition rows (F1/F2/F3) ride the `g(name)`
+  schedule deferred to B3 (#62); the B1 five-state enum has no ratifying PR (candidate-stays); the
+  DA §5/§8b decomposition algebra (A4/G5/Z6) was not the #49 window ruling and is not a concrete
+  matrix predicate. Authored, locked, and visible, never executed until DK/spec promotion (the
+  spine enforces this).
 
 Next moves are each a *new* effort, not a continuation of the wrapped binding lane: open
 winner-selection as its own scoped new-predicate phase; build the reopen / notice-window /

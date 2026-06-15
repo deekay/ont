@@ -70,7 +70,7 @@
     "id": "B7-neg-01",
     "ruleId": "B7",
     "area": "Batched-path transitions",
-    "authorityTier": "candidate",
+    "authorityTier": "ratified",
     "sources": [
       "docs/spec/ONT_ACQUISITION_STATE_MACHINE.md Public Notice [candidate] — 'claims that arrive after a name is already final are already-owned attempts, not contests'",
       "docs/core/DECISIONS.md §37 bond-opens [ratified] — bond posted inside the notice window opens the auction (in-window phrasing)",
@@ -88,7 +88,7 @@
         "priorState": "a final (settled) name"
       },
       "scopeNote": "Verdict authority is CANDIDATE: B7's rule cites the candidate state-machine ('post-final claims are already-owned attempts') + candidate first-anchor-wins; it does NOT cite #37 for the post-final-bond case (spec is silent on post-final bonds). #37's in-window phrasing corroborates (a qualifying bond opens an auction only inside the notice window). The post-final immunity is candidate authority. Tier candidate (NOT upgraded — the rule's cited authority is candidate; the post-final-bond MUST is the spec gap the flag names).",
-      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; reviewer sign-off complete; locked."
+      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; reviewer sign-off complete; locked. Promoted candidate→ratified 2026-06-15 (#66, DK event 43d30e67) via PR-5 / #37."
     },
     "expected": {
       "verdict": "reject",
@@ -137,7 +137,7 @@
     "id": "B12-neg-01",
     "ruleId": "B12",
     "area": "Batched-path transitions",
-    "authorityTier": "candidate",
+    "authorityTier": "ratified",
     "sources": [
       "docs/spec/AUCTION.md Real Mechanism Choices [candidate] — 'a valid bonded opening bid is what creates the auction'",
       "docs/LAUNCH.md Legacy Scheduled-Catalog Compatibility State [narrative, supplementary] — 'no auction exists until a valid bonded opening bid confirms'",
@@ -154,7 +154,7 @@
         "priorState": "an open auction lot"
       },
       "scopeNote": "Verdict authority is CANDIDATE: the lot-identity rule (commitment binds (auctionId, name, unlockBlock); no parallel lots per name) is candidate AUCTION ('a valid bonded opening bid creates the auction') + LAUNCH. The auctionLotCommitment ENCODING is WIRE §6 (normative) — encoding the integrity check operates on, not the lot-identity verdict authority (cf. S9). The opening-floor curve values are launch-freeze placeholders. Tier candidate. No #49/#50 dependency.",
-      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; reviewer sign-off complete; locked."
+      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; reviewer sign-off complete; locked. Promoted candidate→ratified 2026-06-15 (#66, DK event 43d30e67) via PR-19."
     },
     "expected": {
       "verdict": "reject",
@@ -170,7 +170,7 @@
     "id": "B14-neg-01",
     "ruleId": "B14",
     "area": "Batched-path transitions",
-    "authorityTier": "candidate",
+    "authorityTier": "ratified",
     "sources": [
       "docs/spec/AUCTION.md Real Mechanism Choices [candidate] — soft-close extension on acceptance",
       "docs/core/B2_KERNEL_HARDENING.md B14 rule lines 989-998 — 'a below-minimum bid MUST be rejected without changing leader, close height, or required minimum'",
@@ -187,7 +187,7 @@
         "priorState": "an auction in its soft-close window"
       },
       "scopeNote": "Verdict authority is CANDIDATE: extension-on-acceptance is candidate AUCTION timing (parallel to Q7); the B14 rule text itself states a below-minimum bid 'MUST be rejected without changing leader, close height, or required minimum'. The rejected-bid-does-not-extend negative composes with B15. Window/extension block counts are launch-freeze inputs. Tier candidate. No #49/#50 dependency.",
-      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; reviewer sign-off complete; locked."
+      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; reviewer sign-off complete; locked. Promoted candidate→ratified 2026-06-15 (#66, DK event 43d30e67) via PR-19."
     },
     "expected": {
       "verdict": "reject",
@@ -203,7 +203,7 @@
     "id": "B15-pos-01",
     "ruleId": "B15",
     "area": "Batched-path transitions",
-    "authorityTier": "candidate",
+    "authorityTier": "ratified",
     "sources": [
       "docs/spec/AUCTION.md Auction Timing [candidate] — 'Hard cap on extensions | None'",
       "docs/spec/CONTESTED_AUCTION_REFERENCE.md Auction Family [candidate] — 'no hard extension cap in the current design'",
@@ -220,7 +220,7 @@
         "priorState": "an auction with repeated soft-close extensions"
       },
       "scopeNote": "Verdict authority is CANDIDATE: AUCTION.md Auction Timing ('Hard cap on extensions | None') + CONTESTED_AUCTION_REFERENCE ('no hard extension cap in the current design'). Close is monotone non-decreasing; the kernel must not import any 'eventually force-end' heuristic the text does not grant. The no-hard-cap design is an accepted candidate posture (parallel to Q7's #35 working-assumption family). Block-count placeholders are launch-freeze. Tier candidate. No #49/#50 dependency.",
-      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; reviewer sign-off complete; locked."
+      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; reviewer sign-off complete; locked. Promoted candidate→ratified 2026-06-15 (#66, DK event 43d30e67) via PR-25 / PR-19."
     },
     "expected": {
       "verdict": "accept",
@@ -269,7 +269,7 @@
     "id": "B22-neg-01",
     "ruleId": "B22",
     "area": "Batched-path transitions",
-    "authorityTier": "candidate",
+    "authorityTier": "ratified",
     "sources": [
       "docs/spec/AUCTION.md Decay Rule [candidate] — 'Use a frozen, monotonic, height-keyed schedule. Do not let market-derived system characteristics shrink windows'; 'extend-only'",
       "docs/core/SOFTWARE_CANON.md L2 ownership kernel [ratified] — pure predicate, no I/O",
@@ -286,7 +286,7 @@
         "priorState": "any window computation"
       },
       "scopeNote": "Verdict authority is CANDIDATE: AUCTION Decay Rule (candidate, 'frozen, monotonic, height-keyed schedule; do not let market-derived characteristics shrink windows; extend-only') — parallel to Z11. The ratified kernel-purity canon (no I/O) corroborates the I/O-free window function, but the no-market-shrink schedule rule is candidate AUCTION. This is the schedule-function purity, DISTINCT from the W/C/K window-close algebra (#49). Schedule integers are launch-freeze. Tier candidate.",
-      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; reviewer sign-off complete; locked."
+      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; reviewer sign-off complete; locked. Promoted candidate→ratified 2026-06-15 (#66, DK event 43d30e67) via PR-25."
     },
     "expected": {
       "verdict": "reject",

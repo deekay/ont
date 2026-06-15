@@ -3,7 +3,7 @@
     "id": "Q1-pos-01",
     "ruleId": "Q1",
     "area": "Winner selection and bid acceptance",
-    "authorityTier": "candidate",
+    "authorityTier": "ratified",
     "sources": [
       "docs/spec/AUCTION.md Opening Bond Floors",
       "docs/spec/AUCTION.md Real Mechanism Choices (normative shape)",
@@ -23,7 +23,7 @@
         "priorState": "no accepted bid yet for the lot"
       },
       "scopeNote": "Verdict authority is CANDIDATE: the accept/reject boundary is decided by the opening floor (AUCTION.md, candidate per the ledger-wins header) — the floor value is the verdict criterion here. DECISIONS #37 (ratified) frames 'a qualifying bond opens the auction', but 'qualifying' = meets-the-candidate-floor, so the at-floor/below-floor boundary verdict rests on candidate AUCTION. Tier candidate (corrected from the seed heuristic's normative, which matched AUCTION's 'normative shape' heading — old vocab the ledger-wins header overrides).",
-      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; floor is launch-freeze; reviewer sign-off complete; locked."
+      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; floor is launch-freeze; reviewer sign-off complete; locked. Promoted candidate→ratified 2026-06-15 (#66, DK event 43d30e67) via PR-19 / #37."
     },
     "expected": {
       "verdict": "accept",
@@ -39,7 +39,7 @@
     "id": "Q2-pos-01",
     "ruleId": "Q2",
     "area": "Winner selection and bid acceptance",
-    "authorityTier": "candidate",
+    "authorityTier": "ratified",
     "sources": [
       "docs/spec/WIRE_FORMAT.md 2. Names",
       "docs/spec/WIRE_FORMAT.md 4.3 AuctionBid",
@@ -58,7 +58,7 @@
         "canonicality": "the floor keys off canonical byte length; non-canonical name bytes are already rejected upstream (WIRE_FORMAT §2, cited not re-derived)"
       },
       "scopeNote": "Verdict authority is CANDIDATE: the floor function floor(name) — the <=4 length-curve / 5+ flat clamp — is DECISIONS #11 ('resolved as leaned', amounts remain pre-launch placeholders) and supersedes the AUCTION.md 5–11 table. #11's leaned status + launch-freeze amounts make the floor structure candidate-grade, not hard-ratified. WIRE_FORMAT §2 (normative) is cited ONLY for canonical-byte-length (the keying), NOT the floor verdict — so it is encoding context, not the verdict authority. Tier candidate (corrected from the seed heuristic's ratified). Prices are launch-freeze parameters-as-inputs.",
-      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; floor params launch-freeze; reviewer sign-off complete; locked."
+      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; floor params launch-freeze; reviewer sign-off complete; locked. Promoted candidate→ratified 2026-06-15 (#66, DK event 43d30e67) via PR-14 / #11."
     },
     "expected": {
       "verdict": "accept",
@@ -74,7 +74,7 @@
     "id": "Q3-neg-01",
     "ruleId": "Q3",
     "area": "Winner selection and bid acceptance",
-    "authorityTier": "candidate",
+    "authorityTier": "ratified",
     "sources": [
       "docs/LAUNCH.md Implementation And Validation Status (bond value = bid at bondVout)",
       "docs/spec/WIRE_FORMAT.md 4.3 AuctionBid",
@@ -93,7 +93,7 @@
         "priorState": "an auction context"
       },
       "scopeNote": "Verdict authority is CANDIDATE (LAUNCH 'bond value = bid at bondVout'): the declared bid amount and the posted on-chain bond value are one number — equals-exactly, not at-least. WIRE_FORMAT §4.3 (normative) supplies the bondVout/bidAmountSats field ENCODING only. The needed-spec-work is to promote the equals-exactly sentence into AUCTION.md; the verdict is derivable now at candidate tier.",
-      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; reviewer sign-off complete; locked."
+      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; reviewer sign-off complete; locked. Promoted candidate→ratified 2026-06-15 (#66, DK event 43d30e67) via PR-21."
     },
     "expected": {
       "verdict": "reject",
@@ -109,7 +109,7 @@
     "id": "Q4-neg-01",
     "ruleId": "Q4",
     "area": "Winner selection and bid acceptance",
-    "authorityTier": "candidate",
+    "authorityTier": "ratified",
     "sources": [
       "docs/GLOSSARY.md bond (returnable; locked, not spent; ONT-level designation over a plain output)",
       "docs/LAUNCH.md Implementation And Validation Status (Returnable bond output)",
@@ -127,7 +127,7 @@
         "priorState": "an auction context"
       },
       "scopeNote": "Verdict authority is CANDIDATE (GLOSSARY/LAUNCH 'bond = returnable; locked, not spent'): an OP_RETURN / provably-unspendable output can never be released, moved, or spent, so it cannot satisfy the returnability premise -> fail-closed reject. DELIBERATELY EXCLUDES (candidate-stays spec work): the positive enumeration of which script classes QUALIFY as a bond output. Fail-closed-on-non-returnable-bond is the vector-now carve-out even though the qualifying-class enumeration is later work.",
-      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; reviewer sign-off complete; locked."
+      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; reviewer sign-off complete; locked. Promoted candidate→ratified 2026-06-15 (#66, DK event 43d30e67) via PR-21."
     },
     "expected": {
       "verdict": "reject",
@@ -143,7 +143,7 @@
     "id": "Q7-neg-01",
     "ruleId": "Q7",
     "area": "Winner selection and bid acceptance",
-    "authorityTier": "candidate",
+    "authorityTier": "ratified",
     "sources": [
       "docs/spec/AUCTION.md Auction Timing (bid inside final 144 blocks moves close to bid block + 144; hard cap None)",
       "docs/core/DECISIONS.md Decision Log #35 (no hard extension cap)",
@@ -161,7 +161,7 @@
         "softCloseBlocks": "SOFT_CLOSE_BLOCKS is a launch-freeze parameter input"
       },
       "scopeNote": "Verdict authority is CANDIDATE: AUCTION.md Auction Timing (candidate) states the extend-on-accept / extend-only mechanism, and DECISIONS #35 is a 'working assumption' (auction form + no-hard-cap), not hard-ratified. So the accepted-only-extension verdict rests on candidate authority. The rejected-bid-does-not-extend negative composes with Q1/Q10 (a non-accepted bid contributes nothing). SOFT_CLOSE_BLOCKS is launch-freeze. Tier candidate (corrected from the seed heuristic's ratified, which over-weighted the #35 reference; #35 is a working assumption, not ratified).",
-      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; reviewer sign-off complete; locked."
+      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; reviewer sign-off complete; locked. Promoted candidate→ratified 2026-06-15 (#66, DK event 43d30e67) via PR-19 / #35."
     },
     "expected": {
       "verdict": "reject",
@@ -212,7 +212,7 @@
     "id": "Q9-neg-01",
     "ruleId": "Q9",
     "area": "Winner selection and bid acceptance",
-    "authorityTier": "candidate",
+    "authorityTier": "ratified",
     "sources": [
       "docs/core/STATUS.md Components — Contested-auction bonded bid (highest-bid-wins + distinct-bid well-formedness enforced)",
       "docs/core/B2_KERNEL_HARDENING.md Q9 statement (complete transcript precondition) + cross-area note (T* precondition; omitted bid is a T* failure)",
@@ -230,7 +230,7 @@
         "priorState": "an auction transcript with one accepted bid removed"
       },
       "scopeNote": "Verdict authority is CANDIDATE / kernel-composition: Q9 selects among accepted bids in the COMPLETE transcript; an omitted accepted bid is a T* completeness failure (cross-area), NOT a Q re-selection of the next-lower bid. STATUS (candidate) notes the proof bundle enforces highest-bid-wins + distinct-bid well-formedness. The fail-closed precondition (selection undefined absent a complete transcript) is derivable now; T*'s own witness format is separate spec work, excluded here.",
-      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; reviewer sign-off complete; locked."
+      "authoringStatus": "authored: predicate-input shape proposed at candidate tier; reviewer sign-off complete; locked. Promoted candidate→ratified 2026-06-15 (#66, DK event 43d30e67) via PR-19."
     },
     "expected": {
       "verdict": "reject",

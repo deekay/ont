@@ -20,12 +20,13 @@
 //     Fixtures here carry NO pendingRecovery; the engine's withoutPendingRecovery
 //     stripping is not asserted as ratified behavior.
 //
-// ADVISORY (skipped / candidate-tier, NOT in the ratified gate):
+// ADVISORY (skipped — documented engine behavior, not enforced CI assertions):
 //   - X8 boundary at blockHeight == maturityHeight — the >= vs > comparison is
 //     unstated in every doc (X8 attack flag). The engine treats == as mature; we
-//     do not assert that as ratified.
-//   - X11 "transfer only affects owned names" — soft authority ("once a name is
-//     final" + state diagram, no MUST sentence). Documented as candidate, not gate.
+//     do not assert that as ratified. (candidate)
+//   - X11 "transfer only affects owned names" — authority RATIFIED (PR-36, #66).
+//     The conformance binding is the X11-neg-01 vector (pending-predicate until the
+//     transfer-authority surface lands); this block stays skipped as advisory doc.
 //
 // X2 TIER (DECISIONS #60/#61, ChatLunatique-ruled): the engine verifies the B1 §5
 // owner-key signature via @ont/wire (verifySchnorr over transferAuthDigest) in a local
@@ -530,15 +531,14 @@ describe("X10 — transfer acceptance does not depend on payment outputs", () =>
 });
 
 // ===========================================================================
-// X11 — ADVISORY (candidate authority): transfer only affects owned names.
-// Soft authority ("once a name is final" + state diagram, no MUST). Documents
-// engine behavior; NOT part of the ratified green gate.
+// X11 — transfer only affects owned names. Authority RATIFIED (PR-36, #66); the
+// conformance binding is the X11-neg-01 vector in the executable suite
+// (pending-predicate until the transfer-authority surface lands).
 // ===========================================================================
-// describe.skip: X11's authority is soft ("once a name is final" + state diagram,
-// no MUST). Per the scope ruling it stays candidate/advisory and MUST NOT be an
-// enforced CI assertion — skipped so it documents engine behavior without freezing
-// transfer_name_not_found_or_invalid as required law.
-describe.skip("X11 (advisory — candidate authority, not the ratified gate)", () => {
+// describe.skip: advisory engine-behavior doc, NOT the conformance binding —
+// stays skipped so it does not freeze the transfer_name_not_found_or_invalid
+// reason string as required law ahead of the X11-neg-01 vector binding.
+describe.skip("X11 (advisory engine-behavior doc — authority ratified, binding is the X11-neg-01 vector)", () => {
   it("a transfer referencing the head of a name invalidated by broken bond continuity does not move it", () => {
     const state = createEmptyState();
     seedOwnedName(state, { name: "alice", status: "invalid", maturityHeight: 1000 });
