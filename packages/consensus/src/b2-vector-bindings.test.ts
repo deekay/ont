@@ -237,6 +237,9 @@ const LOCAL_BINDING_MANIFEST = new Set<string>([
   "B15-pos-01",
   "S9-neg-01",
   "S4-neg-01",
+  // purity / determinism closing batch (structural, b2-boundary idiom)
+  "Z1-neg-01",
+  "T20-neg-01",
 ]);
 
 // A binding may only execute a vector that is (a) locked, (b) required-tier
@@ -1626,6 +1629,46 @@ describe("B2 vector bindings — bind-to-resident closing batch (B14/B15/S9/S4)"
       // positive control: the fixed parameter value settles.
       expect(settlementLockMatchesMaturity({ settlementLockBlocks: maturityBlocks }, maturityBlocks).matches).toBe(true);
     }
+  });
+});
+
+// ---- purity / determinism closing batch (Z1 / T20) ----
+// Structural bindings (the A10/Z12/V1 idiom): each rides the standing b2-boundary purity gate
+// (no host-I/O / clock / receipt-time channel in any production module) plus a distinct companion
+// probe over a resident predicate. B22/Z11 are NOT here — they need a dedicated windowLength
+// predicate (scoped separately), per per-vector verification (do not stretch a purity assertion
+// into a window-schedule rule).
+describe("B2 vector bindings — purity / determinism closing batch (Z1/T20)", () => {
+  it("Z1-neg-01: name state is a function of (canonical chain + served evidence) only — no local receipt time; arrival-order independent", () => {
+    const vector = loadVector("reorg-replay-determinism.json", "Z1-neg-01");
+    assertBindable(vector);
+    // (a) STRUCTURAL: a kernel variant consulting local receipt time would need a host-I/O channel;
+    //     none exists in any production module (rides b2-boundary + the host-I/O scan).
+    const admitsReceiptTimeChannel = productionModulesAdmittingHostIO().length > 0;
+    expect(admitsReceiptTimeChannel).toBe(accepts(vector)); // false === reject
+    // (b) ARRIVAL-ORDER INDEPENDENCE: a resident canonical-chain-view derivation yields a byte-identical
+    //     verdict when the same batches arrive in a different order (its projection is order-free), so
+    //     byte-arrival order never forks the derived state.
+    const batches = [exclBatch("A", ["alice", "shared"]), exclBatch("X", ["bob", "shared"])];
+    const forward = deriveBatchedInsertions({ batches, excludedBatchIds: [], priorFinalNames: [] });
+    const reversed = deriveBatchedInsertions({ batches: [...batches].reverse(), excludedBatchIds: [], priorFinalNames: [] });
+    expect(forward).toEqual(reversed);
+  });
+
+  it("T20-neg-01: deadlines are computed from block heights only — no issuedAt / wall-clock input channel", () => {
+    const vector = loadVector("transcript-completeness.json", "T20-neg-01");
+    assertBindable(vector);
+    // (a) STRUCTURAL: no production module reads wall-clock (rides b2-boundary); a deadline verdict has
+    //     no host-clock channel.
+    const admitsWallClock = productionModulesAdmittingHostIO().length > 0;
+    expect(admitsWallClock).toBe(accepts(vector)); // false === reject
+    // (b) HEIGHT-ONLY: the resident height-keyed deadline helper depends only on heights (there is no
+    //     issuedAt/timestamp parameter), and a transcript carrying an injected issuedAt field is
+    //     closed-shape-rejected — so no wall-clock value can ride the deadline boundary.
+    expect(bondInNoticeWindow(1003, 1000, 6).verdict).toBe("in-window"); // pure function of heights
+    expect(
+      transcriptCompleteness({ bids: [], issuedAt: "2026-01-01T00:00:00Z" } as never, { kind: "b3-verified-completeness-witness" }).complete
+    ).toBe(false); // injected issuedAt rejected — no timestamp channel
   });
 });
 
