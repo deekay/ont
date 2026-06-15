@@ -894,6 +894,11 @@ bigint values, closed shape, no market/source/publisher channel; curve-shaped li
 `fee.anchorTxid === anchor.anchorTxid` (`anchoredRoot` is insufficient — two txs can commit the same
 root with different fees).
 
+> **⚠ SUPERSEDED by §14 update 2 (CL correction).** The bare `prevoutValueSats` + kernel-local
+> `@ont/consensus` serializer + "over-stated prevout = D-BI residual" below is a FALSE-ACCEPT hole and is
+> REPLACED by §14 update 2: complete `prevoutTxs[]` with in-kernel prevout-txid/value recompute, the
+> serializer in `@ont/bitcoin`. The paragraph is retained only for the design trail. Read update 2.
+
 **Q4 fee-fact completeness (BLOCKER — the fee witness must be a complete, txid-bound anchor-tx view).**
 An arbitrary `outputs:[valueSats]` + `inputs:[prevout]` is NOT verifier-checkable: a hostile witness can
 omit outputs (inflating `paidFee = Σin − Σout`) or invent prevouts. The inputs + outputs must be

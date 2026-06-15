@@ -1,5 +1,13 @@
 import { readFileSync } from "node:fs";
 
+export {
+  serializeLegacyTransaction,
+  legacyTxidOf,
+  type LegacyTransaction,
+  type LegacyTransactionInput,
+  type LegacyTransactionOutput,
+} from "./legacy-tx.js";
+
 export interface BitcoinNetworkConfig {
   readonly network: "regtest" | "signet" | "testnet" | "mainnet";
   readonly rpcUrl?: string;
