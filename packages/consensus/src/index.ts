@@ -70,3 +70,7 @@ export * from "./reopen-resolution.js";
 // no-takeover-of-final gate over a name's resolved post-DA-verdict occupancy (A11/#26). Rides
 // nothing external — the resolved governing occupancy enters as a caller input.
 export * from "./occupancy.js";
+// The batch-exclusion locality predicate (#72, riding #59's verdict tier): the pure insert-only
+// batched-insertion derivation that makes the DA-exclusion locality / state-equivalence property
+// checkable (B10/D7). Rides nothing external — the DA verdict enters as consumed excludedBatchIds.
+export * from "./batch-exclusion.js";

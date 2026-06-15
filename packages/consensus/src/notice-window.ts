@@ -265,3 +265,44 @@ export function resolveNoticeWindow(input: NoticeWindowInput): NoticeWindowVerdi
   }
   return reject("nullified", "notice-window-no-da-valid-claim-no-owner", daValidOwnerCount);
 }
+
+// ---- Z9: the one-clock qualifying-bond in-window test (#73) ----
+
+export type BondWindowVerdict = "in-window" | "out-of-window" | "boundary-unspecified" | "undecidable";
+
+export interface BondWindowResult {
+  readonly verdict: BondWindowVerdict;
+  readonly reason: string;
+}
+
+/**
+ * Decide whether a bond's mined height falls inside the notice window (Z9 / #49 S1). `bondMinedHeight`
+ * MUST be the bond's RE-DERIVED height on the current canonical chain (the #49 S1 one-clock rule:
+ * every deadline keys off the current best chain; reorgs re-derive; no receipt/first-seen time) — a
+ * test reading a first-seen / superseded-chain height is non-conformant (Z9-neg-01).
+ *
+ * The exact notice-CLOSE edge (`h === anchorHeight + W_notice`) is the unruled PR-13/G4/F12 boundary
+ * and is deliberately NOT decided here: it returns "boundary-unspecified" so no implementation
+ * silently freezes the edge ahead of the spec ruling. Pure and total — malformed input fails closed to
+ * "undecidable" and never throws.
+ */
+export function bondInNoticeWindow(
+  bondMinedHeight: number,
+  anchorHeight: number,
+  noticeWindowBlocks: number
+): BondWindowResult {
+  if (!isSafeNonNegInt(bondMinedHeight) || !isSafeNonNegInt(anchorHeight) || !isPositiveSafeInt(noticeWindowBlocks)) {
+    return { verdict: "undecidable", reason: "bond-window-input-malformed" };
+  }
+  const close = anchorHeight + noticeWindowBlocks;
+  if (!Number.isSafeInteger(close)) {
+    return { verdict: "undecidable", reason: "bond-window-close-overflow" };
+  }
+  if (bondMinedHeight === close) {
+    return { verdict: "boundary-unspecified", reason: "bond-window-close-boundary-unspecified" };
+  }
+  if (bondMinedHeight >= anchorHeight && bondMinedHeight < close) {
+    return { verdict: "in-window", reason: "bond-in-notice-window" };
+  }
+  return { verdict: "out-of-window", reason: "bond-outside-notice-window" };
+}

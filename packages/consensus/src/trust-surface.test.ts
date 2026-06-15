@@ -55,7 +55,7 @@ const srcDir = dirname(fileURLToPath(import.meta.url));
 const CORE_DECIDERS = ["engine.ts", "state.ts", "proof-bundle.ts"] as const;
 const CONSENSUS_SUPPORT = ["scanner.ts"] as const;
 const CONSENSUS_PARAMS = ["params.ts"] as const;
-const CONSENSUS_VERDICTS = ["da-verdict.ts", "value-record-authority.ts", "gate-fee.ts", "transcript-completeness.ts", "bond-qualification.ts", "settlement.ts", "recovery-invoke-authority.ts", "auction-resolution.ts", "notice-window.ts", "reopen-resolution.ts", "occupancy.ts"] as const;
+const CONSENSUS_VERDICTS = ["da-verdict.ts", "value-record-authority.ts", "gate-fee.ts", "transcript-completeness.ts", "bond-qualification.ts", "settlement.ts", "recovery-invoke-authority.ts", "auction-resolution.ts", "notice-window.ts", "reopen-resolution.ts", "occupancy.ts", "batch-exclusion.ts"] as const;
 
 // Consensus-support rides the B1 normative wire grammar (@ont/wire); the parameter
 // surface rides nothing external (values enter as inputs).
@@ -120,6 +120,10 @@ const VERDICTS_ALLOWED_BY_FILE: Record<string, ReadonlySet<string>> = {
   // occupancy is the pure insertion-only / no-takeover-of-final gate; it consumes a name's resolved
   // governing occupancy and rides nothing external (#71).
   "occupancy.ts": new Set<string>([]),
+  // batch-exclusion is the pure insert-only batched-insertion derivation for the DA-exclusion
+  // locality / state-equivalence property; the DA verdict enters as consumed excludedBatchIds, so it
+  // rides nothing external (#72).
+  "batch-exclusion.ts": new Set<string>([]),
 };
 const ALL_MANIFEST = [...CORE_DECIDERS, ...CONSENSUS_SUPPORT, ...CONSENSUS_PARAMS, ...CONSENSUS_VERDICTS];
 const ALLOWED_RELATIVE = new Set(ALL_MANIFEST.map((file) => `./${file.replace(/\.ts$/, ".js")}`));

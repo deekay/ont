@@ -1824,6 +1824,72 @@ non-admitting `undecidable` verdict and never throws, so no producer-asserted oc
 three resolved kinds is admitted as authority. This satisfies #44's "boundary may change only with a
 DECISIONS entry + conformance coverage"; the boundary freezes at launch.
 
+72. b2-batch-exclusion-locality-boundary: the batch-exclusion locality predicate enters
+@ont/consensus as a pure CONSENSUS_VERDICTS decider — the insert-only batched-insertion derivation
+that makes the DA-exclusion locality / state-equivalence property checkable — riding nothing
+external — 2026-06-15
+
+*Status: **Proposed** (writer ClaudeleLunatique, reviewer ChatLunatique; lands on branch
+clean-build-b2-kernel, DK merges). A boundary-manifest addition under #44, riding the
+CONSENSUS_VERDICTS tier established by #59 — a new pure verdict module, NOT a tier-widening. Its
+external allowlist is empty: the DA verdict enters as a consumed `excludedBatchIds` input, with no
+`@ont/core`, no research/simulation code, and no host I/O. NO new consensus law: it lands the
+already-ratified B10 (a DA-excluded batch's claims vanish uniformly; exclusion removes only that
+batch's leaves and unseats no final owner) and D7 (the resulting state equals the as-if-the-excluded-
+batch-never-existed world), over the DA §5 insert-only/commutative merge. Covered by conformance:
+`trust-surface.test.ts` (`batch-exclusion.ts` in CONSENSUS_VERDICTS with an empty allowlist),
+`batch-exclusion.test.ts` (predicate battery), and the B10-pos-01 / D7-pos-01 bindings in
+`b2-vector-bindings.test.ts`. Authored under DK's keep-going grant.*
+
+**The rule.** `deriveBatchedInsertions({ batches, excludedBatchIds, priorFinalNames })` derives the
+per-name insertion provenance of the non-excluded batches as a deterministic sorted projection. The
+bindings PROVE the property: excluding batch X removes only X's own leaves (every name not in X is
+byte-identical), the result equals the as-if-X-never-anchored derivation, and no `priorFinalNames`
+entry is unseated. The DA verdict is a CONSUMED witnessed input (`excludedBatchIds`), never recomputed
+from local fetch success (B10 attack flag) — so the module is #49-independent (no W/C/K appear).
+
+**Insert-only invariant + cross-area coupling (D7 §5).** The merge models ONLY name insertions — a
+batch never mutates an existing name. This is the DA §5 commutative-merge fact the locality guarantee
+rests on; it is a cross-area coupling the batched-path (B) area MUST hold (if batches ever admit
+non-insert ops, exclusion stops being self-contained). `priorFinalNames` is a PRESERVATION fact, not a
+new occupancy reducer: a leaf targeting an already-final name is an insert-only no-op (never a fresh
+insertion, never an unseat; #26/B7), and this predicate does not re-decide takeover (that is occupancy
+#71 / B7). Deliberately excluded: finalization / collision / nullify (notice-window #69), the
+first-anchor-wins reduction (A12, engine), and the A6 name grammar (names are caller-parsed canonical
+facts). Total / fail-closed + closed-shape (the #63–#71 discipline): malformed, extra-field, duplicate
+batchId, or duplicate/unknown excluded id fails closed (`derived:false`) and never throws, so the
+derivation can never become order-dependent or admit a producer-asserted exclusion. This satisfies
+#44's "boundary may change only with a DECISIONS entry + conformance coverage"; the boundary freezes
+at launch.
+
+73. b2-bond-window-clock-boundary: the qualifying-bond notice-window test (`bondInNoticeWindow`, in
+`notice-window.ts`) reads the bond's re-derived current-chain mined height (#49 S1 one-clock), and
+fails closed on the unruled notice-close edge — 2026-06-15
+
+*Status: **Proposed** (writer ClaudeleLunatique, reviewer ChatLunatique; lands on branch
+clean-build-b2-kernel, DK merges). A boundary-manifest clarification under #44, an addition to the
+already-resident `notice-window.ts` verdict surface (#69) — kept as its own entry because #69
+explicitly excluded in-window membership filtering. Empty external allowlist (height inputs only).
+NO new consensus law: it lands Z9 (the notice-window outcome derives purely from the current
+canonical chain; reorgs re-derive) read through the #49 S1 one-clock rule. Covered by conformance:
+`notice-window.test.ts` (`bondInNoticeWindow` battery) and the Z9-neg-01 binding in
+`b2-vector-bindings.test.ts`.*
+
+**The rule.** `bondInNoticeWindow(bondMinedHeight, anchorHeight, noticeWindowBlocks)` returns a
+tri-state verdict (`in-window` / `out-of-window` / `boundary-unspecified`, plus `undecidable` on
+malformed input). `bondMinedHeight` MUST be the bond's RE-DERIVED height on the current best chain
+(#49 S1: every deadline keys off the current canonical chain; reorgs re-derive; no first-seen /
+receipt time) — a test reading a first-seen or superseded-chain height is non-conformant (Z9-neg-01).
+
+**Parked: the notice-close edge.** The exact close boundary (`h === anchorHeight + W_notice`) is the
+unruled PR-13 / G4 / F12 edge — whether a bond mined exactly at the close is inside is stated nowhere.
+This predicate deliberately does NOT freeze it: it returns `boundary-unspecified`
+(`bond-window-close-boundary-unspecified`) at that exact height so no implementation silently freezes
+the edge ahead of a spec ruling. The Z9-neg-01 binding uses interior heights so the only variable is
+first-seen vs re-derived height. Total / fail-closed: malformed input fails closed to `undecidable`
+and never throws. This satisfies #44's "boundary may change only with a DECISIONS entry + conformance
+coverage"; the boundary freezes at launch.
+
 ## Fairness Principles To Carry Into The Launch Rewrite
 
 The rewritten launch draft should explicitly state:

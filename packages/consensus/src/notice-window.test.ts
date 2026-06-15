@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   resolveNoticeWindow,
+  bondInNoticeWindow,
   type NoticeWindowClaim,
   type NoticeWindowInput,
 } from "./notice-window.js";
@@ -173,5 +174,28 @@ describe("resolveNoticeWindow — total / fail-closed + closed-shape", () => {
   it("is deterministic on identical inputs", () => {
     const i = input({ claims: [daValid(OWNER_A), daValid(OWNER_B)] });
     expect(resolveNoticeWindow(i)).toEqual(resolveNoticeWindow(i));
+  });
+});
+
+describe("bondInNoticeWindow — Z9 one-clock bond-height test (#73)", () => {
+  // window interior (away from edges): anchorHeight=1000, W_notice=6 -> in [1000, 1005], close=1006.
+  it("classifies strict-interior and exterior heights, away from the close edge", () => {
+    expect(bondInNoticeWindow(1003, 1000, 6).verdict).toBe("in-window"); // interior
+    expect(bondInNoticeWindow(1000, 1000, 6).verdict).toBe("in-window"); // opens at the anchor (A13)
+    expect(bondInNoticeWindow(999, 1000, 6).verdict).toBe("out-of-window"); // before the anchor
+    expect(bondInNoticeWindow(1010, 1000, 6).verdict).toBe("out-of-window"); // well past the close
+  });
+
+  it("fails closed on the exact notice-close edge — the unruled PR-13/G4 boundary is NOT frozen here", () => {
+    expect(bondInNoticeWindow(1006, 1000, 6)).toMatchObject({
+      verdict: "boundary-unspecified",
+      reason: "bond-window-close-boundary-unspecified",
+    });
+  });
+
+  it("fails closed (undecidable) on malformed input and never throws", () => {
+    expect(bondInNoticeWindow(-1, 1000, 6).verdict).toBe("undecidable");
+    expect(bondInNoticeWindow(1003, 1000, 0).verdict).toBe("undecidable"); // window must be positive
+    expect(bondInNoticeWindow(1.5 as never, 1000, 6).verdict).toBe("undecidable");
   });
 });

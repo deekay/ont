@@ -97,6 +97,9 @@ const readyBindingTargetById: Record<string, string> = {
   "T22-neg-02": "reopen-resolution: an incomplete bond-continuity witness fails closed before matching",
   "B19-neg-01": "reopen-resolution: release height is kernel-derived from witnessed bond-break facts, not adapter-minted",
   "A11-pos-01": "occupancy: a forfeited (DA-failed) prior insertion does not block re-claim; post-DA-verdict occupancy, insertion-only no-takeover-of-final",
+  "B10-pos-01": "batch-exclusion: a DA-excluded batch's leaves vanish uniformly; exclusion removes only that batch, every other name byte-identical, no final unseated",
+  "D7-pos-01": "batch-exclusion: excluding a batch yields exactly the as-if-never-anchored state (insert-only state-equivalence, DA §5)",
+  "Z9-neg-01": "notice-window/bondInNoticeWindow: the qualifying-bond window test reads the re-derived current-chain mined height (#49 S1); a first-seen-height reading is non-conformant",
 };
 
 type VectorOrigin = "vector-now" | "provisional-origin";
@@ -252,8 +255,8 @@ describe("B2 executable vector suite inventory", () => {
 
     expect(countsBy(plans.map((plan) => plan.state))).toEqual({
       "pending-dk": 8,
-      "pending-predicate": 20,
-      "ready-for-binding": 66,
+      "pending-predicate": 17,
+      "ready-for-binding": 69,
     });
   });
 
@@ -263,14 +266,15 @@ describe("B2 executable vector suite inventory", () => {
       .map((plan) => plan.vector.id)
       .sort();
 
-    expect(pendingRequired).toHaveLength(20);
+    expect(pendingRequired).toHaveLength(17);
     // the entire recovery-parked group (R1/R2/R7/R9/R10-01/R10-02/T19 + now R18 completion / G6
     // no-callback purity) is bound to the resident recovery surface — no recovery vector remains.
     // the winner-selection / bid-acceptance group (Q1/Q2/Q3/Q4/Q7/Q9/Q10 + T7/T9/G1) is bound to
     // auction-resolution; the notice-window group (T17/F11) is bound to notice-window — no auction
     // or notice-window vector remains pending-predicate.
-    expect(pendingRequired).toContain("B10-pos-01"); // B1/B3/B4/B10-neg/B6 now resident; B10-pos deferred (locality surface)
-    expect(pendingRequired).toContain("D7-pos-01"); // promoted via #66; same deferred DA locality/state-equivalence surface as B10-pos — pending-predicate, not a ready binding target
+    // A6 (non-canonical-name-byte rejection) is a still-pending A-area name-canonicalization surface,
+    // distinct from the DA-locality trio just landed; it stays a visible pending-predicate target.
+    expect(pendingRequired).toContain("A6-neg-01");
     expect(pendingRequired).not.toContain("T17-neg-01"); // now resident in notice-window
     expect(pendingRequired).not.toContain("F11-neg-01");
     // the reopen/re-auction group (T22/B19) is bound to reopen-resolution — no longer pending.
@@ -279,5 +283,9 @@ describe("B2 executable vector suite inventory", () => {
     expect(pendingRequired).not.toContain("B19-neg-01");
     // occupancy (A11) is bound to occupancy.ts — no longer pending.
     expect(pendingRequired).not.toContain("A11-pos-01");
+    // the DA-locality trio (B10/D7 exclusion locality + Z9 one-clock bond) is now resident.
+    expect(pendingRequired).not.toContain("B10-pos-01");
+    expect(pendingRequired).not.toContain("D7-pos-01");
+    expect(pendingRequired).not.toContain("Z9-neg-01");
   });
 });

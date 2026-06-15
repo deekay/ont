@@ -78,9 +78,10 @@ import {
   type AuctionResolutionTranscript,
   type PriorAuctionState,
 } from "./auction-resolution.js";
-import { resolveNoticeWindow, type NoticeWindowClaim, type NoticeWindowInput } from "./notice-window.js";
+import { resolveNoticeWindow, bondInNoticeWindow, type NoticeWindowClaim, type NoticeWindowInput } from "./notice-window.js";
 import { resolveReopen, type ReopenInput } from "./reopen-resolution.js";
 import { resolveNameOccupancy } from "./occupancy.js";
+import { deriveBatchedInsertions, type BatchExclusionInput } from "./batch-exclusion.js";
 import {
   createTransferPayload,
   deriveOwnerPubkey,
@@ -227,6 +228,10 @@ const LOCAL_BINDING_MANIFEST = new Set<string>([
   "B19-neg-01",
   // occupancy family (#71)
   "A11-pos-01",
+  // DA-locality trio: batch-exclusion (#72) + Z9 one-clock bond (#73)
+  "B10-pos-01",
+  "D7-pos-01",
+  "Z9-neg-01",
 ]);
 
 // A binding may only execute a vector that is (a) locked, (b) required-tier
@@ -1489,6 +1494,64 @@ describe("B2 vector bindings — occupancy family (#71)", () => {
     // name admits — so the forfeited-admit is the post-DA-verdict distinction, not a blanket admit.
     expect(resolveNameOccupancy({ priorOccupancy: { kind: "final" } }).admitsInsertion).toBe(false);
     expect(resolveNameOccupancy({ priorOccupancy: null }).admitsInsertion).toBe(true);
+  });
+});
+
+// ---- batch-exclusion locality family (#72) ----
+// deriveBatchedInsertions is the insert-only batched merge; these bindings PROVE the exclusion-
+// locality / state-equivalence property by comparing two derivations. DA exclusion is the consumed
+// `excludedBatchIds`; #49-independent. Batches A (alice, shared) + X (bob, shared); carol prior-final.
+const exclBatch = (batchId: string, names: string[]) => ({ batchId, leaves: names.map((name) => ({ name })) });
+const exclBase: BatchExclusionInput = {
+  batches: [exclBatch("A", ["alice", "shared"]), exclBatch("X", ["bob", "shared"])],
+  excludedBatchIds: [],
+  priorFinalNames: ["carol"],
+};
+
+describe("B2 vector bindings — batch-exclusion locality family (#72)", () => {
+  it("D7-pos-01: excluding a batch equals the as-if-never-anchored state (insert-only state-equivalence)", () => {
+    const vector = loadVector("da-verdict.json", "D7-pos-01");
+    assertBindable(vector);
+    const excludeX = deriveBatchedInsertions({ ...exclBase, excludedBatchIds: ["X"] });
+    const asIfNeverAnchored = deriveBatchedInsertions({ ...exclBase, batches: [exclBatch("A", ["alice", "shared"])] });
+    const equivalenceHolds = JSON.stringify(excludeX) === JSON.stringify(asIfNeverAnchored);
+    expect(equivalenceHolds).toBe(accepts(vector)); // true === accept
+  });
+
+  it("B10-pos-01: excluding a batch removes only its leaves; every other name byte-identical, no final unseated", () => {
+    const vector = loadVector("batched-path-transitions.json", "B10-pos-01");
+    assertBindable(vector);
+    const all = deriveBatchedInsertions(exclBase);
+    const exX = deriveBatchedInsertions({ ...exclBase, excludedBatchIds: ["X"] });
+    const find = (r: typeof all, n: string) => r.insertions.find((x) => x.name === n);
+    const localityHolds =
+      JSON.stringify(find(exX, "alice")) === JSON.stringify(find(all, "alice")) && // name not in X: byte-identical
+      find(exX, "bob") === undefined && // X's own leaf vanishes
+      JSON.stringify(find(exX, "shared")?.contributingBatchIds) === JSON.stringify(["A"]) && // shared loses only X
+      JSON.stringify(exX.preservedFinalNames) === JSON.stringify(["carol"]); // final name never unseated
+    expect(localityHolds).toBe(accepts(vector)); // true === accept
+  });
+});
+
+// ---- Z9 one-clock qualifying-bond window family (#73) ----
+describe("B2 vector bindings — Z9 one-clock qualifying-bond window family (#73)", () => {
+  it("Z9-neg-01: the bond window test reads the re-derived current-chain mined height, not first-seen", () => {
+    const vector = loadVector("reorg-replay-determinism.json", "Z9-neg-01");
+    assertBindable(vector);
+    // anchorHeight 1000, W_notice 6 -> interior window [1000,1005], close 1006. Both heights are away
+    // from the edges, so the only variable is which height the test reads.
+    const anchorHeight = 1000;
+    const wNotice = 6;
+    const reDerivedHeight = 1003; // current canonical chain: in-window
+    const firstSeenHeight = 1010; // superseded pre-reorg view: out-of-window
+    const reDerived = bondInNoticeWindow(reDerivedHeight, anchorHeight, wNotice).verdict;
+    const firstSeen = bondInNoticeWindow(firstSeenHeight, anchorHeight, wNotice).verdict;
+    // a test reading first-seen height is conformant only if it agrees with the re-derived verdict;
+    // here re-derivation flips it, so "first-seen conformant" is false === the vector's reject.
+    const firstSeenConformant = firstSeen === reDerived;
+    expect(firstSeenConformant).toBe(accepts(vector)); // false === reject
+    // the re-derived current-chain verdict is the conformant (in-window) reading — the positive companion.
+    expect(reDerived).toBe("in-window");
   });
 });
 
