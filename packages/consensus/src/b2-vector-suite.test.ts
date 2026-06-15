@@ -80,6 +80,17 @@ const readyBindingTargetById: Record<string, string> = {
   "T19-pos-01": "recovery-invoke-authority: a matching challenge-window invoke is admitted (R8 equality)",
   "R18-pos-01": "engine: recovery completion is a deterministic function of (chain height, prior pendingRecovery), via refreshDerivedState",
   "G6-neg-01": "recovery-invoke-authority: pending-create is pure over witnessed evidence — no eval-time availability callback",
+  "Q1-pos-01": "auction-resolution: opening bid acceptance is a conjunction and opens the auction only when every clause holds",
+  "Q2-pos-01": "auction-resolution: opening floor keys off canonical byte length with <=4 curve / >=5 flat floor",
+  "Q3-neg-01": "auction-resolution: bond output value must be >= bid amount; under-bond or missing output rejects (PR-21)",
+  "Q4-neg-01": "auction-resolution: OP_RETURN / provably-unspendable bond outputs reject",
+  "Q7-neg-01": "auction-resolution: only accepted bids inside the soft-close window extend the close",
+  "Q9-pos-01": "auction-resolution: largest accepted bid wins; rejected larger bid cannot win; #25 tie order",
+  "Q9-neg-01": "auction-resolution: incomplete transcript fails closed; no next-lower reselection",
+  "Q10-neg-01": "auction-resolution: below-floor / non-qualifying bid has null effect",
+  "T7-neg-01": "auction-resolution: zero accepted bids yields no auction winner / no owner",
+  "T9-neg-01": "auction-resolution: declared lower or phantom winner rejects",
+  "G1-pos-01": "auction-resolution: same-block equal-amount tie resolves by lower txIndex (#25)",
 };
 
 type VectorOrigin = "vector-now" | "provisional-origin";
@@ -235,8 +246,8 @@ describe("B2 executable vector suite inventory", () => {
 
     expect(countsBy(plans.map((plan) => plan.state))).toEqual({
       "pending-dk": 8,
-      "pending-predicate": 37,
-      "ready-for-binding": 49,
+      "pending-predicate": 26,
+      "ready-for-binding": 60,
     });
   });
 
@@ -246,12 +257,14 @@ describe("B2 executable vector suite inventory", () => {
       .map((plan) => plan.vector.id)
       .sort();
 
-    expect(pendingRequired).toHaveLength(37);
+    expect(pendingRequired).toHaveLength(26);
     // the entire recovery-parked group (R1/R2/R7/R9/R10-01/R10-02/T19 + now R18 completion / G6
     // no-callback purity) is bound to the resident recovery surface — no recovery vector remains.
+    // the winner-selection / bid-acceptance group (Q1/Q2/Q3/Q4/Q7/Q9/Q10 + T7/T9/G1) is bound to
+    // auction-resolution — no auction vector remains pending-predicate.
     expect(pendingRequired).toContain("B10-pos-01"); // B1/B3/B4/B10-neg/B6 now resident; B10-pos deferred (locality surface)
     expect(pendingRequired).toContain("D7-pos-01"); // promoted via #66; same deferred DA locality/state-equivalence surface as B10-pos — pending-predicate, not a ready binding target
-    expect(pendingRequired).toContain("T7-neg-01"); // T1/T2/T21 are now resident; T7 (auction resolution) stays pending
-    expect(pendingRequired).toContain("Q10-neg-01");
+    expect(pendingRequired).toContain("T17-neg-01"); // claim-counting / notice-window resolution remains a separate surface
+    expect(pendingRequired).toContain("F11-neg-01");
   });
 });

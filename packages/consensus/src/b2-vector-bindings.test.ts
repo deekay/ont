@@ -69,6 +69,16 @@ import {
   type SettlementLockCommitment,
 } from "./settlement.js";
 import {
+  acceptAuctionBid,
+  openingFloor,
+  selectAuctionWinner,
+  type AuctionBidFacts,
+  type AuctionBondFacts,
+  type AuctionParams,
+  type AuctionResolutionTranscript,
+  type PriorAuctionState,
+} from "./auction-resolution.js";
+import {
   createTransferPayload,
   deriveOwnerPubkey,
   encodeTransferPayload,
@@ -193,6 +203,18 @@ const LOCAL_BINDING_MANIFEST = new Set<string>([
   // recovery completion (R18, via refreshDerivedState) + pending-create purity (G6, no callback)
   "R18-pos-01",
   "G6-neg-01",
+  // auction-resolution family (#68)
+  "Q1-pos-01",
+  "Q2-pos-01",
+  "Q3-neg-01",
+  "Q4-neg-01",
+  "Q7-neg-01",
+  "Q9-pos-01",
+  "Q9-neg-01",
+  "Q10-neg-01",
+  "T7-neg-01",
+  "T9-neg-01",
+  "G1-pos-01",
 ]);
 
 // A binding may only execute a vector that is (a) locked, (b) required-tier
@@ -1124,6 +1146,200 @@ describe("B2 vector bindings — reorg/replay-determinism family (over resident 
     const wallClockAffectsVerdict = farFuture.accepted !== farPast.accepted || farFuture.reason !== farPast.reason;
     expect(wallClockAffectsVerdict).toBe(accepts(vector)); // false === reject
     expect(farFuture).toEqual(farPast); // byte-identical verdict at any host clock
+  });
+});
+
+// ---- auction-resolution family (#68) ----
+const AUCTION_PARAMS: AuctionParams = {
+  baseWindowBlocks: 1_008,
+  softCloseWindowBlocks: 144,
+  minRaiseSats: 1_000n,
+  minRaiseBasisPoints: 500,
+  softCloseMinRaiseSats: 1_000n,
+  softCloseMinRaiseBasisPoints: 1_000,
+};
+const auctionTxid = (byte: string): string => byte.repeat(64);
+const auctionPubkey = (byte: string): string => byte.repeat(64);
+const auctionBid = (overrides: Partial<AuctionBidFacts> = {}): AuctionBidFacts => ({
+  bidAmountSats: 50_000n,
+  minedHeight: 900_000,
+  bondVout: 1,
+  lotBinding: { kind: "b3-verified-auction-lot-binding" },
+  ...overrides,
+});
+const auctionPaymentBond = (valueSats: bigint): AuctionBondFacts => ({
+  kind: "b3-verified-bidder-controlled-payment",
+  valueSats,
+});
+const auctionUnopened = (openingFloorSats = 50_000n): PriorAuctionState => ({
+  openingFloorSats,
+  currentLeaderAmountSats: null,
+  currentCloseHeight: null,
+});
+const auctionOpened = (overrides: Partial<PriorAuctionState> = {}): PriorAuctionState => ({
+  openingFloorSats: 50_000n,
+  currentLeaderAmountSats: 100_000n,
+  currentCloseHeight: 901_000,
+  ...overrides,
+});
+const auctionComplete = { complete: true, reason: "transcript-complete" } as const;
+const auctionTranscriptBid = (overrides: Partial<AuctionResolutionTranscript["bids"][number]> = {}) => ({
+  txid: auctionTxid("a"),
+  bondVout: 1,
+  bidderPubkey: auctionPubkey("1"),
+  bidAmountSats: 100_000n,
+  accepted: true,
+  blockHeight: 900_000,
+  txIndex: 1,
+  ...overrides,
+});
+const auctionTranscript = (bids: AuctionResolutionTranscript["bids"]): AuctionResolutionTranscript => ({ bids });
+
+describe("B2 vector bindings — auction-resolution family (#68)", () => {
+  it("Q1-pos-01: an at-floor opening bid satisfying every acceptance clause opens the auction", () => {
+    const vector = loadVector("winner-selection.json", "Q1-pos-01");
+    assertBindable(vector);
+    expect(acceptAuctionBid(auctionBid(), auctionPaymentBond(50_000n), auctionUnopened(), AUCTION_PARAMS).accepted).toBe(
+      accepts(vector)
+    ); // accept
+    expect(
+      acceptAuctionBid(
+        auctionBid({ bidAmountSats: 49_999n }),
+        auctionPaymentBond(49_999n),
+        auctionUnopened(),
+        AUCTION_PARAMS
+      )
+    ).toMatchObject({ accepted: false, stateEffect: "none" }); // one sat below opens nothing
+  });
+
+  it("Q2-pos-01: opening floor keys off canonical byte length with <=4 curve / >=5 flat clamp", () => {
+    const vector = loadVector("winner-selection.json", "Q2-pos-01");
+    assertBindable(vector);
+    const p1 = { oneCharPriceSats: 100_000_000n, longNameFloorSats: 50_000n };
+    const p2 = { oneCharPriceSats: 80_000_000n, longNameFloorSats: 70_000n };
+    expect(openingFloor({ canonicalNameByteLength: 4 }, p1).computed).toBe(accepts(vector)); // accept
+    expect(openingFloor({ canonicalNameByteLength: 4 }, p1).floorSats).toBe(12_500_000n);
+    expect(openingFloor({ canonicalNameByteLength: 5 }, p1).floorSats).toBe(50_000n);
+    expect(openingFloor({ canonicalNameByteLength: 4 }, p2).floorSats).toBe(10_000_000n);
+    expect(openingFloor({ canonicalNameByteLength: 5 }, p2).floorSats).toBe(70_000n);
+  });
+
+  it("Q3-neg-01: under-bond and missing output reject; exact and over-bond pass the PR-21 value clause", () => {
+    const vector = loadVector("winner-selection.json", "Q3-neg-01");
+    assertBindable(vector);
+    expect(
+      acceptAuctionBid(auctionBid({ bidAmountSats: 50_000n }), auctionPaymentBond(49_999n), auctionUnopened(), AUCTION_PARAMS)
+        .accepted
+    ).toBe(accepts(vector)); // reject
+    expect(acceptAuctionBid(auctionBid(), { kind: "missing", valueSats: null }, auctionUnopened(), AUCTION_PARAMS).accepted).toBe(false);
+    expect(acceptAuctionBid(auctionBid(), auctionPaymentBond(50_000n), auctionUnopened(), AUCTION_PARAMS).accepted).toBe(true);
+    expect(acceptAuctionBid(auctionBid(), auctionPaymentBond(60_000n), auctionUnopened(), AUCTION_PARAMS).accepted).toBe(true);
+  });
+
+  it("Q4-neg-01: OP_RETURN / unspendable bond outputs are rejected even with sufficient value", () => {
+    const vector = loadVector("winner-selection.json", "Q4-neg-01");
+    assertBindable(vector);
+    expect(
+      acceptAuctionBid(auctionBid(), { kind: "op_return", valueSats: 50_000n }, auctionUnopened(), AUCTION_PARAMS)
+        .accepted
+    ).toBe(accepts(vector)); // reject
+    expect(
+      acceptAuctionBid(auctionBid(), { kind: "provably-unspendable", valueSats: 50_000n }, auctionUnopened(), AUCTION_PARAMS)
+        .accepted
+    ).toBe(false);
+    expect(acceptAuctionBid(auctionBid(), auctionPaymentBond(50_000n), auctionUnopened(), AUCTION_PARAMS).accepted).toBe(true);
+  });
+
+  it("Q7-neg-01: rejected bids do not extend soft-close; accepted in-window bids do", () => {
+    const vector = loadVector("winner-selection.json", "Q7-neg-01");
+    assertBindable(vector);
+    const rejected = acceptAuctionBid(
+      auctionBid({ bidAmountSats: 109_999n, minedHeight: 900_900 }),
+      auctionPaymentBond(109_999n),
+      auctionOpened(),
+      AUCTION_PARAMS
+    );
+    const rejectedBidExtended = rejected.nextCloseHeight !== auctionOpened().currentCloseHeight;
+    expect(rejectedBidExtended).toBe(accepts(vector)); // false === reject
+    const accepted = acceptAuctionBid(
+      auctionBid({ bidAmountSats: 110_000n, minedHeight: 900_900 }),
+      auctionPaymentBond(110_000n),
+      auctionOpened(),
+      AUCTION_PARAMS
+    );
+    expect(accepted).toMatchObject({ accepted: true, nextCloseHeight: 901_044 });
+  });
+
+  it("Q9-pos-01: largest accepted bid wins; rejected larger bids cannot win; #25 tie order applies", () => {
+    const vector = loadVector("winner-selection.json", "Q9-pos-01");
+    assertBindable(vector);
+    const result = selectAuctionWinner(
+      auctionTranscript([
+        auctionTranscriptBid({ txid: auctionTxid("a"), bidAmountSats: 100_000n, txIndex: 1 }),
+        auctionTranscriptBid({ txid: auctionTxid("b"), bidAmountSats: 200_000n, txIndex: 2 }),
+        auctionTranscriptBid({ txid: auctionTxid("c"), bidAmountSats: 300_000n, accepted: false, txIndex: 3 }),
+      ]),
+      auctionComplete
+    );
+    expect(result.selected).toBe(accepts(vector)); // accept
+    expect(result.winner).toMatchObject({ txid: auctionTxid("b"), bidAmountSats: 200_000n });
+  });
+
+  it("Q9-neg-01: incomplete transcripts fail closed instead of selecting the next-lower bid", () => {
+    const vector = loadVector("winner-selection.json", "Q9-neg-01");
+    assertBindable(vector);
+    expect(
+      selectAuctionWinner(auctionTranscript([auctionTranscriptBid()]), { complete: false, reason: "omitted-bid" }).selected
+    ).toBe(accepts(vector)); // reject
+  });
+
+  it("Q10-neg-01: a non-qualifying bid has null effect and opens no auction", () => {
+    const vector = loadVector("winner-selection.json", "Q10-neg-01");
+    assertBindable(vector);
+    const outcome = acceptAuctionBid(
+      auctionBid({ bidAmountSats: 49_999n }),
+      auctionPaymentBond(49_999n),
+      auctionUnopened(),
+      AUCTION_PARAMS
+    );
+    expect(outcome.accepted).toBe(accepts(vector)); // reject
+    expect(outcome).toMatchObject({ stateEffect: "none", nextLeaderAmountSats: null, nextCloseHeight: null });
+  });
+
+  it("T7-neg-01: zero accepted bids yields no auction winner / no owner", () => {
+    const vector = loadVector("transcript-completeness.json", "T7-neg-01");
+    assertBindable(vector);
+    expect(selectAuctionWinner(auctionTranscript([auctionTranscriptBid({ accepted: false })]), auctionComplete).selected).toBe(
+      accepts(vector)
+    ); // reject
+  });
+
+  it("T9-neg-01: lower declared winners and phantom winner txids reject", () => {
+    const vector = loadVector("transcript-completeness.json", "T9-neg-01");
+    assertBindable(vector);
+    const bids = [
+      auctionTranscriptBid({ txid: auctionTxid("a"), bondVout: 1, bidAmountSats: 100_000n }),
+      auctionTranscriptBid({ txid: auctionTxid("b"), bondVout: 2, bidAmountSats: 200_000n }),
+    ];
+    expect(selectAuctionWinner(auctionTranscript(bids), auctionComplete, { txid: auctionTxid("a"), bondVout: 1 }).selected).toBe(
+      accepts(vector)
+    ); // reject
+    expect(selectAuctionWinner(auctionTranscript(bids), auctionComplete, { txid: auctionTxid("c"), bondVout: 1 }).selected).toBe(false);
+    expect(selectAuctionWinner(auctionTranscript(bids), auctionComplete, { txid: auctionTxid("b"), bondVout: 2 }).selected).toBe(true);
+  });
+
+  it("G1-pos-01: same-block equal-amount tied bids resolve by lower txIndex, with no self-placement veto", () => {
+    const vector = loadVector("kernel-wide-glue.json", "G1-pos-01");
+    assertBindable(vector);
+    const result = selectAuctionWinner(
+      auctionTranscript([
+        auctionTranscriptBid({ txid: auctionTxid("a"), bidAmountSats: 100_000n, blockHeight: 900_000, txIndex: 5 }),
+        auctionTranscriptBid({ txid: auctionTxid("b"), bidAmountSats: 100_000n, blockHeight: 900_000, txIndex: 2 }),
+      ]),
+      auctionComplete
+    );
+    expect(result.selected).toBe(accepts(vector)); // accept
+    expect(result.winner).toMatchObject({ txid: auctionTxid("b"), txIndex: 2 });
   });
 });
 

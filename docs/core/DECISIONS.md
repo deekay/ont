@@ -1645,6 +1645,46 @@ or on the witness is admitted as authority. Spec: RECOVERY_AUTH §3 + §3c; `WIR
 `B2_KERNEL_HARDENING.md` R-rows; DECISIONS #50/#59/#66. This satisfies #44's "boundary may change only
 with a DECISIONS entry + conformance coverage"; the boundary freezes at launch.
 
+68. b2-auction-resolution-boundary: the auction opening-floor, bid-acceptance, and
+winner-selection predicates enter @ont/consensus as pure CONSENSUS_VERDICTS deciders riding
+nothing external — 2026-06-15
+
+*Status: **Proposed** (writer ChatLunatique, reviewer ClaudeleLunatique; lands on branch
+clean-build-b2-kernel, DK merges). A boundary-manifest addition under #44, riding the
+CONSENSUS_VERDICTS tier established by #59 — a new pure verdict module, NOT a tier-widening.
+Its external allowlist is empty: no `@ont/core` auction simulator/policy, no indexer/resolver,
+no research/simulation code, no host I/O. NO new consensus law: it lands the already-ratified
+auction rules from #37/#25 and #66 (PR-14, PR-19, PR-20, PR-21). Covered by conformance:
+`trust-surface.test.ts` (`auction-resolution.ts` in CONSENSUS_VERDICTS with an empty allowlist),
+`auction-resolution.test.ts` (predicate battery), and the Q/T/G auction bindings in
+`b2-vector-bindings.test.ts`. Authored under DK's keep-going grant.*
+
+**The rule.** Three narrow pure predicates:
+- `openingFloor(nameFacts, floorParams)` (Q2; PR-14/#11): given the canonical name byte length
+  and caller-supplied launch floor parameters, names of length `<=4` use the short-name halving
+  curve clamped by the long-name floor, while names of length `>=5` use the flat long-name floor.
+  Concrete prices remain launch-freeze inputs.
+- `acceptAuctionBid(bidFacts, bondFacts, priorAuctionState, auctionParams)` (Q1/Q3/Q4/Q7/Q10;
+  PR-19/PR-21/#37): acceptance is a conjunction over the opening/increment minimum, timing,
+  B3-verified lot binding, and bond facts. The bond output must be a B3-verified bidder-controlled
+  payment output whose value is **at least** `bidAmountSats` (PR-21: over-bonding is allowed);
+  missing, under-bonded, OP_RETURN, provably-unspendable, or unknown outputs reject. Non-accepted
+  bids have `stateEffect: "none"` and cannot open an auction, create a contested state, count as a
+  claim/collision, or extend soft-close.
+- `selectAuctionWinner(transcript, transcriptCompletenessVerdict, declaredWinner?)` (Q9/T7/T9/G1;
+  #37/#25): winner selection is defined only over a complete transcript. Zero accepted bids yields
+  no winner / no owner; rejected bids never win; the largest accepted bid wins; same-block
+  equal-amount ties resolve to the lower transaction index; a lower or phantom declared winner
+  rejects.
+
+The module deliberately excludes: production indexer integration; the concrete completeness-witness
+format; positive bond-script-class enumeration; bidder-control proof construction; one-bond-one-bid
+and same-bidder replacement-chain validation (Q8/F13/F14/T12). Those are later B3/auction slices.
+Total / fail-closed + closed-shape (the #63–#67 discipline): malformed inputs or extra fields reject
+and never throw, so no catalog/source/producer field is admitted as authority. This satisfies #44's
+"boundary may change only with a DECISIONS entry + conformance coverage"; the boundary freezes at
+launch.
+
 ## Fairness Principles To Carry Into The Launch Rewrite
 
 The rewritten launch draft should explicitly state:

@@ -54,3 +54,7 @@ export * from "./settlement.js";
 // acceptRecoverOwner predicate (R7/R10/R6/R3/R2/R4/R5 + §3c evidence-gated admission). Rides the
 // audited @ont/wire digests/verifier only. See DECISIONS b2-recovery-invoke-authority-boundary (#67).
 export * from "./recovery-invoke-authority.js";
+// The auction-resolution predicates (#68, riding #59's verdict tier): pure opening-floor,
+// bid-acceptance, and winner-selection verdicts. Rides no external package; launch values and
+// B3-verified lot/script facts enter as caller inputs.
+export * from "./auction-resolution.js";
