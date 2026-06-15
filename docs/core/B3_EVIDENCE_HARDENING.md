@@ -810,3 +810,12 @@ order — a height-only/input-order fold opens the wrong bid and mismatches its 
 `cw.malformed-witness-bid` (a malformed witness-bid envelope — negative `txIndex` — ⇒ no throw +
 `cw-witness-malformed`, forcing total fail-closed validation of the bid envelope before the fold).
 25 cw.* total (23 red, `producer-asserted` + `bare-placeholder-rejected` green shape-guards).
+
+**§13 GREEN (CL red-OK on `8ff3563`).** `completenessOverRange` implemented: total fail-closed witness
+envelope validation (closed-shape, txid/txIndex/bid/bond shapes, `softCloseWindow > 0` D-CW-strict) +
+duplicate txid / chain-position rejection BEFORE the fold; canonical `(minedHeight, txIndex)` sort;
+fold the resident `acceptAuctionBid` threading `PriorAuctionState` (recompute every effect — a supplied
+`effect` is cross-checked, never trusted); exactly one `opens-auction` + optional `openHeight`
+cross-check; `finalClose` from the witnessed fold (not the count); symmetric set-equality of the counted
+txids vs the witnessed in-range bids over `[openHeight, finalClose]`. 23 cw.* GREEN; `@ont/consensus`
+445 pass / 2 skip (no regression), `@ont/evidence` 45/45, purity green.

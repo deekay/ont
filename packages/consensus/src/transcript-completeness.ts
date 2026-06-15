@@ -188,22 +188,143 @@ export function transcriptCompleteness(
 }
 
 // --- D-CW: lot block / soft-close range + symmetric set-equality (B3 §13). -------------------
+const isNonNegBigInt = (x: unknown): x is bigint => typeof x === "bigint" && x >= 0n;
 const isCompletenessWitnessLot = (x: unknown): x is CompletenessWitnessLot =>
-  isObject(x) && isClosedShape(x, WITNESS_LOT_KEYS) && (x.openHeight === undefined || isSafeNonNegInt(x.openHeight));
+  isObject(x) &&
+  isClosedShape(x, WITNESS_LOT_KEYS) &&
+  isNonNegBigInt(x.openingFloorSats) &&
+  (x.openHeight === undefined || isSafeNonNegInt(x.openHeight));
+
+// acceptAuctionBid reasons that mean the INPUT is malformed (vs a legitimate "none" rejection). A
+// malformed bid/bond/param or an overflowing close height is a malformed witness, not an outcome.
+const CW_FOLD_MALFORMED_REASONS = new Set<string>([
+  "q1-bid-facts-malformed",
+  "q3-bond-facts-malformed",
+  "q1-prior-auction-state-malformed",
+  "q1-auction-params-malformed",
+  "q1-auction-close-height-overflow",
+  "q7-soft-close-height-overflow",
+]);
+const CW_EFFECTS = new Set<AuctionBidStateEffect>(["none", "opens-auction", "updates-leading-bid"]);
+const WITNESS_BID_REQUIRED = ["txid", "txIndex", "bidFacts", "bondFacts"] as const;
+
+interface FoldBid {
+  readonly txid: string;
+  readonly minedHeight: number;
+  readonly txIndex: number;
+  readonly bidFacts: AuctionBidFacts;
+  readonly bondFacts: AuctionBondFacts;
+  readonly effect?: AuctionBidStateEffect;
+}
 
 /**
- * D-CW stub (tests-first): the fold over `acceptAuctionBid` + the boundary / set-equality logic
- * land on CL's red-battery review. Until then this is a sentinel so the `cw.*` battery is RED.
+ * D-CW: recompute the lot block / soft-close range over the witness and check completeness. Validate
+ * the witness envelope totally (closed-shape, txid/txIndex/bid/bond shapes, no duplicate txid or
+ * chain position) BEFORE any fold; sort by (minedHeight, txIndex); fold the resident
+ * `acceptAuctionBid` (which computes the acceptance-only close) threading prior state; cross-check a
+ * supplied `effect` against the recomputation; require exactly one opener; then symmetric
+ * set-equality of the counted txids vs the witnessed in-range bids over [openHeight, finalClose].
  */
 function completenessOverRange(
   witness: Record<string, unknown>,
   counted: ReadonlySet<string>,
 ): TranscriptCompletenessVerdict {
-  if (!isCompletenessWitnessLot(witness.lot) || !Array.isArray(witness.bids)) {
+  const lot = witness.lot;
+  if (!isCompletenessWitnessLot(lot) || !Array.isArray(witness.bids)) {
     return reject("cw-witness-malformed");
   }
-  void acceptAuctionBid;
-  void counted;
-  void (null as unknown as PriorAuctionState);
-  return reject("cw-range-not-implemented");
+  // D-CW-strict: softCloseWindow MUST be > 0 (acceptAuctionBid only requires >= 0). Other param
+  // malformations (non-positive base window, overflow, wrong types) are caught by the fold below.
+  const params = lot.params as unknown;
+  if (isObject(params) && typeof params.softCloseWindowBlocks === "number" && params.softCloseWindowBlocks <= 0) {
+    return reject("cw-witness-malformed");
+  }
+
+  // Total fail-closed validation of every witness-bid envelope, before the fold.
+  const parsed: FoldBid[] = [];
+  for (const b of witness.bids) {
+    if (
+      !isObject(b) ||
+      !isClosedShape(b, WITNESS_BID_KEYS) ||
+      !WITNESS_BID_REQUIRED.every((k) => Object.prototype.hasOwnProperty.call(b, k)) ||
+      typeof b.txid !== "string" ||
+      !isWellFormedTxid(b.txid) ||
+      !isSafeNonNegInt(b.txIndex) ||
+      !isObject(b.bidFacts) ||
+      !isSafeNonNegInt(b.bidFacts.minedHeight) ||
+      !isObject(b.bondFacts) ||
+      (b.effect !== undefined && !CW_EFFECTS.has(b.effect as AuctionBidStateEffect))
+    ) {
+      return reject("cw-witness-malformed");
+    }
+    parsed.push({
+      txid: b.txid,
+      minedHeight: b.bidFacts.minedHeight,
+      txIndex: b.txIndex,
+      bidFacts: b.bidFacts as unknown as AuctionBidFacts,
+      bondFacts: b.bondFacts as unknown as AuctionBondFacts,
+      ...(b.effect !== undefined ? { effect: b.effect as AuctionBidStateEffect } : {}),
+    });
+  }
+
+  // Duplicate txid + duplicate (minedHeight, txIndex), before sort/fold (ordering must be determined).
+  const seenTxid = new Set<string>();
+  const seenPosition = new Set<string>();
+  for (const b of parsed) {
+    if (seenTxid.has(b.txid)) return reject("cw-duplicate-witness-txid");
+    seenTxid.add(b.txid);
+    const position = JSON.stringify([b.minedHeight, b.txIndex]);
+    if (seenPosition.has(position)) return reject("cw-duplicate-chain-position");
+    seenPosition.add(position);
+  }
+
+  // Canonical fold order: (minedHeight, txIndex).
+  const ordered = [...parsed].sort((a, b) => a.minedHeight - b.minedHeight || a.txIndex - b.txIndex);
+
+  // Fold acceptAuctionBid, recomputing every effect; never trust a supplied `effect`.
+  let prior: PriorAuctionState = {
+    openingFloorSats: lot.openingFloorSats,
+    currentLeaderAmountSats: null,
+    currentCloseHeight: null,
+  };
+  let openHeight: number | null = null;
+  let openerCount = 0;
+  for (const b of ordered) {
+    const v = acceptAuctionBid(b.bidFacts, b.bondFacts, prior, lot.params);
+    if (CW_FOLD_MALFORMED_REASONS.has(v.reason)) {
+      return reject("cw-witness-malformed");
+    }
+    if (b.effect !== undefined && b.effect !== v.stateEffect) {
+      return reject("cw-effect-forgery");
+    }
+    if (v.stateEffect === "opens-auction") {
+      openerCount += 1;
+      openHeight = b.minedHeight;
+    }
+    if (v.accepted) {
+      prior = {
+        openingFloorSats: lot.openingFloorSats,
+        currentLeaderAmountSats: v.nextLeaderAmountSats,
+        currentCloseHeight: v.nextCloseHeight,
+      };
+    }
+  }
+  if (openerCount === 0 || openHeight === null) return reject("cw-no-opener");
+  if (openerCount > 1) return reject("cw-two-openers");
+  if (lot.openHeight !== undefined && lot.openHeight !== openHeight) return reject("cw-open-height-mismatch");
+  const finalClose = prior.currentCloseHeight;
+  if (finalClose === null) return reject("cw-no-opener");
+
+  // Symmetric set-equality: counted txids === witnessed in-range bids over [openHeight, finalClose].
+  const inRange = new Set<string>();
+  for (const b of parsed) {
+    if (b.minedHeight >= openHeight && b.minedHeight <= finalClose) inRange.add(b.txid);
+  }
+  for (const txid of inRange) {
+    if (!counted.has(txid)) return reject("cw-incomplete");
+  }
+  for (const txid of counted) {
+    if (!inRange.has(txid)) return reject("cw-padded");
+  }
+  return accept();
 }
