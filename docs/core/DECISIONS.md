@@ -2118,13 +2118,109 @@ K-depth, or non-nonnegative-bigint fee input contributes no fee fact and never t
 #44's "boundary may change only with a DECISIONS entry + conformance coverage"; the boundary freezes
 at launch.
 
+82. da-trust-model: the DA trust model, named — ONT separates safety (validity) from liveness
+(availability) and never lets the second decide the first. **Acquisition ownership and
+contest/availability verdicts** are a pure function of Bitcoin + presented commitment-matching bytes
+with no consensus authority slot (value-record *validity* is pure given inputs; *freshness* is
+resolver liveness); availability is a bootstrapped, 1-of-N, fail-closed liveness property. **Enforced**
+light-client Bitcoin verification is a launch gate for the firewall claim — 2026-06-15
+
+*Status: **Proposed** (writer ClaudeleLunatique, reviewer ChatLunatique; lands on branch
+spec-da-trust-model, off main, DK merges). Consolidates and names what the Data-Availability
+Agreement §8/§8b already build; **NO new consensus mechanism** — it pins invariants that already
+follow from the layer model (adapters never decide), §215 (bonded attestation rejected), and
+da-windows #49 / `DA_WINDOWS` S6 (finalize-once). The one forward commitment is the SPV-before-launch
+gate (DK ruling, event b90b66bf). Normative invariants: DA agreement §8c (candidate tier). Rationale
++ threat-model posture + bootstrap commitment + reviewer checklist:
+`../research/ONT_DECENTRALIZATION_AND_DISCOVERY.md` "The trust model: safety vs liveness".
+ChatLunatique adversarial pass (event 7932d882) confirmed NO new consensus mechanism after three
+precision-narrowings, applied here: value-records scoped out of DA consensus (validity pure given
+inputs, freshness = resolver liveness); "resolvers never decide" scoped to consensus/kernel verifiers
+(product/UX paths consume resolvers for liveness only — `apps/claim` owner→names wording is now
+requalified as convenience, not authority); zero-theft scoped post-gate (a structure-only client is exposed until
+`verifyProofBundleAgainstBitcoin` is enforced).*
+
+**The four invariants.** (1) **No consensus verifier consumes resolver output** — no `@ont/consensus`
+predicate or availability verdict takes resolver/indexer output as a deciding input; a lying source is
+caught by verification, a missing one is fail-closed. (Product/UX paths do consume resolvers for
+liveness/display — value-history fanout, the owner→names convenience endpoint — never as authority.)
+(2) **Checkpoints never enter consensus** — an availability/completeness checkpoint (gossip or L1) is
+a falsifiable reputation signal only; treating it as proof of availability is the rejected
+bonded-attestation shape (§215). (3) **Finalize-once** — once a *Bitcoin-verified, complete,
+verifier-accepted* availability verdict settles (`h + W + C`, #49) it is never revised; a name proven
+available in-window stays owned even if content later goes dark, and a *continuing* availability
+requirement is rejected because it would let later censorship strip a settled name (liveness failure →
+theft). The qualifier prevents finalize-once locking a verdict reached on an incomplete/fabricated
+witness. (4) **Enforced verification + launch gate** — the verifier primitive exists
+(`verifyProofBundleAgainstBitcoin`, PoW/Merkle via `bitcoinInclusion`) but is not enforced on launch
+clients (CLI/wallet call `verifyProofBundle`, the deprecated structural alias); a structure-only
+client does not catch a fabricated anchor, and PoW/Merkle alone proves inclusion in *a* valid-work
+header, not the canonical best chain. Pre-gate claim: resolvers/publishers cannot forge a valid
+*consensus witness* — not that a structure-only client has zero theft exposure. DK ruling: clients
+MUST require `bitcoinInclusion` and run `verifyProofBundleAgainstBitcoin` against an independent
+canonical header source on every relevant proof path — the launch gate for the firewall claim.
+
+**Posture (the reviewer-facing line).** During bootstrap the operator holds temporary
+censorship/liveness power (deny by withholding) but zero theft power (cannot forge ownership — bad
+bytes fail the seal; cannot strip a settled name — finalize-once); that censorship power erodes as
+independent archives appear. (Zero-theft is *post-gate*: it holds for a client running the enforced
+`verifyProofBundleAgainstBitcoin` path; a structure-only client is exposed to a fabricated anchor
+until that gate is wired — which is why invariant 4 is a launch gate.) Safety is unconditional and never centralized; only liveness is
+centralized, temporarily, and provably decays — precisely early Bitcoin's posture. Design-space: ONT
+is at all-data-on-L1 for contested names and honest-mirror-market for the long tail, with DA sampling
++ erasure coding (§7 option C) named as the known ceiling. The honest claim is that long-tail
+availability is a bootstrapped liveness property that decentralizes over time, not a cryptographic
+guarantee.
+
+83. batch-completeness: promote `RootAnchor.batchSize` from committed-but-informational to
+**kernel-enforced completeness** — a batch counts only when the complete N-leaf bundle is presentable
+and reconstructs the anchored root by `h+W+C`; any missing leaf fails the whole batch closed — 2026-06-15
+
+*Status: **RATIFIED — O2 (DK, event 7e00aa7f, 2026-06-15).** NEW consensus law. Writer
+ClaudeleLunatique; reviewer ChatLunatique — round-2 sign-off (event 552a49a9): O2 > O3, classification
+confirmed, all blockers closed. Decision paper: `../research/DA_BATCH_COMPLETENESS.md`. Unlike #82
+(consolidation), this DOES add a kernel gating requirement (a conjunct of `includable`). No wire
+change (`batchSize` already committed, WIRE §4.4). **NO implementation until the 12-test conformance
+matrix below is built (tests-first); then the `includable` exact-delta-replay conjunct + the D-CV
+projection enrichment — they land together.***
+
+**The question.** `batchSize` is committed on-chain but the kernel `includable` predicate does not
+require the served-bytes witness to demonstrate all N leaves. Promote it to a gating requirement?
+
+**Recommendation: O2 (kernel-enforced whole-batch completeness).** `includable(anchor, evidence, W,
+C)` requires an **exact complete delta witness** by `h+W+C`: exactly `batchSize` unique canonical leaf
+keys, applied to the base (`prevRoot` / D-CV base snapshot), recompute the anchored `newRoot`.
+Membership proofs for the presented N are NOT enough — only the full `prevRoot → newRoot` replay
+proves no leaf was omitted ("all N", not "these N"). Any count mismatch / duplicate key / malformed
+leaf / unverifiable owner binding / non-replaying witness fails the whole batch closed. Rationale:
+matches §6c (batch-level exclusion already); makes the committed count meaningful (auditable
+completeness via the da-trust-model mirror market; bond-free long-tail contention discovery);
+withholding is self-harm + detectable. **Cost (falls on users, not just the producer):** one
+malformed/missing leaf or a publisher operational failure fails the whole batch — every user in it
+must re-anchor; liveness/self-harm, never theft; mitigate with batch-size caps, pre-seal validation,
+content-addressed mirrors, a user retry/reclaim path, and the direct-L1/bonded path for high-value
+names. Alternative O3 (per-leaf) is gentler but loses the completeness guarantee. **Convergence:** O2
+*forces and closes* the owner-identity hole in ChatLunatique's open D-CV blocker but does NOT fully
+specify D-CV — the closed projection (name/leaf-key, owner identity-or-commitment, owner↔value
+binding, anchor coords + per-tx instance discriminator, batch identity + dup handling, DA
+verdict/first-complete height, base-root relationship) is D-CV's own deliverable; they land together.
+
+**Ratification gate (conformance matrix; each → a vector). Core six:** (1) full-N required; (2)
+hidden-claim no-effect (#37/#69); (3) mirror-lies-fail; (4) projection-carries-owner; (5)
+copied-anchor grief-not-steal *(inherited #82)*; (6) finalize-once *(inherited #82)*. **Plus the
+exactness/timing/reorg battery (ChatLunatique round-1):** (7) exact-N / no extras (N−1, N+1,
+duplicate key fail; `batchSize=0`/no-op anchors **REJECTED** per reviewer rec — no DA clock, no
+root-chain position, matches `no_op_transition`); (8) replay-from-base (verifies against
+`newRoot` but cannot replay `prevRoot→newRoot` fails); (9) one bad leaf poisons the batch; (10)
+partial timing (N−1 by `h+W`, last leaf in `(h+W, h+W+C]` → includable, no priority; after `h+W+C` →
+whole batch excluded); (11) reorg/re-mine (stale-anchor evidence cannot carry; deadlines re-derive
+from the canonical anchor); (12) projection closure (missing owner/anchor-coords/dup-ambiguity or
+producer-asserted `complete=true` all fail closed).
 84. availability-height: what confirmed-chain fact mints the DA first-servable-height — **RATIFIED
 O1 + O3** (DK, event 4e11b64b, 2026-06-15)
 
 *Status: **RATIFIED.** Writer ClaudeleLunatique; reviewer ChatLunatique (classification concurred).
-Decision paper: `../research/DA_AVAILABILITY_HEIGHT.md`. (Numbering note: #82 da-trust-model and #83
-batch-completeness are reserved on the off-main `spec-da-trust-model` / `spec-batch-completeness`
-stack; this entry is #84 — order them at the main merge.)*
+Decision paper: `../research/DA_AVAILABILITY_HEIGHT.md`.*
 
 **The rule.** `firstServableHeight` is established by **O1** (fail-closed over the *presented* content
 witness): the height **is the anchor's mined height `h`**; absent a presented witness that
