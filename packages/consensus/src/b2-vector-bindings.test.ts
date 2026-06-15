@@ -79,6 +79,7 @@ import {
   type PriorAuctionState,
 } from "./auction-resolution.js";
 import { resolveNoticeWindow, type NoticeWindowClaim, type NoticeWindowInput } from "./notice-window.js";
+import { resolveReopen, type ReopenInput } from "./reopen-resolution.js";
 import {
   createTransferPayload,
   deriveOwnerPubkey,
@@ -219,6 +220,10 @@ const LOCAL_BINDING_MANIFEST = new Set<string>([
   // notice-window resolution family (#69)
   "T17-neg-01",
   "F11-neg-01",
+  // reopen/re-auction resolution family (#70)
+  "T22-neg-01",
+  "T22-neg-02",
+  "B19-neg-01",
 ]);
 
 // A binding may only execute a vector that is (a) locked, (b) required-tier
@@ -1411,6 +1416,59 @@ describe("B2 vector bindings — notice-window resolution family (#69)", () => {
       noticeInput({ claims: [nwDaValid(NW_OWNER_A), nwDaExcluded(NW_OWNER_B)] })
     );
     expect(borderlineMisses).toMatchObject({ outcome: "finalized", awarded: true, daValidOwnerCount: 1 });
+  });
+});
+
+// ---- reopen/re-auction resolution family (#70) ----
+// resolveReopen derives the latest bond-break release height FROM the witnessed `breaks` (kernel-
+// derived, B19/#42/#56), so these fixtures vary the witnessed facts to show the no-actor / no-adapter
+// / fail-closed-incomplete-witness authority. recognized===false maps to each negative vector.
+const reopenComplete = (breaks: { releaseHeight: number }[]) => ({ witnessComplete: true, breaks });
+const reopenInput = (
+  kind: "opening" | "reopen",
+  releaseAnchor: number,
+  witnessComplete: boolean,
+  breaks: { releaseHeight: number }[]
+): ReopenInput => ({ reopenLot: { kind, releaseAnchor }, bondContinuity: { witnessComplete, breaks } });
+
+describe("B2 vector bindings — reopen/re-auction resolution family (#70)", () => {
+  it("T22-neg-01: a reopen anchored to a non-latest block opens nothing — pure verdict, no actor channel", () => {
+    const vector = loadVector("transcript-completeness.json", "T22-neg-01");
+    assertBindable(vector);
+    // a reopen anchored to a stale (non-latest) release height is not recognized: opens no auction.
+    const breaks = [{ releaseHeight: 800_000 }, { releaseHeight: 900_000 }];
+    expect(resolveReopen(reopenInput("reopen", 800_000, true, breaks)).recognized).toBe(accepts(vector)); // false === reject
+    // the verdict is a pure function of witnessed facts: anchored to the unique latest, it recognizes
+    // (no actor/indexer "recognition" channel exists to flip it).
+    expect(resolveReopen(reopenInput("reopen", 900_000, true, breaks)).recognized).toBe(true);
+  });
+
+  it("T22-neg-02: an incomplete bond-continuity witness fails closed before matching", () => {
+    const vector = loadVector("transcript-completeness.json", "T22-neg-02");
+    assertBindable(vector);
+    const breaks = [{ releaseHeight: 900_000 }];
+    // incomplete witness -> reject, even though the anchor would otherwise match the latest.
+    expect(resolveReopen(reopenInput("reopen", 900_000, false, breaks))).toMatchObject({
+      recognized: accepts(vector), // false === reject
+      reason: "reopen-incomplete-bond-continuity-witness",
+      derivedLatestReleaseHeight: null,
+    });
+    // the SAME breaks under a complete witness recognize — the witness gate is what stops it.
+    expect(resolveReopen(reopenInput("reopen", 900_000, true, breaks)).recognized).toBe(true);
+  });
+
+  it("B19-neg-01: release height is kernel-derived from witnessed breaks, not adapter-minted", () => {
+    const vector = loadVector("batched-path-transitions.json", "B19-neg-01");
+    assertBindable(vector);
+    // an adapter cannot mint a reopen generation: a reopen claimed with NO witnessed break rejects.
+    expect(resolveReopen(reopenInput("reopen", 900_000, true, [])).recognized).toBe(accepts(vector)); // false === reject
+    // nor can it assert a release height that the witnessed breaks do not support.
+    expect(resolveReopen(reopenInput("reopen", 950_000, true, reopenComplete([{ releaseHeight: 900_000 }]).breaks)).recognized).toBe(false);
+    // a reopen anchored to a genuinely witnessed break is recognized — the height is derived, not asserted.
+    expect(resolveReopen(reopenInput("reopen", 900_000, true, [{ releaseHeight: 900_000 }]))).toMatchObject({
+      recognized: true,
+      derivedLatestReleaseHeight: 900_000,
+    });
   });
 });
 

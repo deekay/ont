@@ -62,3 +62,7 @@ export * from "./auction-resolution.js";
 // finalize/nullify/escalate/provisional verdict at the notice deadline (T17/F11/A13/D10/#37).
 // #49-independent — consumes each claim's resolved DA verdict as a fact; rides nothing external.
 export * from "./notice-window.js";
+// The reopen/re-auction resolution predicate (#70, riding #59's verdict tier): recognizes a reopen
+// lot keyed off the latest KERNEL-DERIVED bond-break release height (T22/B19/S7/S9/#56). Rides
+// nothing external — witnessed break facts + the parsed lot anchor enter as caller inputs.
+export * from "./reopen-resolution.js";

@@ -93,6 +93,9 @@ const readyBindingTargetById: Record<string, string> = {
   "G1-pos-01": "auction-resolution: same-block equal-amount tie resolves by lower txIndex (#25)",
   "T17-neg-01": "notice-window: two distinct-owner DA-valid bondless claims nullify; one finalizes; a qualifying bond escalates (#37)",
   "F11-neg-01": "notice-window: collision counting consumes the resolved DA verdict (holdsPriority h+W boundary); two DA-valid bondless claims nullify",
+  "T22-neg-01": "reopen-resolution: pure verdict over witnessed bond-break facts — no actor/indexer recognizer; non-latest anchor opens nothing",
+  "T22-neg-02": "reopen-resolution: an incomplete bond-continuity witness fails closed before matching",
+  "B19-neg-01": "reopen-resolution: release height is kernel-derived from witnessed bond-break facts, not adapter-minted",
 };
 
 type VectorOrigin = "vector-now" | "provisional-origin";
@@ -248,8 +251,8 @@ describe("B2 executable vector suite inventory", () => {
 
     expect(countsBy(plans.map((plan) => plan.state))).toEqual({
       "pending-dk": 8,
-      "pending-predicate": 24,
-      "ready-for-binding": 62,
+      "pending-predicate": 21,
+      "ready-for-binding": 65,
     });
   });
 
@@ -259,7 +262,7 @@ describe("B2 executable vector suite inventory", () => {
       .map((plan) => plan.vector.id)
       .sort();
 
-    expect(pendingRequired).toHaveLength(24);
+    expect(pendingRequired).toHaveLength(21);
     // the entire recovery-parked group (R1/R2/R7/R9/R10-01/R10-02/T19 + now R18 completion / G6
     // no-callback purity) is bound to the resident recovery surface — no recovery vector remains.
     // the winner-selection / bid-acceptance group (Q1/Q2/Q3/Q4/Q7/Q9/Q10 + T7/T9/G1) is bound to
@@ -269,5 +272,9 @@ describe("B2 executable vector suite inventory", () => {
     expect(pendingRequired).toContain("D7-pos-01"); // promoted via #66; same deferred DA locality/state-equivalence surface as B10-pos — pending-predicate, not a ready binding target
     expect(pendingRequired).not.toContain("T17-neg-01"); // now resident in notice-window
     expect(pendingRequired).not.toContain("F11-neg-01");
+    // the reopen/re-auction group (T22/B19) is bound to reopen-resolution — no longer pending.
+    expect(pendingRequired).not.toContain("T22-neg-01");
+    expect(pendingRequired).not.toContain("T22-neg-02");
+    expect(pendingRequired).not.toContain("B19-neg-01");
   });
 });

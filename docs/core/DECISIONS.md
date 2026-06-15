@@ -1733,6 +1733,52 @@ no producer-asserted "qualifies"/"daValid" field is admitted as authority. This 
 "boundary may change only with a DECISIONS entry + conformance coverage"; the boundary freezes at
 launch.
 
+70. b2-reopen-resolution-boundary: the reopen / re-auction generation predicate enters
+@ont/consensus as a pure CONSENSUS_VERDICTS decider that recognizes a reopen lot keyed off the
+latest KERNEL-DERIVED bond-break release height, riding nothing external — 2026-06-15
+
+*Status: **Proposed** (writer ClaudeleLunatique, reviewer ChatLunatique; lands on branch
+clean-build-b2-kernel, DK merges). A boundary-manifest addition under #44, riding the
+CONSENSUS_VERDICTS tier established by #59 — a new pure verdict module, NOT a tier-widening. Its
+external allowlist is empty: it consumes witnessed bond-break facts + the parsed reopen-lot anchor,
+with no `@ont/core` indexer/resolver, no research/simulation code, and no host I/O. NO new consensus
+law: it lands the already-ratified rules T22, B19, S7, S9, #5 (bond-continuity break → release), #18
+(pre-maturity bond continuity), #56 (settlement-bond-continuity), and #42 (no-adapter-authority).
+Covered by conformance: `trust-surface.test.ts` (`reopen-resolution.ts` in CONSENSUS_VERDICTS with an
+empty allowlist), `reopen-resolution.test.ts` (predicate battery), and the T22/B19 bindings in
+`b2-vector-bindings.test.ts`. Authored under DK's keep-going grant.*
+
+**The rule.** One narrow pure predicate, `resolveReopen(input)`:
+- B19 / #56 / #42: the latest bond-break release height is a KERNEL-DERIVED chain fact, derived from
+  the witnessed bond-break facts (`bondContinuity.breaks`) — never an adapter-asserted number. A
+  reopen lot is recognized iff it is anchored exactly to the unique latest release; a reopen with no
+  witnessed break, or anchored to a stale/fabricated/future height, is refused (no auction, no
+  transcript).
+- S7 / S9 / B19 generations: the first auction is `opening`-{name} with anchor 0 (recognized only
+  with a complete witness and no prior break); a reopen is `reopen`-{name}-after-{r} with a positive
+  anchor equal to the latest release. Anchor 0 is reserved for `opening` only — a `reopen`-after-0
+  cannot collapse into first-generation semantics.
+- T22-01: the verdict is a PURE function of (reopen lot, witnessed breaks) — there is no actor /
+  indexer "recognizer" channel.
+- T22-02: an INCOMPLETE bond-continuity witness fails closed (reject) BEFORE any matching.
+
+**Parked (S8 / `release height` def).** The deterministic latest-rule needs a TX-LEVEL TIEBREAK for
+multiple same-height breaking observations, and that tiebreak is a genuinely-unstated/candidate
+clause — NOT ruled. So the predicate derives the latest only when it is UNIQUE; two or more breaks
+sharing the max height fail closed (`reopen-same-height-break-tiebreak-unspecified`) rather than
+inventing the tiebreak. `breaks` carries `{releaseHeight}` only; a `txOrder` field lands when the
+tiebreak is ruled by a spec PR.
+
+The module deliberately excludes: the auctionId string grammar (opening-{name} /
+reopen-{name}-after-{r}) and its §6 lot-commitment preimage (a B3-verified lot binding, consumed
+elsewhere as a parsed fact); bond-break DETECTION itself (S7/B18 lives in the engine/settlement; this
+predicate consumes the resolved break facts); nullification-reopen (B24) and its cooldown / re-claim
+mechanics (separate, candidate); and reorg of release facts (Z*). The engine composes a recognized
+reopen into auction-resolution (#68). Total / fail-closed + closed-shape (the #63–#69 discipline):
+malformed or extra-field inputs return a non-recognition verdict and never throw, so no
+adapter/source/producer field is admitted as authority. This satisfies #44's "boundary may change
+only with a DECISIONS entry + conformance coverage"; the boundary freezes at launch.
+
 ## Fairness Principles To Carry Into The Launch Rewrite
 
 The rewritten launch draft should explicitly state:
