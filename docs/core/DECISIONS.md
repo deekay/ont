@@ -2172,6 +2172,51 @@ is at all-data-on-L1 for contested names and honest-mirror-market for the long t
 availability is a bootstrapped liveness property that decentralizes over time, not a cryptographic
 guarantee.
 
+83. batch-completeness: promote `RootAnchor.batchSize` from committed-but-informational to
+**kernel-enforced completeness** — a batch counts only when the complete N-leaf bundle is presentable
+and reconstructs the anchored root by `h+W+C`; any missing leaf fails the whole batch closed — 2026-06-15
+
+*Status: **RATIFIED — O2 (DK, event 7e00aa7f, 2026-06-15).** NEW consensus law. Writer
+ClaudeleLunatique; reviewer ChatLunatique — round-2 sign-off (event 552a49a9): O2 > O3, classification
+confirmed, all blockers closed. Decision paper: `../research/DA_BATCH_COMPLETENESS.md`. Unlike #82
+(consolidation), this DOES add a kernel gating requirement (a conjunct of `includable`). No wire
+change (`batchSize` already committed, WIRE §4.4). **NO implementation until the 12-test conformance
+matrix below is built (tests-first); then the `includable` exact-delta-replay conjunct + the D-CV
+projection enrichment — they land together.***
+
+**The question.** `batchSize` is committed on-chain but the kernel `includable` predicate does not
+require the served-bytes witness to demonstrate all N leaves. Promote it to a gating requirement?
+
+**Recommendation: O2 (kernel-enforced whole-batch completeness).** `includable(anchor, evidence, W,
+C)` requires an **exact complete delta witness** by `h+W+C`: exactly `batchSize` unique canonical leaf
+keys, applied to the base (`prevRoot` / D-CV base snapshot), recompute the anchored `newRoot`.
+Membership proofs for the presented N are NOT enough — only the full `prevRoot → newRoot` replay
+proves no leaf was omitted ("all N", not "these N"). Any count mismatch / duplicate key / malformed
+leaf / unverifiable owner binding / non-replaying witness fails the whole batch closed. Rationale:
+matches §6c (batch-level exclusion already); makes the committed count meaningful (auditable
+completeness via the da-trust-model mirror market; bond-free long-tail contention discovery);
+withholding is self-harm + detectable. **Cost (falls on users, not just the producer):** one
+malformed/missing leaf or a publisher operational failure fails the whole batch — every user in it
+must re-anchor; liveness/self-harm, never theft; mitigate with batch-size caps, pre-seal validation,
+content-addressed mirrors, a user retry/reclaim path, and the direct-L1/bonded path for high-value
+names. Alternative O3 (per-leaf) is gentler but loses the completeness guarantee. **Convergence:** O2
+*forces and closes* the owner-identity hole in ChatLunatique's open D-CV blocker but does NOT fully
+specify D-CV — the closed projection (name/leaf-key, owner identity-or-commitment, owner↔value
+binding, anchor coords + per-tx instance discriminator, batch identity + dup handling, DA
+verdict/first-complete height, base-root relationship) is D-CV's own deliverable; they land together.
+
+**Ratification gate (conformance matrix; each → a vector). Core six:** (1) full-N required; (2)
+hidden-claim no-effect (#37/#69); (3) mirror-lies-fail; (4) projection-carries-owner; (5)
+copied-anchor grief-not-steal *(inherited #82)*; (6) finalize-once *(inherited #82)*. **Plus the
+exactness/timing/reorg battery (ChatLunatique round-1):** (7) exact-N / no extras (N−1, N+1,
+duplicate key fail; `batchSize=0`/no-op anchors **REJECTED** per reviewer rec — no DA clock, no
+root-chain position, matches `no_op_transition`); (8) replay-from-base (verifies against
+`newRoot` but cannot replay `prevRoot→newRoot` fails); (9) one bad leaf poisons the batch; (10)
+partial timing (N−1 by `h+W`, last leaf in `(h+W, h+W+C]` → includable, no priority; after `h+W+C` →
+whole batch excluded); (11) reorg/re-mine (stale-anchor evidence cannot carry; deadlines re-derive
+from the canonical anchor); (12) projection closure (missing owner/anchor-coords/dup-ambiguity or
+producer-asserted `complete=true` all fail closed).
+
 ## Fairness Principles To Carry Into The Launch Rewrite
 
 The rewritten launch draft should explicitly state:
