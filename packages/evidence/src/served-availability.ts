@@ -55,8 +55,30 @@ export interface VerifiedAvailability {
  * anchored commitment, or when the confirmed mined height is malformed or disagrees
  * with the binding's anchor (a producer-attested height).
  */
-export function verifyAvailabilityHeight(_input: AvailabilityInput): VerifiedAvailability {
-  // STUB (tests-first red battery). The E-AV vectors are RED against this until the
-  // O1 implementation lands.
-  throw new Error("@ont/evidence.verifyAvailabilityHeight: not implemented (D-SB-avail slice-3 stub)");
+export function verifyAvailabilityHeight(input: AvailabilityInput): VerifiedAvailability {
+  const { baseLeaves, servedDelta, binding, confirmedAnchorMinedHeight } = input;
+  // (1) Height provenance (no producer attestation): the confirmed mined height must be a
+  //     well-formed block height AND the height of the SAME anchor the bytes bind to. It is
+  //     the confirmed-chain fact established by D-BI / D-PB, not attested by the producer.
+  //     Both checks run BEFORE any mint.
+  if (!Number.isInteger(confirmedAnchorMinedHeight) || confirmedAnchorMinedHeight < 0) {
+    throw new Error(
+      "@ont/evidence.verifyAvailabilityHeight: confirmed mined height must be a non-negative integer",
+    );
+  }
+  if (confirmedAnchorMinedHeight !== binding.anchorHeight) {
+    throw new Error(
+      `@ont/evidence.verifyAvailabilityHeight: confirmed mined height ${confirmedAnchorMinedHeight} does not match the binding anchor height ${binding.anchorHeight}`,
+    );
+  }
+  // (2) Reconstruction (O1 fail-closed over the PRESENTED content witness): the presented
+  //     base+delta must reconstruct the anchored commitment. bindServedBytes throws on any
+  //     incomplete / extra / hidden / non-insert-only / stale-prevRoot witness — reuse it so
+  //     there is no duplicate root logic.
+  const bound = bindServedBytes(baseLeaves, servedDelta, binding);
+  // (3) Mint (O1): the height IS the confirmed mined height h. No presentation time, no
+  //     late-served (h+W, h+W+C] branch, no W/C dependency (#84 amendment; priority races
+  //     route to L1, O3).
+  const firstServableHeight = confirmedAnchorMinedHeight as VerifiedAvailabilityHeight;
+  return { bound, firstServableHeight };
 }

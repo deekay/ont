@@ -339,11 +339,16 @@ extra / wrong root) → fail closed, no mint; E-AV3 height provenance — a conf
 height disagreeing with the binding anchor (a producer-attested height) → fail closed;
 E-AV4 O1 collapse — the minted height is exactly `h`, never a presentation time.
 
-*Open design point for review:* the confirmed mined height enters as a validated
-number documented as D-BI-sourced; a tighter coupling would consume the verified
-`BitcoinInclusion` object directly. Flagged for CL — the number-with-equality-gate is
-the minimal honest contract for this slice; the object coupling can fold in when D-PB
-assembles the full bundle.
+*Design point (RESOLVED, CL design review on `724fcae`):* the confirmed mined height
+enters as a validated number documented as D-BI/D-PB-sourced, with an
+`=== binding.anchorHeight` provenance gate. **CL accepted this minimal verified-height-
+fact contract** and explicitly ruled *against* consuming the raw `BuiltBitcoinInclusion`
+object here: that shape is proof *material*, not a branded verified-inclusion result, so
+passing it in would look tighter without itself proving PoW / Merkle / canonical-chain.
+The honest split: D-BI / D-PB verify Bitcoin inclusion and establish the confirmed
+mined-height fact; D-SB-avail consumes that already-verified height. Replacing the raw
+number with a branded verified-anchor-height object is left as a **D-PB assembly
+tightening** (typing/coupling), not a slice-3 correctness concern.
 
 ## §6 — Mining map (existing code → deliverable)
 | Existing | Mineable into |
