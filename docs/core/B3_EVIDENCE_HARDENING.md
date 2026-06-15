@@ -1,7 +1,8 @@
 # B3 evidence-layer hardening — steps 1–2: rule extraction and source check
 
-> **Status: DRAFT rev 4 — steps 1–2 (invariant extraction + source check).
-> ChatLunatique review rounds 1–2 returned blockers; all addressed — see §8.**
+> **Status: DRAFT rev 5 — steps 1–2 (invariant extraction + source check).
+> ChatLunatique review rounds 1–3 addressed; rev 4 cleared the §52/§5.3 blockers,
+> rev 5 adds the D-RC timing-witness + D-BC tie guards — see §8.**
 > Branch `clean-build-b3`, stacked on `main` @ the B2 buildable-complete merge
 > (`03495bd`). Produced 2026-06-15 on DK's "continue the adversarial build
 > process" greenlight (event `d031752d`). Steps-1–2 output for the L3 evidence
@@ -63,11 +64,11 @@ must satisfy; B3 supplies the construction + concrete bytes, never a new rule.
 | D-AM | Accumulator membership-proof construction | `verifyAccumulatorMembership` (`@ont/protocol`) | cited (accumulator doc) |
 | D-PB | Proof-bundle structural assembly | `verifyProofBundleStructure` | structural |
 | D-SB | Served-bytes witness + **concrete byte layout** | `da-verdict.ts` `ServedEvidence` | **#51** served-evidence-interface; #49 S3/S4 |
+| D-RC | Recovery descriptor-evidence **timing** witness (given engine-resolved head/interval, attests `D` witnessed by `≤ h_r+W_r`; does **not** resolve the current head) | `recovery-invoke-authority.ts` §3c | **#50-b1 / §3c** |
+| D-BC | Bond-continuity / release-fact witness (spend facts only; **no canonical release on tied facts**) | `reopen-resolution.ts` (release-height derivation + same-height tiebreak stay kernel) | **#56**; tiebreak **#70** |
 | D-CW | Completeness witness + lot block/soft-close range | `transcript-completeness.ts` (T2) | **PR-19 / PR-29** (#66); concrete format = T2-neg-02 |
 | D-CV | Canonical-root derivation (delta-merge) | `batch-exclusion.ts` | **#53** prevRoot=`R_{h−K}` + **#54** + **#55** + **PR-5 / PR-9** (#66) |
 | D-GF | Gate-fee **fact** witness: prevout/intrinsic fee + Σ g over the **full committed set** | `gate-fee.ts` amount-adequacy conjunct | **#52** (Σ g full-set, per-leaf-drop); `g(name)` schedule = launch-freeze (§5) |
-| D-RC | Recovery descriptor-head witness (witnessed by `h_r+W_r`) | `recovery-invoke-authority.ts` §3c | **#50-b1 / §3c** |
-| D-BC | Bond-continuity / release-fact witness (spend facts only) | `reopen-resolution.ts` (release-height derivation stays kernel) | **#56** settlement-bond-continuity |
 | (D-RB) | Recovery bond-spend / qualifying-successor chain-fact witness — **separate** from D-RC, engine-slice/B4-side | engine recovery integration | **PR-34** (#66); excluded from `acceptRecoverOwner` |
 
 ## §3 — Evidence-layer invariants (E-series) + source check
@@ -110,11 +111,16 @@ concrete bytes, DK-ratified at promotion.
   *[ratified: #51 (iii); `da-verdict.ts` D3].*
 
 ### Recovery descriptor-head witness — D-RC
-- **E-RC1 — verifier-checkable descriptor witness.** Armed descriptor-v2 head
-  witnessed by `h_r+W_r`; B2's `acceptRecoverOwner` consumes
+- **E-RC1 — descriptor-evidence TIMING witness (scope guard, CL r3).** Given the
+  already-resolved current head / current interval (engine-supplied,
+  `engine.ts:104-127,577-646`), B3 attests the descriptor record/digest `D` was
+  witnessed by `≤ h_r+W_r`. B3 does **not** resolve which head/interval is
+  current — the predicate checks the supplied facts
+  (`recovery-invoke-authority.ts:158-240`). B2's `acceptRecoverOwner` consumes
   `{ kind: "b3-verified-recovery-descriptor-witness", witnessedByHeight }` and
-  **remains the decider**. `h_r+W_r` is the **whole** descriptor-authorization
-  evidence deadline. *[ratified: #50-b1 / §3c].*
+  **remains the decider**; `h_r+W_r` is the whole descriptor-authorization
+  deadline. *[ratified: #50-b1 / §3c].* (A later slice that resolves
+  descriptor-chain head semantics is no longer this FREE slice.)
 - **E-RC2 — fail closed** on late/absent/unverified evidence; a descriptor from
   an **old ownership interval** (R4) rejects. *[ratified: §3c].*
 - **E-RC3 — §8.3 BIP322 wallet proof is non-authorizing corroboration.** No
@@ -126,9 +132,12 @@ concrete bytes, DK-ratified at promotion.
 
 ### Bond-continuity / release facts — D-BC
 - **E-BC1 — witness the Bitcoin-derived bond-spend / release facts only**; the
-  latest-release-height **derivation + re-auction rule stay in the kernel**.
-  *[ratified: #56].* Test: a fabricated release fact with no on-chain spend ⇒
-  rejected before the kernel sees it.
+  latest-release-height **derivation + re-auction rule stay in the kernel**, and
+  B3 **must not emit a canonical latest release when tied facts exist** — the
+  same-height release tiebreak stays parked in `reopen-resolution` (#70).
+  *[ratified: #56; #70].* Test: a fabricated release fact with no on-chain spend
+  ⇒ rejected before the kernel sees it; tied same-height spends ⇒ B3 surfaces
+  both, picks neither.
 
 ### Completeness witness — D-CW
 - **E-CW1 — verifier-checkable completeness over a Bitcoin-derived range.** The
@@ -245,3 +254,31 @@ under the standing rule — but none is open today.
   decision docket down to the lone `g(name)` launch-freeze parameter; fixed
   E-BI1 (split canonical-header-source into E-BI2); retagged E-SB to #51 with the
   forge-the-verifiable-proof negative; clarified R11 is excluded from D-RC.
+- **Round 3 (CL, `5d42993`).** "Right architecture"; narrowed to the #52 §5.1
+  reopen (already fixed in rev 4) + two FREE-classification guards → rev 5: D-RC
+  reworded to a **timing** witness given engine-resolved head/interval (E-RC1);
+  D-BC must not emit a canonical release on **tied** same-height facts (E-BC1,
+  #70). CL cleared the first FREE slice (D-BI / D-AM) to start.
+
+## §9 — First FREE slice: D-BI / D-AM conformance-suite design
+
+Tests-first, per CL's round-3 lead cases. New package `@ont/evidence` (L3,
+non-deciding); the suite instantiates against the real `@ont/consensus` verdicts
+so a hostile evidence impl is provably unable to move them (E-ND1).
+
+- **D-BI — Bitcoin inclusion.**
+  - `btc.pow`: a header with bad bits/nonce ⇒ fail (E-BI1).
+  - `btc.merkle`: a swapped sibling hash in the path ⇒ fail (E-BI1).
+  - `btc.structure-vs-against-bitcoin`: a bundle missing `bitcoinInclusion` is
+    structurally valid but not Bitcoin-settled (E-BI3) — assert the two-tier
+    `verifyProofBundleStructure` vs `…AgainstBitcoin` distinction.
+  - `btc.canonical`: with a `headerSource` supplied, a valid-PoW **orphan** header
+    that is not the canonical header at its height ⇒ fail; without `headerSource`,
+    canonical pinning is not asserted (E-BI2).
+- **D-AM — accumulator membership.**
+  - `am.wrong-root`: membership proof against a sibling root ⇒ fail (E-AM3).
+  - `am.non-membership`: proof for a name not in the root ⇒ fail (E-AM3).
+  - `am.malformed`: a structurally malformed proof ⇒ fail closed, never throw.
+- **Hostile-evidence comparison (E-ND1).** For each forged D-BI / D-AM witness,
+  assert the kernel verdict is byte-identical to the no-witness, fail-closed
+  outcome — the executable form of the §1 contract.
