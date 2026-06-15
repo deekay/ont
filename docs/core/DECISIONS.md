@@ -2216,6 +2216,20 @@ partial timing (N−1 by `h+W`, last leaf in `(h+W, h+W+C]` → includable, no p
 whole batch excluded); (11) reorg/re-mine (stale-anchor evidence cannot carry; deadlines re-derive
 from the canonical anchor); (12) projection closure (missing owner/anchor-coords/dup-ambiguity or
 producer-asserted `complete=true` all fail closed).
+
+*Implementation addendum (slice-4, 2026-06-15; writer ClaudeleLunatique, reviewer ChatLunatique; lands
+on branch clean-build-b3, DK merges). **Boundary-manifest change under #44:** the
+`batch-completeness` verdict `evaluateBatchCompleteness` lives in the CONSENSUS_VERDICTS-tier module
+`batch-exclusion.ts`, whose external-import allowlist in `trust-surface.test.ts` is extended from `{}`
+to `{@ont/protocol}` — **solely** for `accumulatorRootOf`, the audited B1 sparse-Merkle root
+primitive. The kernel COMPUTES the `prevRoot → newRoot` exact-delta replay itself (D-CV is kernel law
+per O2 above); `accumulatorRootOf` is the per-file allowlist-extension pattern (an audited primitive
+admitted where a specific verdict needs it, same shape as `da-verdict.ts` admitting `@ont/wire`). The
+predicate performs no host I/O and mutates no state. This satisfies #44's "boundary may change only
+with a DECISIONS entry + conformance coverage"; coverage = `trust-surface.test.ts` (the verdict
+allowlist) + the 12-case `batch-completeness.test.ts` matrix plus the round-2 hostile battery
+(insert-only collision, projection/top-level coherence, full timing/served-height consistency). The
+boundary freezes at launch.*
 84. availability-height: what confirmed-chain fact mints the DA first-servable-height — **RATIFIED
 O1 + O3** (DK, event 4e11b64b, 2026-06-15)
 

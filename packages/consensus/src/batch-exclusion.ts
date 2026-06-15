@@ -349,7 +349,9 @@ export type BatchCompletenessReason =
   | "batch-completeness-da-excluded"
   | "batch-completeness-late"
   | "batch-completeness-stale-anchor"
-  | "batch-completeness-timing-contradiction";
+  | "batch-completeness-timing-contradiction"
+  | "batch-completeness-projection-incoherent"
+  | "batch-completeness-insert-only-violation";
 
 export interface BatchCompletenessVerdict {
   readonly accepts: boolean;
@@ -366,13 +368,25 @@ const BC_LEAF_KEYS = ["projection", "valueHex", "servedHeight"] as const;
 
 const bcFail = (reason: BatchCompletenessReason): BatchCompletenessVerdict => ({ accepts: false, reason });
 
+// Structural equality over the closed D-CV sub-shapes, used to enforce that each leaf's projection
+// agrees with the facts of the batch it rides in and the consumed top-level DA verdict.
+const anchorEq = (a: DcvAnchorCoordinates, x: DcvAnchorCoordinates): boolean =>
+  a.txid === x.txid && a.minedHeight === x.minedHeight && a.txIndex === x.txIndex && a.vout === x.vout && a.anchorInstance === x.anchorInstance;
+const baseRelEq = (a: DcvBaseRootRelationship, x: DcvBaseRootRelationship): boolean =>
+  a.prevRoot === x.prevRoot && a.baseRootHeight === x.baseRootHeight;
+const daVerdictEq = (a: DcvDaVerdict, x: DcvDaVerdict): boolean =>
+  a.kind === x.kind && a.firstCompleteServedHeight === x.firstCompleteServedHeight && a.holdsPriority === x.holdsPriority;
+
 /**
  * #83 batch-completeness (O2): exact-delta whole-batch completeness predicate. PURE / total /
  * fail-closed / closed-shape (#63-#71). It consumes the witnessed DA verdict but COMPUTES the
  * canonical-root replay itself (D-CV is kernel law) via `@ont/protocol` `accumulatorRootOf`, and
  * cross-checks the verdict against the witnessed served-heights so a contradictory witness fails
- * closed. Reason precedence (CL slice-4 review): prior-settled accept → da-excluded → zero/no-op →
- * open-projection → duplicate-key/count-mismatch → stale base/anchor → replay-mismatch → timing.
+ * closed. Reason precedence (CL slice-4 review rounds 1-2): prior-settled accept (canonical reason
+ * only) → da-excluded → zero/no-op → open-projection → projection-incoherent (projection facts must
+ * agree with the enclosing batch + top-level base + consumed DA verdict) → duplicate-key/count →
+ * stale base/anchor → insert-only-violation (base/delta must be a disjoint union; no silent
+ * overwrite) → replay-mismatch → timing/verdict-consistency.
  */
 export function evaluateBatchCompleteness(input: BatchCompletenessPredicateInput): BatchCompletenessVerdict {
   // --- 0. Fail-closed shape validation over an untrusted runtime value (never throws). ---
@@ -425,8 +439,11 @@ export function evaluateBatchCompleteness(input: BatchCompletenessPredicateInput
   const { commitment: c, base: b, baseLeaves, window: w, daVerdict, priorSettledVerdict, batches } = input;
   const leaves = batches.flatMap((batch) => batch.leaves);
 
-  // --- 1. finalize-once: a prior settled accept is never revised (later byte-loss cannot revoke it). ---
-  if (priorSettledVerdict !== null && priorSettledVerdict.accepts) {
+  // --- 1. finalize-once: a prior settled accept is never revised (later byte-loss cannot revoke it).
+  //         Only a settled accept carrying the canonical accept reason short-circuits; an
+  //         accepts:true witness with any other reason is incoherent and falls through to fresh
+  //         evaluation rather than being trusted blindly. ---
+  if (priorSettledVerdict !== null && priorSettledVerdict.accepts && priorSettledVerdict.reason === "batch-completeness-accepted") {
     return { accepts: true, reason: "batch-completeness-accepted" };
   }
   // --- 2. DA excluded → no completeness effect. ---
@@ -436,6 +453,23 @@ export function evaluateBatchCompleteness(input: BatchCompletenessPredicateInput
   // --- 3b. open projection: every served leaf's projection must be closed-shape, and its served value 32-byte hex. ---
   for (const lf of leaves) {
     if (!isClosedDcvProjection(lf.projection) || !isHex32(lf.valueHex)) return bcFail("batch-completeness-projection-open-shape");
+  }
+  // --- 3b'. projection coherence: each leaf's projection facts must agree with the batch it rides in
+  //          (batchId + anchor), the top-level base relationship, and the consumed DA verdict. Without
+  //          this the D-CV projection contract is underpowered — a witness could smuggle a leaf whose
+  //          projection disagrees with its enclosing batch and still pass replay (CL review). ---
+  for (const batch of batches) {
+    for (const lf of batch.leaves) {
+      const p = lf.projection;
+      if (
+        p.batchId !== batch.batchId ||
+        !anchorEq(p.anchor, batch.anchor) ||
+        !baseRelEq(p.base, b) ||
+        !daVerdictEq(p.daVerdict, daVerdict)
+      ) {
+        return bcFail("batch-completeness-projection-incoherent");
+      }
+    }
   }
   // --- 3c. duplicate leaf key, then exact-N count. ---
   const seenKeys = new Set<string>();
@@ -448,21 +482,33 @@ export function evaluateBatchCompleteness(input: BatchCompletenessPredicateInput
   for (const batch of batches) {
     if (b.baseRootHeight !== batch.anchor.minedHeight - w.K) return bcFail("batch-completeness-stale-anchor");
   }
-  // --- 3e. replay-mismatch: prevRoot is the root of baseLeaves, and prevRoot+delta recomputes newRoot. ---
+  // --- 3e. insert-only union: the base leaf set must be a well-formed set (distinct keys) and the
+  //          served delta must be DISJOINT from it. A delta key colliding with a base key would
+  //          silently OVERWRITE the base value in the replay map and admit a mutation the batched
+  //          path forbids (insert-only; DA agreement §5 commutative-merge / D7). ---
   const baseRootMap = new Map<string, string>();
-  for (const bl of baseLeaves) baseRootMap.set(bl.keyHex, bl.valueHex);
+  for (const bl of baseLeaves) {
+    if (baseRootMap.has(bl.keyHex)) return bcFail("batch-completeness-insert-only-violation");
+    baseRootMap.set(bl.keyHex, bl.valueHex);
+  }
+  for (const lf of leaves) {
+    if (baseRootMap.has(lf.projection.leafKeyHex)) return bcFail("batch-completeness-insert-only-violation");
+  }
+  // --- 3f. replay-mismatch: prevRoot is the root of baseLeaves, and prevRoot+delta recomputes newRoot. ---
   if (accumulatorRootOf(baseRootMap) !== c.prevRoot || b.prevRoot !== c.prevRoot) return bcFail("batch-completeness-replay-mismatch");
   const fullMap = new Map<string, string>(baseRootMap);
   for (const lf of leaves) fullMap.set(lf.projection.leafKeyHex, lf.valueHex);
   if (accumulatorRootOf(fullMap) !== c.newRoot) return bcFail("batch-completeness-replay-mismatch");
-  // --- 4. timing. ---
+  // --- 4. timing + verdict/served-height consistency. ---
   if (leaves.some((lf) => lf.servedHeight === null)) return bcFail("batch-completeness-late");
   const maxServed = Math.max(...leaves.map((lf) => lf.servedHeight as number));
   if (maxServed > w.challengeDeadlineHeight) return bcFail("batch-completeness-late");
-  // timing-consistency cross-check: a holdsPriority=true verdict is refuted if a leaf was served
-  // after the availability deadline — fail closed rather than trust the contradictory witness.
-  if (daVerdict.kind === "includable" && daVerdict.holdsPriority && maxServed > w.availabilityDeadlineHeight) {
-    return bcFail("batch-completeness-timing-contradiction");
+  // The witnessed DA verdict must agree with the witnessed served-heights: the batch first becomes
+  // complete at the last leaf served (maxServed), and priority is held iff that is within h+W. A
+  // verdict that disagrees with its own served-height facts fails closed rather than be trusted (CL).
+  if (daVerdict.kind === "includable") {
+    if (daVerdict.firstCompleteServedHeight !== maxServed) return bcFail("batch-completeness-timing-contradiction");
+    if (daVerdict.holdsPriority !== (maxServed <= w.availabilityDeadlineHeight)) return bcFail("batch-completeness-timing-contradiction");
   }
 
   return { accepts: true, reason: "batch-completeness-accepted" };
