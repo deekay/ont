@@ -530,7 +530,8 @@ bundle the resident verifier accepts,"* asserted by running `verifyProofBundleSt
 **Conformance battery (E-PB), instantiated against the resident verifiers (block-170 real PoW+Merkle):**
 - `pb.assembles-valid` (E-PB1): a bundle built from a real D-AM proof + the block-170 D-BI
   inclusion + a **2-record** value chain passes BOTH `verifyProofBundleStructure` (all checks)
-  and `verifyProofBundleAgainstBitcoin(bundle,{headerSource})` (`valid===true`).
+  and `verifyProofBundleAgainstBitcoin(bundle,{headerSource})` (`valid===true`) — asserting
+  `btc.0.chain` passes (canonical-chain pinning, not just PoW+Merkle; CL r2).
 - `pb.leaf-binds-name-owner` (E-PB2): assembled `leaf===H(normalizedName)` and `value===owner`;
   a proof whose `keyHex` ≠ `H(name)` or whose value ≠ owner fails closed at assembly.
 - `pb.anchor-coherence` (E-PB2, CL fix): a cited anchor txid OR height that disagrees with the
@@ -543,6 +544,10 @@ bundle the resident verifier accepts,"* asserted by running `verifyProofBundleSt
   (diagnostics may cascade) — hostile assembly ≡ no-witness acceptance effect (E-ND1).
 - `pb.value-record-coherence` (E-PB5): a record not owned by the claimed owner, or a broken
   `previousRecordHash` chain, fails closed at assembly.
+- `pb.value-record-bad-sig` (E-PB6, CL r2): D-PB is a pure placer — it does NOT pre-verify
+  signatures (the kernel is the sole signature decider). A record with valid owner/ref/sequence/
+  chain but an INVALID signature IS placed, and the kernel then fails it closed
+  (`valueRecords.0.signature`) — forged record ≡ no-accept (E-ND1).
 
 **Design questions — RESOLVED (CL design review on `4c0e3fd`).**
 1. **Composition inputs.** Concur: no self-verify call inside the builder; consume built

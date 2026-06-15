@@ -110,6 +110,9 @@ describe("D-PB proof-bundle assembly (B3; structural, conforms to the kernel ver
     expect(report.valid).toBe(true);
     expect(report.failedCheckCount).toBe(0);
     expect(report.checks.some((c) => c.id === "btc.cited.0.verified" && c.status === "passed")).toBe(true);
+    // canonical-chain pinning, not just PoW+Merkle: with the block-170 header source the
+    // anchor header is the canonical header at its height (CL r2: assert btc.0.chain).
+    expect(report.checks.some((c) => c.id === "btc.0.chain" && c.status === "passed")).toBe(true);
   });
 
   it("pb.leaf-binds-name-owner (E-PB2): the assembled leaf is H(name) and value is the owner; mismatches fail closed", () => {
@@ -208,5 +211,18 @@ describe("D-PB proof-bundle assembly (B3; structural, conforms to the kernel ver
     expect(() => buildAccumulatorBatchClaimBundle(baseInput({ valueRecords: [rec1, badChain] }))).toThrow(
       /chain|previousRecordHash|previous/,
     );
+  });
+
+  it("pb.value-record-bad-sig (E-PB6): D-PB is a pure placer — a bad-signature record is placed, the kernel rejects it (E-ND1)", () => {
+    // CL r2: D-PB does NOT pre-verify signatures (the kernel is the sole signature decider).
+    // A record with valid owner/ref/sequence/chain but an INVALID signature passes the cheap
+    // placement gate, so D-PB places it — and the kernel then fails it closed. Hostile
+    // assembly ≡ no-witness acceptance effect: the forged record cannot flip the verdict.
+    const badSig = { ...rec1, signature: "00".repeat(64) };
+    const bundle = buildAccumulatorBatchClaimBundle(baseInput({ valueRecords: [badSig] }));
+    expect(bundle.valueRecordChain?.records.length).toBe(1); // pure placer: it WAS placed
+    const report = verifyProofBundleStructure(bundle);
+    expect(report.valid).toBe(false);
+    expect(report.checks.some((c) => c.id === "valueRecords.0.signature" && c.status === "failed")).toBe(true);
   });
 });
