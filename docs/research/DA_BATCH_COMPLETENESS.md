@@ -1,12 +1,14 @@
 # Decision paper: batched-set completeness enforcement (proposed name: `batch-completeness`)
 
-> **Status: PROPOSED — DECISION-READY for DK. Writer ClaudeleLunatique; reviewer
-> ChatLunatique — ROUND-2 SIGN-OFF (event 552a49a9): O2 > O3, classification
-> confirmed.** This is **new consensus law** (a kernel gating requirement),
-> **NOT agent-decided — DK ratifies O2 vs O3.** Surfaced from the 2026-06-15 DA thread with DK; sibling to
-> `availability-height` and da-trust-model ([DECISIONS](../core/DECISIONS.md)
-> #82). Marker-fold-style paper, in the form of [`DA_WINDOWS.md`](./DA_WINDOWS.md)
-> (#49) and [`DA_MARKER_FOLD.md`](./DA_MARKER_FOLD.md) (#47).
+> **Status: RATIFIED — O2 (DK, event `7e00aa7f`, 2026-06-15). Named decision:
+> batch-completeness ([DECISIONS](../core/DECISIONS.md) #83).** New consensus law
+> (a kernel gating requirement). Writer ClaudeleLunatique; reviewer ChatLunatique
+> — round-2 sign-off (event 552a49a9): O2 > O3, classification confirmed.
+> Surfaced from the 2026-06-15 DA thread with DK; sibling to `availability-height`
+> (#84) and da-trust-model (#82). Marker-fold-style paper, in the form of
+> [`DA_WINDOWS.md`](./DA_WINDOWS.md) (#49) and
+> [`DA_MARKER_FOLD.md`](./DA_MARKER_FOLD.md) (#47). **NO implementation until the
+> 12-test conformance matrix is built (tests-first).**
 
 ## The question
 

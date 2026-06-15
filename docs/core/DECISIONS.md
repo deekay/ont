@@ -2176,13 +2176,13 @@ guarantee.
 **kernel-enforced completeness** — a batch counts only when the complete N-leaf bundle is presentable
 and reconstructs the anchored root by `h+W+C`; any missing leaf fails the whole batch closed — 2026-06-15
 
-*Status: **PROPOSED — DECISION-READY; NEW consensus law, NOT agent-decided; DK ratifies O2 vs O3.**
-Writer ClaudeleLunatique; reviewer ChatLunatique — **round-2 SIGN-OFF (event 552a49a9)**: O2 > O3,
-classification confirmed, all blockers closed; lands on branch
-spec-batch-completeness (stacked on spec-da-trust-model, off main). Decision paper:
-`../research/DA_BATCH_COMPLETENESS.md`. Unlike #82 (consolidation), this DOES add a kernel gating
-requirement, so it is a genuine ratification gate. No wire change (`batchSize` already committed,
-WIRE §4.4); the change is a conjunct of `includable`. NO implementation until ratified (tests-first).*
+*Status: **RATIFIED — O2 (DK, event 7e00aa7f, 2026-06-15).** NEW consensus law. Writer
+ClaudeleLunatique; reviewer ChatLunatique — round-2 sign-off (event 552a49a9): O2 > O3, classification
+confirmed, all blockers closed. Decision paper: `../research/DA_BATCH_COMPLETENESS.md`. Unlike #82
+(consolidation), this DOES add a kernel gating requirement (a conjunct of `includable`). No wire
+change (`batchSize` already committed, WIRE §4.4). **NO implementation until the 12-test conformance
+matrix below is built (tests-first); then the `includable` exact-delta-replay conjunct + the D-CV
+projection enrichment — they land together.***
 
 **The question.** `batchSize` is committed on-chain but the kernel `includable` predicate does not
 require the served-bytes witness to demonstrate all N leaves. Promote it to a gating requirement?
