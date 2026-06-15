@@ -16,7 +16,7 @@ export {
   bindServedBytes,
   toServedEvidence,
   type ServedLeaf,
-  type AnchorBinding,
+  type ServedBatchBinding,
   type BoundServedBatch,
   type VerifiedAvailabilityHeight,
 } from "./served-bytes.js";

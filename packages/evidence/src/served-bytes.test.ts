@@ -1,8 +1,8 @@
 // D-SB-bind conformance battery (B3_EVIDENCE_HARDENING.md §9 / E-SB1, E-SB3,
-// E-ND1; conforms to served-evidence-interface #51 + commitment-match #52). The
-// served leaf SET must recompute to anchoredRoot (COMPLETENESS, not inclusion);
-// then the kernel deadline composition runs over an already-verified height. A
-// forged/unbound witness must produce the same reject EFFECT as no-witness (E-ND1).
+// E-ND1; conforms to #51 + #52 full-batch recompute + #53 prevRoot=R_{h-K} + WIRE
+// §4.4). The served delta applied onto the base (root = prevRoot) must recompute to
+// anchoredRoot (newRoot) — COMPLETENESS from prevRoot, not from-empty. Then the
+// kernel deadline composition runs over an already-verified height.
 import { createDaWindowParams, holdsPriority, includable, type AnchorFacts } from "@ont/consensus";
 import { describe, expect, it } from "vitest";
 
@@ -21,65 +21,81 @@ const VAL_A = "11".repeat(32);
 const VAL_B = "22".repeat(32);
 const VAL_C = "33".repeat(32);
 
-const COMMITTED = new Map([
-  [KEY_A, VAL_A],
-  [KEY_B, VAL_B],
-]);
-const ROOT = accumulatorRootOf(COMMITTED); // the anchor's committed root over {A,B}
-const SERVED: ServedLeaf[] = [
-  { keyHex: KEY_A, valueHex: VAL_A },
-  { keyHex: KEY_B, valueHex: VAL_B },
-];
+// Non-genesis batch: base = {A}, this batch's delta = {B}, newRoot = root(A,B).
+const BASE = new Map([[KEY_A, VAL_A]]);
+const PREV_ROOT = accumulatorRootOf(BASE);
+const DELTA: ServedLeaf[] = [{ keyHex: KEY_B, valueHex: VAL_B }];
+const NEW_ROOT = accumulatorRootOf(
+  new Map([
+    [KEY_A, VAL_A],
+    [KEY_B, VAL_B],
+  ]),
+);
+const ROOT_B_ONLY = accumulatorRootOf(new Map([[KEY_B, VAL_B]])); // from-empty {B}
+const EMPTY_ROOT = accumulatorRootOf(new Map());
 
 const ANCHOR_HEIGHT = 100;
+const BINDING = { anchorHeight: ANCHOR_HEIGHT, prevRoot: PREV_ROOT, anchoredRoot: NEW_ROOT };
 const PARAMS = createDaWindowParams({ K: 6, W: 2, C: 3 }); // h+W = 102, h+W+C = 105
 const anchor = (over: Partial<AnchorFacts> = {}): AnchorFacts => ({
   minedHeight: ANCHOR_HEIGHT,
-  anchoredRoot: ROOT,
-  batchSize: 2,
+  anchoredRoot: NEW_ROOT,
+  batchSize: 1,
   ...over,
 });
 
-// Test-only: simulate a height the D-SB-avail verifier has already checked against
-// confirmed-chain facts. Production code can only obtain this brand from D-SB-avail.
+// Test-only: simulate a height the D-SB-avail verifier has already checked.
 const verified = (n: number): VerifiedAvailabilityHeight => n as unknown as VerifiedAvailabilityHeight;
-
 const evidence = (firstServableHeight: number) =>
-  toServedEvidence(
-    bindServedBytes(SERVED, { anchorHeight: ANCHOR_HEIGHT, anchoredRoot: ROOT }),
-    verified(firstServableHeight),
-  );
+  toServedEvidence(bindServedBytes(BASE, DELTA, BINDING), verified(firstServableHeight));
 
 describe("D-SB-bind served-bytes binding (B3)", () => {
-  it("E-SB1: the complete served set recomputes to anchoredRoot and the witness is includable", () => {
-    const bound = bindServedBytes(SERVED, { anchorHeight: ANCHOR_HEIGHT, anchoredRoot: ROOT });
-    expect(bound.batchSize).toBe(2);
-    expect(bound.anchoredRoot).toBe(ROOT);
+  it("E-SB1: a non-genesis delta applied onto prevRoot reconstructs newRoot and is includable", () => {
+    const bound = bindServedBytes(BASE, DELTA, BINDING);
+    expect(bound.batchSize).toBe(1); // served delta count, not the whole base
+    expect(bound.anchoredRoot).toBe(NEW_ROOT);
     const ev = toServedEvidence(bound, verified(101));
     expect(includable(anchor(), ev, PARAMS)).toBe(true); // 101 ≤ 105
     expect(holdsPriority(anchor(), ev, PARAMS)).toBe(true); // 101 ≤ 102
   });
 
-  it("E-SB1 completeness: omitted / extra / duplicate / hidden-leaf served sets fail closed", () => {
-    // Omit a committed leaf — recomputed root ≠ anchoredRoot.
-    expect(() => bindServedBytes([SERVED[0]!], { anchorHeight: ANCHOR_HEIGHT, anchoredRoot: ROOT })).toThrow();
-    // Serve an extra leaf not in the committed set.
+  it("E-SB1: a genesis batch binds against the empty-base root", () => {
+    const bound = bindServedBytes(
+      new Map(),
+      [
+        { keyHex: KEY_A, valueHex: VAL_A },
+        { keyHex: KEY_B, valueHex: VAL_B },
+      ],
+      { anchorHeight: ANCHOR_HEIGHT, prevRoot: EMPTY_ROOT, anchoredRoot: NEW_ROOT },
+    );
+    expect(bound.batchSize).toBe(2);
+    expect(bound.anchoredRoot).toBe(NEW_ROOT);
+  });
+
+  it("E-SB1: the from-empty trap — serving {B} against root(B) when prevRoot=root(A) is rejected", () => {
+    // The old (buggy) contract would accept this; the prevRoot→newRoot check rejects it.
     expect(() =>
-      bindServedBytes([...SERVED, { keyHex: KEY_C, valueHex: VAL_C }], {
-        anchorHeight: ANCHOR_HEIGHT,
-        anchoredRoot: ROOT,
-      }),
+      bindServedBytes(BASE, DELTA, { anchorHeight: ANCHOR_HEIGHT, prevRoot: PREV_ROOT, anchoredRoot: ROOT_B_ONLY }),
     ).toThrow();
-    // Duplicate a served key (e.g. serve [A, A] to fake batchSize).
+  });
+
+  it("E-SB1: a stale/wrong prevRoot is rejected", () => {
     expect(() =>
-      bindServedBytes([SERVED[0]!, { keyHex: KEY_A, valueHex: VAL_A }], {
-        anchorHeight: ANCHOR_HEIGHT,
-        anchoredRoot: ROOT,
-      }),
+      bindServedBytes(BASE, DELTA, { anchorHeight: ANCHOR_HEIGHT, prevRoot: ROOT_B_ONLY, anchoredRoot: NEW_ROOT }),
     ).toThrow();
-    // Anchor a 3-leaf root but serve only 2 valid members — recompute catches it.
-    const root3 = accumulatorRootOf(new Map([...COMMITTED, [KEY_C, VAL_C]]));
-    expect(() => bindServedBytes(SERVED, { anchorHeight: ANCHOR_HEIGHT, anchoredRoot: root3 })).toThrow();
+  });
+
+  it("E-SB1 completeness/insert-only: extra leaf, empty delta, and non-disjoint delta all fail closed", () => {
+    // Extra leaf — root(A,B,C) ≠ newRoot.
+    expect(() =>
+      bindServedBytes(BASE, [...DELTA, { keyHex: KEY_C, valueHex: VAL_C }], BINDING),
+    ).toThrow();
+    // Empty served delta.
+    expect(() => bindServedBytes(BASE, [], BINDING)).toThrow();
+    // Delta key already in the base — not insert-only (#54).
+    expect(() =>
+      bindServedBytes(BASE, [{ keyHex: KEY_A, valueHex: VAL_A }], { ...BINDING, anchoredRoot: PREV_ROOT }),
+    ).toThrow();
   });
 
   it("E-SB1 deadlines: inside (h+W, h+W+C] is includable but not priority; past h+W+C neither", () => {
