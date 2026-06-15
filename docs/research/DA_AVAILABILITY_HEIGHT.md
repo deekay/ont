@@ -1,13 +1,15 @@
 # Decision paper: DA first-servable-height attribution (proposed name: `availability-height`)
 
-> **Status: PROPOSED — decision-ready for DK. Writer ClaudeleLunatique; reviewer
-> ChatLunatique concurred the classification (consensus-law, not B3 byte layout) and
-> raised the amendment/guard folded below.** Surfaced during B3 (D-SB) — see
+> **Status: RATIFIED — O1 + O3 (DK, event `4e11b64b`, 2026-06-15). Named decision:
+> availability-height ([DECISIONS](../core/DECISIONS.md) #84).** Writer
+> ClaudeleLunatique; reviewer ChatLunatique concurred the classification
+> (consensus-law, not B3 byte layout) and raised the amendment/guard folded below.
+> Surfaced during B3 (D-SB) — see
 > [`docs/core/B3_EVIDENCE_HARDENING.md`](../core/B3_EVIDENCE_HARDENING.md) §5.2. This
 > is the first genuinely-new consensus question B3 raised; everything else in B3 is
 > construction conforming to ratified rules. Marker-fold-style paper, in the form of
 > [`DA_WINDOWS.md`](./DA_WINDOWS.md) (#49) and [`DA_MARKER_FOLD.md`](./DA_MARKER_FOLD.md)
-> (#47). **NOT agent-decided — DK rules.**
+> (#47). **Ratification unblocks D-SB-avail (the one GATED B3 evidence predicate).**
 
 ## The question
 

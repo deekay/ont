@@ -2118,6 +2118,28 @@ K-depth, or non-nonnegative-bigint fee input contributes no fee fact and never t
 #44's "boundary may change only with a DECISIONS entry + conformance coverage"; the boundary freezes
 at launch.
 
+84. availability-height: what confirmed-chain fact mints the DA first-servable-height — **RATIFIED
+O1 + O3** (DK, event 4e11b64b, 2026-06-15)
+
+*Status: **RATIFIED.** Writer ClaudeleLunatique; reviewer ChatLunatique (classification concurred).
+Decision paper: `../research/DA_AVAILABILITY_HEIGHT.md`. (Numbering note: #82 da-trust-model and #83
+batch-completeness are reserved on the off-main `spec-da-trust-model` / `spec-batch-completeness`
+stack; this entry is #84 — order them at the main merge.)*
+
+**The rule.** `firstServableHeight` is established by **O1** (fail-closed over the *presented* content
+witness): the height **is the anchor's mined height `h`**; absent a presented witness that
+reconstructs the anchored commitment, fail closed. A challenge event is fault-attribution /
+diagnostic only, never a deciding event (§215 — no unilateral bonded-attestation kill). Priority-
+bearing **contention routes to bonded / direct-L1 (O3)**, where there is no availability ambiguity.
+**Amendment:** O1 collapses `firstServableHeight` to `h` for non-faulted batched claims, dropping the
+§6e S3 late-served-priority branch for the accumulator path — acceptable **only because** O3 routes
+the priority race to L1. **Fork preserved:** if the long-tail batched path must later keep late-served
+priority in-band, O2 (a positive on-chain availability attestation) is forced — an additive new
+mechanism, not a parameter flip. **No change to da-windows (#49):** the `(K, W, C)` algebra is
+untouched; this decides only what mints the height it consumes (the `(K,W,C)` values stay
+launch-freeze parameters). **Unblocks D-SB-avail** (`@ont/evidence`), which mints
+`VerifiedAvailabilityHeight` — the one GATED B3 evidence predicate.
+
 ## Fairness Principles To Carry Into The Launch Rewrite
 
 The rewritten launch draft should explicitly state:
