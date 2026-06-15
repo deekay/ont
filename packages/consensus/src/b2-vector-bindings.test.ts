@@ -232,6 +232,11 @@ const LOCAL_BINDING_MANIFEST = new Set<string>([
   "B10-pos-01",
   "D7-pos-01",
   "Z9-neg-01",
+  // bind-to-resident closing batch (auction #68 / reopen #70 / settlement #65)
+  "B14-neg-01",
+  "B15-pos-01",
+  "S9-neg-01",
+  "S4-neg-01",
 ]);
 
 // A binding may only execute a vector that is (a) locked, (b) required-tier
@@ -1552,6 +1557,75 @@ describe("B2 vector bindings — Z9 one-clock qualifying-bond window family (#73
     expect(firstSeenConformant).toBe(accepts(vector)); // false === reject
     // the re-derived current-chain verdict is the conformant (in-window) reading — the positive companion.
     expect(reDerived).toBe("in-window");
+  });
+});
+
+// ---- bind-to-resident closing batch: ratified vectors whose rule is already a resident predicate ----
+// Per-vector verification (ChatLunatique's concur, event 501a1094): of the 9 hypothesized
+// bind-to-resident vectors only these 4 bind cleanly to a resident predicate with no new law; the
+// other 5 (B7 bond-half, T2-neg-02 B3 range, S12 engine transfer, F9 gate-fee+params+reorg composite,
+// F15 new threshold predicate) need a companion / new surface and are NOT forced here.
+describe("B2 vector bindings — bind-to-resident closing batch (B14/B15/S9/S4)", () => {
+  it("B14-neg-01: a rejected below-minimum soft-close bid does not extend the close (extension is acceptance-only) — auction #68", () => {
+    const vector = loadVector("batched-path-transitions.json", "B14-neg-01");
+    assertBindable(vector);
+    // opened auction: leader 100_000, close 901_000, soft-close window 144 -> [900_856, 901_000].
+    const rejected = acceptAuctionBid(
+      auctionBid({ bidAmountSats: 109_999n, minedHeight: 900_900 }), // below the soft required minimum
+      auctionPaymentBond(109_999n),
+      auctionOpened(),
+      AUCTION_PARAMS
+    );
+    expect(rejected.accepted).toBe(accepts(vector)); // false === reject
+    // close, leader, and required-minimum are byte-unchanged — the extension is acceptance-only.
+    expect(rejected).toMatchObject({ stateEffect: "none", nextCloseHeight: 901_000, nextLeaderAmountSats: 100_000n });
+  });
+
+  it("B15-pos-01: chained accepted soft-close bids extend the close monotonically with no hard cap — auction #68", () => {
+    const vector = loadVector("batched-path-transitions.json", "B15-pos-01");
+    assertBindable(vector);
+    const bid1 = acceptAuctionBid(
+      auctionBid({ bidAmountSats: 110_000n, minedHeight: 900_900 }),
+      auctionPaymentBond(110_000n),
+      auctionOpened(),
+      AUCTION_PARAMS
+    );
+    expect(bid1).toMatchObject({ accepted: true, nextCloseHeight: 901_044 }); // close 901_000 -> 901_044
+    // a further late accepted bid, inside the NEW soft-close window, extends again — no cap terminates it.
+    const bid2 = acceptAuctionBid(
+      auctionBid({ bidAmountSats: 121_000n, minedHeight: 901_040 }),
+      auctionPaymentBond(121_000n),
+      auctionOpened({ currentLeaderAmountSats: 110_000n, currentCloseHeight: 901_044 }),
+      AUCTION_PARAMS
+    );
+    expect(bid2.accepted).toBe(accepts(vector)); // true === accept
+    expect(bid2.nextCloseHeight).toBe(901_184); // 901_044 -> 901_184: monotone non-decreasing, no hard cap
+  });
+
+  it("S9-neg-01: a reauction bid not anchored to the latest recorded release height does not open/join — reopen #70", () => {
+    const vector = loadVector("settlement-consequences.json", "S9-neg-01");
+    assertBindable(vector);
+    const breaks = [{ releaseHeight: 900_000 }]; // latest recorded release height
+    // caseStaleAnchor / caseFabricatedFuture / caseZeroAfterRelease — none equal the latest release.
+    for (const staleAnchor of [800_000 /* stale */, 950_000 /* fabricated-future */, 0 /* unlockBlock=0 after a release */]) {
+      expect(resolveReopen({ reopenLot: { kind: "reopen", releaseAnchor: staleAnchor }, bondContinuity: { witnessComplete: true, breaks } }).recognized).toBe(
+        accepts(vector)
+      ); // false === reject
+    }
+    // positive control: a bid anchored to the latest release height opens the live generation.
+    expect(resolveReopen({ reopenLot: { kind: "reopen", releaseAnchor: 900_000 }, bondContinuity: { witnessComplete: true, breaks } }).recognized).toBe(true);
+  });
+
+  it("S4-neg-01: maturity is the fixed MATURITY_BLOCKS param — an epoch-halving / override value does not settle — settlement #65", () => {
+    const vector = loadVector("settlement-consequences.json", "S4-neg-01");
+    assertBindable(vector);
+    // run at two MATURITY_BLOCKS values so no baked-in constant passes.
+    for (const maturityBlocks of [52_560, 40_000]) {
+      const halved = Math.floor(maturityBlocks / 2); // an epoch-halving-derived maturity
+      expect(settlementLockMatchesMaturity({ settlementLockBlocks: halved }, maturityBlocks).matches).toBe(accepts(vector)); // false === reject
+      // positive control: the fixed parameter value settles.
+      expect(settlementLockMatchesMaturity({ settlementLockBlocks: maturityBlocks }, maturityBlocks).matches).toBe(true);
+    }
   });
 });
 

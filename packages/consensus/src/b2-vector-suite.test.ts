@@ -100,6 +100,10 @@ const readyBindingTargetById: Record<string, string> = {
   "B10-pos-01": "batch-exclusion: a DA-excluded batch's leaves vanish uniformly; exclusion removes only that batch, every other name byte-identical, no final unseated",
   "D7-pos-01": "batch-exclusion: excluding a batch yields exactly the as-if-never-anchored state (insert-only state-equivalence, DA §5)",
   "Z9-neg-01": "notice-window/bondInNoticeWindow: the qualifying-bond window test reads the re-derived current-chain mined height (#49 S1); a first-seen-height reading is non-conformant",
+  "B14-neg-01": "auction-resolution: a rejected below-minimum soft-close bid does not extend the close (extension is acceptance-only)",
+  "B15-pos-01": "auction-resolution: chained accepted soft-close bids extend the close monotonically with no hard cap",
+  "S9-neg-01": "reopen-resolution: a reauction bid not anchored to the latest recorded release height does not open/join the live generation",
+  "S4-neg-01": "settlement: maturity is the fixed MATURITY_BLOCKS param; an epoch-halving / override value does not settle",
 };
 
 type VectorOrigin = "vector-now" | "provisional-origin";
@@ -255,8 +259,8 @@ describe("B2 executable vector suite inventory", () => {
 
     expect(countsBy(plans.map((plan) => plan.state))).toEqual({
       "pending-dk": 8,
-      "pending-predicate": 17,
-      "ready-for-binding": 69,
+      "pending-predicate": 13,
+      "ready-for-binding": 73,
     });
   });
 
@@ -266,7 +270,7 @@ describe("B2 executable vector suite inventory", () => {
       .map((plan) => plan.vector.id)
       .sort();
 
-    expect(pendingRequired).toHaveLength(17);
+    expect(pendingRequired).toHaveLength(13);
     // the entire recovery-parked group (R1/R2/R7/R9/R10-01/R10-02/T19 + now R18 completion / G6
     // no-callback purity) is bound to the resident recovery surface — no recovery vector remains.
     // the winner-selection / bid-acceptance group (Q1/Q2/Q3/Q4/Q7/Q9/Q10 + T7/T9/G1) is bound to
@@ -287,5 +291,10 @@ describe("B2 executable vector suite inventory", () => {
     expect(pendingRequired).not.toContain("B10-pos-01");
     expect(pendingRequired).not.toContain("D7-pos-01");
     expect(pendingRequired).not.toContain("Z9-neg-01");
+    // bind-to-resident closing batch now resident (auction #68 / reopen #70 / settlement #65)
+    expect(pendingRequired).not.toContain("B14-neg-01");
+    expect(pendingRequired).not.toContain("B15-pos-01");
+    expect(pendingRequired).not.toContain("S9-neg-01");
+    expect(pendingRequired).not.toContain("S4-neg-01");
   });
 });
