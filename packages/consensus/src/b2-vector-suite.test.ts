@@ -108,6 +108,8 @@ const readyBindingTargetById: Record<string, string> = {
   "T20-neg-01": "b2-boundary/notice-window: deadlines are computed from block heights only — no issuedAt / wall-clock input channel",
   "B22-neg-01": "window-schedule: the window length has no market-signal input channel (closed shape) — a market-derived shrink is rejected by construction",
   "Z11-neg-01": "window-schedule: extend-only; a computed window below the height-keyed floor (negative/shrink extension) is rejected; windows reduce only by block height",
+  "A6-neg-01": "name-canonicalization: non-canonical leaf name bytes are rejected, never normalized (WIRE §2 / isCanonicalName)",
+  "F15-pos-01": "claim-path-eligibility: a name of canonical length <= threshold T is bond-first only; length > T may cheap-claim (PR-15, parameterized)",
 };
 
 type VectorOrigin = "vector-now" | "provisional-origin";
@@ -263,8 +265,8 @@ describe("B2 executable vector suite inventory", () => {
 
     expect(countsBy(plans.map((plan) => plan.state))).toEqual({
       "pending-dk": 8,
-      "pending-predicate": 9,
-      "ready-for-binding": 77,
+      "pending-predicate": 7,
+      "ready-for-binding": 79,
     });
   });
 
@@ -274,15 +276,15 @@ describe("B2 executable vector suite inventory", () => {
       .map((plan) => plan.vector.id)
       .sort();
 
-    expect(pendingRequired).toHaveLength(9);
+    expect(pendingRequired).toHaveLength(7);
     // the entire recovery-parked group (R1/R2/R7/R9/R10-01/R10-02/T19 + now R18 completion / G6
     // no-callback purity) is bound to the resident recovery surface — no recovery vector remains.
     // the winner-selection / bid-acceptance group (Q1/Q2/Q3/Q4/Q7/Q9/Q10 + T7/T9/G1) is bound to
     // auction-resolution; the notice-window group (T17/F11) is bound to notice-window — no auction
     // or notice-window vector remains pending-predicate.
-    // A6 (non-canonical-name-byte rejection) is a still-pending A-area name-canonicalization surface,
-    // distinct from the DA-locality trio just landed; it stays a visible pending-predicate target.
-    expect(pendingRequired).toContain("A6-neg-01");
+    // B12 (lot-commitment mismatch) is a still-pending surface (new lot-commitment predicate, not yet
+    // built); it stays a visible pending-predicate target so non-resident vectors aren't silently skipped.
+    expect(pendingRequired).toContain("B12-neg-01");
     expect(pendingRequired).not.toContain("T17-neg-01"); // now resident in notice-window
     expect(pendingRequired).not.toContain("F11-neg-01");
     // the reopen/re-auction group (T22/B19) is bound to reopen-resolution — no longer pending.
@@ -306,5 +308,8 @@ describe("B2 executable vector suite inventory", () => {
     // window-schedule (#74) now resident
     expect(pendingRequired).not.toContain("B22-neg-01");
     expect(pendingRequired).not.toContain("Z11-neg-01");
+    // name-canonicalization (#75) + claim-path-eligibility (#76) now resident
+    expect(pendingRequired).not.toContain("A6-neg-01");
+    expect(pendingRequired).not.toContain("F15-pos-01");
   });
 });

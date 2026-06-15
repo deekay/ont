@@ -78,3 +78,9 @@ export * from "./batch-exclusion.js";
 // window-length verdict with no market-signal input channel (B22/Z11). Rides nothing external —
 // anchor height + a frozen value-free schedule enter as caller inputs.
 export * from "./window-schedule.js";
+// The name-canonicalization predicate (#75, riding #59's verdict tier): the pure A6 reject-don't-
+// normalize gate over leaf name bytes, riding the audited B1 @ont/wire isCanonicalName primitive.
+export * from "./name-canonicalization.js";
+// The claim-path-eligibility predicate (#76, riding #59's verdict tier): the pure PR-15 short-name
+// threshold gate (canonical byte length <= T => bond-first only). Rides nothing external.
+export * from "./claim-path-eligibility.js";

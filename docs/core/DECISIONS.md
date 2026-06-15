@@ -1928,6 +1928,52 @@ negative/non-integer extension, or overflow input fails closed (`computed:false`
 null) and never throws. This satisfies #44's "boundary may change only with a DECISIONS entry +
 conformance coverage"; the boundary freezes at launch.
 
+75. b2-name-canonicalization-boundary: the name-canonicalization predicate enters @ont/consensus as a
+pure CONSENSUS_VERDICTS decider — a batched-claim leaf's name bytes are accepted only if already
+canonical; non-canonical bytes are REJECTED, never normalized — riding the audited B1 @ont/wire
+canonical-name primitive — 2026-06-15
+
+*Status: **Proposed** (writer ClaudeleLunatique, reviewer ChatLunatique; lands on branch
+clean-build-b2-kernel, DK merges). A boundary-manifest addition under #44, riding the
+CONSENSUS_VERDICTS tier (#59). Its external allowlist is `@ont/wire` only: it rides the B1 normative
+`isCanonicalName` primitive (NAME_RE `/^[a-z0-9]{1,32}$/`) — the same authority the wire decoder uses
+— so the kernel and wire agree on canonicality by construction, not by a re-stated regex. NO new
+consensus law: it lands the already-normative A6 / WIRE_FORMAT §2 reject-don't-normalize rule. Covered
+by conformance: `trust-surface.test.ts` (`name-canonicalization.ts` in CONSENSUS_VERDICTS, `@ont/wire`
+allowlist), `name-canonicalization.test.ts`, and the A6-neg-01 binding.*
+
+**The rule.** `acceptCanonicalLeafName(nameBytesHex)` → `{ canonical, reason }`: the lowercase-hex leaf
+name bytes are decoded and checked against `isCanonicalName`; non-canonical bytes (uppercase,
+out-of-charset, empty, or over 32 bytes) REJECT and are NEVER normalized (no lowercasing, trimming, or
+substitution — the verdict is canonical-or-not, never a rewritten value). This kills the legacy
+normalize-on-ingest behavior. SCOPE: only the A6 reject-don't-normalize half (a6-02); the full leaf
+well-formedness (accumulator key == sha256(canonical name), owner-binding == H(ownerPubkey)) is the B3
+leaf-format / commitment-match concern (owner-binding construction is candidate-stays, riding C6).
+Total / fail-closed: malformed hex or non-canonical content rejects and never throws. This satisfies
+#44's "boundary may change only with a DECISIONS entry + conformance coverage"; the boundary freezes
+at launch.
+
+76. b2-claim-path-eligibility-boundary: the claim-path-eligibility predicate enters @ont/consensus as
+a pure CONSENSUS_VERDICTS decider — a name whose canonical byte length is at or below the launch
+short-name threshold T cannot finalize via the cheap-claim path (bond-first only) — riding nothing
+external — 2026-06-15
+
+*Status: **Proposed** (writer ClaudeleLunatique, reviewer ChatLunatique; lands on branch
+clean-build-b2-kernel, DK merges). A boundary-manifest addition under #44, riding the
+CONSENSUS_VERDICTS tier (#59). Empty external allowlist: it consumes a canonical byte LENGTH (a
+number) + the launch threshold — never the name itself, so it carries no normalization concern
+(canonicality is #75). NO new consensus law: it lands the already-ratified F15 / PR-15 short-name
+no-cheap-path rule. Covered by conformance: `trust-surface.test.ts` (`claim-path-eligibility.ts` in
+CONSENSUS_VERDICTS, empty allowlist), `claim-path-eligibility.test.ts`, and the F15-pos-01 binding.*
+
+**The rule.** `claimPathEligibility(canonicalNameByteLength, thresholdT)` → `{ cheapClaimAllowed,
+reason }`: `length <= T` is bond-first only (`cheapClaimAllowed:false`); `length > T` allows a cheap
+claim. `T` is a launch-freeze parameter, not a baked-in constant (the conformance tests run at two
+thresholds so no value is baked). It is a separate predicate from #75 by design — it takes the
+validated canonical byte length, not a name. Total / fail-closed: a non-positive-integer length or
+threshold fails closed (no cheap path) and never throws. This satisfies #44's "boundary may change
+only with a DECISIONS entry + conformance coverage"; the boundary freezes at launch.
+
 ## Fairness Principles To Carry Into The Launch Rewrite
 
 The rewritten launch draft should explicitly state:

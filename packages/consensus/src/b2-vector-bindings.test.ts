@@ -83,6 +83,8 @@ import { resolveReopen, type ReopenInput } from "./reopen-resolution.js";
 import { resolveNameOccupancy } from "./occupancy.js";
 import { deriveBatchedInsertions, type BatchExclusionInput } from "./batch-exclusion.js";
 import { windowSchedule } from "./window-schedule.js";
+import { acceptCanonicalLeafName } from "./name-canonicalization.js";
+import { claimPathEligibility } from "./claim-path-eligibility.js";
 import {
   createTransferPayload,
   deriveOwnerPubkey,
@@ -244,6 +246,9 @@ const LOCAL_BINDING_MANIFEST = new Set<string>([
   // window-schedule (#74)
   "B22-neg-01",
   "Z11-neg-01",
+  // name-canonicalization (#75) + claim-path-eligibility (#76)
+  "A6-neg-01",
+  "F15-pos-01",
 ]);
 
 // A binding may only execute a vector that is (a) locked, (b) required-tier
@@ -1705,6 +1710,32 @@ describe("B2 vector bindings — window-schedule family (#74)", () => {
     expect(extended.computed && (extended.blocks as number) >= (extended.floorBlocks as number)).toBe(true);
     // the floor itself reduces only by passage of block height (deterministic height schedule).
     expect(windowSchedule({ anchorHeight: 950_000, floorConstants: WS_SCHEDULE }).floorBlocks).toBe(504);
+  });
+});
+
+// ---- name-canonicalization (#75) + claim-path-eligibility (#76) ----
+const leafHex = (s: string): string => [...s].map((c) => c.charCodeAt(0).toString(16).padStart(2, "0")).join("");
+describe("B2 vector bindings — name-canonicalization (#75)", () => {
+  it("A6-neg-01: a non-canonical leaf name is rejected, never normalized to its canonical form", () => {
+    const vector = loadVector("anchor-acceptance.json", "A6-neg-01");
+    assertBindable(vector);
+    // the fixture leaf: nameBytesHex 416c696365 = "Alice" (uppercase A) — must REJECT, not normalize.
+    expect(acceptCanonicalLeafName("416c696365").canonical).toBe(accepts(vector)); // false === reject
+    // positive control: the canonical form "alice" is accepted (the predicate never produced it from "Alice").
+    expect(acceptCanonicalLeafName(leafHex("alice"))).toMatchObject({ canonical: true });
+  });
+});
+
+describe("B2 vector bindings — claim-path-eligibility (#76)", () => {
+  it("F15-pos-01: a name longer than threshold T may cheap-claim; <= T is bond-first only (two thresholds)", () => {
+    const vector = loadVector("gate-fee-validation.json", "F15-pos-01");
+    assertBindable(vector);
+    for (const T of [4, 8]) {
+      // positive bound: length T+1 may finalize via cheap claim.
+      expect(claimPathEligibility(T + 1, T).cheapClaimAllowed).toBe(accepts(vector)); // true === accept
+      // negative companion: length <= T is bond-first only.
+      expect(claimPathEligibility(T, T).cheapClaimAllowed).toBe(false);
+    }
   });
 });
 
