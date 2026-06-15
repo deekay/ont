@@ -117,6 +117,8 @@ const LOCAL_BINDING_MANIFEST = new Set<string>([
   "D3-neg-01",
   "D6-neg-01",
   "D13-pos-01",
+  // T-area vector realized via the resident DA holdsPriority predicate (transcript entry)
+  "T18-neg-01",
   // params family (DA-window construction + h+K eligibility)
   "A3-neg-01",
   "D9-neg-01",
@@ -251,6 +253,29 @@ describe("B2 vector bindings — DA-verdict family (includable / holdsPriority)"
     const accept = accepts(vector);
     expect(holdsPriority(anchor, servedAt(H + 2), params)).toBe(accept); // h+W inclusive
     expect(includable(anchor, servedAt(H + 5), params)).toBe(accept); // h+W+C inclusive
+  });
+
+  it("T18-neg-01: a claim past the holdsPriority deadline (h+W+1) does not enter the transcript", () => {
+    const vector = loadVector("transcript-completeness.json", "T18-neg-01");
+    assertBindable(vector);
+    // T-area vector bound DIRECTLY to the resident DA holdsPriority predicate (#49 S2/S3) — no
+    // wrapper, no new module. The vector's prose `confirmedHeight` is the DA holdsPriority
+    // comparand: the served evidence's first-servable height tested against h+W. It is named as
+    // the DA comparand here to avoid implying a general claim-mined-height / transcript-admission
+    // predicate (no such surface exists). The "does not enter the transcript / already-owned
+    // attempt" consequence lives ONLY in this verdict mapping over holdsPriority.
+    const hPlusW = H + 2; // the #49 S2/S3 holdsPriority deadline (h+W = 1002)
+    const pastDeadlineComparand = hPlusW + 1; // h+W+1 = 1003, one block past the deadline
+    // Primary -> expected.verdict: a comparand past h+W forfeits priority, so the transcript-entry
+    // consequence is reject (the claim does not enter / is inert).
+    expect(holdsPriority(anchor, servedAt(pastDeadlineComparand), params)).toBe(accepts(vector)); // false === reject
+    // companion: a comparand at h+W is in-window per the #49 inclusive boundary -> the claim enters.
+    expect(holdsPriority(anchor, servedAt(hPlusW), params)).toBe(true);
+    // determinism companion: identical comparand -> identical verdict (the "identical on replay" half;
+    // the reorg clock re-derivation itself is D3-neg-01's, not re-asserted here).
+    expect(holdsPriority(anchor, servedAt(pastDeadlineComparand), params)).toBe(
+      holdsPriority(anchor, servedAt(pastDeadlineComparand), params)
+    );
   });
 });
 
