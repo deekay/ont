@@ -88,9 +88,12 @@ const PARAMS_ALLOWED_PACKAGES = new Set<string>([]);
 const VERDICTS_ALLOWED_BY_FILE: Record<string, ReadonlySet<string>> = {
   "da-verdict.ts": new Set<string>([]),
   "value-record-authority.ts": new Set(["@ont/wire"]),
-  // gate-fee is a pure structural gate over witnessed (anchor, batch, fee); it rides
-  // nothing external (no g(name) schedule here — B3), so its allowlist is empty (#62).
-  "gate-fee.ts": new Set<string>([]),
+  // gate-fee is the pure D-GF adequacy/completeness gate over witnessed (anchor, batch, fee). The
+  // fee witness carries the complete anchor tx + each input's prevout tx, and the kernel binds them
+  // to the chain by recomputing each legacy txid — so it admits the audited @ont/bitcoin tx-serializer
+  // primitive (legacyTxidOf). Per-file allowlist-extension pattern (cf. batch-exclusion #83);
+  // boundary-manifest addendum b3-gate-fee-bitcoin-txid (#85). No host I/O — legacyTxidOf is pure.
+  "gate-fee.ts": new Set<string>(["@ont/bitcoin"]),
   // transcript-completeness is a pure predicate over a counted bid transcript + a
   // B3-verified completeness witness; it rides nothing external (witness format + lot
   // range are B3), so its allowlist is empty (#63).

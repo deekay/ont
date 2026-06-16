@@ -2250,6 +2250,27 @@ untouched; this decides only what mints the height it consumes (the `(K,W,C)` va
 launch-freeze parameters). **Unblocks D-SB-avail** (`@ont/evidence`), which mints
 `VerifiedAvailabilityHeight` — the one GATED B3 evidence predicate.
 
+85. b3-gate-fee-bitcoin-txid: the consensus gate-fee verdict admits the audited `@ont/bitcoin`
+legacy-txid serializer — **boundary-manifest addendum (#44), conformance-only** (ClaudeleLunatique,
+B3 §14 D-GF, 2026-06-15)
+
+*Status: **boundary addendum** under the #44 boundary-manifest discipline (a per-file trust-surface
+extension needs a DECISIONS addendum + a conformance test). No new consensus law — the gate-fee
+verdict (F8 / #52) is unchanged; this records WHICH audited primitive the verdict now rides.*
+
+**The change.** D-GF (gate-fee adequacy/completeness) recomputes-don't-trust: the fee witness carries
+the complete anchor tx + each input's prevout tx, and `gateFeeValidation` binds them to the chain by
+recomputing every legacy txid (`legacyTxidOf` = `reverse(dsha256(serializeLegacyTransaction(tx)))`).
+That serializer is a pure Bitcoin primitive, so it lives in `@ont/bitcoin` (NOT `@ont/protocol`, NOT
+kernel-local) and `gate-fee.ts` gains `@ont/bitcoin` on its **per-file** verdict-tier allowlist —
+the same allowlist-extension pattern as `batch-exclusion.ts → @ont/protocol` (#83). `legacyTxidOf` is
+pure (no host I/O, no clock, no randomness — `@noble/hashes` only), so the L2 boundary rule (pure
+predicate over witnessed inputs) is preserved and the b2-boundary purity scanner is unaffected.
+**Conformance:** `trust-surface.test.ts` pins `gate-fee.ts`'s allowlist to exactly `{@ont/bitcoin}`;
+a golden mainnet block-170 txid vector pins the serializer; the `gf.*` battery pins the recompute
+binds (anchor-txid / prevout-txid / prevout-vout / prevout-count). **No source/identity channel
+added** — the predicate stays the pure 3-input no-publisher signature (I5).
+
 ## Fairness Principles To Carry Into The Launch Rewrite
 
 The rewritten launch draft should explicitly state:
