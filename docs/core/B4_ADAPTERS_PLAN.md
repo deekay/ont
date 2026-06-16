@@ -100,3 +100,64 @@ parity-against-old; bar = hardened spec + conformance/negative suites):
    validation rule not spec-cited) is PARKED for DK, not decided in an adapter. Confirm the parking line.
 
 On concur (esp. #1 first-slice + #3 the I/O test bar) I open **B4-HEADER design-first** → red battery.
+
+## 7a. Design-concur — RESOLVED (ChatLunatique, event 3ad21d56)
+
+All five concurred. Refinements folded:
+1. **B4-HEADER first** — confirmed.
+2. **Package naming** — `@ont/indexer` / `@ont/resolver` / `@ont/publisher` are ALREADY the package names of
+   the quarantined `apps/*`, so the parallel B4 packages use `@ont/adapter-header`, `@ont/adapter-indexer`,
+   `@ont/adapter-resolver`, `@ont/adapter-publisher` (or an explicit rename/decommission of the old apps
+   first). `@ont/adapter-header` stays header-only; if it grows block/tx fetch, split or rename to
+   `@ont/adapter-bitcoin`.
+3. **I/O test bar** — recorded-fixture seam conformance + hostile-input negatives piped into the REAL B3
+   predicate (prove no false-accept); live-network smoke separate. The gate proves "valid adapter output
+   feeds B3 accept; hostile adapter input yields no witness and B3 rejects," not "the fetcher returns bytes."
+4. **Indexer distinct** — keep the indexer the projection/fact firewall; the resolver CONSUMES indexed
+   facts and must NOT mint committed-batch projections / confirmed-inclusion facts as a request side effect.
+5. **No new law** — adapters validate shape / provenance / transport freshness / source consistency; they
+   never invent acceptance rules. Any rule-ish question is parked for DK / spec ratification.
+
+## 8. B4-HEADER design — canonical-header source (design-first)
+
+Package: **`@ont/adapter-header`** (header-only). Depends on `@ont/bitcoin` (`validateHeaderChain`,
+`BitcoinHeaderSource`); the firewall test also imports `@ont/consensus` (`verifyProofBundleAgainstBitcoin`)
++ the I-HARNESS synthetic-anchor fixture pattern.
+
+**Trust boundary (CL).** `checkpoint` (`BitcoinDifficultyCheckpoint`) + `params` (`BitcoinNetworkParams`)
+are LAUNCH / TRUSTED config supplied by the caller — NOT from the provider. The provider supplies only raw
+candidate headers (UNTRUSTED). The adapter returns a `BitcoinHeaderSource` ONLY after the full fetched
+candidate validates through `validateHeaderChain` (#82); outside the validated range, `headerHexAtHeight`
+returns null.
+
+**Scope (this slice): ONE trusted active-chain provider.** Multi-source / fork-selection (a lower-work
+valid fork must lose) is OUT — a later slice (or the indexer's chain selection). This slice consumes the
+single provider's presented active chain and validates it; it does NOT choose among competing chains.
+
+**Seam + API:**
+```
+HeaderRangeProvider { fetchHeaderHex(startHeight, count): readonly string[] | null }  // the network I/O seam
+buildCanonicalHeaderSource({ provider, startHeight, count, checkpoint, params })
+  -> { ok: true, headerSource, tipHeight, cumulativeWorkHex } | { ok: false, reason }
+  1. fetch     headers = provider.fetchHeaderHex(startHeight, count); null / throw -> "header-provider-unavailable"
+  2. validate  validateHeaderChain(headers, startHeight, checkpoint, params); !ok -> the spv-* reason surfaced
+  3. source    ok -> return its headerSource (+ tipHeight / cumulativeWorkHex)
+  total + fail-closed: never throws (provider throw is caught).
+```
+
+**The firewall (the point of the slice):** the returned `headerSource` is the ONLY thing B3's inclusion
+verifier (`verifyProofBundleAgainstBitcoin`) trusts. A hostile provider (forged child / withheld / broken
+linkage / insufficient PoW) yields NO source (reject), or a source whose validated range excludes the
+hostile header — so B3 cannot falsely accept. The unit gate pipes the adapter output into the real
+predicate and asserts the accept/reject split.
+
+**Planned `hdr.*` red battery (CL pins):**
+- valid recorded range → source; the source feeds `verifyProofBundleAgainstBitcoin` and a bundle anchored
+  in-range ACCEPTS (firewall-positive; reuse the I-HARNESS synthetic mined-anchor + bundle fixture).
+- provider returns null / throws → `header-provider-unavailable`, no source.
+- forged easy-`nBits` child → `validateHeaderChain` rejects → no source (firewall-negative: nothing reaches
+  B3, so no accept).
+- broken linkage / insufficient PoW / malformed header → reject (spv-* surfaced).
+- out-of-range height → `headerHexAtHeight` returns null → B3's `btc.*.chain` canonical check fails.
+- malformed checkpoint / params → fail closed (`spv-checkpoint-malformed` / `spv-params-malformed`).
+- determinism; never throws. (Multi-source / lower-work-fork-loses noted OUT for this slice.)
