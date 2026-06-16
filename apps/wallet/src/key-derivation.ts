@@ -22,10 +22,10 @@ export type DeriveOwnerKeyResult =
   | { readonly ok: false; readonly reason: "malformed-mnemonic" | "malformed-index" };
 
 /**
- * RED stub. Green: validateMnemonic(mnemonic) else malformed-mnemonic; index a non-negative safe integer else
- * malformed-index; masterSeed = mnemonicToSeedSync(mnemonic.trim()).slice(0,32);
- * HDKey.fromMasterSeed(masterSeed).derive(`m/696969'/0'/${index}'`).privateKey → ownerPrivateKeyHex;
- * ownerPubkey = deriveOwnerPubkey(ownerPrivateKeyHex). Must match packages/wire/vectors/keys.json byte-for-byte.
+ * Derive the owner key for `index` from the 12-word secret (WIRE §5). validateMnemonic else malformed-mnemonic;
+ * index a non-negative safe integer else malformed-index; masterSeed = mnemonicToSeedSync(mnemonic.trim())
+ * .slice(0,32); HDKey.fromMasterSeed(masterSeed).derive(`m/696969'/0'/${index}'`).privateKey → ownerPrivateKeyHex;
+ * ownerPubkey = deriveOwnerPubkey(ownerPrivateKeyHex). Byte-identical to packages/wire/vectors/keys.json.
  */
 export function deriveOwnerKey(mnemonic: string, index = 0): DeriveOwnerKeyResult {
   if (typeof mnemonic !== "string") return { ok: false, reason: "malformed-mnemonic" };

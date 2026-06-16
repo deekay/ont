@@ -48,10 +48,9 @@ export type CreateWalletSignerResult =
   | { readonly ok: false; readonly reason: "malformed-mnemonic" | "malformed-index" };
 
 /**
- * RED stub. Green: deriveOwnerKey(mnemonic, index) (else propagate the reason); return a signer that closes
- * over ownerPrivateKeyHex and exposes ownerPubkey + signValueRecord/signRecoveryDescriptor (consuming
- * @ont/protocol signValueRecord/signRecoveryDescriptor with the held key). The private key/seed are NEVER
- * returned or exposed on the signer.
+ * Create a signer for the owner key at `index` (deriveOwnerKey; else propagate the reason). The returned signer
+ * closes over ownerPrivateKeyHex and exposes ownerPubkey + signValueRecord/signRecoveryDescriptor (delegating to
+ * @ont/protocol with the held key). The private key/seed are NEVER returned or exposed on the signer.
  */
 export function createWalletSigner(mnemonic: string, index = 0): CreateWalletSignerResult {
   const derived = deriveOwnerKey(mnemonic, index);
