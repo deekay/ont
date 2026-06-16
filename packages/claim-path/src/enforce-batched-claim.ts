@@ -91,12 +91,17 @@ export interface BatchedClaimResult {
  *   1. inclusion     `verifyProofBundleAgainstBitcoin(proofBundle, { headerSource })` — NOT the
  *                    deprecated structural alias. Subsumes SPV/header-canonicality + the bundle's
  *                    structural accumulator MEMBERSHIP. A stale/noncanonical/absent header, or a
- *                    membership/structure fault, fails here.
+ *                    membership/structure fault, fails here. ALSO BINDS `input.anchor` to the bundle:
+ *                    `anchor.txid`/`anchorHeight` === the bundle's cited inclusion anchor, and
+ *                    `anchor.anchoredRoot` === the bundle's `accumulatorProof.root` (membership root).
+ *                    A mismatch fails here — this forbids the false composition "Bitcoin-included
+ *                    membership for root A + served bytes / completeness for a different root B".
  *   2. availability  `verifyAvailabilityHeight({ baseLeaves, servedDelta, binding, confirmedAnchorMinedHeight })`,
- *                    `servedDelta` = `batchDataSource.servedLeavesForRoot(anchoredRoot)`, `baseLeaves` =
+ *                    `servedDelta` = `batchDataSource.servedLeavesForRoot(anchor.anchoredRoot)`, `baseLeaves` =
  *                    `baseLeavesForPrevRoot(anchor.prevRoot)`. Withheld served bytes (`null`) fails HERE;
- *                    no non-content channel (timestamp/receipt) revives absent bytes — only presenting the
- *                    actual matching content mints the witness (`firstServableHeight = h`, #84/O1).
+ *                    a null/throwing base (`baseLeavesForPrevRoot`) fails HERE too — NEVER treated as an
+ *                    empty base. No non-content channel (timestamp/receipt) revives absent bytes — only
+ *                    presenting the actual matching content mints the witness (`firstServableHeight = h`, #84/O1).
  *   3. completeness  `evaluateBatchCompleteness(...)` — owns the prevRoot→newRoot REPLAY; the harness
  *                    builds the per-leaf projections + the availability-derived daVerdict; fails BEFORE
  *                    any name-state delta (e.g. committed `batchSize` ≠ served count → count-mismatch).

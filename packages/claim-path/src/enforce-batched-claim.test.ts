@@ -58,6 +58,18 @@ const PREV_ROOT = accumulatorRootOf(BASE);
 const ANCHORED_ROOT = accumulatorRootOf(FULL);
 const SERVED_DELTA: readonly ServedLeaf[] = [{ keyHex: LEAF, valueHex: OWNER }];
 
+// A SECOND coherent root B (different delta leaf) used to prove the anchor↔bundle binding: B's served
+// bytes reconstruct B, but the resident BUNDLE commits root A — a green that does not bind would wrongly
+// accept "Bitcoin-included membership for A + served bytes for B".
+const LEAF2 = "cc".repeat(32);
+const OWNER2 = "dd".repeat(32);
+const FULL2 = new Map([
+  [OTHER_KEY, OTHER_VAL],
+  [LEAF2, OWNER2],
+]);
+const ANCHORED_ROOT_2 = accumulatorRootOf(FULL2); // root B (≠ ANCHORED_ROOT = the bundle's root A)
+const SERVED_DELTA_2: readonly ServedLeaf[] = [{ keyHex: LEAF2, valueHex: OWNER2 }];
+
 const inclusion = buildBitcoinInclusion({
   txid: PAYMENT_TXID,
   height: ANCHOR_HEIGHT,
@@ -198,5 +210,41 @@ describe("I-HARNESS enforceBatchedClaim — end-to-end batched-claim enforcement
     const rb = enforceBatchedClaim(claim(), sources({ batch: throwingBatch }));
     expect(rb.accepted).toBe(false);
     expect(stepOk(rb, "availability")).toBe(false);
+  });
+
+  it("binds input.anchor to the bundle: a txid / anchorHeight mismatch rejects at inclusion, before availability", () => {
+    const badTxid = enforceBatchedClaim(
+      claim({ anchor: { txid: "99".repeat(32), prevRoot: PREV_ROOT, anchoredRoot: ANCHORED_ROOT, anchorHeight: ANCHOR_HEIGHT, batchSize: 1 } }),
+      sources(),
+    );
+    expect(badTxid.accepted).toBe(false);
+    expect(stepOk(badTxid, "inclusion")).toBe(false);
+    expect(reached(badTxid, "availability")).toBe(false);
+
+    const badHeight = enforceBatchedClaim(
+      claim({ anchor: { txid: PAYMENT_TXID, prevRoot: PREV_ROOT, anchoredRoot: ANCHORED_ROOT, anchorHeight: ANCHOR_HEIGHT + 1, batchSize: 1 } }),
+      sources(),
+    );
+    expect(stepOk(badHeight, "inclusion")).toBe(false);
+  });
+
+  it("binds anchoredRoot to the bundle's membership root: a root-B claim with reconstructing B bytes still rejects (no membership-A + bytes-B)", () => {
+    // input.anchor commits root B and batchDataSource serves B's reconstructing bytes, but the BUNDLE
+    // commits root A. The bind must reject before availability/completeness — never accept the cross.
+    const r = enforceBatchedClaim(
+      claim({ anchor: { txid: PAYMENT_TXID, prevRoot: PREV_ROOT, anchoredRoot: ANCHORED_ROOT_2, anchorHeight: ANCHOR_HEIGHT, batchSize: 1 } }),
+      sources({ batch: batchDataSource({ servedLeavesForRoot: (root) => (root === ANCHORED_ROOT_2 ? SERVED_DELTA_2 : null) }) }),
+    );
+    expect(r.accepted).toBe(false);
+    expect(stepOk(r, "inclusion")).toBe(false);
+    expect(reached(r, "completeness")).toBe(false);
+    expect(r.nameStateDelta).toBeUndefined();
+  });
+
+  it("a null base (baseLeavesForPrevRoot returns null) fails at availability — never treated as an empty base, never reaches completeness", () => {
+    const r = enforceBatchedClaim(claim(), sources({ batch: batchDataSource({ baseLeavesForPrevRoot: () => null }) }));
+    expect(r.accepted).toBe(false);
+    expect(stepOk(r, "availability")).toBe(false);
+    expect(reached(r, "completeness")).toBe(false);
   });
 });
