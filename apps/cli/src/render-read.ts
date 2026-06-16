@@ -74,8 +74,13 @@ export interface RawView {
 }
 export type RenderResolverRawResult = { readonly ok: true; readonly view: RawView } | { readonly ok: false; readonly reason: "unavailable" };
 
-/** RED stub. Green: validate env object + EXACT stamps → {ok:true, view:{provenance, authority, data}} (data unchanged); else unavailable. */
+/** Both envelope stamps must match EXACTLY before rendering; data passes through unchanged (no interpretation). Never throws. */
 export function renderResolverRaw(env: ResolverRawRead): RenderResolverRawResult {
-  void env;
-  return { ok: false, reason: "unavailable" };
+  try {
+    if (env === null || typeof env !== "object") return { ok: false, reason: "unavailable" };
+    if (env.provenance !== "resolver-indexed-mirror" || env.authority !== "not-ownership-authority") return { ok: false, reason: "unavailable" };
+    return { ok: true, view: { provenance: env.provenance, authority: env.authority, data: env.data } };
+  } catch {
+    return { ok: false, reason: "unavailable" };
+  }
 }

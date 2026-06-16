@@ -65,9 +65,16 @@ export type RawReadCommand = "get-name" | "get-value" | "get-recovery-descriptor
 
 export type RawReadQuery = { readonly ok: true; readonly query: ResolverRawQuery } | { readonly ok: false; readonly reason: ShapeRejectReason };
 
-/** RED stub. Green: name-keyed → shapeNameQuery(arg) → {ok, query:{command,name}}; list-activity → {ok, query:{command}}; else unknown-command. ROUTING ONLY. */
+/** ROUTING ONLY: name-keyed → shapeNameQuery (its coercion guard preserved); list-activity → no-arg. Never throws. */
 export function shapeRawReadQuery(command: RawReadCommand, arg?: string): RawReadQuery {
-  void command;
-  void arg;
-  return { ok: false, reason: "unknown-command" };
+  try {
+    if (command === "get-name" || command === "get-value" || command === "get-recovery-descriptor" || command === "get-name-activity") {
+      const q = shapeNameQuery(arg ?? "");
+      return q.ok ? { ok: true, query: { command, name: q.name } } : { ok: false, reason: q.reason };
+    }
+    if (command === "list-activity") return { ok: true, query: { command: "list-activity" } };
+    return { ok: false, reason: "unknown-command" };
+  } catch {
+    return { ok: false, reason: "unknown-command" };
+  }
 }
