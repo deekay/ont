@@ -49,17 +49,37 @@ export type ConfirmedRecoverOwnerInvokeResult =
  *   3. mint      confirmedInvoke { txid: bound.txid, minedHeight, recoveryDescriptorHash:
  *                decoded.recoveryDescriptorHash, invokeFields: { prevStateTxid, newOwnerPubkey, flags,
  *                successorBondVout, challengeWindowBlocks, recoveryDescriptorHash, signature } } — DECODE only.
- * The adapter does NOT judge flags / authority — enforceRecoveryInvoke owns that.
- *
- * STUB (B4-INDEX-INVOKE, tests-first): returns a fixed reject so the idx-invoke.* red battery fails.
+ * The adapter does NOT judge flags / authority — enforceRecoveryInvoke owns that. Total + fail-closed;
+ * never throws.
  */
 export function buildConfirmedRecoverOwnerInvoke(
-  _input: BuildConfirmedRecoverOwnerInvokeInput,
+  input: BuildConfirmedRecoverOwnerInvokeInput,
 ): ConfirmedRecoverOwnerInvokeResult {
-  void bindTxInclusion;
-  void selectRecoverOwner;
-  void mapInclusionReason;
-  return { ok: false, reason: "invoke-malformed" };
+  try {
+    if (input === null || typeof input !== "object") return { ok: false, reason: "invoke-malformed" };
+    const { invokeTx, blockHeaderHex, minedHeight, merkle, pos, headerSource, invokeVout } = input;
+
+    // 1. payload — the decoded RecoverOwner (no caller side-channel). invokeVout is no-fallback.
+    const decoded = selectRecoverOwner(invokeTx, invokeVout);
+    if (decoded === null) return { ok: false, reason: "invoke-malformed" };
+
+    // 2. chain bind — the SHARED inclusion firewall (height → txid → header-canonicality → merkle-inclusion).
+    const bound = bindTxInclusion({ tx: invokeTx, blockHeaderHex, minedHeight, merkle, pos, headerSource });
+    if (!bound.ok) return { ok: false, reason: mapInclusionReason(bound.reason) };
+
+    // 3. mint — chain-bound invoke fact; recoveryDescriptorHash + invokeFields from the DECODE only.
+    return {
+      ok: true,
+      confirmedInvoke: {
+        txid: bound.txid,
+        minedHeight,
+        recoveryDescriptorHash: decoded.recoveryDescriptorHash,
+        invokeFields: decoded,
+      },
+    };
+  } catch {
+    return { ok: false, reason: "invoke-malformed" };
+  }
 }
 
 function mapInclusionReason(reason: InclusionRejectReason): ConfirmedRecoverOwnerInvokeRejectReason {

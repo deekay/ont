@@ -32,5 +32,6 @@ export {
   type ConfirmedRecoverOwnerInvokeRejectReason,
 } from "./confirmed-recover-invoke.js";
 
-// Shared inclusion firewall (B4_ADAPTERS_PLAN §9.11) — reused by ANCHOR + INVOKE.
-export { opReturnData, bindTxInclusion, type InclusionRejectReason, type BindTxInclusionInput, type BindTxInclusionResult } from "./inclusion.js";
+// The shared inclusion firewall (src/inclusion.ts — opReturnData + bindTxInclusion) is an adapter INTERNAL
+// reused by ANCHOR + INVOKE; intentionally NOT part of the package surface (CL green-watch). Intra-package
+// callers + tests import it directly from ./inclusion.js.
