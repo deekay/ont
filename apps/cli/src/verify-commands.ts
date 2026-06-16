@@ -1,9 +1,11 @@
+import { createRecoveryWalletProofMessage, verifyRecoveryWalletProof } from "@ont/protocol";
 import type {
   RecoveryWalletProof,
   RecoveryWalletProofFields,
   RecoveryWalletProofVerificationResult,
   SignedRecoveryDescriptor,
 } from "@ont/protocol";
+import { verifyProofBundleStructure } from "@ont/consensus";
 import type { ProofBundleVerificationReport } from "@ont/consensus";
 
 // B5-CLI verify cores (B5_CLI_CLASSIFICATION.md KEEP/verify). PURE thin orchestrators: they consume the
@@ -39,20 +41,30 @@ export type InspectProofBundleResult =
   | { readonly ok: true; readonly report: ProofBundleVerificationReport }
   | { readonly ok: false; readonly reason: "malformed" };
 
-/** RED stub. Green: { ok:true, message: createRecoveryWalletProofMessage(fields) }; throws (bad fields) → malformed. */
+/** Pure render of the BIP322 message; bad fields (createRecoveryWalletProofMessage asserts) → malformed. Never throws. */
 export function renderRecoveryWalletProofMessage(fields: RecoveryWalletProofMessageFields): RenderMessageResult {
-  void fields;
-  return { ok: false, reason: "malformed" };
+  try {
+    return { ok: true, message: createRecoveryWalletProofMessage(fields) };
+  } catch {
+    return { ok: false, reason: "malformed" };
+  }
 }
 
-/** RED stub. Green: { ok:true, result: verifyRecoveryWalletProof(input) } (verbatim); malformed input/throw → malformed. */
+/** Surfaces the audited verifyRecoveryWalletProof result VERBATIM; malformed input / throw → malformed. Never throws. */
 export function runVerifyRecoveryWalletProof(input: VerifyRecoveryWalletProofInput): VerifyWalletProofResult {
-  void input;
-  return { ok: false, reason: "malformed" };
+  try {
+    if (input === null || typeof input !== "object") return { ok: false, reason: "malformed" };
+    return { ok: true, result: verifyRecoveryWalletProof(input) };
+  } catch {
+    return { ok: false, reason: "malformed" };
+  }
 }
 
-/** RED stub. Green: { ok:true, report: verifyProofBundleStructure(bundle) } (verbatim; structural inspection only). */
+/** Surfaces the audited STRUCTURAL report VERBATIM (not Bitcoin finality); only a throw from the audited verifier → malformed. */
 export function runInspectProofBundle(bundle: unknown): InspectProofBundleResult {
-  void bundle;
-  return { ok: false, reason: "malformed" };
+  try {
+    return { ok: true, report: verifyProofBundleStructure(bundle) };
+  } catch {
+    return { ok: false, reason: "malformed" };
+  }
 }
