@@ -1,12 +1,7 @@
-import {
-  legacyTxidOf,
-  merkleRootFromProof,
-  merkleRootHexFromHeaderHex,
-  type BitcoinHeaderSource,
-  type LegacyTransaction,
-} from "@ont/bitcoin";
+import { type BitcoinHeaderSource, type LegacyTransaction } from "@ont/bitcoin";
 import { decodeEvent, EventType } from "@ont/wire";
 import type { ConfirmedBatchAnchor, GateFeeTxWitnessParts } from "@ont/claim-path";
+import { bindTxInclusion, opReturnData, type InclusionRejectReason } from "./inclusion.js";
 
 // B4-INDEX-ANCHOR (B4_ADAPTERS_PLAN §9.4) — the inclusion firewall: bind a candidate RootAnchor tx to
 // the canonical chain and mint the chain-bound ConfirmedBatchAnchor + the fee-tx parts the audited B3
@@ -77,43 +72,18 @@ export function buildConfirmedBatchAnchor(
     if (input === null || typeof input !== "object") return reject("anchor-malformed");
     const { anchorTx, prevoutTxs, blockHeaderHex, minedHeight, merkle, pos, headerSource, anchorVout } = input;
 
-    // 0. height — a malformed height must never reach the header source or be minted.
-    if (!Number.isInteger(minedHeight) || minedHeight < 0) return reject("anchor-noncanonical-header");
-
-    // 1. txid — binds inclusion AND fees to the SAME tx.
-    const anchorTxid = legacyTxidOf(anchorTx);
-    if (anchorTxid === null) return reject("anchor-malformed");
-
-    // 2. payload — the decoded RootAnchor (no caller side-channel). anchorVout is no-fallback.
+    // payload — the decoded RootAnchor (no caller side-channel). anchorVout is no-fallback.
     const decoded = selectRootAnchor(anchorTx, anchorVout);
     if (decoded === null) return reject("anchor-malformed");
 
-    // 3. canonical — the block header must be the source's header at minedHeight (null/throw → reject).
-    let canonical: string | null;
-    try {
-      canonical = headerSource.headerHexAtHeight(minedHeight);
-    } catch {
-      return reject("anchor-noncanonical-header");
-    }
-    if (
-      typeof blockHeaderHex !== "string" ||
-      canonical === null ||
-      canonical.toLowerCase() !== blockHeaderHex.toLowerCase()
-    ) {
-      return reject("anchor-noncanonical-header");
-    }
+    // chain bind — the SHARED inclusion firewall (height → txid → header-canonicality → merkle-inclusion).
+    const bound = bindTxInclusion({ tx: anchorTx, blockHeaderHex, minedHeight, merkle, pos, headerSource });
+    if (!bound.ok) return reject(mapInclusionReason(bound.reason));
 
-    // 4. inclusion — recompute the Merkle root and match the header's committed root (bytes 36..68).
-    const computed = merkleRootFromProof(anchorTxid, Array.isArray(merkle) ? merkle : [], pos);
-    const headerRoot = merkleRootHexFromHeaderHex(blockHeaderHex);
-    if (computed === null || headerRoot === null || bytesToHex(computed) !== headerRoot) {
-      return reject("anchor-not-included");
-    }
-
-    // 5. mint — chain-bound fact + fee parts (the SAME anchorTx object).
+    // mint — chain-bound fact + fee parts (the SAME anchorTx object used for inclusion).
     return {
       ok: true,
-      confirmedAnchor: { anchorTxid, minedHeight, anchoredRoot: decoded.newRoot, batchSize: decoded.batchSize },
+      confirmedAnchor: { anchorTxid: bound.txid, minedHeight, anchoredRoot: decoded.newRoot, batchSize: decoded.batchSize },
       feeTxParts: { anchorTx, prevoutTxs },
     };
   } catch {
@@ -125,42 +95,12 @@ function reject(reason: ConfirmedBatchAnchorRejectReason): ConfirmedBatchAnchorR
   return { ok: false, reason };
 }
 
-function bytesToHex(bytes: Uint8Array): string {
-  let hex = "";
-  for (const b of bytes) hex += b.toString(16).padStart(2, "0");
-  return hex;
-}
-
-function hexToBytesOrNull(hex: unknown): Uint8Array | null {
-  if (typeof hex !== "string" || hex.length % 2 !== 0 || !/^[0-9a-fA-F]*$/.test(hex)) return null;
-  const out = new Uint8Array(hex.length / 2);
-  for (let i = 0; i < out.length; i += 1) out[i] = Number.parseInt(hex.slice(i * 2, i * 2 + 2), 16);
-  return out;
-}
-
-/**
- * The data bytes of a script that is EXACTLY `OP_RETURN <push> <data>` and NOTHING ELSE — or null. The
- * script must be consumed exactly (CL green-watch): a single direct push (0x01..0x4b) or OP_PUSHDATA1
- * (0x4c len), with `data` ending the script (no trailing bytes, not a loose "first push wins" parse).
- */
-function opReturnData(scriptPubKeyHex: unknown): Uint8Array | null {
-  const script = hexToBytesOrNull(scriptPubKeyHex);
-  if (script === null || script.length < 2 || script[0] !== 0x6a) return null;
-  const op = script[1]!;
-  let dataStart: number;
-  let len: number;
-  if (op >= 0x01 && op <= 0x4b) {
-    len = op;
-    dataStart = 2;
-  } else if (op === 0x4c) {
-    if (script.length < 3) return null;
-    len = script[2]!;
-    dataStart = 3;
-  } else {
-    return null; // OP_0 / OP_PUSHDATA2/4 / opcodes are not a single data push we accept
-  }
-  if (dataStart + len !== script.length) return null; // must consume the script EXACTLY
-  return script.slice(dataStart, dataStart + len);
+function mapInclusionReason(reason: InclusionRejectReason): ConfirmedBatchAnchorRejectReason {
+  return reason === "tx-malformed"
+    ? "anchor-malformed"
+    : reason === "noncanonical-header"
+      ? "anchor-noncanonical-header"
+      : "anchor-not-included";
 }
 
 interface DecodedRootAnchor {
