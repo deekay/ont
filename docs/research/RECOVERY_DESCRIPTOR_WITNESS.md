@@ -36,9 +36,10 @@ on-chain `RecoverOwner` event (0x09) commits its **digest** `recoveryDescriptorH
 (32 bytes) — and that commitment is the **invoke itself**, mined at `h_r`. There is
 **no independent on-chain arming event**: no event type arms a descriptor, and the
 descriptor head-hash is not carried in any batch/accumulator root. (Verified:
-`@ont/wire` event registry has no arm event; `recoveryDescriptorDigest` lives in
-`@ont/protocol`; the kernel never stores a head-hash — the evidence layer resolves it
-from witnessed W15 posts.)
+`@ont/wire` event registry has no arm event; the digest D-RC recomputes,
+`recoveryDescriptorDigest`, is exported from `@ont/wire` — the kernel
+`recovery-invoke-authority.ts` already imports it from there; the kernel never stores a
+head-hash — the evidence layer resolves it from witnessed W15 posts.)
 
 Two doctrines bound the answer:
 - **DA firewall (#82).** Resolver presence / attestation / gossip is a liveness
@@ -54,14 +55,18 @@ Two doctrines bound the answer:
 
 - **O1 — mint `witnessedByHeight = h_r` (the invoke's confirmed mined height),
   fail-closed over the presented descriptor record (RECOMMENDED).** D-RC takes the
-  presented descriptor record `D`, recomputes `recoveryDescriptorDigest(D)`, requires
-  it equals the invoke's committed `recoveryDescriptorHash`, verifies the owner arming
-  signature binds `D` to the **current** ownership interval (R2/R4), and mints
-  `{ kind, witnessedByHeight: h_r }` where `h_r` is the invoke's confirmed mined
-  height (a D-BI fact). Absent / hash-mismatched / unsigned `D` ⇒ **no witness
-  minted** ⇒ the kernel's §3c conjunct fails closed. `W_r` is the diagnostic challenge
-  window (exactly as #84 made the DA challenge diagnostic). **⇒ D-RC is a FREE
-  structural slice, no new law** — the direct mirror of `verifyAvailabilityHeight`.
+  presented descriptor record `D`, recomputes `recoveryDescriptorDigest(D)`, and
+  requires it equals the invoke's committed `recoveryDescriptorHash`; on that match
+  (plus a well-formed confirmed `h_r`) it mints `{ kind, witnessedByHeight: h_r }`,
+  where `h_r` is the invoke's confirmed mined height (a D-BI fact). Absent /
+  hash-mismatched / malformed `D` ⇒ **no witness minted** ⇒ the kernel's §3c conjunct
+  fails closed. The invoke's **authorization** — R2 owner arming signature, R3 current
+  head-hash/sequence, R4 ownershipRef/current interval, R7 version — is **NOT re-checked
+  here**; it stays in the kernel's `acceptRecoverOwner`, each with its own reason (the
+  narrowed seam, §5). `W_r` is the diagnostic challenge window (exactly as #84 made the
+  DA challenge diagnostic). **⇒ a small slice mirroring `verifyAvailabilityHeight` — but
+  choosing what mints the height is a consensus call, so it is GATED on DK ratification,
+  NOT free (§6).**
 - **O2 — require an independent pre-invoke on-chain commitment of the descriptor
   digest** (a new arm event, or the descriptor head folded into the anchored
   accumulator), so `witnessedByHeight < h_r` is meaningful. **⇒ NEW wire + consensus
@@ -76,9 +81,9 @@ Two doctrines bound the answer:
 fork**: an invoker withholds `D`, some verifiers reject, then reveals late so others
 accept. Under the hash-commitment model that fork **does not exist**: the chain
 commits `recoveryDescriptorHash` at `h_r`, and `D` is **deterministically checkable
-once presented** (hash-match + arming-sig verify). So a withheld `D` ⇒ **uniform
-reject** by every verifier (nothing to check); a presented `D` ⇒ **uniform verdict**
-(content decides, identically for all). There is no selective-reveal divergence to
+once presented** (D-RC's digest match here; the kernel then verifies the arming
+signature). So a withheld `D` ⇒ **uniform reject** by every verifier (nothing to
+check); a presented `D` ⇒ **uniform verdict** (content decides, identically for all). There is no selective-reveal divergence to
 race. The honest consequence — and the thing CL/DK must weigh — is that under O1 a
 **late-revealed** descriptor still validates as long as its content matches the
 committed hash; the protection is **content-determinism, not a timing cutoff**,
