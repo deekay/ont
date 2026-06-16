@@ -136,7 +136,7 @@ function keyPathSigner(ownerPrivateKeyHex: string): Signer {
  * the signer closure). Validate successorBondVout ∈ {0,1}; amounts ≥ 0; change = inputValue − bond − fee
  * (< 0 → insufficient-funds; > 0 with no changeAddress → change-without-address). The current owner signs the
  * Transfer auth digest (deterministic) → carrier event (0x03) via encodeEvent → OP_RETURN; outputs ordered by
- * successorBondVout (successor P2TR bond + carrier, + change). PSBT v2 spends the bond input (witnessUtxo +
+ * successorBondVout (successor P2TR bond + carrier, + change). The spending tx (nVersion 2) spends the bond input (witnessUtxo +
  * tapInternalKey = owner x-only) via BIP-341 key-path (SIGHASH_DEFAULT, auxRand=0); finalize; extract. The
  * returned artifact carries no key/seed. Total; never throws (unexpected failure → invalid-input).
  */
@@ -197,7 +197,7 @@ export function buildAndSignTransferArtifact(
     }
 
     const psbt = new Psbt({ network });
-    psbt.setVersion(2);
+    psbt.setVersion(2); // transaction nVersion = 2 (NOT a BIP-370 PSBTv2 contract; we only export the final signed tx)
     psbt.addInput({
       hash: input.currentBondInput.txid,
       index: input.currentBondInput.vout,
