@@ -149,6 +149,30 @@ describe("D-GF gate-fee adequacy + completeness (gateFeeValidation)", () => {
     expect(gateFeeValidation(ANCHOR, BATCH, fee)).toEqual({ accepted: false, reason: "gf-anchor-txid-mismatch" });
   });
 
+  it("rejects two anchor inputs that spend the SAME exact outpoint (no double-counting a spent output)", () => {
+    // The real duplicate-input hole: an anchor whose two inputs reference the identical
+    // (prevoutTxid, prevoutVout). prevoutTxs length matches (the shared prevout tx supplied twice),
+    // every txid recomputes/binds, and the fee is adequate ONLY if that one 1_000_000 output is
+    // double-counted (2_000_000 − 1_700_000 = 300_000 ≥ requiredFee 200_000). A naive impl that
+    // sums per-input would accept; the kernel must reject the duplicate outpoint structurally.
+    // NOTE: same prevoutTxid with DIFFERENT vout is legitimate (a tx may spend two of one tx's
+    // outputs) and is NOT what this bans — only the identical (txid, vout) pair.
+    const shared = makeTx([{ valueSats: 1_000_000n, scriptPubKeyHex: "51" }], 7);
+    const sharedTxid = legacyTxidOf(shared)!;
+    const dupAnchorTx: LegacyTransaction = {
+      version: 1,
+      inputs: [
+        { prevoutTxid: sharedTxid, prevoutVout: 0, scriptSigHex: "", sequence: 0xffffffff },
+        { prevoutTxid: sharedTxid, prevoutVout: 0, scriptSigHex: "", sequence: 0xffffffff },
+      ],
+      outputs: [{ valueSats: 1_700_000n, scriptPubKeyHex: "6a04deadbeef" }],
+      locktime: 0,
+    };
+    const anchor: GateFeeAnchorFacts = { ...ANCHOR, anchorTxid: legacyTxidOf(dupAnchorTx)! };
+    const fee: GateFeeWitness = { anchorTx: dupAnchorTx, prevoutTxs: [shared, shared], schedule: SCHEDULE };
+    expect(gateFeeValidation(anchor, BATCH, fee)).toEqual({ accepted: false, reason: "gf-duplicate-prevout-spend" });
+  });
+
   it("rejects prevoutVout out of range (input points past the prevout tx's outputs)", () => {
     // A dedicated anchor whose input vout is 5 against a single-output prevout; its txid is recomputed
     // so the anchor-txid bind PASSES and the out-of-range vout is the isolated failure.
@@ -164,9 +188,13 @@ describe("D-GF gate-fee adequacy + completeness (gateFeeValidation)", () => {
     expect(gateFeeValidation(anchor, BATCH, fee)).toEqual({ accepted: false, reason: "gf-prevout-vout-out-of-range" });
   });
 
-  it("rejects prevoutTxs.length !== anchorTx.inputs.length (a prevout is missing or extra)", () => {
-    const fee: GateFeeWitness = { ...FEE, prevoutTxs: [prevoutA] }; // 1 prevout for a 2-input anchor
-    expect(gateFeeValidation(ANCHOR, BATCH, fee)).toEqual({ accepted: false, reason: "gf-prevout-count-mismatch" });
+  it("rejects prevoutTxs.length !== anchorTx.inputs.length in BOTH directions (missing AND extra)", () => {
+    // missing: 1 prevout for a 2-input anchor.
+    expect(gateFeeValidation(ANCHOR, BATCH, { ...FEE, prevoutTxs: [prevoutA] })).toEqual({ accepted: false, reason: "gf-prevout-count-mismatch" });
+    // extra: 3 prevouts for a 2-input anchor — catches an impl that sums all supplied prevout txs
+    // instead of zipping one-for-one to the anchor's inputs.
+    const prevoutC = makeTx([{ valueSats: 4_000_000n, scriptPubKeyHex: "51" }], 3);
+    expect(gateFeeValidation(ANCHOR, BATCH, { ...FEE, prevoutTxs: [prevoutA, prevoutB, prevoutC] })).toEqual({ accepted: false, reason: "gf-prevout-count-mismatch" });
   });
 
   it("rejects paidFee < 0 (outputs exceed spent inputs)", () => {
@@ -191,14 +219,31 @@ describe("D-GF gate-fee adequacy + completeness (gateFeeValidation)", () => {
     expect(gateFeeValidation(ANCHOR, badBatch, FEE)).toEqual({ accepted: false, reason: "gf-committed-leaf-malformed" });
   });
 
-  it("rejects a malformed schedule (non-positive / extra field / wrong type) — closed shape", () => {
-    expect(gateFeeValidation(ANCHOR, BATCH, { ...FEE, schedule: { gateOneByteSats: 0n, gateLongNameFloorSats: 100_000n } }).reason).toBe("gf-schedule-malformed");
-    expect(gateFeeValidation(ANCHOR, BATCH, { ...FEE, schedule: { gateOneByteSats: -1n, gateLongNameFloorSats: 100_000n } }).reason).toBe("gf-schedule-malformed");
-    expect(gateFeeValidation(ANCHOR, BATCH, { ...FEE, schedule: { gateOneByteSats: 1_000_000n, gateLongNameFloorSats: 100_000n, evil: 1n } as never }).reason).toBe("gf-schedule-malformed");
+  it("rejects a duplicate committed leaf KEY (duplicate length is fine; duplicate H(name) is not)", () => {
+    // Two leaves carrying the same leafKeyHex (= duplicate committed name) — a malformed committed
+    // set, not a Σ g discount. Distinct lengths confirm it is the KEY, not the length, that is banned.
+    const dupKeyBatch: CommittedBatchContents = {
+      anchoredRoot: ROOT,
+      batchSize: 2,
+      leaves: [
+        { leafKeyHex: "cd".repeat(32), canonicalNameByteLength: 7 },
+        { leafKeyHex: "cd".repeat(32), canonicalNameByteLength: 9 },
+      ],
+    };
+    expect(gateFeeValidation(ANCHOR, dupKeyBatch, FEE)).toEqual({ accepted: false, reason: "gf-duplicate-committed-leaf-key" });
+  });
+
+  it("rejects a malformed schedule (non-positive / wrong-type / extra-field / satoshi-overflow) — closed shape", () => {
+    const sched = (over: Record<string, unknown>): GateFeeSchedule => ({ gateOneByteSats: 1_000_000n, gateLongNameFloorSats: 100_000n, ...over }) as never;
+    expect(gateFeeValidation(ANCHOR, BATCH, { ...FEE, schedule: sched({ gateOneByteSats: 0n }) }).reason).toBe("gf-schedule-malformed"); // non-positive
+    expect(gateFeeValidation(ANCHOR, BATCH, { ...FEE, schedule: sched({ gateLongNameFloorSats: -1n }) }).reason).toBe("gf-schedule-malformed"); // negative
+    expect(gateFeeValidation(ANCHOR, BATCH, { ...FEE, schedule: sched({ gateOneByteSats: 1_000_000 }) }).reason).toBe("gf-schedule-malformed"); // wrong type (number, not bigint)
+    expect(gateFeeValidation(ANCHOR, BATCH, { ...FEE, schedule: sched({ evil: 1n }) }).reason).toBe("gf-schedule-malformed"); // extra field
+    expect(gateFeeValidation(ANCHOR, BATCH, { ...FEE, schedule: sched({ gateOneByteSats: 1n << 64n }) }).reason).toBe("gf-schedule-malformed"); // > U64 satoshi bound
   });
 
   it("rejects a malformed tx witness (a tx that does not serialize) — fail closed, never throws", () => {
     const broken: LegacyTransaction = { ...baseline.anchorTx, version: -1 };
-    expect(gateFeeValidation(ANCHOR, BATCH, { ...FEE, anchorTx: broken }).accepted).toBe(false);
+    expect(gateFeeValidation(ANCHOR, BATCH, { ...FEE, anchorTx: broken })).toEqual({ accepted: false, reason: "gf-tx-malformed" });
   });
 });

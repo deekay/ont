@@ -832,6 +832,15 @@ one STATUS-disclosed gap still on the batched-claim path: aggregate gate-fee ade
 values / outputs) + the full committed leaf set; `gateFeeValidation` RECOMPUTES adequacy. No
 self-declared `paidFee` or `sumG` is trusted — both are derived in-kernel.
 
+> **⚠ SUPERSEDED surface (round-1, historical) — read §14 update 2 for the canonical witness shape.**
+> The bullets immediately below describe the round-1 surface: an *unchanged* `GateFeeAnchorFacts`
+> (no `anchorTxid`) and a fee witness carrying bare `prevoutValueSats` / arbitrary `outputs[]`. Both
+> were corrected — `anchorTxid` is added (Q3, §14 update), and the bare-value witness is a FALSE-ACCEPT
+> hole REPLACED by complete `prevoutTxs[]` + in-kernel txid recompute (§14 update 2). The canonical
+> surface is: `anchor` += `anchorTxid`; `batch` += `leaves: [{ leafKeyHex, canonicalNameByteLength }]`
+> (`length === batchSize`); `fee: GateFeeWitness { anchorTx, prevoutTxs[], schedule }`. The bullets are
+> retained only for the design trail.
+
 **Open design call — RULED: in-place surface evolution (CL's lean; I concur).** Keep the stable
 three-input no-source signature `gateFeeValidation(anchor, batch, fee)`; evolve the inputs:
 - `anchor: GateFeeAnchorFacts` — unchanged `{ minedHeight, anchoredRoot, batchSize }`.
@@ -970,3 +979,40 @@ DECISIONS addendum. NOT `@ont/protocol` (it is a Bitcoin primitive).
 **Added negatives (CL):** over-stated prevout value / mismatched prevout tx ⇒ `legacyTxidOf(prevoutTx) ≠
 prevoutTxid` ⇒ fail closed; omitted anchor output / fake anchor input ⇒ `legacyTxidOf(anchorTx) ≠
 anchor.anchorTxid` ⇒ fail closed; plus the golden-txid positive.
+
+### §14 update 3 — CL red-battery review (round 2): fail-closed order, added pins, curve
+
+CL red-battery review (not red-OK round 1) added three pins + the green check order. All applied to
+`gate-fee.test.ts`.
+
+**Three added red vectors.**
+- **Duplicate exact spent outpoint** (`gf-duplicate-prevout-spend`). Two anchor inputs with the
+  identical `(prevoutTxid, prevoutVout)`; `prevoutTxs` length matches, every txid binds, and the fee
+  is adequate ONLY if that one output is double-counted ⇒ dedicated fail. Same `prevoutTxid` with a
+  DIFFERENT `prevoutVout` is legitimate (a tx may spend two outputs of one prevout tx) and is NOT
+  banned — only the identical outpoint pair.
+- **Extra prevout direction** (`gf-prevout-count-mismatch`). The count-mismatch vector now covers BOTH
+  `prevoutTxs.length < inputs.length` (missing) AND `> ` (extra) — catches an impl that sums all
+  supplied prevout txs instead of zipping one-for-one to the anchor inputs.
+- **Duplicate committed leaf key** (`gf-duplicate-committed-leaf-key`). Two leaves with the same
+  `leafKeyHex` (= duplicate committed name) ⇒ malformed committed set, not a Σ g discount. Duplicate
+  *length* is fine; duplicate *key* is not.
+- Pins: the malformed-tx vector now asserts the reason `gf-tx-malformed` (not just `accepted=false`,
+  which the stub already passed); the schedule vector adds wrong-type (number, not bigint) + a
+  satoshi-overflow bound (`> U64_MAX`) — the schedule is satoshi-bounded `[1, U64_MAX]` per value.
+
+**Fail-closed check order (CL ruling — the green contract).** The fee witness must first prove what
+fee was actually PAID before the batch/schedule decide whether it is adequate:
+1. minimal top-level / closed-shape checks, only as needed for totality / no-throw;
+2. **fee-fact binding:** `gf-tx-malformed` (serialize) → `gf-anchor-txid-mismatch` →
+   `gf-prevout-count-mismatch` → `gf-duplicate-prevout-spend` → per-input `gf-prevout-txid-mismatch` →
+   `gf-prevout-vout-out-of-range` → `gf-paid-fee-negative`;
+3. **adequacy context:** `gf-batch-not-bound-to-anchor` → committed-leaf validation
+   (`gf-committed-leaf-malformed`, `gf-duplicate-committed-leaf-key`) → `gf-schedule-malformed` →
+   finally adequacy (`gf-underpaid` / accept `gate-fee-adequate`).
+Batch/schedule are NOT gated ahead of the tx-binding stack except for shape checks needed to avoid
+throws. `gf-*` is the runtime reason prefix; `F8` stays the vector id.
+
+**Curve (CL confirmed).** Distinct `GateFeeSchedule`, same shape as `openingFloor` (reuse the MATH,
+not the auction type): `g(len)` = `len === 1 ? gateOneByteSats : len <= 4 ? max(gateLongNameFloorSats,
+gateOneByteSats / 2^(len-1)) : gateLongNameFloorSats` (resident integer division).
