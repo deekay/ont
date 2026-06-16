@@ -1,8 +1,10 @@
 # B4 — real adapters: feeding the audited B3 enforcement from the live network
 
-> **Status: DRAFT — phase brief, design-first. Writer: ClaudeleLunatique. Reviewer:
-> ChatLunatique (pending). DK confirms scope + the first slice.** Opens after B3 integration
-> merged to `main` @ `b3b74f8` (DK: "let's go on to B4"). Branch: `clean-build-b4`.
+> **Status: IN PROGRESS. Writer: ClaudeleLunatique. Reviewer: ChatLunatique.** Opens after B3
+> integration merged to `main` @ `b3b74f8` (DK: "let's go on to B4"). Branch: `clean-build-b4`.
+>
+> **Slice progress:** B4-HEADER **GREEN @ `0ee8a70`** (CL red-OK round 2 `49222e9e` → green-OK; hdr.*
+> 18/18; `@ont/adapter-header`). B4-INDEX **design-concur (§9)** — pending CL.
 
 ## 1. The gap
 
@@ -176,3 +178,102 @@ output into the real predicate and asserts the accept/reject split.
 - out-of-range height → `headerHexAtHeight` returns null → B3's `btc.*.chain` canonical check fails.
 - malformed checkpoint / params → fail closed (`spv-checkpoint-malformed` / `spv-params-malformed`).
 - determinism (pure core); never throws / never rejects. (Multi-source + reorg-currentness OUT for this slice.)
+
+**LANDED (green @ `0ee8a70`, CL green-OK):** `@ont/adapter-header`, hdr.* 18/18. Shared range guard
+`isWellFormedRange(startHeight, count)` (int `start ≥ 0` + int `count ≥ 1`) used by BOTH the pure core and
+the async wrapper (CL green-watch), so `count=0`/non-int count rejects with `header-range-malformed` BEFORE
+any fetch/validate (no vacuous source). Adapter-local reasons `header-range-malformed` /
+`header-range-count-mismatch`; `spv-*` (incl. strict-parse `spv-header-malformed`, `spv-pow-insufficient`)
+surfaced verbatim from `validateHeaderChain`. Red rounds: `5969b9f` (round 1) → `e3eaca4` (round 2: provider
+exact-arg forwarding, range-malformed separated from count-mismatch, two hostile-header surfaces).
+
+## 9. B4-INDEX design — the indexer (the firewall-minting heart) (design-first)
+
+Package: **`@ont/adapter-indexer`** (distinct from the resolver, §7a #4). Block ingestion → the verified
+`BatchDataSource` projections + the chain-bound `ConfirmedBatchAnchor` / `ConfirmedRecoverOwnerInvoke`
+facts. This is where the inclusion + committed-batch firewalls live: B3 treats every one of these as
+"verified / firewall-minted," so the indexer must **recompute-don't-trust** each from raw block bytes +
+the validated header source (B4-HEADER), or emit nothing.
+
+### 9.1 The exact B3 seams B4-INDEX fills (verbatim contracts)
+
+| Seam output (B3 consumer) | Shape | Firewall-mint = recompute from |
+|---|---|---|
+| `ConfirmedBatchAnchor` (I-FEE-A, I-HARNESS) | `{ anchorTxid, minedHeight, anchoredRoot, batchSize }` | parse a RootAnchor tx (WIRE 0x0b) + bind to chain: `legacyTxidOf` + merkle inclusion vs the block header's `merkleRoot` + the header at `minedHeight` in the validated `BitcoinHeaderSource` |
+| `BatchDataSource.feeTxForAnchor` (gate-fee) | `GateFeeTxWitnessParts = Pick<GateFeeWitness, "anchorTx" \| "prevoutTxs">` (NO schedule) | the same parsed anchor tx + each input's prevout tx (txid-bound); the orchestrator injects the TRUSTED schedule |
+| `BatchDataSource.committedBatchForRoot` (gate-fee) | `CommittedBatchContents { anchoredRoot, batchSize, leaves: CommittedLeaf[] }` (`canonicalNameByteLength` per leaf) | recompute the FULL committed leaf set from batch material + verify it commits to `anchoredRoot`/`batchSize` — `canonicalNameByteLength` is FEE-CRITICAL (a lowered length underpays like a low schedule) |
+| `BatchDataSource.baseLeavesForPrevRoot` (availability) | `ReadonlyMap<string,string> \| null` | the K-deep base accumulator leaf set whose root === `prevRoot` (verify the map hashes to `prevRoot`) |
+| `BatchDataSource.servedLeavesForRoot` (availability) | `readonly ServedLeaf[] \| null` | the PRESENTED served bytes for `anchoredRoot` (pairs with B4-DA's `/da/{root}`); withheld → null → fails availability |
+| `ConfirmedRecoverOwnerInvoke` (I-REC) | `{ txid, minedHeight, recoveryDescriptorHash, invokeFields }` | parse a RecoverOwner tx (WIRE 0x09) + chain-bind `minedHeight` (same inclusion firewall as the anchor) |
+
+The B3 orchestrator already supplies the TRUSTED inputs (gate-fee schedule, DA windows K/W/C, recovery
+params) — the indexer NEVER supplies a policy/schedule/window (false-accept defense, restated from
+I-FEE-PATH). The indexer's bar: a CORRECT validated projection/fact, or `null`.
+
+### 9.2 Proposed sub-slice decomposition (dependency-ordered; like I-FEE split)
+
+B4-INDEX is too large for one red→green. Proposed sub-slices, each its own design→red→green:
+
+1. **B4-INDEX-ANCHOR (first).** Block + candidate RootAnchor tx → `ConfirmedBatchAnchor` + `feeTxForAnchor`
+   parts. The inclusion firewall (txid + merkle-inclusion + header-canonicality bind), foundational —
+   every other fact builds on a confirmed anchor, and the fee-tx parts are the SAME parsed anchor tx +
+   prevouts. Smallest well-bounded heart. **First.**
+2. **B4-INDEX-COMMIT.** Batch material → `committedBatchForRoot` verified projection. The fee-critical
+   committed-set recompute (root/size + `canonicalNameByteLength` per leaf).
+3. **B4-INDEX-DATASOURCE.** `baseLeavesForPrevRoot` (K-deep base, verify map→prevRoot) +
+   `servedLeavesForRoot` (presented served bytes; pairs with B4-DA).
+4. **B4-INDEX-INVOKE.** RecoverOwner tx → `ConfirmedRecoverOwnerInvoke` (reuses the ANCHOR inclusion firewall).
+5. **Persistence** (`@ont/db` rewrite) is plumbing BEHIND these projections — a thin store, not a
+   decision-maker; folded into each sub-slice's adapter or a final sub-slice. Not consensus-relevant.
+
+### 9.3 Mining material (reference, not law)
+
+`apps/indexer` (~0.4k batch block-ingestion, no HTTP), `research/batch-rail.ts` (DA-filter / ordering /
+notice-window — re-key to the merged kernel + #37 trigger), `@ont/core` `mergeAccumulatorBatch` (the
+accumulator delta math — shape only), `@ont/db` `ont_documents` JSONB (schema reference). The RootAnchor /
+RecoverOwner DECODES come from `@ont/wire` (WIRE 0x0b / 0x09); `legacyTxidOf` + merkle from `@ont/bitcoin` /
+`@ont/evidence`. **Confirm** the wire decoders exist as importable (else a parser is a pure red→green helper).
+
+### 9.4 First sub-slice — B4-INDEX-ANCHOR design
+
+```
+// PURE core: bind a candidate RootAnchor tx to the chain.
+buildConfirmedBatchAnchor({ anchorTxHex, blockHeaderHex, minedHeight, merkleProof, headerSource })
+  -> { ok: true, confirmedAnchor, feeTxParts } | { ok: false, reason }
+  1. parse      decode RootAnchor (WIRE 0x0b) from anchorTxHex; not an anchor / malformed -> "anchor-malformed"
+  2. canonical  headerSource.headerHexAtHeight(minedHeight) === blockHeaderHex — else "anchor-noncanonical-header"
+  3. inclusion  merkleRootFromProof(legacyTxidOf(anchorTx), merkleProof) === blockHeader.merkleRoot — else
+                "anchor-not-included" (forged merkle / wrong position / wrong block)
+  4. mint       ConfirmedBatchAnchor { anchorTxid = legacyTxidOf(anchorTx), minedHeight, anchoredRoot, batchSize }
+                (anchoredRoot / batchSize read from the DECODED anchor, never a producer assertion)
+  // feeTxParts { anchorTx, prevoutTxs } assembled from the parsed tx + supplied prevout txs (txid-bound).
+```
+Trusted inputs: `headerSource` (from B4-HEADER, already validated). Untrusted: `anchorTxHex`,
+`blockHeaderHex`, `merkleProof`, `prevout txs`. The firewall: a forged/withheld/non-canonical anchor mints
+NO fact, so the B3 gate-fee + harness predicates can't accept it.
+
+**Planned `idx-anchor.*` red battery (firewall pipe = the bar):**
+- valid block + anchor tx → `ConfirmedBatchAnchor` + `feeTxParts` that `enforceGateFee` (real B3) ADMITS
+  (firewall-positive; reuse the I-FEE-A synthetic-anchor fixture so the minted fact feeds the kernel).
+- anchor tx not in block (forged merkle / wrong position) → `anchor-not-included`, no fact.
+- block header not in validated `headerSource` at `minedHeight` → `anchor-noncanonical-header`.
+- malformed / wrong-type tx (a Transfer 0x03, not a RootAnchor) → `anchor-malformed`.
+- `anchoredRoot` / `batchSize` taken from the DECODE, NOT from any caller-supplied field (a lying
+  side-channel field must not override the decoded values) → pin no-trust-of-side-channel.
+- determinism; never throws.
+
+### 9.5 Design-concur — open calls (my leans)
+
+1. **Sub-slice decomposition + ANCHOR first (§9.2).** **Lean: yes** — ANCHOR is the inclusion firewall
+   everything builds on, smallest, and folds `feeTxForAnchor` (same parsed tx).
+2. **`feeTxForAnchor` folds into B4-INDEX-ANCHOR** (it's the same parsed anchor tx + prevouts). **Lean: yes.**
+3. **Wire decoders** — confirm `@ont/wire` exposes importable RootAnchor (0x0b) / RecoverOwner (0x09)
+   decoders; if not, the decode is a pure red→green helper inside the adapter (no new law). **Lean: reuse
+   if present, else helper.**
+4. **Persistence scope** — `@ont/db` rewrite as thin store behind the projections, deferrable to a final
+   sub-slice; the firewall-minting (this slice) does not depend on it. **Lean: defer persistence.**
+5. **No new law** — the committed-batch recompute, inclusion bind, and base-map→prevRoot check are all
+   recompute-don't-trust over ALREADY-ratified shapes (#52 committed set, merkle inclusion, accumulator
+   root). Any rule-ish gap (e.g. an unspec'd batch-material encoding) is PARKED for DK. Confirm the line.
+
+On concur (esp. #1 decomposition + #2 fee-tx fold) I open **B4-INDEX-ANCHOR red battery**.
