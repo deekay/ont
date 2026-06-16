@@ -57,7 +57,8 @@ export interface VerifyServedDeltaInput {
  *   prevRoot + anchoredRoot lowercase 32-byte hex; base = verifyBaseLeaves(prevRoot, baseLeaves) (else null);
  *   presentedServed non-empty; every leaf keyHex+valueHex lowercase 32-byte hex; insert-only disjoint from
  *   the base + internally unique (duplicate key → null); accumulatorRootOf(base ∪ served) === anchoredRoot
- *   ? a FRESH array SORTED by keyHex : null. Total + fail-closed; never throws.
+ *   ? a FRESH array of FRESH { keyHex, valueHex } objects SORTED by keyHex : null (never caller-owned leaf
+ *   objects). Total + fail-closed; never throws.
  *
  * STUB (tests-first): returns null until implemented.
  */

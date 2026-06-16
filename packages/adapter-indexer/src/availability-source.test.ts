@@ -14,20 +14,22 @@ import {
 // withheld / tampered / unverifiable source mints null so the B3 availability stage cannot reconstruct a
 // false root. RED until the cores land (the stubs return null).
 
-const BASE_KEY = "11".repeat(32);
-const BASE_VAL = "22".repeat(32);
+// Letter-containing hex so a valid-hex UPPERCASE variant actually differs (accumulatorRootOf lowercases
+// permissively, so the adapter must reject uppercase BEFORE replay, else an uppercase key/root silently
+// lowercases and binds — a case-normalized mint).
+const BASE_KEY = "ab".repeat(32);
+const BASE_VAL = "cd".repeat(32);
 const baseLeaves = new Map<string, string>([[BASE_KEY, BASE_VAL]]);
 const PREV_ROOT = accumulatorRootOf(baseLeaves);
 const EMPTY_ROOT = accumulatorRootOf(new Map());
 
 const served: readonly ServedLeaf[] = [
-  { keyHex: "33".repeat(32), valueHex: "44".repeat(32) },
-  { keyHex: "55".repeat(32), valueHex: "66".repeat(32) },
+  { keyHex: "3a".repeat(32), valueHex: "4b".repeat(32) },
+  { keyHex: "5c".repeat(32), valueHex: "6d".repeat(32) },
 ];
 const fullLeaves = new Map<string, string>([
   [BASE_KEY, BASE_VAL],
-  ["33".repeat(32), "44".repeat(32)],
-  ["55".repeat(32), "66".repeat(32)],
+  ...served.map((l) => [l.keyHex, l.valueHex] as [string, string]),
 ]);
 const ANCHORED_ROOT = accumulatorRootOf(fullLeaves);
 const ANCHOR_HEIGHT = 800_000;
@@ -55,12 +57,28 @@ describe("verifyBaseLeaves — base firewall (fresh canonical copy; never an emp
   });
 
   it("a base that does not verify to prevRoot → null", () => {
-    expect(verifyBaseLeaves("ab".repeat(32), baseLeaves)).toBeNull();
+    expect(verifyBaseLeaves("00".repeat(32), baseLeaves)).toBeNull();
   });
 
-  it("a non-lowercase-hex / non-32-byte key or value → null", () => {
-    expect(verifyBaseLeaves(PREV_ROOT, new Map([["AA".repeat(32), BASE_VAL]]))).toBeNull();
+  it("an empty Map with a NON-genesis prevRoot → null (empty allowed only when it verifies, never a default)", () => {
+    expect(verifyBaseLeaves(PREV_ROOT, new Map())).toBeNull();
+  });
+
+  it("a non-hex (GG) key or value → null", () => {
+    expect(verifyBaseLeaves(PREV_ROOT, new Map([["GG".repeat(32), BASE_VAL]]))).toBeNull();
     expect(verifyBaseLeaves(PREV_ROOT, new Map([[BASE_KEY, "GG".repeat(32)]]))).toBeNull();
+  });
+
+  // round 2 (CL): valid-hex UPPERCASE must reject — accumulatorRootOf lowercases, so an uppercase key/value/
+  // prevRoot that lowercases to a binding base would otherwise be a case-normalized mint. Each variant
+  // lowercases to the real binding base, so a permissive (lowercasing) green would falsely accept.
+  it("a valid-hex UPPERCASE prevRoot → null (lowercase-only)", () => {
+    expect(verifyBaseLeaves(PREV_ROOT.toUpperCase(), baseLeaves)).toBeNull();
+  });
+
+  it("a valid-hex UPPERCASE base key or value → null (no case-normalized mint)", () => {
+    expect(verifyBaseLeaves(PREV_ROOT, new Map([[BASE_KEY.toUpperCase(), BASE_VAL]]))).toBeNull();
+    expect(verifyBaseLeaves(PREV_ROOT, new Map([[BASE_KEY, BASE_VAL.toUpperCase()]]))).toBeNull();
   });
 
   it("a non-Map (map-like object) or null base → null (never synthesized into an empty accumulator)", () => {
@@ -70,12 +88,16 @@ describe("verifyBaseLeaves — base firewall (fresh canonical copy; never an emp
 });
 
 describe("verifyServedDelta — served firewall (reconstructs anchoredRoot over the verified base)", () => {
-  it("a served delta reconstructing anchoredRoot → a FRESH array sorted by keyHex", () => {
+  it("a served delta reconstructing anchoredRoot → a FRESH array of FRESH leaf objects sorted by keyHex", () => {
     const r = verifyServedDelta(validServed());
     expect(r).not.toBeNull();
     if (r === null) return;
     expect(r).toEqual(SORTED_SERVED);
-    expect(r).not.toBe(served);
+    expect(r).not.toBe(served); // fresh array
+    // round 2 (CL): each leaf object is a fresh canonical copy, never the caller's material.
+    for (const leaf of r) {
+      expect(served).not.toContain(leaf);
+    }
   });
 
   it("is order-independent (input permutation → identical sorted output)", () => {
@@ -97,17 +119,29 @@ describe("verifyServedDelta — served firewall (reconstructs anchoredRoot over 
     expect(verifyServedDelta(validServed({ presentedServed: [{ keyHex: BASE_KEY, valueHex: BASE_VAL }, ...served] }))).toBeNull();
   });
 
-  it("a non-lowercase-hex served key/value → null", () => {
-    expect(verifyServedDelta(validServed({ presentedServed: [{ keyHex: "AB".repeat(32), valueHex: "44".repeat(32) }] }))).toBeNull();
+  it("a non-hex (GG) served key/value → null", () => {
+    expect(verifyServedDelta(validServed({ presentedServed: [{ keyHex: "GG".repeat(32), valueHex: "4b".repeat(32) }, served[1]!] }))).toBeNull();
   });
 
   it("an internally duplicated served key → null", () => {
     expect(verifyServedDelta(validServed({ presentedServed: [served[0]!, served[0]!] }))).toBeNull();
   });
 
-  it("a non-lowercase-hex prevRoot / anchoredRoot → null", () => {
+  it("a non-hex (XY) prevRoot / anchoredRoot → null", () => {
     expect(verifyServedDelta(validServed({ prevRoot: "XY".repeat(32) }))).toBeNull();
     expect(verifyServedDelta(validServed({ anchoredRoot: "XY".repeat(32) }))).toBeNull();
+  });
+
+  // round 2 (CL): valid-hex UPPERCASE served key/value/roots must reject (each lowercases to the binding
+  // delta, so a permissive lowercasing green would falsely accept).
+  it("a valid-hex UPPERCASE served key or value → null", () => {
+    expect(verifyServedDelta(validServed({ presentedServed: [{ keyHex: served[0]!.keyHex.toUpperCase(), valueHex: served[0]!.valueHex }, served[1]!] }))).toBeNull();
+    expect(verifyServedDelta(validServed({ presentedServed: [{ keyHex: served[0]!.keyHex, valueHex: served[0]!.valueHex.toUpperCase() }, served[1]!] }))).toBeNull();
+  });
+
+  it("a valid-hex UPPERCASE prevRoot / anchoredRoot → null", () => {
+    expect(verifyServedDelta(validServed({ prevRoot: PREV_ROOT.toUpperCase() }))).toBeNull();
+    expect(verifyServedDelta(validServed({ anchoredRoot: ANCHORED_ROOT.toUpperCase() }))).toBeNull();
   });
 
   it("a base that does not verify to prevRoot → null (no served accept over an unverified base)", () => {

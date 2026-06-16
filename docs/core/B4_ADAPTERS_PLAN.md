@@ -461,4 +461,7 @@ a fresh sorted-by-`keyHex` array; (3) no-empty-default nuance — null/missing n
 explicit empty Map is valid only for the genesis empty `prevRoot`; (4) wrapper cross-bind —
 `servedLeavesForRoot` verified against the indexed `prevRoot`/`baseLeaves`, not a raw root lookup.
 Green-watch: `@ont/evidence` added as a direct adapter-indexer dependency (`ServedLeaf` is a prod import).
-Proceeding to **B4-INDEX-DATASOURCE red battery** (no further concur round needed).
+Red round 2 (CL, event 6c86af32) folded: valid-hex UPPERCASE rejects (lowercase-only, since
+`accumulatorRootOf` lowercases — letter-containing fixtures so uppercase differs); empty Map with a
+non-genesis `prevRoot` → null (empty allowed only when it verifies); the served projection returns FRESH
+leaf objects (not caller-owned). Proceeding to **B4-INDEX-DATASOURCE red battery** (red-OK pending).
