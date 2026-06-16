@@ -1,13 +1,10 @@
-// I-HARNESS red battery (B3_INTEGRATION_PLAN §6; 4-stage pipeline, CL concur event 9f4cebb4) — the
-// batched-claim enforcement orchestrator threads the AUDITED §2 calls and fails closed in precedence:
-// inclusion (verifyProofBundleAgainstBitcoin — SPV + structural membership) → availability
+// I-HARNESS + I-FEE-PATH battery (B3_INTEGRATION_PLAN §6/§10; 5-stage pipeline, CL concur events
+// 9f4cebb4 + eb896af3) — the batched-claim enforcement orchestrator threads the AUDITED §2 calls and
+// fails closed in precedence: inclusion (verifyProofBundleAgainstBitcoin — SPV + structural membership)
+// → gate-fee (enforceGateFee — Σg ≥ paid over the chain-bound anchor) → availability
 // (verifyAvailabilityHeight) → completeness (evaluateBatchCompleteness — owns prevRoot→newRoot replay)
-// → verdict. The happy fixture is COHERENT (real block-170 anchor + real accumulator roots + a resident
-// proof bundle), so a green that runs the real calls can only accept it if those calls genuinely pass.
-//
-// RED PHASE: enforceBatchedClaim is stubbed to reject ("hrns-pending-green-impl") with an empty trace;
-// every behavioral assertion is therefore red until the threaded green lands (determinism is the lone
-// impl-independent invariant that holds against the stub).
+// → verdict. The fixture is COHERENT (synthetic mined fee-adequate anchor + real accumulator roots + a
+// resident proof bundle), so green only accepts when the real audited calls genuinely pass.
 import {
   accumulatorRootOf,
   computeValueRecordHash,
@@ -224,7 +221,7 @@ const stepOk = (r: { trace: readonly { step: string; ok: boolean }[] }, step: st
 const reached = (r: { trace: readonly { step: string }[] }, step: string): boolean =>
   r.trace.some((e) => e.step === step);
 
-describe("I-HARNESS enforceBatchedClaim — end-to-end batched-claim enforcement (4-stage)", () => {
+describe("I-HARNESS enforceBatchedClaim — end-to-end batched-claim enforcement (5-stage)", () => {
   it("accepts a coherent honest claim: every audited stage ok, ordered trace, a name-state delta", () => {
     const r = run(claim(), sources());
     expect(r.accepted).toBe(true);
