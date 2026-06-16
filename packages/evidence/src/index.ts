@@ -50,3 +50,9 @@ export {
   type BondSpendFactResult,
   type BondContinuityWitnessResult,
 } from "./bond-continuity-witness.js";
+
+export {
+  verifyRecoveryDescriptorWitness,
+  type VerifyRecoveryDescriptorWitnessInput,
+  type RecoveryDescriptorWitnessResult,
+} from "./recovery-descriptor-witness.js";
