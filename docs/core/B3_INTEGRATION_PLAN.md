@@ -283,15 +283,16 @@ anchor (`batch.anchoredRoot/batchSize === anchor.*` → `gf-batch-not-bound-to-a
 integration value is NOT re-checking fees — it is feeding `gateFeeValidation` a **chain-bound** anchor
 (not a producer assertion) and returning an admission verdict + trace, mirroring I-REC.
 
-**Scope decision — standalone this slice; in-path wire-in → B4.** The literal "enforce in the
-enforceBatchedClaim path" needs the gate-fee stage to recompute `paidFee` from the inclusion-bound
-anchor's COMPLETE tx. The I-HARNESS happy fixture's anchor is the REAL block-170 payment txid
-(`PAYMENT_TXID`) with a real-PoW inclusion proof, so a fee witness there would require block-170's real
-payment tx as a `LegacyTransaction` (+ its block-9 prevout) — fixture archaeology — or a re-mined
-synthetic block. In production (B4) the indexer already parsed the real anchor tx, so the fee witness is
-free; the blocker is purely a B3-test artifact. So B3 builds the standalone `enforceGateFee` (synthetic
-coherent fixture, no inclusion/PoW needed — the confirmed-anchor seam IS the chain-bound boundary); B4
-wires it after enforceBatchedClaim's inclusion stage using the real anchor tx.
+**Why two slices (the block-170 fixture constraint).** The literal in-path enforcement needs the gate-fee
+stage to recompute `paidFee` from the inclusion-bound anchor's COMPLETE tx. The I-HARNESS happy fixture's
+anchor is the REAL block-170 payment txid (`PAYMENT_TXID`) with a real-PoW inclusion proof, so a fee
+witness there would require block-170's real payment tx as a `LegacyTransaction` (+ its block-9 prevout) —
+fixture archaeology — or a re-mined synthetic block. That constraint is why the gate-fee logic ships first
+as the standalone **I-FEE-A** (synthetic coherent fixture, no inclusion/PoW needed — the confirmed-anchor
+seam IS the chain-bound boundary), and the in-path **I-FEE-PATH** stage uses a small synthetic path
+fixture (or re-keys just that path test). I-FEE-PATH is REQUIRED before B3-integration is merge-ready (it
+closes the STATUS gap) — it is NOT deferred to B4. (B4 only swaps the fixture seams for the real
+indexer/adapter, which already parses the anchor tx so the fee witness is free.)
 
 **Seam shape (closed):**
 ```

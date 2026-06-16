@@ -169,6 +169,38 @@ describe("enforceGateFee — input validation + totality", () => {
     expect(verdict.reason).toBe("gf-input-malformed");
   });
 
+  it("rejects an extra field on the confirmed anchor (closed-shape, no producer side channel) → gf-input-malformed", () => {
+    const b = validInput();
+    const input = {
+      ...b,
+      confirmedAnchor: { ...b.confirmedAnchor, source: "indexer-x", timestamp: 123 },
+    } as unknown as GateFeeInput;
+    const { verdict } = enforceGateFee(input);
+    expect(verdict.adequate).toBe(false);
+    if (verdict.adequate) return;
+    expect(verdict.reason).toBe("gf-input-malformed");
+  });
+
+  it("rejects a malformed anchorTxid / anchoredRoot (non-hex) → gf-input-malformed", () => {
+    const b = validInput();
+    const badTxid = enforceGateFee({ ...b, confirmedAnchor: { ...b.confirmedAnchor, anchorTxid: "xyz" } });
+    const badRoot = enforceGateFee({ ...b, confirmedAnchor: { ...b.confirmedAnchor, anchoredRoot: "nothex" } });
+    expect(badTxid.verdict.adequate).toBe(false);
+    expect(badRoot.verdict.adequate).toBe(false);
+    if (!badTxid.verdict.adequate) expect(badTxid.verdict.reason).toBe("gf-input-malformed");
+    if (!badRoot.verdict.adequate) expect(badRoot.verdict.reason).toBe("gf-input-malformed");
+  });
+
+  it("rejects a non-u32 minedHeight / batchSize → gf-input-malformed", () => {
+    const b = validInput();
+    const badHeight = enforceGateFee({ ...b, confirmedAnchor: { ...b.confirmedAnchor, minedHeight: -1 } });
+    const badSize = enforceGateFee({ ...b, confirmedAnchor: { ...b.confirmedAnchor, batchSize: 2.5 } });
+    expect(badHeight.verdict.adequate).toBe(false);
+    expect(badSize.verdict.adequate).toBe(false);
+    if (!badHeight.verdict.adequate) expect(badHeight.verdict.reason).toBe("gf-input-malformed");
+    if (!badSize.verdict.adequate) expect(badSize.verdict.reason).toBe("gf-input-malformed");
+  });
+
   it("never throws on bogus input", () => {
     expect(() => enforceGateFee(null as unknown as GateFeeInput)).not.toThrow();
     expect(() => enforceGateFee({ confirmedAnchor: 1 } as unknown as GateFeeInput)).not.toThrow();
