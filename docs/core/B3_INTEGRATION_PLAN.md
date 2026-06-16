@@ -338,3 +338,63 @@ underpaid (Σ g > paid) → `gf-underpaid`; **multi-leaf full-set Σ g** (#52: a
 counts → underpaid) pinned; malformed confirmed anchor → `gf-input-malformed`; never throws. Fixtures
 mirror the kernel `gate-fee.test.ts` recipe (synthetic prevout txs + anchor tx via `legacyTxidOf`, so
 `paidFee = Σ spent − Σ outputs`).
+
+## 10. I-FEE-PATH design (mandatory gate-fee stage in enforceBatchedClaim) — design-first
+
+The gap-closer: make gate-fee a MANDATORY stage in `enforceBatchedClaim` so a batched claim cannot reach
+`verdict`/`nameStateDelta` unless gate-fee admission passes. Closes STATUS "Σ g not enforced in the path."
+Required before B3-integration is merge-ready.
+
+**Pipeline change (5 stages):** `inclusion → gate-fee → availability → completeness → verdict`. The new
+stage runs AFTER the inclusion anchor-bind (so the chain-bound anchor exists) and BEFORE availability
+(so an underpaid/fee-faulty batch never reaches a name-state delta). `ClaimStep` gains `"gate-fee"`; the
+reason precedence extends: inclusion-fault BEFORE gate-fee, gate-fee BEFORE availability/completeness.
+
+**Reuse I-FEE-A.** Right after inclusion binds `{txid, height, root}` (+ `anchor.batchSize`), construct a
+`ConfirmedBatchAnchor { anchorTxid: bound.txid, minedHeight: bound.height, anchoredRoot: bound.root,
+batchSize: anchor.batchSize }` and call `enforceGateFee({ confirmedAnchor, committedBatch, feeWitness })`.
+If `!adequate` → `reject("gate-fee", verdict.reason)` (the `gf-*` reason surfaced). DRY — no second
+gate-fee path; the inclusion bind already yields the chain-bound anchor I-FEE-A consumes.
+
+**SCHEDULE IS A TRUSTED LAUNCH PARAM, NOT SEAM-SUPPLIED (false-accept defense).** `gateFeeValidation`'s
+`requiredFee` is computed from `feeWitness.schedule`; if the untrusted batch-data seam supplied the
+schedule, a hostile seam could pick a tiny schedule and an underpaid batch would falsely admit. So the
+orchestrator assembles the `GateFeeWitness` = `{ anchorTx, prevoutTxs }` (from the seam) + `schedule`
+(from a TRUSTED launch-freeze param on `input`, alongside `window`). The seam never chooses the schedule.
+
+**New seam material (the indexer/adapter has it; fixture in B3):**
+- `committedBatchForRoot(anchoredRoot) -> CommittedBatchContents | null` — the FULL committed leaf set
+  (leafKeyHex + canonicalNameByteLength). NOT derivable from `servedDelta` (which carries keyHex/valueHex
+  but no name byte length, the sole input to g()). Withheld (`null`) → fail closed at gate-fee.
+- `feeTxForAnchor(anchorTxid) -> { anchorTx, prevoutTxs } | null` — the parsed anchor tx + its input
+  prevout txs (NO schedule). `legacyTxidOf(anchorTx)` must equal the bound anchor txid (gateFeeValidation
+  enforces → `gf-anchor-txid-mismatch`).
+The cross-binds stay `gateFeeValidation`'s: fee-tx⇔anchor (`legacyTxidOf`) and committedBatch⇔anchor
+(root/size). `committedBatch.batchSize` must equal the bound anchor's `batchSize`.
+
+**Fixture — re-key the I-HARNESS path fixture to a synthetic mineable fee-adequate anchor.** The current
+happy/availability/completeness tests use the real block-170 payment anchor (`PAYMENT_TXID`), whose tx
+can't be reconstructed as a `LegacyTransaction` for the fee witness. CL-approved: replace it with a
+SYNTHETIC coherent anchor — a fee-adequate anchor `LegacyTransaction` (inputs from prevout txs, an
+OP_RETURN-style output, `Σ inputs − Σ outputs ≥ Σ g`), placed in a synthetic block with an easy-`nBits`
+mined header (`headerMeetsTarget` passes; the I-SPV in-test miner pattern) so `verifyProofBundleAgainstBitcoin`
+still verifies inclusion. The synthetic anchor txid feeds BOTH the bundle's `bitcoinInclusion.anchors[0].txid`
+AND the fee witness's `anchorTx`. Real-block-170 PoW byte-order stays pinned by `block-header.test.ts` /
+`validate-header-chain.test.ts` / `proof-bundle.test.ts`, so the integration test losing it is fine.
+
+**Design-concur — open calls (my leans):**
+1. **Reuse `enforceGateFee` inside `enforceBatchedClaim`** (vs call `gateFeeValidation` directly). **Lean:
+   reuse** — the inclusion bind yields a `ConfirmedBatchAnchor`; one gate-fee code path.
+2. **Seam vs input.** Extend `BatchDataSource` with `committedBatchForRoot` + `feeTxForAnchor` (mirrors
+   `servedLeavesForRoot`, B4-substitutable); the **schedule is a trusted launch param on `input`** (NOT
+   the seam). **Lean: this split.**
+3. **Fixture re-key.** Re-key the whole `enforce-batched-claim.test.ts` base fixture to the synthetic
+   anchor (uniform), vs keep block-170 for inclusion-reject tests + synthetic only for path tests. **Lean:
+   uniform synthetic** (simpler; inclusion-reject behavior is identical on a synthetic header).
+
+**Planned `path.gatefee.*` red battery (sketch, pending concur):** happy claim passes gate-fee then
+proceeds to accept (+ delta); **underpaid → reject AT gate-fee, NO availability/completeness step, NO
+`nameStateDelta`**; hostile fee tx (`anchorTx` ≠ bound txid) → reject at gate-fee; committed batch withheld
+(`null`) → reject at gate-fee; a HOSTILE LOW SCHEDULE cannot come from the seam (schedule is the trusted
+param — pin that the seam has no schedule channel); gate-fee runs only AFTER inclusion (an inclusion fault
+still rejects at inclusion, never reaching gate-fee); precedence pin (gate-fee before availability).
