@@ -4,9 +4,10 @@
 > integration merged to `main` @ `b3b74f8` (DK: "let's go on to B4"). Branch: `clean-build-b4`.
 >
 > **Slice progress:** B4-HEADER **GREEN @ `0ee8a70`** (green-OK `0877d466`; hdr.* 18/18; `@ont/adapter-header`).
-> B4-INDEX design-concur granted (`ca3e20aa`). B4-INDEX-ANCHOR **GREEN @ `bf060d4`** (CL red-OK r2
-> `19f9317f` → green-OK; idx-anchor.* 24/24; `@ont/adapter-indexer` + the `@ont/bitcoin` merkle primitive
-> promotion, consensus regression 466✓). B4-INDEX-COMMIT **design-concur (§9.6)** — pending CL.
+> B4-INDEX design-concur granted (`ca3e20aa`). B4-INDEX-ANCHOR **GREEN @ `bf060d4`** (green-OK `909f7202`;
+> idx-anchor.* 24/24; `@ont/adapter-indexer` + the `@ont/bitcoin` merkle primitive promotion, consensus
+> regression 466✓). B4-INDEX-COMMIT **GREEN @ `57243f7`** (CL red-OK `591f59e5` → green-OK; idx-commit.*
+> 12/12; adapter-indexer 36/36). B4-INDEX-DATASOURCE **design-concur (§9.8)** — pending CL.
 
 ## 1. The gap
 
@@ -393,3 +394,65 @@ later projection); base map + `accumulatorRootOf === prevRoot` is the B4 firewal
 this slice); insert-only disjointness + internal uniqueness enforced here; no-new-law / unspec'd
 batch-material encoding parked for DK. Three tightenings + the riding side-channel pin (above) folded.
 Proceeding to **B4-INDEX-COMMIT red battery** (no further concur round needed).
+
+**LANDED (green @ `57243f7`, CL red-OK `591f59e5` + green-watch).** idx-commit.* 12/12; adapter-indexer
+36/36. `buildCommittedBatchForRoot` 1–5 step bind (try/catch → null): base-verify → W3 `isCanonicalName`
+gate + lowercase-hex owner + insert-only → bind → size → sorted projection (length recomputed from the
+verified name). Green-watch fix: `@ont/consensus` moved devDeps → deps (the prod export returns
+`CommittedBatchContents`). Red: `d6c1899`.
+
+## 9.8 B4-INDEX-DATASOURCE design — the availability seam (design-first)
+
+`baseLeavesForPrevRoot(prevRoot)` + `servedLeavesForRoot(anchoredRoot)` — the two `BatchDataSource`
+accessors the B3 availability stage consumes (`verifyAvailabilityHeight({ baseLeaves, servedDelta, binding,
+confirmedAnchorMinedHeight })`). Both are firewall-minted (recompute-don't-trust): a withheld / tampered /
+empty source mints `null`, so the availability stage fails closed (`base-leaves-absent` /
+`served-bytes-withheld`) — it can never reconstruct a false root.
+
+**The binding.** `ServedLeaf { keyHex, valueHex }` (32-byte lowercase hex; key = `H(name)`, value =
+ownerPubkey). The served delta is insert-only disjoint from the base, and `accumulatorRootOf(base ∪ delta)
+=== anchoredRoot` over a base whose `accumulatorRootOf === prevRoot` (`bindServedBytes` / the audited
+availability builder enforce exactly this). So the two firewall cores:
+
+```
+// baseLeavesForPrevRoot firewall — NEVER an empty-base default (base-leaves-absent is a fail-closed reject).
+verifyBaseLeaves(prevRoot, baseLeaves: ReadonlyMap<string,string>) -> ReadonlyMap | null
+  accumulatorRootOf(baseLeaves) === prevRoot ? baseLeaves : null
+
+// servedLeavesForRoot firewall — the presented DA bytes must reconstruct the anchored root.
+verifyServedDelta({ prevRoot, anchoredRoot, baseLeaves, presentedServed: readonly ServedLeaf[] })
+  -> readonly ServedLeaf[] | null
+  // verified base (accumulatorRootOf === prevRoot); each leaf 32-byte lowercase hex; non-empty; insert-only
+  // disjoint from base + internally unique; accumulatorRootOf(base ∪ presentedServed) === anchoredRoot
+  // → presentedServed; else null (withheld / tampered / omitted-or-extra leaf). Total + fail-closed.
+```
+A thin `BatchDataSource` wrapper keyed by root holds the indexed base + the presented served set and runs
+these cores per access. `presentedServed` is the UNTRUSTED DA-transport payload (B4-DA's `/da/{root}`);
+this slice VERIFIES it, B4-DA FETCHES it.
+
+**Planned `idx-ds.*` red battery (firewall pipe = the bar):**
+- **firewall-positive** — a verified base + served delta → both accessors return; piped into the REAL
+  `verifyAvailabilityHeight` they reconstruct `anchoredRoot` and yield `firstServableHeight === anchorHeight`
+  (reuse the served-bytes fixture; assert `bound.anchoredRoot === anchoredRoot`).
+- **base firewall** — `accumulatorRootOf(baseLeaves) !== prevRoot` → null (NEVER an empty-base default; a
+  null/empty base is `base-leaves-absent`, not a silent empty default).
+- **served firewall** — withheld (`null`/empty) → null; a tampered / omitted / extra leaf so
+  `root(base ∪ served) !== anchoredRoot` → null; non-disjoint (served key already in base) → null.
+- **shape** — a non-32-byte / non-lowercase-hex `keyHex`/`valueHex` → null; duplicate served key → null.
+- **firewall-negative pipe** — each hostile served/base path → `verifyAvailabilityHeight` throws/rejects →
+  no availability (the adapter mints null upstream).
+- determinism; never throws.
+
+### 9.9 B4-INDEX-DATASOURCE design-concur — open calls (my leans)
+
+1. **Two firewall cores + a thin wrapper.** `verifyBaseLeaves` + `verifyServedDelta` pure cores, with a
+   `BatchDataSource` wrapper keyed by root. **Lean: this** (the wrapper decides nothing; the cores firewall).
+2. **`presentedServed` is injected here, fetched by B4-DA.** This slice verifies a presented `ServedLeaf[]`
+   (recorded-fixture seam); B4-DA does the real `/da/{root}` fetch + W15 transport. **Lean: this split.**
+3. **Never-empty-base default.** A base that doesn't verify to `prevRoot`, or an absent base, is a
+   fail-closed `null` — never a silent empty-base accumulator (the B3 stage's `base-leaves-absent` /
+   `E-ND` rule). **Lean: enforce here.**
+4. **No new law.** `ServedLeaf` shape, accumulator replay, insert-only disjointness are ratified; the cores
+   only RECOMPUTE. Any unspec'd served-transport encoding is PARKED for DK (W15 / B4-DA). Confirm.
+
+On concur I open **B4-INDEX-DATASOURCE red battery**.
