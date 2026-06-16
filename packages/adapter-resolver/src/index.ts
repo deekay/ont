@@ -11,3 +11,9 @@ export {
   type ValidateRecoveryDescriptorSubmissionInput,
   type RecoveryDescriptorSubmissionResult,
 } from "./validate-recovery-submission.js";
+export {
+  projectServedValueHistory,
+  type ProjectServedValueHistoryInput,
+  type ServedValueHistoryResult,
+  type ServedValueHistoryRejectReason,
+} from "./serve-value-history.js";
