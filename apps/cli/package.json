@@ -1,0 +1,20 @@
+{
+  "name": "@ont/cli",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "ONT B5 surface — the `ont` CLI (clean-build). A thin operator orchestrator: consumes L1-L4 APIs and reimplements no rules; holds no keys and never signs (signing → B5-WALLET). First slice = read/query commands over an injected CliReadPort (mocked in tests; no live network). See docs/core/B5_CLI_CLASSIFICATION.md.",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run build -w @ont/protocol && npm run build -w @ont/wire && npm run build -w @ont/adapter-resolver && vitest run"
+  },
+  "dependencies": {
+    "@ont/wire": "file:../../packages/wire",
+    "@ont/adapter-resolver": "file:../../packages/adapter-resolver"
+  },
+  "devDependencies": {
+    "@ont/protocol": "file:../../packages/protocol",
+    "vitest": "^3.2.4"
+  }
+}

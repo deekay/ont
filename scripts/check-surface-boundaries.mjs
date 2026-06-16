@@ -21,7 +21,7 @@ import { existsSync, readFileSync } from "node:fs";
 
 // EXPLICIT allowlist of clean-build surfaces under the boundary gate. Extend as each B5 surface is rebuilt.
 // (When B5-WALLET joins, it is the one surface allowed crypto/signing libs — add a per-surface exemption then.)
-const ALLOWLIST = ["apps/claim"];
+const ALLOWLIST = ["apps/claim", "apps/cli"];
 
 const SCAN_EXT = ["ts", "tsx", "mts", "cts", "js", "mjs", "cjs"];
 const CRYPTO_DENY = [/^@noble\//, /^@scure\//, /^bitcoinjs-lib$/, /^ecpair$/, /^tiny-secp256k1$/, /^secp256k1$/];
