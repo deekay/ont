@@ -15,6 +15,10 @@
 > stores), regtest/live smoke optional once a target exists; (4) a **low-cost scripted boundary lint ships in
 > the FIRST B5 slice** (B5-CLAIM), not later. **B5-CLAIM design-first is open** (this doc §7); B5 implementation
 > still held for the DK merge gate.
+>
+> **B5-CLAIM design-concur @ `b07cc3d4`** — all 4 §7.6 open calls RESOLVED (mock-wallet DI `signTx` test
+> double; harness local to `apps/claim` first; boundary-lint deny-list; first walkthrough = RootAnchor batch
+> path). Design LOCKED; red battery + lint script land only after the DK merge gate clears.
 
 ## 1. The gap
 
@@ -158,17 +162,28 @@ A low-cost scripted check (e.g. `scripts/check-surface-boundaries.mjs`) run as a
 - The boundary lint (§7.4) passes.
 - Copy obeys the GLOSSARY + the not-authority discipline.
 
-### 7.6 B5-CLAIM design-concur — open calls (my leans)
+### 7.6 B5-CLAIM design-concur — RESOLVED (CL `b07cc3d4`)
 
-1. **Signing boundary** = named mock-wallet fixture for walkthroughs; the claim site never holds keys / signs.
-   **Lean: this** (CL #2). Confirm the fixture shape (a minimal `signTx(unsignedTx) → signedTx` test double).
-2. **Hermetic harness** reusing B4's synthetic block/header machinery + fixture DA/resolver stores. **Lean:
-   this** (CL #3). Confirm whether the harness lives in `apps/claim` test scope or a shared B5 test util.
-3. **Boundary lint scope** as §7.4. **Lean: this** (CL #4). Confirm the exact allow/deny lists.
-4. **What "claim" assembles here** — the claim site's tx is the RootAnchor batch path (operator) vs a
-   per-name claim. My read: the claim site drives the **operator claim/anchor** flow (assemble RootAnchor via
-   `assembleRootAnchorTx` + the batch), since per-name Transfer/AuctionBid are B5-WALLET wallet-handoff (W17).
-   **Flag for your ruling** — this pins exactly which assembler the first walkthrough exercises.
+1. **Signing boundary / mock-wallet fixture** — dependency-injected, **test-only**: `signTx(unsignedTx) →
+   Promise<LegacyTransaction>` (or sync if the core is sync), returning a deterministic serializable tx. It
+   PROVES the claim surface crosses a wallet boundary; it does NOT simulate real signing semantics. **No
+   private-key APIs, no PSBT finalization, no crypto imports in `apps/claim` runtime.**
+2. **Harness location** — start **local to `apps/claim` test scope**. Promote to a shared B5 test utility only
+   after a second consumer (CLI/web) needs the same synthetic-block driver — avoids freezing a broad harness
+   API too early.
+3. **Boundary lint (§7.4)** — ship the first low-cost script now. Allow: published `@ont/*` entrypoints only.
+   Deny: `@ont/*/src`, `@ont/*/dist`, relative imports into `packages/*`, quarantined old-app/`legacy/`
+   imports, and direct crypto/bitcoin signing libs from surfaces (except B5-WALLET). Literal
+   predicate/window/digest-reimplementation checks stay CL review until a real violation teaches the script.
+4. **First walkthrough assembler = the RootAnchor batch path.** The B5-CLAIM walkthrough exercises: claim
+   request enters publisher/batch → publisher assembles the unsigned RootAnchor via `assembleRootAnchorTx` →
+   mock wallet signs across the boundary → synthetic block confirms via B4-INDEX → resolver/render shows the
+   chain-derived state. **NOT** per-name Transfer/AuctionBid (those are B5-WALLET W17 handoff); **NOT**
+   RecoverOwnerInvoke (that is recovery, not the first claim path).
 
-On concur I draft the B5-CLAIM red battery — but it stays uncommitted-as-implementation until B4 merges; only
-the design note + (if useful) reviewed interface-test stubs land now.
+**Phrasing watch (CL):** keep **"claim request shaping" separate from the "publisher/anchor fixture."** The
+claim surface may shape / submit / display; any batching or root computation comes from the adapter/fixture
+stack, NEVER a new surface rule. The §7.3 pure cores are request-shaping + display projection ONLY.
+
+**B5-CLAIM design locked.** The red battery + the boundary-lint script land only AFTER the DK merge gate
+clears (CL: "proceed with B5-CLAIM red-battery design/interface stubs only after the DK gate rules allow it").
