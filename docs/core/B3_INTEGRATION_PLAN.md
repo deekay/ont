@@ -141,30 +141,47 @@ in `proof-bundle.ts`; there is **no header-chain linkage / best-chain validator*
 bytes 4–36 (internal LE); block hash = `reverse(dsha256(header))`, and `header[i].prevBlock ==
 dsha256(header[i-1])` (internal order).
 
-**Deliverable (sketch).**
-```
-validateHeaderChain(headersHex: string[], startHeight: number, prevCheckpointHashHex?: string)
-  -> { ok: true, headerSource: BitcoinHeaderSource } | { ok: false, reason }
-  - per header i: 80-byte + headerMeetsTarget(header) (PoW)            else reject
-  - i>0 (and i==0 vs prevCheckpointHashHex if given): prevBlock(i) == dsha256(header[i-1])  else reject
-  - headerSource.headerHexAtHeight(h) = the validated header at h, or null outside the validated range
-```
-The I-HARNESS inclusion seam consumes the returned `headerSource`; B4 feeds the real network headers.
+**Design-concur RESOLVED (CL event 5ee443fc; my picks recorded).**
+1. **Location → `@ont/bitcoin` (concurred).** The pure header primitives + source builder live next to
+   `legacyTxidOf` and export from `@ont/bitcoin`; `@ont/claim-path` only consumes the resulting
+   `BitcoinHeaderSource` seam.
+2. **PoW helper → relocate (concurred).** Move `bitsToTarget` / `headerMeetsTarget` into `@ont/bitcoin`;
+   `proof-bundle.ts` imports them. Treated as behavior-preserving for the audited verifier: existing
+   proof-bundle tests stay green, plus a new bitcoin-level pin for the known block-170 header → hash →
+   target → `headerMeetsTarget` path so byte order cannot drift. The kernel-surface touch
+   (`proof-bundle.ts` admits `@ont/bitcoin` header primitives) is recorded as a **#44 boundary addendum**
+   (#87, same mechanism as the `legacyTxidOf`/gate-fee addendum #85: per-file trust-surface extension +
+   conformance pin, **no new consensus law**).
+3. **Scope → PREFERRED full #82 validator (CL's correctness point sustained; I do NOT keep the linear
+   wording).** Linear self-target PoW + prev-linkage is **weaker than the name**: a fabricated child of a
+   trusted checkpoint can pick easier `nBits`, satisfy `headerMeetsTarget(header)` against its *own*
+   declared target, link to the checkpoint, and still be off-chain. PoW/Merkle alone prove inclusion in *a*
+   valid-work header, not the canonical best chain (the local #82 warning). So I-SPV validates a presented
+   candidate chain against Bitcoin network params: compact-target validity / `powLimit`, **expected `nBits`**
+   across the range (the 2016-block **retarget** recomputed when a boundary is crossed; constant within a
+   period), per-header PoW, prev-linkage, and **cumulative chainwork**. The de-scoped linear sub-slice
+   (I-SPV-0) is declined — it adds little over the I-HARNESS fixture source (still accepts the easy-target
+   child) and would defer the only valuable part. B4 may remain a network adapter/fetcher that *presents* a
+   candidate chain; it need not own consensus validation (that lives here). Multi-fork **selection** among
+   competing presented chains stays a B4 fetcher concern; I-SPV validates the presented chain + its work.
 
-**Open calls for CL design-concur.**
-1. **Location.** A new `@ont/bitcoin` primitive (my lean — the Bitcoin-primitive home, like `legacyTxidOf`;
-   reusable by both `proof-bundle.ts` and `@ont/claim-path`), vs `@ont/claim-path`-local.
-2. **PoW helper.** Relocate `headerMeetsTarget` / `bitsToTarget` from `proof-bundle.ts` → `@ont/bitcoin`
-   (single source; `proof-bundle.ts` re-imports — behavior-preserving, the `legacyTxidOf` (#85) /
-   `accumulatorRootOf` (#83) relocation precedent), vs reimplement in the validator (PoW duplication).
-   My lean: relocate. NB: touches audited `proof-bundle.ts` (a #44-aware move).
-3. **Scope.** B3 first cut = a **linear** chain (per-header PoW + prev-hash linkage from a trusted
-   checkpoint) producing the source — this already closes the "off-chain-header substitution" gate for a
-   given chain. Difficulty-**retarget** validation (the 2016-block adjustment) + most-work **reorg/best-chain
-   selection** among competing forks = a flagged follow-up **I-SPV-2** (heavier; arguably B4 network
-   territory). My lean: linear-first; pull reorg/retarget forward only if you want the full launch-gate now.
+**Deliverable.**
+```
+validateHeaderChain(headersHex: string[], startHeight: number, params, prevCheckpointHashHex?)
+  -> { ok: true, headerSource: BitcoinHeaderSource, cumulativeWorkHex } | { ok: false, reason }
+  - per header i: 80-byte; bits=nBits(i); target=bitsToTarget(bits) in (0, powLimit]   else reject
+  - bits(i) == expectedBits(i)   (period-constant; retarget recompute at 2016-boundary) else reject
+  - headerMeetsTarget(header_i) against target(i) (PoW)                                  else reject
+  - i>0 (and i==0 vs prevCheckpointHashHex if given): prevBlock(i)==dsha256(header[i-1]) else reject
+  - cumulativeWork = Σ floor(2^256 / (target_i + 1))
+  - headerSource.headerHexAtHeight(h) = the validated header at h, or null outside the range
+```
+The I-HARNESS inclusion seam consumes the returned `headerSource`; B4 presents the real network headers.
 
-**Planned `spv.*` red battery:** a linear PoW+linkage chain validates → `headerHexAtHeight` returns the
-right headers; bad PoW rejects; broken linkage (wrong `prevBlock`) rejects; an off-chain header (valid
-PoW, wrong linkage) rejects; checkpoint-mismatch at i==0 rejects; non-80-byte/malformed rejects;
-`headerHexAtHeight` returns null outside the validated range; total/fail-closed, never throws.
+**Planned `spv.*` red battery:** a valid header chain validates → `headerHexAtHeight` returns the right
+headers + `cumulativeWorkHex` accounted; bad PoW (header fails its own target) rejects; **easy-target
+forged child** (self-target-valid but `nBits` easier than expected at its height, linked) **rejects** (the
+#82 pin); `nBits` above `powLimit` / zero / out-of-range rejects; broken linkage (wrong `prevBlock`)
+rejects; checkpoint-mismatch at i==0 rejects; retarget-boundary header with stale (un-recomputed) `nBits`
+rejects; non-80-byte/malformed rejects; `headerHexAtHeight` returns null outside the validated range;
+total/fail-closed, never throws. Plus a bitcoin-level block-170 pin (relocation byte-order guard).
