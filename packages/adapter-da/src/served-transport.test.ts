@@ -6,6 +6,7 @@ import {
   fetchServedLeaves,
   parseServedTransport,
   type DaSource,
+  type FetchServedLeavesInput,
 } from "./served-transport.js";
 
 // B4-DA red battery (B4_ADAPTERS_PLAN §10). B4-DA fetches + structurally parses the /da/{root} served-
@@ -156,6 +157,16 @@ describe("fetchServedLeaves — async wrapper (root validation before provider; 
     await expect(fetchServedLeaves({ daSource: rejecting, anchoredRoot: ANCHORED_ROOT })).resolves.toBeNull();
     await expect(fetchServedLeaves({ daSource: throwing, anchoredRoot: ANCHORED_ROOT })).resolves.toBeNull();
     expect(await fetchServedLeaves({ daSource: nonString, anchoredRoot: ANCHORED_ROOT })).toBeNull();
+  });
+
+  // round 2 (CL): wrapper-input totality — a malformed input itself (not just provider behavior) must
+  // resolve null, never reject (a green that destructures before its try/catch would throw).
+  it("malformed wrapper input (null / missing daSource / non-function fetchServed) → null, never rejects", async () => {
+    await expect(fetchServedLeaves(null as unknown as FetchServedLeavesInput)).resolves.toBeNull();
+    await expect(fetchServedLeaves({ anchoredRoot: ANCHORED_ROOT, daSource: null as unknown as DaSource })).resolves.toBeNull();
+    await expect(
+      fetchServedLeaves({ anchoredRoot: ANCHORED_ROOT, daSource: { fetchServed: null as unknown as DaSource["fetchServed"] } }),
+    ).resolves.toBeNull();
   });
 });
 
