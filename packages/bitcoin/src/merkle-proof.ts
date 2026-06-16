@@ -12,7 +12,9 @@
 
 /**
  * Recompute the Merkle root (INTERNAL byte order) from a display-hex txid + display-hex sibling path
- * and the tx's position in the block. Returns null on any malformed input.
+ * and the tx's position in the block. Returns null on any malformed input — bad-hex / wrong-length
+ * txid or sibling, AND a `pos` that is not a non-negative integer (an empty path must NOT silently
+ * ignore a malformed `pos`, else a 1-tx block with `pos=-1` could falsely accept).
  *
  * STUB (B4-INDEX-ANCHOR, tests-first): returns null so the byte-order red battery fails until implemented.
  */

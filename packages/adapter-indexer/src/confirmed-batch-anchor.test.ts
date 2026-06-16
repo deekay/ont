@@ -139,6 +139,12 @@ describe("merkleRootFromProof / merkleRootHexFromHeaderHex — promoted byte-ord
     expect(merkleRootFromProof(A, ["beef"], 0)).toBeNull();
   });
 
+  it("malformed pos (negative / non-integer) → null (an empty path must not ignore a bad pos)", () => {
+    expect(merkleRootFromProof(A, [], -1)).toBeNull();
+    expect(merkleRootFromProof(A, [], 1.5)).toBeNull();
+    expect(merkleRootFromProof(A, [B], -1)).toBeNull();
+  });
+
   it("header merkle root = bytes 36..68 (internal hex); malformed header → null", () => {
     expect(merkleRootHexFromHeaderHex(block.headerHex)).toBe(bytesToHex(internal(ANCHOR_TXID)));
     expect(merkleRootHexFromHeaderHex("00")).toBeNull();
@@ -264,6 +270,54 @@ describe("buildConfirmedBatchAnchor — firewall-negatives (no fact, or a fact t
     if (!r.ok) return;
     const gf = enforceGateFee({ confirmedAnchor: r.confirmedAnchor, committedBatch: COMMITTED, feeWitness: { ...r.feeTxParts, schedule: SCHEDULE } });
     expect(gf.verdict.adequate).toBe(false); // no prevouts → the audited predicate cannot recompute the fee
+  });
+
+  // round 2 (CL): a malformed inclusion coordinate must not mint. With a 1-tx block + empty path, pos is
+  // otherwise ignored, so a bad pos could falsely accept unless the merkle helper rejects it.
+  it("malformed pos (negative / non-integer) → anchor-not-included (no mint)", () => {
+    for (const pos of [-1, 1.5]) {
+      const r = buildConfirmedBatchAnchor(validInput({ pos }));
+      expect(r.ok).toBe(false);
+      if (r.ok) return;
+      expect(r.reason).toBe("anchor-not-included");
+    }
+  });
+
+  // round 2 (CL): an explicit anchorVout must NOT fall back to scanning other outputs.
+  it("explicit anchorVout pointing at a non-anchor OP_RETURN → anchor-malformed (no fallback to a valid vout 0)", () => {
+    const mixed = anchorTxWith([
+      { valueSats: 0n, scriptPubKeyHex: opReturn(rootAnchorPayload(ROOT, 2)) }, // valid RootAnchor at vout 0
+      { valueSats: 0n, scriptPubKeyHex: "6a04deadbeef" }, // garbage OP_RETURN at vout 1
+      { valueSats: 7_000_000n, scriptPubKeyHex: "51" },
+    ]);
+    const b = blockFor(mixed);
+    const r = buildConfirmedBatchAnchor({ ...validInput(), anchorTx: mixed, blockHeaderHex: b.headerHex, headerSource: b.headerSource, anchorVout: 1 });
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.reason).toBe("anchor-malformed");
+  });
+
+  it("out-of-range / non-integer anchorVout → anchor-malformed", () => {
+    for (const anchorVout of [99, 1.5, -1]) {
+      const r = buildConfirmedBatchAnchor(validInput({ anchorVout }));
+      expect(r.ok).toBe(false);
+      if (r.ok) return;
+      expect(r.reason).toBe("anchor-malformed");
+    }
+  });
+
+  // round 2 (CL): a malformed minedHeight must not call through into a header-source lookup and mint a
+  // seam fact with a bad height.
+  it("non-integer / negative minedHeight → anchor-noncanonical-header (no header-source call, no mint)", () => {
+    let probed = false;
+    const tripwire: BitcoinHeaderSource = { headerHexAtHeight: () => { probed = true; return block.headerHex; } };
+    for (const minedHeight of [-1, 1.5]) {
+      const r = buildConfirmedBatchAnchor(validInput({ minedHeight, headerSource: tripwire }));
+      expect(r.ok).toBe(false);
+      if (r.ok) return;
+      expect(r.reason).toBe("anchor-noncanonical-header");
+    }
+    expect(probed).toBe(false); // a malformed height never reaches the header source
   });
 });
 

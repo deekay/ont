@@ -53,15 +53,18 @@ export type ConfirmedBatchAnchorResult =
 
 /**
  * GREEN contract (B4-INDEX-ANCHOR):
+ *   0. height    minedHeight must be a non-negative integer — else "anchor-noncanonical-header" WITHOUT
+ *                consulting the header source (a malformed height must never reach the lookup or be minted).
  *   1. txid      = legacyTxidOf(anchorTx); null → "anchor-malformed".
- *   2. payload   scan anchorTx.outputs for OP_RETURN data that decodeEvent → RootAnchor; with anchorVout
- *                use only that output; else EXACTLY ONE decodable RootAnchor (0 or >1 → "anchor-malformed",
- *                no silent first-match); wrong-type / non-anchor / malformed payload (decodeEvent throws,
- *                caught) → "anchor-malformed". anchoredRoot/batchSize read from the DECODE only.
+ *   2. payload   if anchorVout given: it must be an integer in [0, outputs.length) — else "anchor-malformed";
+ *                decode ONLY that output (no fallback to other outputs). Else scan anchorTx.outputs for
+ *                OP_RETURN data that decodeEvent → RootAnchor; EXACTLY ONE decodable RootAnchor (0 or >1 →
+ *                "anchor-malformed", no silent first-match). wrong-type / non-anchor / malformed payload
+ *                (decodeEvent throws, caught) → "anchor-malformed". anchoredRoot/batchSize from the DECODE only.
  *   3. canonical hdr = headerSource.headerHexAtHeight(minedHeight) (null/throw caught);
  *                hdr !== blockHeaderHex → "anchor-noncanonical-header".
  *   4. inclusion merkleRootFromProof(txid, merkle, pos) bytes === merkleRootHexFromHeaderHex(blockHeaderHex)
- *                → else "anchor-not-included".
+ *                → else "anchor-not-included" (a null recompute — malformed pos / sibling — is not included).
  *   5. mint      confirmedAnchor { anchorTxid: txid, minedHeight, anchoredRoot: decoded.newRoot,
  *                batchSize: decoded.batchSize }; feeTxParts { anchorTx, prevoutTxs } (SAME anchorTx object).
  *
