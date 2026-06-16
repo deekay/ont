@@ -122,9 +122,9 @@ function mineChain(
   return { headersHex, tipInternal: prev };
 }
 
-// Bitcoin Core's exact block proof: floor((2^256 - 1) / (target + 1)) + 1.
+// Bitcoin Core's exact block proof: (~target)/(target+1) + 1 = floor((2^256-1-target)/(target+1)) + 1.
 function blockProof(target: bigint): bigint {
-  return ((1n << 256n) - 1n) / (target + 1n) + 1n;
+  return ((1n << 256n) - 1n - target) / (target + 1n) + 1n;
 }
 
 // ---------- REAL block 170 ----------
@@ -193,7 +193,14 @@ describe("validateHeaderChain — synthetic within-epoch", () => {
   it("is deterministic", () => {
     const a = validateHeaderChain(headersHex, 5, cp, SYNTH_PARAMS);
     const b = validateHeaderChain(headersHex, 5, cp, SYNTH_PARAMS);
-    expect(a).toEqual(b);
+    expect(a.ok).toBe(true);
+    expect(b.ok).toBe(true);
+    if (!a.ok || !b.ok) return;
+    expect(a.tipHeight).toBe(b.tipHeight);
+    expect(a.tipHashHex).toBe(b.tipHashHex);
+    expect(a.cumulativeWorkHex).toBe(b.cumulativeWorkHex);
+    expect(a.headerSource.headerHexAtHeight(5)).toBe(b.headerSource.headerHexAtHeight(5));
+    expect(a.headerSource.headerHexAtHeight(7)).toBe(b.headerSource.headerHexAtHeight(7));
   });
 
   it("includes the checkpoint's accumulated work in the total (not just header work)", () => {
@@ -226,7 +233,7 @@ describe("validateHeaderChain — synthetic within-epoch", () => {
 
   it("rejects sign-bit (negative) compact bits", () => {
     const h0 = mineHeader(CP_HASH_INTERNAL, EPOCH_BITS, 100_001);
-    const bad = buildHeader(dsha256(h0), 0x20800000, 100_002, 0); // mantissa sign bit set
+    const bad = buildHeader(dsha256(h0), 0x20ffffff, 100_002, 0); // sign bit + nonzero mantissa = negative
     const r = validateHeaderChain([bytesToHex(h0), bytesToHex(bad)], 5, cp, SYNTH_PARAMS);
     expect(r.ok).toBe(false);
     if (r.ok) return;
@@ -313,8 +320,8 @@ describe("validateHeaderChain — synthetic retarget boundary (height 8)", () =>
   });
 
   it("accepts a correct difficulty increase at the boundary (actualTimespan halved)", () => {
-    const cp = boundaryCheckpoint(32767); // → newTarget mantissa 0x7fff → bits 0x20007fff
-    const h8 = mineHeader(CP_HASH_INTERNAL, 0x20007fff, 200_100);
+    const cp = boundaryCheckpoint(32767); // newTarget 32767<<232 → canonical compact 0x1f7fff00
+    const h8 = mineHeader(CP_HASH_INTERNAL, 0x1f7fff00, 200_100);
     const r = validateHeaderChain([bytesToHex(h8)], 8, cp, SYNTH_PARAMS);
     expect(r.ok).toBe(true);
     if (!r.ok) return;
@@ -322,7 +329,7 @@ describe("validateHeaderChain — synthetic retarget boundary (height 8)", () =>
   });
 
   it("rejects a stale-difficulty boundary header (keeps old bits instead of retargeting)", () => {
-    const cp = boundaryCheckpoint(32767); // expected bits 0x20007fff
+    const cp = boundaryCheckpoint(32767); // expected canonical bits 0x1f7fff00
     const stale = mineHeader(CP_HASH_INTERNAL, EPOCH_BITS, 200_100); // old (easier) bits, self-valid
     const r = validateHeaderChain([bytesToHex(stale)], 8, cp, SYNTH_PARAMS);
     expect(r.ok).toBe(false);
@@ -330,9 +337,9 @@ describe("validateHeaderChain — synthetic retarget boundary (height 8)", () =>
     expect(r.reason).toBe("spv-unexpected-bits");
   });
 
-  it("clamps actualTimespan to powTargetTimespan/4 (mantissa 0x3fff)", () => {
-    const cp = boundaryCheckpoint(5); // far below /4=16383 → clamp → bits 0x20003fff
-    const h8 = mineHeader(CP_HASH_INTERNAL, 0x20003fff, 200_100);
+  it("clamps actualTimespan to powTargetTimespan/4 (canonical bits 0x1f3fff00)", () => {
+    const cp = boundaryCheckpoint(5); // far below /4=16383 → clamp → 16383<<232 → 0x1f3fff00
+    const h8 = mineHeader(CP_HASH_INTERNAL, 0x1f3fff00, 200_100);
     const r = validateHeaderChain([bytesToHex(h8)], 8, cp, SYNTH_PARAMS);
     expect(r.ok).toBe(true);
     if (!r.ok) return;

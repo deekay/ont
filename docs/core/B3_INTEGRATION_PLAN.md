@@ -174,7 +174,7 @@ validateHeaderChain(headersHex: string[], startHeight: number, params, prevCheck
   - bits(i) == expectedBits(i)   (period-constant; retarget recompute at 2016-boundary) else reject
   - headerMeetsTarget(header_i) against target(i) (PoW)                                  else reject
   - i>0 (and i==0 vs prevCheckpointHashHex if given): prevBlock(i)==dsha256(header[i-1]) else reject
-  - cumulativeWork = checkpoint.cumulativeWork + Σ ( floor((2^256 - 1) / (target_i + 1)) + 1 )  // Bitcoin Core GetBlockProof, exact
+  - cumulativeWork = checkpoint.cumulativeWork + Σ ( floor((2^256 - 1 - target_i) / (target_i + 1)) + 1 )  // = (~target)/(target+1)+1, Bitcoin Core GetBlockProof
   - headerSource.headerHexAtHeight(h) = the validated header at h, or null outside the range
 ```
 The I-HARNESS inclusion seam consumes the returned `headerSource`; B4 presents the real network headers.
