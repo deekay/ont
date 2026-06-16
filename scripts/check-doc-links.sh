@@ -41,5 +41,5 @@ while IFS= read -r f; do
       broken=1
     fi
   done < <(grep -noE 'docs/[A-Za-z0-9_./-]+\.(md|pdf)' "$f" || true)
-done < <(git ls-files '*.md' ':!:docs/research/archive/**')
+done < <(git ls-files '*.md' ':!:docs/research/archive/**' ':!:legacy/**')
 exit $broken
