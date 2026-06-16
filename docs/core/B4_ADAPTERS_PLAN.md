@@ -6,8 +6,9 @@
 > **Slice progress:** B4-HEADER **GREEN @ `0ee8a70`** (green-OK `0877d466`; hdr.* 18/18; `@ont/adapter-header`).
 > B4-INDEX design-concur granted (`ca3e20aa`). B4-INDEX-ANCHOR **GREEN @ `bf060d4`** (green-OK `909f7202`;
 > idx-anchor.* 24/24; `@ont/adapter-indexer` + the `@ont/bitcoin` merkle primitive promotion, consensus
-> regression 466✓). B4-INDEX-COMMIT **GREEN @ `57243f7`** (CL red-OK `591f59e5` → green-OK; idx-commit.*
-> 12/12; adapter-indexer 36/36). B4-INDEX-DATASOURCE **design-concur (§9.8)** — pending CL.
+> regression 466✓). B4-INDEX-COMMIT **GREEN @ `57243f7`** (green-OK `b3939632`; idx-commit.*
+> 12/12). B4-INDEX-DATASOURCE **GREEN @ `7c9552b`** (CL red-OK r2 `d6800ce3` → green-OK; idx-ds.* 23/23;
+> adapter-indexer 59/59). B4-INDEX-INVOKE **design-concur (§9.10)** — pending CL (last B4-INDEX sub-slice).
 
 ## 1. The gap
 
@@ -465,3 +466,67 @@ Red round 2 (CL, event 6c86af32) folded: valid-hex UPPERCASE rejects (lowercase-
 `accumulatorRootOf` lowercases — letter-containing fixtures so uppercase differs); empty Map with a
 non-genesis `prevRoot` → null (empty allowed only when it verifies); the served projection returns FRESH
 leaf objects (not caller-owned). Proceeding to **B4-INDEX-DATASOURCE red battery** (red-OK pending).
+
+**LANDED (green @ `7c9552b`, CL red-OK r2 `d6800ce3` + green-watch).** idx-ds.* 23/23; adapter-indexer
+59/59. `verifyBaseLeaves` + `verifyServedDelta` cores (try/catch → null): `HEX_64_LOWER` (lowercase-only)
+on roots + every key/value BEFORE `accumulatorRootOf` (stricter than the permissive lowercasing layer);
+FRESH canonical Map / FRESH sorted leaf objects; genesis empty binds iff `prevRoot === root(∅)`. Wrapper
+already real. Red rounds: `6fde09a` (r1) → `077eceb` (r2: uppercase / empty-non-genesis / fresh leaves).
+
+## 9.10 B4-INDEX-INVOKE design — the recover-owner invoke fact (design-first)
+
+The last B4-INDEX sub-slice: `ConfirmedRecoverOwnerInvoke { txid, minedHeight, recoveryDescriptorHash,
+invokeFields }` — the chain-bound recovery-invoke fact the B3 I-REC orchestrator (`enforceRecoveryInvoke`)
+consumes. It REUSES the ANCHOR inclusion firewall (txid + header-canonicality + merkle-inclusion bind +
+`minedHeight`), decoding a RecoverOwner (WIRE 0x09) instead of a RootAnchor. No fee witness (I-REC takes
+none), so it mints only the invoke fact. `invokeFields` = the decoded RecoverOwner MINUS `type`/`minedHeight`.
+
+```
+// PURE core: bind a candidate RecoverOwner invoke tx to the chain (total + fail-closed; never throws).
+buildConfirmedRecoverOwnerInvoke({
+  invokeTx: LegacyTransaction,        // UNTRUSTED — the structured invoke tx
+  blockHeaderHex, minedHeight, merkle, pos,   // UNTRUSTED — inclusion coordinates (as ANCHOR)
+  headerSource,                       // TRUSTED — validated by B4-HEADER
+  invokeVout?,                        // optional explicit OP_RETURN selector (else exactly-one rule)
+}) -> { ok: true, confirmedInvoke } | { ok: false, reason }
+  0. height     minedHeight non-neg-int else "invoke-noncanonical-header" (before header lookup)
+  1. txid       legacyTxidOf(invokeTx); null -> "invoke-malformed"
+  2. payload    decode RecoverOwner (WIRE 0x09) from the OP_RETURN (exactly-one or explicit invokeVout,
+                no-fallback; wrong-type/missing/multiple -> "invoke-malformed")
+  3. canonical  headerSource.headerHexAtHeight(minedHeight) === blockHeaderHex else "invoke-noncanonical-header"
+  4. inclusion  merkleRootFromProof(txid, merkle, pos) === header root(36..68) else "invoke-not-included"
+  5. mint       confirmedInvoke { txid, minedHeight, recoveryDescriptorHash: decoded.recoveryDescriptorHash,
+                invokeFields: { prevStateTxid, newOwnerPubkey, flags, successorBondVout,
+                challengeWindowBlocks, recoveryDescriptorHash, signature } }  // from the DECODE only
+```
+Reasons: `invoke-malformed` / `invoke-noncanonical-header` / `invoke-not-included` (the ANCHOR firewall,
+re-keyed). The firewall pipe (bar): the minted `confirmedInvoke` feeds the REAL `enforceRecoveryInvoke`
+(with a descriptor + nameState + recoveryParams fixture, reusing the I-REC recipe) → `recovery-invoke-
+authorized`; hostile (forged merkle / wrong header / wrong payload) → no fact → I-REC can't authorize.
+
+**Planned `idx-invoke.*` red battery:** firewall-positive (minted fact → `enforceRecoveryInvoke` authorizes);
+payload selection (exactly-one / explicit `invokeVout` / wrong-type / multiple → `invoke-malformed`);
+inclusion firewall (forged merkle → `invoke-not-included`); header firewall (null/mismatch/throw →
+`invoke-noncanonical-header`); `minedHeight` shape; `invokeFields` taken only from the decode (no
+side-channel); determinism; never throws.
+
+### 9.11 B4-INDEX-INVOKE design-concur — open calls (my leans)
+
+1. **Reuse the ANCHOR inclusion firewall.** Both bind a tx to the chain identically (header-canonicality +
+   `merkleRootFromProof` + `minedHeight`); only the decode differs (0x09 vs 0x0b). **Lean: factor a shared
+   `src/inclusion.ts` (`opReturnData` + a `bindTxInclusion` core) reused by ANCHOR + INVOKE**, re-pointing
+   ANCHOR (regression-gated by idx-anchor.* 24/24 + the firewall pipe) — single inclusion-firewall source,
+   the merkle-primitive-promotion ethos. (Alt: INVOKE self-contained, duplicating the bind — I disfavor.)
+2. **On-chain carrier of the 171-byte RecoverOwner.** A RecoverOwner (171B) / Transfer (135B) exceeds the
+   80-byte OP_RETURN *standardness* relay limit — but that is policy, NOT consensus: a confirmed block can
+   carry a larger OP_RETURN (OP_PUSHDATA1, ≤255B), and the indexer reads confirmed bytes regardless of relay
+   standardness. **Lean: reuse `opReturnData` (PUSHDATA1) as the carrier**, consistent with ANCHOR. BUT the
+   on-chain carrier of >80B events is not pinned in WIRE_FORMAT — **if the carrier needs a normative spec
+   decision (OP_RETURN-PUSHDATA1 vs witness vs multi-output), that is PARKED for DK** (a wire/carrier rule),
+   and INVOKE proceeds on the OP_RETURN-PUSHDATA1 assumption with a flagged reopen.
+3. **No fee witness.** `enforceRecoveryInvoke` takes no fee; INVOKE mints only `confirmedInvoke` (no
+   `feeTxParts`/`prevoutTxs`). **Lean: this.**
+4. **No new law.** Decode (0x09) + the inclusion bind are ratified shapes; only the carrier-encoding (call 2)
+   may need DK. Confirm the parking line.
+
+On concur (esp. #1 shared-helper + #2 the carrier ruling) I open **B4-INDEX-INVOKE red battery**.
