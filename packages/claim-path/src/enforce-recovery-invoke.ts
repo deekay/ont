@@ -67,18 +67,112 @@ export interface RecoveryInvokeResult {
   readonly verdict: RecoveryInvokeVerdict;
 }
 
+const isObject = (x: unknown): x is Record<string, unknown> =>
+  typeof x === "object" && x !== null && !Array.isArray(x);
+const hasExactKeys = (obj: Record<string, unknown>, keys: readonly string[]): boolean =>
+  Object.keys(obj).length === keys.length &&
+  keys.every((k) => Object.prototype.hasOwnProperty.call(obj, k));
+const isU32 = (x: unknown): x is number =>
+  typeof x === "number" && Number.isInteger(x) && x >= 0 && x <= 0xffff_ffff;
+const HEX_64 = /^[0-9a-f]{64}$/;
+
+const INPUT_KEYS = ["confirmedInvoke", "descriptor", "nameState", "recoveryParams"] as const;
+const CONFIRMED_KEYS = ["txid", "minedHeight", "recoveryDescriptorHash", "invokeFields"] as const;
+const INVOKE_FIELDS_KEYS = [
+  "prevStateTxid",
+  "newOwnerPubkey",
+  "flags",
+  "successorBondVout",
+  "challengeWindowBlocks",
+  "recoveryDescriptorHash",
+  "signature",
+] as const;
+
 /**
  * Enforce a recovery-invoke claim end-to-end: cross-bind → witness (D-RC mint) → authority (kernel).
  * Total + fail-closed: never throws; any malformed input or any failing stage yields a stable reason
- * and an authorized:false verdict with no state mutation.
- *
- * STUB (I-REC, tests-first): returns a fixed reject so the `rec.*` red battery fails for the right
- * reason until the orchestrator is implemented.
+ * and an `authorized:false` verdict with NO state mutation. The minted witness height + the kernel
+ * `minedHeight` come only from the confirmed-invoke seam fact (the confirmed height is the sole height).
  */
-export function enforceRecoveryInvoke(_input: RecoveryInvokeInput): RecoveryInvokeResult {
-  void verifyRecoveryDescriptorWitness;
-  void acceptRecoverOwner;
-  const _facts: RecoverOwnerInvokeFacts | null = null;
-  void _facts;
-  return { trace: [], verdict: { authorized: false, reason: "rec-stub-not-implemented" } };
+export function enforceRecoveryInvoke(input: RecoveryInvokeInput): RecoveryInvokeResult {
+  const trace: RecoveryInvokeTraceStep[] = [];
+  try {
+    const root = input as unknown;
+    if (!isObject(root) || !hasExactKeys(root, INPUT_KEYS)) return { trace, verdict: { authorized: false, reason: "rec-input-malformed" } };
+    const { confirmedInvoke, descriptor, nameState, recoveryParams } = root;
+
+    // ---- closed-shape totality on the seam fact I-REC binds/constructs from ----
+    if (!isObject(confirmedInvoke) || !hasExactKeys(confirmedInvoke, CONFIRMED_KEYS)) {
+      return { trace, verdict: { authorized: false, reason: "rec-input-malformed" } };
+    }
+    if (typeof confirmedInvoke.txid !== "string" || !HEX_64.test(confirmedInvoke.txid)) {
+      return { trace, verdict: { authorized: false, reason: "rec-input-malformed" } };
+    }
+    if (!isU32(confirmedInvoke.minedHeight)) {
+      return { trace, verdict: { authorized: false, reason: "rec-input-malformed" } };
+    }
+    if (
+      typeof confirmedInvoke.recoveryDescriptorHash !== "string" ||
+      !HEX_64.test(confirmedInvoke.recoveryDescriptorHash)
+    ) {
+      return { trace, verdict: { authorized: false, reason: "rec-input-malformed" } };
+    }
+    const fields = confirmedInvoke.invokeFields;
+    // invokeFields stay UNMINED + closed: a smuggled minedHeight / source / timestamp / witness here fails closed.
+    if (!isObject(fields) || !hasExactKeys(fields, INVOKE_FIELDS_KEYS)) {
+      return { trace, verdict: { authorized: false, reason: "rec-input-malformed" } };
+    }
+    if (!isObject(descriptor)) {
+      return { trace, verdict: { authorized: false, reason: "rec-input-malformed" } };
+    }
+
+    // ---- cross-bind: the invoke fields' committed hash must equal the confirmed invoke's ----
+    if (fields.recoveryDescriptorHash !== confirmedInvoke.recoveryDescriptorHash) {
+      trace.push({ stage: "cross-bind", ok: false, reason: "rec-cross-bind-mismatch" });
+      return { trace, verdict: { authorized: false, reason: "rec-cross-bind-mismatch" } };
+    }
+    trace.push({ stage: "cross-bind", ok: true });
+
+    // ---- witness: mint the §3c descriptor witness at the confirmed h_r (recompute-not-trust) ----
+    const witnessResult = verifyRecoveryDescriptorWitness({
+      descriptor,
+      committedDescriptorHash: confirmedInvoke.recoveryDescriptorHash,
+      confirmedInvokeMinedHeight: confirmedInvoke.minedHeight,
+    });
+    if (!witnessResult.ok) {
+      trace.push({ stage: "witness", ok: false, reason: witnessResult.reason });
+      return { trace, verdict: { authorized: false, reason: witnessResult.reason } };
+    }
+    trace.push({ stage: "witness", ok: true });
+
+    // ---- authority: feed the audited kernel; minedHeight comes ONLY from the confirmed invoke ----
+    const invokeFacts = {
+      ...fields,
+      minedHeight: confirmedInvoke.minedHeight,
+    } as unknown as RecoverOwnerInvokeFacts;
+    const authority = acceptRecoverOwner(
+      invokeFacts,
+      { descriptor, witness: witnessResult.witness },
+      nameState as RecoveryNameStateFacts,
+      recoveryParams as RecoveryParams,
+    );
+    if (!authority.accepted) {
+      trace.push({ stage: "authority", ok: false, reason: authority.reason });
+      return { trace, verdict: { authorized: false, reason: authority.reason } };
+    }
+    trace.push({ stage: "authority", ok: true });
+
+    return {
+      trace,
+      verdict: {
+        authorized: true,
+        kind: "recovery-invoke-authorized",
+        proposedOwnerPubkey: fields.newOwnerPubkey as string,
+        challengeWindowBlocks: fields.challengeWindowBlocks as number,
+        recoveryDescriptorHash: confirmedInvoke.recoveryDescriptorHash,
+      },
+    };
+  } catch {
+    return { trace, verdict: { authorized: false, reason: "rec-input-malformed" } };
+  }
 }
