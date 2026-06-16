@@ -36,3 +36,12 @@ export {
   type GateFeeAdmissionVerdict,
   type GateFeeEnforcementResult,
 } from "./enforce-gate-fee.js";
+
+export {
+  enforceContestedBatch,
+  type ContestedLeafRouting,
+  type InsertedLeaf,
+  type ContestedBatchVerdict,
+  type ContestedBatchTraceStep,
+  type ContestedBatchResult,
+} from "./enforce-contested-batch.js";

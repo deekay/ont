@@ -443,21 +443,26 @@ DA-valid priority claims → escalate to the L1 bonded auction. B3 emits the rou
 auction resolution is L1 / B4 (B3 never selects a winner — that would re-introduce the height/txid
 priority #37 rejects).
 
-**Design-concur — open calls (my leans):**
-1. **Standalone vs integrate.** `enforceContestedBatch` standalone (mirrors I-REC / I-FEE-A — a focused
-   orchestrator over one audited predicate), vs branching into `enforceBatchedClaim` when completeness
-   would reject on a collision. **Lean: standalone** — D-CV is a cross-batch canonical derivation; the
-   I-HARNESS path is per-claim. The indexer routes a detected contest here.
-2. **B3-vs-B4 scope (the real question).** B3 runs D-CV over a PRESENTED delta set (which already contains
-   the competing claims) + emits the canonical root + contested→L1 list; the COLLECTION of competing
-   claims across anchors within the #69 notice window = the B4 indexer. **Lean: this split** (consistent
-   with the whole B3/B4 boundary — B3 is the deterministic orchestrator, B4 the data-collection adapter).
-3. **`contestedToL1` shape.** Each entry = `{ leafKeyHex, name, contendingOwners[] }` (enough for the L1
-   auction handoff) vs just the key. **Lean: key + name + contending owners**, no winner field.
+**Design-concur — RESOLVED (ChatLunatique, event a616a34c).** All three concurred:
+1. **Standalone** `enforceContestedBatch` over `deriveCanonicalRoot` (not branched into per-claim
+   `enforceBatchedClaim`); the indexer routes a detected contest here.
+2. **B3/B4 split** — B3 runs D-CV over a PRESENTED, firewall-minted delta set + emits deterministic
+   `{canonicalRoot, inserted, contestedToL1}`; B4 owns cross-anchor competing-claim collection within the
+   #69 window. **Wording (CL):** B3 must NOT infer "no competitor exists" from absence in the presented
+   set — it only routes contests the set CONTAINS.
+3. **`contestedToL1` = `{ leafKeyHex, name, contendingOwners[] }`, no winner field.** REFINEMENT (CL):
+   D-CV provenance only exposes `contributingBatchIds` (owner is null for contested leaves), so the
+   wrapper DERIVES `contendingOwners` from the validated INPUT leaves AFTER D-CV succeeds — restricted to
+   the `contested-no-owner` key's includable-priority members; distinct owner identities, canonical sorted
+   order, NO same-owner-duplicate entries, NO excluded/non-priority owners, NO winner/selected field.
 
-**Planned `cnt.*` red battery (sketch, pending concur):** uncontested multi-leaf batch → canonical root +
-all `inserted`, empty `contestedToL1`; a distinct-owner collision → that leaf `contested-no-owner`, absent
-from the root, surfaced in `contestedToL1` (key + name + both owners); same-owner duplicates coalesce (one
-`inserted`); DA-excluded / non-priority leaves skipped (no contest/owner); batch-local duplicate →
-reject (`dcv-batch-local-duplicate`); stale / contradictory base → reject; deterministic (leaf order
-permutation gives the same root + routing); fail-closed, never throws.
+**`cnt.*` red battery (CL pins):** uncontested multi-leaf → canonical root + all `inserted`, empty
+`contestedToL1`; a distinct-owner collision → that leaf `contested-no-owner`, absent from the root,
+surfaced in `contestedToL1` (key + name + both owners); **contest-only delta** (two distinct-owner
+priority claims, NO other inserted leaf) → `accepted`, `canonicalRoot === prevRoot`, `contestedToL1`
+non-empty — NOT treated as a no-op (preserves the D-CV `cv.no-contest-only-no-op` signal); **owner-
+extraction hygiene** — excluded/non-priority duplicates do NOT enter `contestedToL1`, same-owner
+duplicates coalesce (no contest), `contendingOwners[]` order-independent with no winner field; same-owner
+coalesce → one `inserted`; DA-excluded / non-priority skipped; batch-local duplicate → reject
+(`dcv-batch-local-duplicate`); stale / contradictory base → reject; leaf-order permutation → same root +
+routing; fail-closed, never throws.
