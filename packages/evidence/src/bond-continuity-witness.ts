@@ -99,6 +99,12 @@ const isPositiveSafeInt = (x: unknown): x is number =>
 const spendFail = (reason: string): BondSpendFactResult => ({ ok: false, reason });
 const buildFail = (reason: string): BondContinuityWitnessResult => ({ ok: false, reason });
 
+const OBS_KEYS = ["bondOutpoint", "spendTx", "inclusion"] as const;
+const OUTPOINT_KEYS = ["txid", "vout"] as const;
+const INCLUSION_KEYS = ["txid", "height"] as const;
+const BUILD_KEYS = ["witnessComplete", "spends"] as const;
+const CLASS_KEYS = ["observation", "preMaturity", "sameTxValidSuccessorBond"] as const;
+
 /**
  * Stage 1 — verify a single confirmed bond-outpoint spend fact (evidence; no release decision).
  *
@@ -113,16 +119,30 @@ const buildFail = (reason: string): BondContinuityWitnessResult => ({ ok: false,
  *   mint { spendHeight: inclusion.height, spendTxid: inclusion.txid } — a spend fact, NOT a break.
  */
 export function verifyBondSpendFact(obs: BondSpendObservation): BondSpendFactResult {
-  // RED PHASE (D-BC green pending CL red-battery review): the txid-bind + outpoint-spend recompute
-  // is not yet implemented. The stub rejects with a sentinel so the bc.* battery is red until green.
-  void obs;
-  void HEX_64;
-  void isObject;
-  void isClosedShape;
-  void isU32;
-  void isPositiveSafeInt;
-  void legacyTxidOf;
-  return spendFail("bc-pending-green-impl");
+  // ---- shape totality (closed shape; no source/timestamp channel; never throws) ----
+  const o = obs as unknown;
+  if (!isObject(o) || !isClosedShape(o, OBS_KEYS)) return spendFail("bc-observation-malformed");
+  const bondOutpoint = o.bondOutpoint;
+  if (!isObject(bondOutpoint) || !isClosedShape(bondOutpoint, OUTPOINT_KEYS)) return spendFail("bc-observation-malformed");
+  if (typeof bondOutpoint.txid !== "string" || !HEX_64.test(bondOutpoint.txid) || !isU32(bondOutpoint.vout)) {
+    return spendFail("bc-observation-malformed");
+  }
+  const inclusion = o.inclusion;
+  if (!isObject(inclusion) || !isClosedShape(inclusion, INCLUSION_KEYS)) return spendFail("bc-observation-malformed");
+  if (typeof inclusion.txid !== "string" || !HEX_64.test(inclusion.txid) || !isPositiveSafeInt(inclusion.height)) {
+    return spendFail("bc-observation-malformed");
+  }
+
+  // ---- fee-fact binding: the presented tx IS the confirmed one, and it spends the bond outpoint ----
+  const spendTxid = legacyTxidOf(o.spendTx as LegacyTransaction);
+  if (spendTxid === null) return spendFail("bc-spend-tx-malformed");
+  if (spendTxid !== inclusion.txid) return spendFail("bc-spend-txid-mismatch");
+  const spent = (o.spendTx as LegacyTransaction).inputs.some(
+    (i) => i.prevoutTxid === bondOutpoint.txid && i.prevoutVout === bondOutpoint.vout,
+  );
+  if (!spent) return spendFail("bc-outpoint-not-spent");
+
+  return { ok: true, spendFact: { spendHeight: inclusion.height, spendTxid } };
 }
 
 /**
@@ -146,11 +166,47 @@ export function verifyBondSpendFact(obs: BondSpendObservation): BondSpendFactRes
  *   the kernel (`resolveReopen`) derives the latest / picks neither.
  */
 export function buildBondContinuityWitness(input: BuildBondContinuityWitnessInput): BondContinuityWitnessResult {
-  // RED PHASE (D-BC green pending CL red-battery review): the evidence+bridge pipeline is not yet
-  // implemented. The stub rejects with a sentinel so the bc.* battery is red until the green impl lands.
-  void input;
-  void bondContinuityBreak;
-  return buildFail("bc-pending-green-impl");
+  // ---- top-level totality (closed shape; strict booleans, no truthiness; never throws) ----
+  const inp = input as unknown;
+  if (!isObject(inp) || !isClosedShape(inp, BUILD_KEYS)) return buildFail("bc-input-malformed");
+  if (typeof inp.witnessComplete !== "boolean" || !Array.isArray(inp.spends)) return buildFail("bc-input-malformed");
+
+  // ---- stage 1: verify each classification's spend fact (a fabricated/no-spend obs fails closed) ----
+  const spendFacts: VerifiedBondSpendFact[] = [];
+  const flags: { readonly preMaturity: boolean; readonly sameTxValidSuccessorBond: boolean }[] = [];
+  for (const c of inp.spends) {
+    const cls = c as unknown;
+    if (!isObject(cls) || !isClosedShape(cls, CLASS_KEYS)) return buildFail("bc-classification-malformed");
+    if (typeof cls.preMaturity !== "boolean" || typeof cls.sameTxValidSuccessorBond !== "boolean") {
+      return buildFail("bc-classification-malformed");
+    }
+    const result = verifyBondSpendFact(cls.observation as BondSpendObservation);
+    if (!result.ok) return buildFail(result.reason);
+    spendFacts.push(result.spendFact);
+    flags.push({ preMaturity: cls.preMaturity, sameTxValidSuccessorBond: cls.sameTxValidSuccessorBond });
+  }
+
+  // ---- dedup: the same spend (same txid) must not be presented twice (no manufactured tiebreak) ----
+  const seen = new Set<string>();
+  for (const fact of spendFacts) {
+    if (seen.has(fact.spendTxid)) return buildFail("bc-duplicate-spend-fact");
+    seen.add(fact.spendTxid);
+  }
+
+  // ---- stage 2: bridge — the ratified #79 predicate decides which spends are RELEASE breaks ----
+  const breaks: BondBreakFact[] = [];
+  for (let i = 0; i < spendFacts.length; i += 1) {
+    const verdict = bondContinuityBreak({
+      preMaturity: flags[i]!.preMaturity,
+      currentBondOutpointSpent: true, // a verified spend fact proves the outpoint was spent
+      sameTxValidSuccessorBond: flags[i]!.sameTxValidSuccessorBond,
+    });
+    if (verdict.decided && verdict.released) {
+      breaks.push({ releaseHeight: spendFacts[i]!.spendHeight });
+    }
+  }
+
+  return { ok: true, witness: { witnessComplete: inp.witnessComplete, breaks } };
 }
 
 export type { BondBreakFact, BondContinuityWitness };
