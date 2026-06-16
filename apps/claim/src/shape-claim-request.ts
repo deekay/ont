@@ -1,11 +1,13 @@
+import { isCanonicalName } from "@ont/wire";
 import type { RootAnchorFundingInput } from "@ont/adapter-publisher";
 
-// B5-CLAIM (B5_SURFACES_PLAN §7.3) — claim-request shaping. A PURE surface core: validate + normalize the
-// caller's claim request into a structured submit payload, ready to hand to the publisher/batch + assembler.
-// It decides nothing and computes nothing about roots/batches (CL phrasing-watch: batching/root computation
-// comes from the adapter/fixture stack, never a surface rule). It only validates the request shape and that
-// the requested name is canonical — consuming @ont/wire's rule (reject-don't-normalize, W3), never
-// reimplementing it. Total + fail-closed; never throws.
+// B5-CLAIM (B5_SURFACES_PLAN §7.3) — claim-request shaping. A PURE surface core: validate + shape the caller's
+// claim request into a structured submit payload, ready to hand to the publisher/batch + assembler. It decides
+// nothing and computes nothing about roots/batches (CL phrasing-watch: batching/root computation comes from the
+// adapter/fixture stack, never a surface rule). It only validates the request shape and that the requested name
+// is canonical — consuming @ont/wire's isCanonicalName (reject-don't-normalize, W3), never reimplementing the
+// rule and never normalizing. Funding/change are passed through unvalidated — the assembler owns their contents.
+// Total + fail-closed; never throws.
 
 export interface ClaimRequest {
   /** The name the caller wants to claim. */
@@ -39,6 +41,15 @@ export type ShapeClaimRequestResult =
  *   computation here — that is the adapter/fixture stack's job). Total; never throws (→ "malformed").
  */
 export function shapeClaimRequest(input: ClaimRequest): ShapeClaimRequestResult {
-  void input;
-  return { ok: false, reason: "malformed" };
+  try {
+    if (input === null || typeof input !== "object") return { ok: false, reason: "malformed" };
+    const { name, fundingInputs, changeOutput } = input;
+    // typeof guard BEFORE isCanonicalName — NAME_RE.test() coerces (e.g. 123 → "123" would pass).
+    if (typeof name !== "string" || !isCanonicalName(name)) return { ok: false, reason: "non-canonical-name" };
+    if (!Array.isArray(fundingInputs) || fundingInputs.length === 0) return { ok: false, reason: "no-funding" };
+    // Funding/change passed through unvalidated — the assembler owns their contents (no deep surface validation).
+    return { ok: true, name, fundingInputs, ...(changeOutput !== undefined ? { changeOutput } : {}) };
+  } catch {
+    return { ok: false, reason: "malformed" }; // total — never throws
+  }
 }

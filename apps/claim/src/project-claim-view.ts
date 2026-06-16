@@ -29,6 +29,20 @@ export type ProjectClaimViewResult =
  * Total; never throws (→ "unavailable").
  */
 export function projectClaimView(served: ServedValueHistoryResult): ProjectClaimViewResult {
-  void served;
-  return { ok: false, reason: "unavailable" };
+  try {
+    if (served === null || typeof served !== "object") return { ok: false, reason: "unavailable" };
+    if (served.ok !== true) return { ok: false, reason: "unavailable" };
+    return {
+      ok: true,
+      view: {
+        name: served.name,
+        status: "served",
+        recordCount: served.records.length,
+        provenance: served.provenance, // carried verbatim — the surface never upgrades authority
+        authority: served.authority,
+      },
+    };
+  } catch {
+    return { ok: false, reason: "unavailable" }; // total — never throws
+  }
 }
