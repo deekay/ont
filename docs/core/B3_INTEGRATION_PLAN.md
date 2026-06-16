@@ -404,3 +404,60 @@ gate-fee (rejects at inclusion); underpaid / hostile fee tx (`anchorTx` ≠ boun
 batch / null fee tx → reject AT `gate-fee`, NO availability/completeness step, NO `nameStateDelta`;
 throwing fee seams fail closed at `gate-fee`; trusted-schedule underpay rejects EVEN IF the seam object
 carries a fake low `schedule` (no schedule channel); no `feeAdequate` boolean channel exists.
+
+## 11. I-CONTESTED design (contested distinct-owner → L1) — design-first
+
+The last optional B3-integration slice: the contested path that `deriveCanonicalRoot` (D-CV,
+`batch-exclusion.ts`) adds beyond the completeness replay. D-CV folds the cross-batch DA-valid
+priority leaves into a canonical SMT root; a distinct-owner SAME-leaf collision becomes
+`contested-no-owner` — NEITHER claimant's owner value enters the root, and the name escalates to the
+L1 bonded auction (the #69 notice-window → #84 O3 contested-auction path). I-CONTESTED = the orchestrator
+that runs D-CV over a presented delta set and emits an **evidence trace + a contested-routing result**
+(canonical root + inserted provenance + the contested→L1 list), never a bare mutation. Lives in
+`@ont/claim-path`.
+
+**Distinct value over I-HARNESS.** I-HARNESS's completeness stage (`evaluateBatchCompleteness`) treats a
+duplicate leaf key as a fault — a collision rejects the whole claim. D-CV instead RESOLVES it
+canonically: same-owner duplicates coalesce, distinct-owner collisions surface as `contested-no-owner`
+(out of the root, routed to L1), DA-excluded / non-priority leaves are skipped, batch-local duplicates
+fail closed. So a multi-batch set with a contest still yields a deterministic canonical root + a precise
+L1-routing list, rather than failing wholesale. The kernel D-CV pins this (`canonical-root.test.ts`:
+two distinct-owner claims for one leaf → contested, no owner in the root); I-CONTESTED wires it into the
+path + the L1 handoff.
+
+**Proposed pipeline (standalone `enforceContestedBatch`):**
+```
+enforceContestedBatch(input) -> { trace, result }
+  1. derive    deriveCanonicalRoot({ base, baseLeaves, K, leaves[] }) -> DcvDerivationVerdict
+  2. !derived  -> reject (the dcv-* reason surfaced: malformed / stale-base / insert-only / projection-
+                 contradiction / batch-local-duplicate / no-op)
+  3. derived   -> partition provenance by disposition: inserted (owner in root) | contested-no-owner (→ L1)
+                 | skipped-excluded
+  4. result    { canonicalRoot, inserted: [...], contestedToL1: [...] } — contestedToL1 carries each
+                 contested leaf's key + name + the contending owner values for the L1 auction to resolve;
+                 D-CV asserts NO winner selection here (contested-no-owner = no owner in the SMT, #37).
+```
+
+**#84 O3 / #69 (no new law — already ratified).** `contestedToL1` = names with competing distinct-owner
+DA-valid priority claims → escalate to the L1 bonded auction. B3 emits the routing list; the actual L1
+auction resolution is L1 / B4 (B3 never selects a winner — that would re-introduce the height/txid
+priority #37 rejects).
+
+**Design-concur — open calls (my leans):**
+1. **Standalone vs integrate.** `enforceContestedBatch` standalone (mirrors I-REC / I-FEE-A — a focused
+   orchestrator over one audited predicate), vs branching into `enforceBatchedClaim` when completeness
+   would reject on a collision. **Lean: standalone** — D-CV is a cross-batch canonical derivation; the
+   I-HARNESS path is per-claim. The indexer routes a detected contest here.
+2. **B3-vs-B4 scope (the real question).** B3 runs D-CV over a PRESENTED delta set (which already contains
+   the competing claims) + emits the canonical root + contested→L1 list; the COLLECTION of competing
+   claims across anchors within the #69 notice window = the B4 indexer. **Lean: this split** (consistent
+   with the whole B3/B4 boundary — B3 is the deterministic orchestrator, B4 the data-collection adapter).
+3. **`contestedToL1` shape.** Each entry = `{ leafKeyHex, name, contendingOwners[] }` (enough for the L1
+   auction handoff) vs just the key. **Lean: key + name + contending owners**, no winner field.
+
+**Planned `cnt.*` red battery (sketch, pending concur):** uncontested multi-leaf batch → canonical root +
+all `inserted`, empty `contestedToL1`; a distinct-owner collision → that leaf `contested-no-owner`, absent
+from the root, surfaced in `contestedToL1` (key + name + both owners); same-owner duplicates coalesce (one
+`inserted`); DA-excluded / non-priority leaves skipped (no contest/owner); batch-local duplicate →
+reject (`dcv-batch-local-duplicate`); stale / contradictory base → reject; deterministic (leaf order
+permutation gives the same root + routing); fail-closed, never throws.
