@@ -145,13 +145,14 @@ dsha256(header[i-1])` (internal order).
 1. **Location → `@ont/bitcoin` (concurred).** The pure header primitives + source builder live next to
    `legacyTxidOf` and export from `@ont/bitcoin`; `@ont/claim-path` only consumes the resulting
    `BitcoinHeaderSource` seam.
-2. **PoW helper → relocate (concurred).** Move `bitsToTarget` / `headerMeetsTarget` into `@ont/bitcoin`;
-   `proof-bundle.ts` imports them. Treated as behavior-preserving for the audited verifier: existing
-   proof-bundle tests stay green, plus a new bitcoin-level pin for the known block-170 header → hash →
-   target → `headerMeetsTarget` path so byte order cannot drift. The kernel-surface touch
-   (`proof-bundle.ts` admits `@ont/bitcoin` header primitives) is recorded as a **#44 boundary addendum**
-   (#87, same mechanism as the `legacyTxidOf`/gate-fee addendum #85: per-file trust-surface extension +
-   conformance pin, **no new consensus law**).
+2. **PoW helper → relocate (concurred).** Moved `bitsToTarget` / `headerMeetsTarget` into `@ont/bitcoin`
+   (`block-header.ts`); `proof-bundle.ts` imports `headerMeetsTarget`. Behavior-preserving for the audited
+   verifier: all proof-bundle + trust-surface tests stay green, plus a new bitcoin-level pin for the known
+   block-170 header → hash → target → `headerMeetsTarget` path so byte order cannot drift. **No #87
+   boundary addendum is needed:** `proof-bundle.ts`'s trust surface *already* admits `@ont/bitcoin`
+   (`trust-surface.test.ts` `CORE_DECIDERS_ALLOWED_BY_FILE`), so the import uses an already-granted
+   permission — narrower than gate-fee #85, which actually *added* `@ont/bitcoin` to a verdict file. Only
+   the import + the relocated primitive change; no new consensus law, no boundary-manifest extension.
 3. **Scope → PREFERRED full #82 validator (CL's correctness point sustained; I do NOT keep the linear
    wording).** Linear self-target PoW + prev-linkage is **weaker than the name**: a fabricated child of a
    trusted checkpoint can pick easier `nBits`, satisfy `headerMeetsTarget(header)` against its *own*

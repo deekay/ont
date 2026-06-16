@@ -8,6 +8,8 @@ export {
   type LegacyTransactionOutput,
 } from "./legacy-tx.js";
 
+export { bitsToTarget, headerMeetsTarget } from "./block-header.js";
+
 export interface BitcoinNetworkConfig {
   readonly network: "regtest" | "signet" | "testnet" | "mainnet";
   readonly rpcUrl?: string;
