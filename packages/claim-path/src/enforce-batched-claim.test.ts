@@ -24,6 +24,7 @@ import { buildBitcoinInclusion } from "@ont/evidence";
 import { buildMembershipProof } from "@ont/evidence";
 import type { ServedLeaf } from "@ont/evidence";
 import type { BitcoinHeaderSource } from "@ont/consensus";
+import { legacyTxidOf, headerMeetsTarget, type LegacyTransaction } from "@ont/bitcoin";
 
 import {
   enforceBatchedClaim,
@@ -32,13 +33,68 @@ import {
   type BatchedClaimSources,
 } from "./enforce-batched-claim.js";
 
-// --- The real Bitcoin anchor (mainnet block 170) — reused from the resident proof-bundle fixtures so
-// inclusion verifies against Bitcoin, not a mock. ---
-const BLOCK_170_HEADER =
-  "0100000055bd840a78798ad0da853f68974f3d183e2bd1db6a842c1feecf222a00000000ff104ccb05421ab93e63f8c3ce5c2c2e9dbb37de2764b3a3175c8166562cac7d51b96a49ffff001d283e9e70";
-const COINBASE_TXID = "b1fea52486ce0c62bb442b530a3f0132b826c74e473d1f2c220bfa78111c5082";
-const PAYMENT_TXID = "f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16";
+// --- Synthetic mined fee-adequate anchor (I-FEE-PATH §10). Block-170's real payment tx pays ZERO fee
+// (in 50 BTC = out 50 BTC) and can't be reconstructed as a LegacyTransaction fee witness, so the path
+// fixture is a synthetic 1-tx block with an easy-nBits MINED header — verifyProofBundleAgainstBitcoin
+// still verifies inclusion (header is 80 bytes, headerMeetsTarget passes, Merkle root = the 1-tx txid).
+// Real block-170 PoW byte-order stays pinned in block-header / validate-header-chain / proof-bundle tests. ---
+function hexToBytes(hex: string): Uint8Array {
+  const out = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < out.length; i++) out[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+  return out;
+}
+function bytesToHex(bytes: Uint8Array): string {
+  let h = "";
+  for (const b of bytes) h += b.toString(16).padStart(2, "0");
+  return h;
+}
+const reversedBytes = (b: Uint8Array): Uint8Array => Uint8Array.from(b).reverse();
+
+// Fee-adequate anchor: prevouts 5_000_000 + 3_000_000 spent, one 7_000_000 output ⇒ paidFee = 1_000_000.
+const FEE_PREVOUT_A: LegacyTransaction = {
+  version: 1,
+  inputs: [{ prevoutTxid: "00".repeat(32), prevoutVout: 0, scriptSigHex: "", sequence: 0xffffffff }],
+  outputs: [{ valueSats: 5_000_000n, scriptPubKeyHex: "51" }],
+  locktime: 0,
+};
+const FEE_PREVOUT_B: LegacyTransaction = {
+  version: 1,
+  inputs: [{ prevoutTxid: "00".repeat(32), prevoutVout: 1, scriptSigHex: "", sequence: 0xffffffff }],
+  outputs: [{ valueSats: 3_000_000n, scriptPubKeyHex: "51" }],
+  locktime: 0,
+};
+const ANCHOR_TX: LegacyTransaction = {
+  version: 1,
+  inputs: [FEE_PREVOUT_A, FEE_PREVOUT_B].map((p) => ({
+    prevoutTxid: legacyTxidOf(p)!,
+    prevoutVout: 0,
+    scriptSigHex: "",
+    sequence: 0xffffffff,
+  })),
+  outputs: [{ valueSats: 7_000_000n, scriptPubKeyHex: "6a04deadbeef" }],
+  locktime: 0,
+};
+const ANCHOR_TXID = legacyTxidOf(ANCHOR_TX)!;
 const ANCHOR_HEIGHT = 170;
+
+// Synthetic 1-tx block header: merkleRoot (internal) = the anchor txid; easy nBits 0x2000ffff + a mined
+// nonce so headerMeetsTarget passes. Deterministic (fixed fields → same first-passing nonce).
+function mineAnchorHeader(): string {
+  const h = new Uint8Array(80);
+  h[0] = 1; // version 1 (LE)
+  h.set(reversedBytes(hexToBytes(ANCHOR_TXID)), 36); // merkleRoot = 1-tx root (internal order)
+  h[68] = 0x40; h[69] = 0x9c; h[70] = 0x00; h[71] = 0x00; // arbitrary block time
+  h[72] = 0xff; h[73] = 0xff; h[74] = 0x00; h[75] = 0x20; // nBits LE = 0x2000ffff (easy target)
+  for (let nonce = 0; nonce < 5_000_000; nonce++) {
+    h[76] = nonce & 0xff;
+    h[77] = (nonce >>> 8) & 0xff;
+    h[78] = (nonce >>> 16) & 0xff;
+    h[79] = (nonce >>> 24) & 0xff;
+    if (headerMeetsTarget(h)) return bytesToHex(h);
+  }
+  throw new Error("mineAnchorHeader: no nonce found");
+}
+const ANCHOR_HEADER = mineAnchorHeader();
 
 const NAME = "alice";
 const LEAF = sha256Hex(utf8ToBytes(normalizeName(NAME))); // H("alice"), the membership leaf
@@ -71,10 +127,10 @@ const ANCHORED_ROOT_2 = accumulatorRootOf(FULL2); // root B (≠ ANCHORED_ROOT =
 const SERVED_DELTA_2: readonly ServedLeaf[] = [{ keyHex: LEAF2, valueHex: OWNER2 }];
 
 const inclusion = buildBitcoinInclusion({
-  txid: PAYMENT_TXID,
+  txid: ANCHOR_TXID,
   height: ANCHOR_HEIGHT,
-  blockHeaderHex: BLOCK_170_HEADER,
-  orderedBlockTxids: [COINBASE_TXID, PAYMENT_TXID],
+  blockHeaderHex: ANCHOR_HEADER,
+  orderedBlockTxids: [ANCHOR_TXID], // synthetic 1-tx block → merkle root = the txid
 });
 const membership = buildMembershipProof(FULL, LEAF); // rootHex === ANCHORED_ROOT
 
@@ -94,7 +150,7 @@ const BUNDLE = buildAccumulatorBatchClaimBundle({
   verificationGoal: "Enforce alice's batched accumulator claim end-to-end.",
   ownership: { currentOwnerPubkey: OWNER, ownershipRef: REF },
   membership,
-  anchor: { anchorTxid: PAYMENT_TXID, anchorHeight: ANCHOR_HEIGHT },
+  anchor: { anchorTxid: ANCHOR_TXID, anchorHeight: ANCHOR_HEIGHT },
   inclusion,
   valueRecords: [rec1, rec2],
 });
@@ -104,7 +160,7 @@ const W = 2;
 const C = 3;
 
 function headerSource(at?: (h: number) => string | null): BitcoinHeaderSource {
-  return { headerHexAtHeight: at ?? ((h) => (h === ANCHOR_HEIGHT ? BLOCK_170_HEADER : null)) };
+  return { headerHexAtHeight: at ?? ((h) => (h === ANCHOR_HEIGHT ? ANCHOR_HEADER : null)) };
 }
 
 function batchDataSource(over: Partial<BatchDataSource> = {}): BatchDataSource {
@@ -117,7 +173,7 @@ function batchDataSource(over: Partial<BatchDataSource> = {}): BatchDataSource {
 function claim(over: Partial<BatchedClaimInput> = {}): BatchedClaimInput {
   return {
     proofBundle: BUNDLE,
-    anchor: { txid: PAYMENT_TXID, prevRoot: PREV_ROOT, anchoredRoot: ANCHORED_ROOT, anchorHeight: ANCHOR_HEIGHT, batchSize: 1 },
+    anchor: { txid: ANCHOR_TXID, prevRoot: PREV_ROOT, anchoredRoot: ANCHORED_ROOT, anchorHeight: ANCHOR_HEIGHT, batchSize: 1 },
     window: { K, W, C },
     ...over,
   };
@@ -180,14 +236,14 @@ describe("I-HARNESS enforceBatchedClaim — end-to-end batched-claim enforcement
   it("rejects a committed-batchSize / served-count mismatch at completeness (availability still reconstructs)", () => {
     // batchSize claims 2, but the served delta is the real 1 leaf that reconstructs anchoredRoot:
     // availability passes (bytes reconstruct), completeness fails on the count.
-    const r = enforceBatchedClaim(claim({ anchor: { txid: PAYMENT_TXID, prevRoot: PREV_ROOT, anchoredRoot: ANCHORED_ROOT, anchorHeight: ANCHOR_HEIGHT, batchSize: 2 } }), sources());
+    const r = enforceBatchedClaim(claim({ anchor: { txid: ANCHOR_TXID, prevRoot: PREV_ROOT, anchoredRoot: ANCHORED_ROOT, anchorHeight: ANCHOR_HEIGHT, batchSize: 2 } }), sources());
     expect(r.accepted).toBe(false);
     expect(stepOk(r, "availability")).toBe(true);
     expect(stepOk(r, "completeness")).toBe(false);
   });
 
   it("precedence: completeness failure stops BEFORE any name-state delta", () => {
-    const r = enforceBatchedClaim(claim({ anchor: { txid: PAYMENT_TXID, prevRoot: PREV_ROOT, anchoredRoot: ANCHORED_ROOT, anchorHeight: ANCHOR_HEIGHT, batchSize: 2 } }), sources());
+    const r = enforceBatchedClaim(claim({ anchor: { txid: ANCHOR_TXID, prevRoot: PREV_ROOT, anchoredRoot: ANCHORED_ROOT, anchorHeight: ANCHOR_HEIGHT, batchSize: 2 } }), sources());
     expect(r.accepted).toBe(false);
     expect(stepOk(r, "completeness")).toBe(false);
     expect(r.nameStateDelta).toBeUndefined();
@@ -225,7 +281,7 @@ describe("I-HARNESS enforceBatchedClaim — end-to-end batched-claim enforcement
     expect(reached(badTxid, "availability")).toBe(false);
 
     const badHeight = enforceBatchedClaim(
-      claim({ anchor: { txid: PAYMENT_TXID, prevRoot: PREV_ROOT, anchoredRoot: ANCHORED_ROOT, anchorHeight: ANCHOR_HEIGHT + 1, batchSize: 1 } }),
+      claim({ anchor: { txid: ANCHOR_TXID, prevRoot: PREV_ROOT, anchoredRoot: ANCHORED_ROOT, anchorHeight: ANCHOR_HEIGHT + 1, batchSize: 1 } }),
       sources(),
     );
     expect(stepOk(badHeight, "inclusion")).toBe(false);
@@ -235,7 +291,7 @@ describe("I-HARNESS enforceBatchedClaim — end-to-end batched-claim enforcement
     // input.anchor commits root B and batchDataSource serves B's reconstructing bytes, but the BUNDLE
     // commits root A. The bind must reject before availability/completeness — never accept the cross.
     const r = enforceBatchedClaim(
-      claim({ anchor: { txid: PAYMENT_TXID, prevRoot: PREV_ROOT, anchoredRoot: ANCHORED_ROOT_2, anchorHeight: ANCHOR_HEIGHT, batchSize: 1 } }),
+      claim({ anchor: { txid: ANCHOR_TXID, prevRoot: PREV_ROOT, anchoredRoot: ANCHORED_ROOT_2, anchorHeight: ANCHOR_HEIGHT, batchSize: 1 } }),
       sources({ batch: batchDataSource({ servedLeavesForRoot: (root) => (root === ANCHORED_ROOT_2 ? SERVED_DELTA_2 : null) }) }),
     );
     expect(r.accepted).toBe(false);
