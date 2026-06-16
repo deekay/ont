@@ -42,9 +42,11 @@ export interface AssembleRootAnchorInput {
  *   array of { prevoutTxid HEX_64_LOWER, prevoutVout u32, sequence? u32 default 0xffffffff }; build inputs
  *   with scriptSigHex "" (unsigned). payload = encodeEvent({type:RootAnchor, prevRoot, newRoot, batchSize})
  *   (73 B); vout-0 = { valueSats: 0n, scriptPubKeyHex: "6a49" + payloadHex } (minimal direct push). If a
- *   changeOutput is given: valueSats bigint ≥ 0, scriptPubKeyHex even hex NOT starting with 0x6a (OP_RETURN)
- *   — else null; append it after vout 0. Return { version: version ?? 1, inputs, outputs, locktime:
- *   locktime ?? 0 }. Does not mutate caller arrays. Total + fail-closed; never throws (→ null).
+ *   changeOutput is given: valueSats bigint ≥ 0, scriptPubKeyHex LOWERCASE even hex (the serializer is
+ *   lowercase-only — uppercase would make legacyTxidOf null) NOT starting with 0x6a (OP_RETURN) — else null;
+ *   append it after vout 0. `version`/`locktime`, if provided, must be u32 (non-u32 → null); default 1 / 0.
+ *   Return { version, inputs, outputs, locktime }. Does not mutate caller arrays. The contract is "a
+ *   serializable LegacyTransaction (legacyTxidOf non-null) or null" — never a maybe-malformed tx. Never throws.
  *
  * STUB (B4-PUB-ANCHOR, tests-first): returns null so the pub-anchor.* red battery fails until implemented.
  */

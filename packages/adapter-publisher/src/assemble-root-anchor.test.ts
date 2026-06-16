@@ -97,6 +97,15 @@ describe("assembleRootAnchorTx — structural conformance", () => {
     expect(tx.inputs[0]).toEqual({ prevoutTxid: "11".repeat(32), prevoutVout: 0, scriptSigHex: "", sequence: 0xffffffff });
     expect(tx.inputs[1]).toEqual({ prevoutTxid: "22".repeat(32), prevoutVout: 1, scriptSigHex: "", sequence: 0xfffffffe });
   });
+
+  it("explicit valid version / locktime are preserved (and the tx stays serializable)", () => {
+    const tx = assembleRootAnchorTx(validInput({ version: 2, locktime: 500_000 }));
+    expect(tx).not.toBeNull();
+    if (tx === null) return;
+    expect(tx.version).toBe(2);
+    expect(tx.locktime).toBe(500_000);
+    expect(legacyTxidOf(tx)).not.toBeNull();
+  });
 });
 
 describe("assembleRootAnchorTx — malformed operator intent → null (never throws)", () => {
@@ -119,10 +128,18 @@ describe("assembleRootAnchorTx — malformed operator intent → null (never thr
     expect(assembleRootAnchorTx(validInput({ fundingInputs: [{ prevoutTxid: "11".repeat(32), prevoutVout: 0, sequence: -1 }] }))).toBeNull();
   });
 
-  it("malformed changeOutput (negative value / odd-hex script / OP_RETURN script) → null", () => {
+  it("malformed changeOutput (negative value / odd-hex / uppercase-hex / OP_RETURN script) → null", () => {
     expect(assembleRootAnchorTx(validInput({ changeOutput: { valueSats: -1n, scriptPubKeyHex: "51" } }))).toBeNull();
     expect(assembleRootAnchorTx(validInput({ changeOutput: { valueSats: 1000n, scriptPubKeyHex: "xyz" } }))).toBeNull();
+    expect(assembleRootAnchorTx(validInput({ changeOutput: { valueSats: 1000n, scriptPubKeyHex: "AB".repeat(11) } }))).toBeNull(); // valid-hex UPPERCASE → not serializable → null
     expect(assembleRootAnchorTx(validInput({ changeOutput: { valueSats: 1000n, scriptPubKeyHex: "6a04deadbeef" } }))).toBeNull(); // no OP_RETURN change
+  });
+
+  it("non-u32 version / locktime → null", () => {
+    expect(assembleRootAnchorTx(validInput({ version: 2.5 }))).toBeNull();
+    expect(assembleRootAnchorTx(validInput({ version: -1 }))).toBeNull();
+    expect(assembleRootAnchorTx(validInput({ locktime: 2.5 }))).toBeNull();
+    expect(assembleRootAnchorTx(validInput({ locktime: -1 }))).toBeNull();
   });
 
   it("never throws on bogus input", () => {
