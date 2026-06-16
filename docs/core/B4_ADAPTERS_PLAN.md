@@ -12,7 +12,9 @@
 > adapter-indexer 72/72; shared `src/inclusion.ts` refactor @ `38add0d`). **✅ B4-INDEX COMPLETE** —
 > HEADER + INDEX-{ANCHOR,COMMIT,DATASOURCE,INVOKE} all green; DK milestone posted (`72b71e8f`).
 > B4-DA **GREEN @ `b9ab194`** (green-OK `32ad45c3`; da.* 15/15; `@ont/adapter-da`; provisional transport
-> §10.1 parked for DK). B4-PUB **design-concur (§11)** — pending CL (write-side; round-trip bar).
+> §10.1 parked for DK). B4-PUB-ANCHOR **GREEN @ `87ed528`** (green-OK `30aff26c`; pub-anchor.* 13/13;
+> `@ont/adapter-publisher`; write→read round-trip via `buildConfirmedBatchAnchor`). B4-RESOLVE
+> **design-concur (§12)** — pending CL (LAST B4 phase; submission store-guards = firewall-ish).
 
 ## 1. The gap
 
@@ -701,3 +703,70 @@ txid is `legacyTxidOf` of the assembled tx, which the round-trip test anchors in
    operator economics. Any unspec'd refund/loss encoding is PARKED for DK. Confirm the line.
 
 On concur (esp. #1 the round-trip bar + #2 pure-assembly scope) I open **B4-PUB-ANCHOR red battery**.
+
+## 12. B4-RESOLVE design — the resolver (read API + submission store-guards) (design-first)
+
+The LAST B4 phase. The resolver has TWO faces: (a) a **read API** that serves indexed / value-record data
+— a chain-derived CONVENIENCE, NOT ownership authority (the apps/claim requalification precedent: ownership
+is decided on-chain + by the audited kernel, never by the resolver); and (b) **append-only submission
+store-guards** that validate UNTRUSTED submitted value-records (and recovery descriptors) before appending
+them to the off-chain mirror. Face (b) is the FIREWALL-ish part — a hostile/garbage submission must be
+REJECTED, never appended — so it gets the tests-first red→green treatment; face (a) is thin serving.
+
+Scope note: the store-guards protect the OFF-CHAIN value-record mirror (the resolver's convenience store),
+NOT consensus — consensus is the on-chain accumulator + the audited kernel. So the guard decides nothing
+about ownership; it only decides "may this record be appended to the mirror chain for this ownership
+interval." No new consensus law; any unspec'd store rule is PARKED for DK.
+
+Package: **`@ont/adapter-resolver`**. Mines `apps/resolver/src/validation.ts` (the `validateValueRecord
+Submission` recipe); **drops the `ONT_EXPERIMENTAL_AUCTION_*` old-model leakage**. Prod dep `@ont/protocol`
+(`verifyValueRecord` / `computeValueRecordHash` / `SignedValueRecord`).
+
+### 12.1 First sub-slice — B4-RESOLVE-GUARD (value-record submission store-guard)
+
+```
+// PURE (total + fail-closed; never throws) — recompute-don't-trust the submission.
+validateValueRecordSubmission({
+  record: SignedValueRecord,                                  // UNTRUSTED submitted value-record
+  currentOwnership: { currentOwnerPubkey, ownershipRef } | null,  // the indexer's current interval (null = unknown/invalid)
+  existingHead: SignedValueRecord | null,                     // current head of the mirror chain for this interval
+}) -> { ok: true, ownershipRef, expectedSequence, expectedPreviousRecordHash } | { ok: false, reason }
+  1. signature   verifyValueRecord(record) — else "invalid-signature"
+  2. ownership   currentOwnership !== null — else "ownership-unknown"; record.ownershipRef ===
+                 currentOwnership.ownershipRef — else "ownership-ref-mismatch"
+  3. sequence    expected = existingHead === null ? 1 : existingHead.sequence + 1;
+                 record.sequence < expected → "stale-sequence"; > expected → "sequence-gap"
+  4. predecessor expectedPrev = existingHead === null ? null : computeValueRecordHash(existingHead);
+                 record.previousRecordHash === expectedPrev — else "predecessor-mismatch"
+  5. accept      { ok:true, ownershipRef, expectedSequence: expected, expectedPreviousRecordHash: expectedPrev }
+```
+Append-only / no-rewrite by construction: the exact-next sequence + previousRecordHash-chains-to-head rules
+mean a submission can only extend the head, never fork or rewrite. A hostile submission (forged signature,
+wrong owner interval, stale/gap sequence, wrong predecessor) is rejected → no false-append.
+
+**Planned `res-guard.*` red battery:** valid next record → accept (ownershipRef / expectedSequence /
+expectedPreviousRecordHash returned); forged/invalid signature → invalid-signature; ownership null →
+ownership-unknown; wrong ownershipRef → ownership-ref-mismatch; sequence too low → stale-sequence; too high
+→ sequence-gap; wrong previousRecordHash → predecessor-mismatch; genesis (existingHead null) requires
+sequence 1 + previousRecordHash null; determinism; never throws (malformed record/inputs).
+
+### 12.2 Later sub-slices
+
+- **B4-RESOLVE-RECOVER** — the recovery-descriptor submission guard (mirror of the value-record guard).
+- **B4-RESOLVE-READ** — the HTTP read API serving (thin; convenience, not authority). Live-network smoke separate.
+
+### 12.3 B4-RESOLVE design-concur — open calls (my leans)
+
+1. **Store-guard = firewall-ish bar.** Hostile-submission negatives (no false-append) + valid-append accept,
+   tests-first red→green. **Lean: this.**
+2. **Bind the record's signer to the current owner?** The old `validateValueRecordSubmission` checks
+   `ownershipRef` match + `verifyValueRecord` (self-signature over the record's own ownerPubkey) but does not
+   explicitly require the record be signed by `currentOwnership.currentOwnerPubkey`. **Lean: ADD that bind**
+   (the submitter must be the current owner of the interval) — a hardening over the mined code; confirm.
+3. **Scope.** Value-record guard first; recovery-descriptor guard + read-API serving later. **Lean: this.**
+4. **No new law / off-chain mirror.** The store policy guards the convenience mirror, not consensus; any
+   unspec'd store rule is PARKED for DK. Confirm the line.
+5. **B4-PUB CLAIM/BROADCAST/REFUND sequencing.** Deferred — after B4-RESOLVE / as the operator surface needs
+   them (REFUND's loss-accounting encoding still parked for DK). Confirm.
+
+On concur (esp. #1 the firewall bar + #2 the signer-binding) I open **B4-RESOLVE-GUARD red battery**.
