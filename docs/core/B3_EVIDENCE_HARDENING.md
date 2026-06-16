@@ -1050,13 +1050,16 @@ and D-BC defers to it (surfaces tied spends, picks neither). Unlike D-RC, the re
 a real on-chain bond-spend mined height (a D-BI confirmed fact), so there is no "what mints the
 height" consensus call — nothing to escalate.
 
-**What D-BC is (E-BC1).** The B3 builder of the kernel's bond-continuity witness:
-`BondContinuityWitness { witnessComplete: boolean, breaks: BondBreakFact[] }`, where
-`BondBreakFact = { releaseHeight }` (closed shape, the ONLY field, positive int —
-`reopen-resolution.ts:60-77,99`). D-BC's recompute-don't-trust guarantee: **every
-`releaseHeight` it surfaces is backed by a real confirmed on-chain spend of THIS name's bond
-outpoint** — a fabricated release fact with no on-chain spend is rejected before the kernel sees
-it. It composes resident pieces:
+**What D-BC is (E-BC1; two stages, CL event `62a7cb29`).** A two-stage builder of the kernel's
+bond-continuity witness `BondContinuityWitness { witnessComplete: boolean, breaks: BondBreakFact[] }`
+(`BondBreakFact = { releaseHeight }`, closed shape, the ONLY field, positive int —
+`reopen-resolution.ts:60-77,99`). **Stage 1 (evidence): verify confirmed bond-outpoint SPEND facts
+only — a spend fact is NOT a break.** Recompute-don't-trust: the presented tx is D-BI-confirmed at
+height `H`, its txid binds by `legacyTxidOf(spendTx) === inclusion.txid`, and an input spends THIS
+name's bond outpoint; a fabricated spend with no on-chain spend is rejected before the kernel sees
+it. **Stage 2 (bridge / #79): reduce released spends into `breaks`** — apply the ratified
+`bondContinuityBreak` predicate; ONLY `preMaturity && spent && !sameTxValidSuccessorBond` becomes a
+`BondBreakFact { releaseHeight: H }`. It composes resident pieces:
 - **D-BI** (`buildBitcoinInclusion`, `@ont/evidence`) — proves the spending tx is confirmed at
   height `H` (the releaseHeight) against the block header / Merkle root.
 - **`@ont/bitcoin`** legacy-tx (`LegacyTransaction.inputs[]`) — proves the confirmed tx actually
@@ -1072,23 +1075,18 @@ fails closed (`reopen-same-height-break-tiebreak-unspecified`). On an incomplete
 `witnessComplete:false` and the kernel fails closed (`reopen-incomplete-bond-continuity-witness`,
 T22-02) — D-BC never derives on partial history.
 
-**The one design seam for CL (design-confirm).** `#79` decides *released* from
-`sameTxValidSuccessorBond` — a boolean it consumes as an "engine/B3 fact". The question: **which
-spends become `breaks` D-BC surfaces, and who applies the no-valid-successor + pre-maturity
-filter?**
-- *(Seam-A, my lean)* D-BC verifies + surfaces **confirmed bond-outpoint SPENDS** (each: real
-  spend, real height) and the structural successor-output presence; the **release filter**
-  (pre-maturity + no-valid-successor → this spend is a release) stays the engine/#79 step, which
-  reduces released spends to the `{releaseHeight}` breaks `resolveReopen` consumes. D-BC proves
-  "this height is a real spend of this bond outpoint", not "this spend released the name".
-- *(Seam-B)* D-BC emits the `{releaseHeight}` breaks directly, applying the no-successor filter
-  itself. Matches the kernel input type in one hop but moves the release classification into B3.
-My lean is A (keeps release/maturity/successor as kernel reasons, mirrors the D-RC narrowing); but
-since `resolveReopen`'s input is already the reduced `{releaseHeight}` list, confirm whether the
-engine bridge (D-BC spend facts → #79 → `breaks`) is in scope here or a separate engine slice.
+**Seam RESOLVED (CL event `62a7cb29`): Seam-A, with the bridge IN SCOPE** as the two-stage builder
+above — D-BC spend facts → #79 reduction → `BondContinuityWitness`. Raw verified spends are NOT
+`breaks` until #79 reduces them. `sameTxValidSuccessorBond` stays a #79 input (engine/B3-resolved);
+if D-BC computes it structurally that is the BRIDGE's computation of the #79 input, never D-BC
+evidence authority. Leaving the bridge to a later engine slice would make D-BC a detached
+spend-proof helper that does not close the reopen-witness gap — so it stays here. D-BC still does
+**not** decide pre-maturity / valid-successor / the latest-release-height / re-auction / tiebreak
+(those stay #79 + #70 `resolveReopen`).
 
-**Planned `bc.*` red battery (after CL design-confirm).** real-spend-at-H mints
-`{releaseHeight:H}`; fabricated release fact with no on-chain spend rejects; a confirmed tx that
+**`bc.*` red battery (CL's shape).** real-spend-at-H mints a SPEND fact (a `break` only after the
+#79 bridge: pre-maturity + no valid successor → `{releaseHeight:H}`); fabricated spend with no
+on-chain spend rejects; a confirmed tx that
 does NOT spend the bond outpoint rejects; wrong-outpoint (right tx, wrong vout) rejects;
 unconfirmed/!inclusion rejects; malformed/`null` top-level + closed-shape totality (no
 adapter/txOrder/source channel on a break); two distinct spends at different heights → both

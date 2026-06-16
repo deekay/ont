@@ -16,10 +16,11 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@ont/bitcoin": "file:../bitcoin",
+    "@ont/consensus": "file:../consensus",
     "@ont/protocol": "file:../protocol"
   },
   "devDependencies": {
-    "@ont/consensus": "file:../consensus",
     "vitest": "^3.2.4"
   }
 }

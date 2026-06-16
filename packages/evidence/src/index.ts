@@ -37,3 +37,16 @@ export {
   type BundleValueRecord,
   type OntProofBundle,
 } from "./proof-bundle-assembly.js";
+
+export {
+  verifyBondSpendFact,
+  buildBondContinuityWitness,
+  type BondOutpoint,
+  type ConfirmedSpendInclusion,
+  type BondSpendObservation,
+  type VerifiedBondSpendFact,
+  type BondSpendClassification,
+  type BuildBondContinuityWitnessInput,
+  type BondSpendFactResult,
+  type BondContinuityWitnessResult,
+} from "./bond-continuity-witness.js";
