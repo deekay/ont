@@ -4,3 +4,8 @@ export {
   type AssembleRootAnchorInput,
   type RootAnchorFundingInput,
 } from "./assemble-root-anchor.js";
+export {
+  assembleRecoverOwnerInvokeTx,
+  type AssembleRecoverOwnerInvokeInput,
+  type RecoverOwnerInvokeFundingInput,
+} from "./assemble-recover-owner-invoke.js";
