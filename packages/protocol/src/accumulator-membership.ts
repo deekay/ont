@@ -48,6 +48,66 @@ export function accumulatorKeyBit(key: Uint8Array, index: number): 0 | 1 {
   return ((byte >> (7 - (index & 7))) & 1) as 0 | 1;
 }
 
+interface AccumulatorLeaf {
+  readonly keyHex: string;
+  readonly key: Uint8Array;
+  readonly value: Uint8Array;
+}
+
+const HEX_32 = /^[0-9a-f]{64}$/;
+
+function normalizeAccumulatorHex32(hex: string, label: string): string {
+  const lower = hex.toLowerCase();
+  if (!HEX_32.test(lower)) {
+    throw new Error(`@ont/protocol: ${label} must be 32-byte hex, got ${JSON.stringify(hex)}`);
+  }
+  return lower;
+}
+
+function accumulatorDefaultAt(level: number): Uint8Array {
+  return ACCUMULATOR_DEFAULTS[level] ?? ACCUMULATOR_EMPTY_NODE;
+}
+
+function accumulatorLeavesOf(leaves: ReadonlyMap<string, string>): AccumulatorLeaf[] {
+  const out: AccumulatorLeaf[] = [];
+  const seen = new Set<string>();
+  for (const [keyHex, valueHex] of leaves) {
+    const key = normalizeAccumulatorHex32(keyHex, "leaf key");
+    const value = normalizeAccumulatorHex32(valueHex, "leaf value");
+    if (seen.has(key)) {
+      throw new Error(`@ont/protocol: duplicate leaf key ${key}`);
+    }
+    seen.add(key);
+    out.push({ keyHex: key, key: hexToBytes(key), value: hexToBytes(value) });
+  }
+  return out;
+}
+
+function accumulatorSubtreeRoot(level: number, leaves: readonly AccumulatorLeaf[]): Uint8Array {
+  if (leaves.length === 0) {
+    return accumulatorDefaultAt(level);
+  }
+  if (level === ACCUMULATOR_DEPTH) {
+    const only = leaves[0]!;
+    return hashAccumulatorLeaf(only.key, only.value);
+  }
+  const left: AccumulatorLeaf[] = [];
+  const right: AccumulatorLeaf[] = [];
+  for (const leaf of leaves) {
+    (accumulatorKeyBit(leaf.key, level) === 0 ? left : right).push(leaf);
+  }
+  return hashAccumulatorInternal(accumulatorSubtreeRoot(level + 1, left), accumulatorSubtreeRoot(level + 1, right));
+}
+
+/**
+ * The canonical sparse-accumulator root committing EXACTLY `leaves` from the
+ * empty root. D-CV / batch-completeness use this to replay `prevRoot + delta ->
+ * newRoot`; evidence builders use the same primitive for served-bytes binding.
+ */
+export function accumulatorRootOf(leaves: ReadonlyMap<string, string>): string {
+  return bytesToHex(accumulatorSubtreeRoot(0, accumulatorLeavesOf(leaves)));
+}
+
 export interface AccumulatorMembershipProof {
   readonly keyHex: string;
   /** Hex value for a membership proof, or `null` for a non-membership proof. */
@@ -62,25 +122,52 @@ export interface AccumulatorMembershipProof {
  * siblings/value don't actually fold to the claimed root returns `false`.
  */
 export function verifyAccumulatorMembership(rootHex: string, proof: AccumulatorMembershipProof): boolean {
-  const key = hexToBytes(proof.keyHex);
-  if (key.length !== 32) {
+  // Total / fail-closed: a malformed proof (non-hex or odd-length key, value, or
+  // sibling hash; bad root) returns `false`, NEVER throws. The B3 hostile-evidence
+  // contract relies on this — a forged witness must produce the no-witness reject
+  // effect, not crash the verifier (see docs/core/B3_EVIDENCE_HARDENING.md E-ND1).
+  try {
+    const key = hexToBytes(proof.keyHex);
+    if (key.length !== 32) {
+      return false;
+    }
+    // Canonical root: exactly 32 bytes of hex (case-insensitive).
+    if (!/^[0-9a-f]{64}$/.test(rootHex.toLowerCase())) {
+      return false;
+    }
+    // Canonical sibling set: each sits at a real child level [1, DEPTH], levels
+    // are unique, and each hash is 32 bytes. Non-canonical metadata is rejected,
+    // not silently ignored — a level-0/257 or duplicate-level sibling would
+    // otherwise be dropped/overwritten by the level-keyed fold, letting a forged
+    // proof smuggle siblings the verifier never reads.
+    const siblingByLevel = new Map<number, Uint8Array>();
+    for (const sibling of proof.siblings) {
+      if (!Number.isInteger(sibling.level) || sibling.level < 1 || sibling.level > ACCUMULATOR_DEPTH) {
+        return false;
+      }
+      if (siblingByLevel.has(sibling.level)) {
+        return false;
+      }
+      const hash = hexToBytes(sibling.hash);
+      if (hash.length !== 32) {
+        return false;
+      }
+      siblingByLevel.set(sibling.level, hash);
+    }
+
+    let digest = proof.value === null
+      ? ACCUMULATOR_EMPTY_NODE
+      : hashAccumulatorLeaf(key, hexToBytes(proof.value));
+    for (let childLevel = ACCUMULATOR_DEPTH; childLevel >= 1; childLevel -= 1) {
+      const parentLevel = childLevel - 1;
+      const sibling = siblingByLevel.get(childLevel) ?? ACCUMULATOR_DEFAULTS[childLevel] ?? ACCUMULATOR_EMPTY_NODE;
+      digest = accumulatorKeyBit(key, parentLevel) === 0
+        ? hashAccumulatorInternal(digest, sibling)
+        : hashAccumulatorInternal(sibling, digest);
+    }
+
+    return bytesToHex(digest) === rootHex.toLowerCase();
+  } catch {
     return false;
   }
-  const siblingByLevel = new Map<number, Uint8Array>();
-  for (const sibling of proof.siblings) {
-    siblingByLevel.set(sibling.level, hexToBytes(sibling.hash));
-  }
-
-  let digest = proof.value === null
-    ? ACCUMULATOR_EMPTY_NODE
-    : hashAccumulatorLeaf(key, hexToBytes(proof.value));
-  for (let childLevel = ACCUMULATOR_DEPTH; childLevel >= 1; childLevel -= 1) {
-    const parentLevel = childLevel - 1;
-    const sibling = siblingByLevel.get(childLevel) ?? ACCUMULATOR_DEFAULTS[childLevel] ?? ACCUMULATOR_EMPTY_NODE;
-    digest = accumulatorKeyBit(key, parentLevel) === 0
-      ? hashAccumulatorInternal(digest, sibling)
-      : hashAccumulatorInternal(sibling, digest);
-  }
-
-  return bytesToHex(digest) === rootHex.toLowerCase();
 }

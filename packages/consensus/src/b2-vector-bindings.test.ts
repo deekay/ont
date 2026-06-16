@@ -54,8 +54,9 @@ import { valueRecordAccept, type OwnershipInterval, type ValueRecordEnvelope } f
 import {
   gateFeeValidation,
   type CommittedBatchContents,
-  type GateFee,
   type GateFeeAnchorFacts,
+  type GateFeeSchedule,
+  type GateFeeWitness,
 } from "./gate-fee.js";
 import {
   transcriptCompleteness,
@@ -104,7 +105,9 @@ import type {
   BitcoinTransactionInBlock,
   BitcoinTransactionInput,
   BitcoinTransactionOutput,
+  LegacyTransaction,
 } from "@ont/bitcoin";
+import { legacyTxidOf } from "@ont/bitcoin";
 import {
   applyBlockTransactionsWithProvenance,
   createEmptyState,
@@ -618,10 +621,26 @@ describe("B2 vector bindings — gate-fee family (gateFeeValidation)", () => {
   it("F8-pos-01: the gate-fee verdict is a pure function of (anchor, batch, fee) with no publisher-identity channel", () => {
     const vector = loadVector("gate-fee-validation.json", "F8-pos-01");
     assertBindable(vector);
-    const feeAnchor: GateFeeAnchorFacts = { minedHeight: 1000, anchoredRoot: "abcd", batchSize: 4 };
-    const batch: CommittedBatchContents = { anchoredRoot: "abcd", batchSize: 4 };
-    const fee: GateFee = { amountSats: 1_000_000n };
-    // Primary -> expected.verdict: a structurally-valid, anchor-bound fee passes the B2 gate.
+    // A valid anchor-bound fee on the recompute-don't-trust surface (D-GF, B3 §14 update 2): a prevout
+    // tx of 1_000_000 sat spent by an anchor paying out 800_000 ⇒ recomputed paidFee 200_000 ≥
+    // requiredFee (one ≥5-byte name at the 100_000 floor). Txids match by construction (recomputed).
+    const prevout: LegacyTransaction = {
+      version: 1,
+      inputs: [{ prevoutTxid: "00".repeat(32), prevoutVout: 0, scriptSigHex: "", sequence: 0xffffffff }],
+      outputs: [{ valueSats: 1_000_000n, scriptPubKeyHex: "51" }],
+      locktime: 0,
+    };
+    const anchorTx: LegacyTransaction = {
+      version: 1,
+      inputs: [{ prevoutTxid: legacyTxidOf(prevout)!, prevoutVout: 0, scriptSigHex: "", sequence: 0xffffffff }],
+      outputs: [{ valueSats: 800_000n, scriptPubKeyHex: "6a04deadbeef" }],
+      locktime: 0,
+    };
+    const schedule: GateFeeSchedule = { gateOneByteSats: 1_000_000n, gateLongNameFloorSats: 100_000n };
+    const feeAnchor: GateFeeAnchorFacts = { minedHeight: 1000, anchoredRoot: "abcd", batchSize: 1, anchorTxid: legacyTxidOf(anchorTx)! };
+    const batch: CommittedBatchContents = { anchoredRoot: "abcd", batchSize: 1, leaves: [{ leafKeyHex: "cd".repeat(32), canonicalNameByteLength: 7 }] };
+    const fee: GateFeeWitness = { anchorTx, prevoutTxs: [prevout], schedule };
+    // Primary -> expected.verdict: an adequate, anchor-bound fee passes the gate.
     expect(gateFeeValidation(feeAnchor, batch, fee).accepted).toBe(accepts(vector)); // accept
     // F8 structural assertion (the vector's actual claim): the predicate signature carries exactly
     // three witnessed inputs and NO publisher-identity / endpoint / source parameter — so there is
@@ -630,12 +649,10 @@ describe("B2 vector bindings — gate-fee family (gateFeeValidation)", () => {
     expect(gateFeeValidation.length).toBe(3);
     // determinism / no hidden channel: identical witnessed inputs -> byte-identical verdict.
     expect(gateFeeValidation(feeAnchor, batch, fee)).toEqual(gateFeeValidation(feeAnchor, batch, fee));
-    // companions (fail-closed, structural — NOT economics): a malformed (negative) fee rejects, and
-    // a batch not bound to the anchor's (anchoredRoot, batchSize) commitment rejects.
-    expect(gateFeeValidation(feeAnchor, batch, { amountSats: -1n }).accepted).toBe(false);
-    expect(gateFeeValidation(feeAnchor, { anchoredRoot: "ffff", batchSize: 4 }, fee).accepted).toBe(false);
-    // NOTE: amount adequacy (fee >= Σ g(name), the g(name) schedule) and batchSize-vs-leaf-count are
-    // deliberately B3 per the vector scopeNote — not asserted here.
+    // companions (fail-closed): a fee whose anchor tx is not the on-chain anchor rejects, and a batch
+    // not bound to the anchor's (anchoredRoot, batchSize, leaves) commitment rejects.
+    expect(gateFeeValidation({ ...feeAnchor, anchorTxid: "12".repeat(32) }, batch, fee).accepted).toBe(false);
+    expect(gateFeeValidation(feeAnchor, { ...batch, anchoredRoot: "ffff" }, fee).accepted).toBe(false);
   });
 });
 
@@ -643,7 +660,24 @@ describe("B2 vector bindings — transcript-completeness family (transcriptCompl
   // A distinct, well-formed counted bid set + a labelled "B3-verified witness placeholder".
   // The concrete verifier-checkable witness format and the lot's block range / soft-close are
   // B3 (T2-neg-02 candidate); B2 consumes the witness opaquely.
-  const b3Verified: CompletenessWitness = { kind: "b3-verified-completeness-witness" };
+  // D-CW (B3 §13) retired the bare placeholder: a verifier-checkable witness IS the concrete
+  // enumeration ({lot, bids}). T1-neg-01 only checks purity/determinism/fail-closed (it never
+  // asserts complete:true for the placeholder), so any well-formed concrete witness suffices here.
+  const b3Verified: CompletenessWitness = {
+    kind: "b3-verified-completeness-witness",
+    lot: {
+      openingFloorSats: 1000n,
+      params: {
+        baseWindowBlocks: 1008,
+        softCloseWindowBlocks: 144,
+        minRaiseSats: 1000n,
+        minRaiseBasisPoints: 1000,
+        softCloseMinRaiseSats: 1000n,
+        softCloseMinRaiseBasisPoints: 1000,
+      },
+    },
+    bids: [],
+  };
   const cleanTranscript: AuctionTranscript = { bids: [{ txid: "ab".repeat(32) }, { txid: "cd".repeat(32) }] };
 
   it("T1-neg-01: the transcript verdict is pure with no out-of-kernel override channel", () => {
@@ -687,10 +721,9 @@ describe("B2 vector bindings — transcript-completeness family (transcriptCompl
     expect(transcriptCompleteness(cleanTranscript, { kind: "producer-asserted" }).complete).toBe(accepts(vector)); // false === reject
     // companion: an absent witness also fails closed.
     expect(transcriptCompleteness(cleanTranscript, null).complete).toBe(false);
-    // companion (positive control): only the B3-verified witness placeholder satisfies the posture.
-    // The concrete verifier-checkable format and the lot's block range / soft-close are B3 (T2-neg-02);
-    // consumed opaquely here.
-    expect(transcriptCompleteness(cleanTranscript, b3Verified).complete).toBe(true);
+    // The positive control (a verified witness whose enumeration the transcript matches ⇒ complete)
+    // now lives in the D-CW cw.* battery (transcript-completeness.test.ts), since completeness is
+    // symmetric set-equality over the recomputed soft-close range (B3 §13), not opaque acceptance.
   });
 
   it("T21-neg-01: counted bids must be distinct, well-formed L1 txids — no silent dedup", () => {
@@ -702,8 +735,7 @@ describe("B2 vector bindings — transcript-completeness family (transcriptCompl
     // companion: a malformed (non-32-byte-lowercase-hex) txid is rejected.
     expect(transcriptCompleteness({ bids: [{ txid: "ZZ" }] }, b3Verified).complete).toBe(false);
     expect(transcriptCompleteness({ bids: [{ txid: "AB".repeat(32) }] }, b3Verified).complete).toBe(false); // uppercase hex rejected
-    // companion (positive control): an all-distinct, well-formed set with a verified witness passes.
-    expect(transcriptCompleteness(cleanTranscript, b3Verified).complete).toBe(true);
+    // The all-distinct positive control now lives in the D-CW cw.* battery (set-equality over the range).
   });
 });
 
@@ -1732,7 +1764,7 @@ describe("B2 vector bindings — purity / determinism closing batch (Z1/T20)", (
     //     closed-shape-rejected — so no wall-clock value can ride the deadline boundary.
     expect(bondInNoticeWindow(1003, 1000, 6).verdict).toBe("in-window"); // pure function of heights
     expect(
-      transcriptCompleteness({ bids: [], issuedAt: "2026-01-01T00:00:00Z" } as never, { kind: "b3-verified-completeness-witness" }).complete
+      transcriptCompleteness({ bids: [], issuedAt: "2026-01-01T00:00:00Z" } as never, { kind: "b3-verified-completeness-witness" } as unknown as CompletenessWitness).complete
     ).toBe(false); // injected issuedAt rejected — no timestamp channel
   });
 });

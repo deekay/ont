@@ -1,0 +1,58 @@
+// @ont/evidence — L3 evidence layer (B3). Non-deciding witness construction +
+// verification. See PURPOSE.md and docs/core/B3_EVIDENCE_HARDENING.md.
+export {
+  buildMembershipProof,
+  buildNonMembershipProof,
+  type BuiltMembershipProof,
+} from "./membership.js";
+
+export {
+  buildBitcoinInclusion,
+  type BuiltBitcoinInclusion,
+  type BitcoinInclusionInput,
+} from "./bitcoin-inclusion.js";
+
+export {
+  bindServedBytes,
+  toServedEvidence,
+  type ServedLeaf,
+  type ServedBatchBinding,
+  type BoundServedBatch,
+  type VerifiedAvailabilityHeight,
+} from "./served-bytes.js";
+
+export {
+  verifyAvailabilityHeight,
+  type AvailabilityInput,
+  type VerifiedAvailability,
+} from "./served-availability.js";
+
+export {
+  buildAccumulatorBatchClaimBundle,
+  type BuildBatchClaimBundleInput,
+  type UncoupledBatchClaimInput,
+  type CoupledBatchClaimInput,
+  type BundleAnchorRef,
+  type BundleOwnership,
+  type BundleValueRecord,
+  type OntProofBundle,
+} from "./proof-bundle-assembly.js";
+
+export {
+  verifyBondSpendFact,
+  buildBondContinuityWitness,
+  type BondOutpoint,
+  type ConfirmedSpendInclusion,
+  type BondSpendObservation,
+  type VerifiedBondSpendFact,
+  type BondSpendClassification,
+  type BuildBondContinuityWitnessInput,
+  type BondSpendFactResult,
+  type BondContinuityWitnessResult,
+} from "./bond-continuity-witness.js";
+
+export {
+  verifyRecoveryDescriptorWitness,
+  type VerifyRecoveryDescriptorWitnessInput,
+  type RecoveryDescriptorWitnessResult,
+} from "./recovery-descriptor-witness.js";

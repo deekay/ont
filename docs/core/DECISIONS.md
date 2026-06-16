@@ -2217,6 +2217,86 @@ whole batch excluded); (11) reorg/re-mine (stale-anchor evidence cannot carry; d
 from the canonical anchor); (12) projection closure (missing owner/anchor-coords/dup-ambiguity or
 producer-asserted `complete=true` all fail closed).
 
+*Implementation addendum (slice-4, 2026-06-15; writer ClaudeleLunatique, reviewer ChatLunatique; lands
+on branch clean-build-b3, DK merges). **Boundary-manifest change under #44:** the
+`batch-completeness` verdict `evaluateBatchCompleteness` lives in the CONSENSUS_VERDICTS-tier module
+`batch-exclusion.ts`, whose external-import allowlist in `trust-surface.test.ts` is extended from `{}`
+to `{@ont/protocol}` — **solely** for `accumulatorRootOf`, the audited B1 sparse-Merkle root
+primitive. The kernel COMPUTES the `prevRoot → newRoot` exact-delta replay itself (D-CV is kernel law
+per O2 above); `accumulatorRootOf` is the per-file allowlist-extension pattern (an audited primitive
+admitted where a specific verdict needs it, same shape as `da-verdict.ts` admitting `@ont/wire`). The
+predicate performs no host I/O and mutates no state. This satisfies #44's "boundary may change only
+with a DECISIONS entry + conformance coverage"; coverage = `trust-surface.test.ts` (the verdict
+allowlist) + the 12-case `batch-completeness.test.ts` matrix plus the round-2 hostile battery
+(insert-only collision, projection/top-level coherence, full timing/served-height consistency). The
+boundary freezes at launch.*
+84. availability-height: what confirmed-chain fact mints the DA first-servable-height — **RATIFIED
+O1 + O3** (DK, event 4e11b64b, 2026-06-15)
+
+*Status: **RATIFIED.** Writer ClaudeleLunatique; reviewer ChatLunatique (classification concurred).
+Decision paper: `../research/DA_AVAILABILITY_HEIGHT.md`.*
+
+**The rule.** `firstServableHeight` is established by **O1** (fail-closed over the *presented* content
+witness): the height **is the anchor's mined height `h`**; absent a presented witness that
+reconstructs the anchored commitment, fail closed. A challenge event is fault-attribution /
+diagnostic only, never a deciding event (§215 — no unilateral bonded-attestation kill). Priority-
+bearing **contention routes to bonded / direct-L1 (O3)**, where there is no availability ambiguity.
+**Amendment:** O1 collapses `firstServableHeight` to `h` for non-faulted batched claims, dropping the
+§6e S3 late-served-priority branch for the accumulator path — acceptable **only because** O3 routes
+the priority race to L1. **Fork preserved:** if the long-tail batched path must later keep late-served
+priority in-band, O2 (a positive on-chain availability attestation) is forced — an additive new
+mechanism, not a parameter flip. **No change to da-windows (#49):** the `(K, W, C)` algebra is
+untouched; this decides only what mints the height it consumes (the `(K,W,C)` values stay
+launch-freeze parameters). **Unblocks D-SB-avail** (`@ont/evidence`), which mints
+`VerifiedAvailabilityHeight` — the one GATED B3 evidence predicate.
+
+85. b3-gate-fee-bitcoin-txid: the consensus gate-fee verdict admits the audited `@ont/bitcoin`
+legacy-txid serializer — **boundary-manifest addendum (#44), conformance-only** (ClaudeleLunatique,
+B3 §14 D-GF, 2026-06-15)
+
+*Status: **boundary addendum** under the #44 boundary-manifest discipline (a per-file trust-surface
+extension needs a DECISIONS addendum + a conformance test). No new consensus law — the gate-fee
+verdict (F8 / #52) is unchanged; this records WHICH audited primitive the verdict now rides.*
+
+**The change.** D-GF (gate-fee adequacy/completeness) recomputes-don't-trust: the fee witness carries
+the complete anchor tx + each input's prevout tx, and `gateFeeValidation` binds them to the chain by
+recomputing every legacy txid (`legacyTxidOf` = `reverse(dsha256(serializeLegacyTransaction(tx)))`).
+That serializer is a pure Bitcoin primitive, so it lives in `@ont/bitcoin` (NOT `@ont/protocol`, NOT
+kernel-local) and `gate-fee.ts` gains `@ont/bitcoin` on its **per-file** verdict-tier allowlist —
+the same allowlist-extension pattern as `batch-exclusion.ts → @ont/protocol` (#83). `legacyTxidOf` is
+pure (no host I/O, no clock, no randomness — `@noble/hashes` only), so the L2 boundary rule (pure
+predicate over witnessed inputs) is preserved and the b2-boundary purity scanner is unaffected.
+**Conformance:** `trust-surface.test.ts` pins `gate-fee.ts`'s allowlist to exactly `{@ont/bitcoin}`;
+a golden mainnet block-170 txid vector pins the serializer; the `gf.*` battery pins the recompute
+binds (anchor-txid / prevout-txid / prevout-vout / prevout-count). **No source/identity channel
+added** — the predicate stays the pure 3-input no-publisher signature (I5).
+
+86. recovery-witness-height: what confirmed-chain fact mints the §3c recovery descriptor
+`witnessedByHeight` — **RATIFIED O1** (DK, event 74ae7d5c, 2026-06-16)
+
+*Status: **RATIFIED.** Writer ClaudeleLunatique; reviewer ChatLunatique (O1 direction + the narrowed
+builder seam concurred). Decision paper: `../research/RECOVERY_DESCRIPTOR_WITNESS.md`. The recovery
+twin of availability-height (#84).*
+
+**The rule.** A recovery descriptor is off-chain (W15); the only confirmed-chain fact about it is the
+`RecoverOwner` invoke (0x09) committing `recoveryDescriptorHash` at the invoke's mined height `h_r`.
+**O1:** `witnessedByHeight` is established as **`h_r`** itself, fail-closed over the *presented*
+descriptor — absent a presented descriptor whose `recoveryDescriptorDigest` reconstructs the committed
+`recoveryDescriptorHash`, no witness is minted and the kernel's §3c conjunct fails closed. Resolver
+timestamps / gossip / served-at heights are **not** consensus inputs (the #82 firewall). The `W_r`
+window (`witnessedByHeight <= h_r + W_r`, §3c / PR-34) becomes **diagnostic**: with
+`witnessedByHeight = h_r` it always holds when a valid witness exists — the real guard is
+content-determinism (present the matching descriptor), not a timing cutoff. **Honest consequence:** a
+descriptor revealed *late* still validates if its fingerprint matches; the late-reveal fork dissolves
+because a withheld descriptor uniformly rejects and a presented one uniformly decides. **Rejected:**
+O2 (a new on-chain "arm recovery" event so an earlier height exists) = new wire + consensus law,
+heavier; O3 (out-of-band / resolver witnessing height) = the oracle the #82 firewall forbids. **No
+change to recovery-opt-in (#40)** (recovery stays optional; the veto stays delegable / non-owner-online)
+or to recovery-invoke authorization (#66 / #67 — R2/R3/R4/R7 stay kernel reasons). **Unblocks D-RC**
+(`@ont/evidence`), the last B3 §2 evidence predicate: it mints the `{ kind:
+"b3-verified-recovery-descriptor-witness", witnessedByHeight }` the kernel consumes, on
+descriptor-digest match + confirmed `h_r` only.
+
 ## Fairness Principles To Carry Into The Launch Rewrite
 
 The rewritten launch draft should explicitly state:

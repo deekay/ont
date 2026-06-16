@@ -88,9 +88,12 @@ const PARAMS_ALLOWED_PACKAGES = new Set<string>([]);
 const VERDICTS_ALLOWED_BY_FILE: Record<string, ReadonlySet<string>> = {
   "da-verdict.ts": new Set<string>([]),
   "value-record-authority.ts": new Set(["@ont/wire"]),
-  // gate-fee is a pure structural gate over witnessed (anchor, batch, fee); it rides
-  // nothing external (no g(name) schedule here — B3), so its allowlist is empty (#62).
-  "gate-fee.ts": new Set<string>([]),
+  // gate-fee is the pure D-GF adequacy/completeness gate over witnessed (anchor, batch, fee). The
+  // fee witness carries the complete anchor tx + each input's prevout tx, and the kernel binds them
+  // to the chain by recomputing each legacy txid — so it admits the audited @ont/bitcoin tx-serializer
+  // primitive (legacyTxidOf). Per-file allowlist-extension pattern (cf. batch-exclusion #83);
+  // boundary-manifest addendum b3-gate-fee-bitcoin-txid (#85). No host I/O — legacyTxidOf is pure.
+  "gate-fee.ts": new Set<string>(["@ont/bitcoin"]),
   // transcript-completeness is a pure predicate over a counted bid transcript + a
   // B3-verified completeness witness; it rides nothing external (witness format + lot
   // range are B3), so its allowlist is empty (#63).
@@ -120,10 +123,13 @@ const VERDICTS_ALLOWED_BY_FILE: Record<string, ReadonlySet<string>> = {
   // occupancy is the pure insertion-only / no-takeover-of-final gate; it consumes a name's resolved
   // governing occupancy and rides nothing external (#71).
   "occupancy.ts": new Set<string>([]),
-  // batch-exclusion is the pure insert-only batched-insertion derivation for the DA-exclusion
-  // locality / state-equivalence property; the DA verdict enters as consumed excludedBatchIds, so it
-  // rides nothing external (#72).
-  "batch-exclusion.ts": new Set<string>([]),
+  // batch-exclusion hosts two verdicts: (1) the pure insert-only batched-insertion derivation for the
+  // DA-exclusion locality / state-equivalence property (DA verdict enters as consumed
+  // excludedBatchIds, #72); and (2) #83 batch-completeness `evaluateBatchCompleteness`, which COMPUTES
+  // the canonical-root replay itself (D-CV is kernel law, ratified #83) and therefore rides the audited
+  // @ont/protocol accumulator primitive `accumulatorRootOf` — the per-file allowlist-extension pattern
+  // (admit an audited primitive where a specific verdict needs it). No host I/O, no state mutation.
+  "batch-exclusion.ts": new Set<string>(["@ont/protocol"]),
   // window-schedule is the pure height-keyed, extend-only window-length verdict; anchor height + a
   // frozen value-free schedule enter as inputs and it rides nothing external (#74).
   "window-schedule.ts": new Set<string>([]),

@@ -3,9 +3,12 @@ import { Signer } from "bip322-js";
 import * as secp256k1 from "tiny-secp256k1";
 
 import {
+  ACCUMULATOR_DEFAULTS,
   AUCTION_BID_FIXED_PAYLOAD_LENGTH,
   AUCTION_BOND_FLOOR_SATS,
   BOND_MATURITY_BLOCKS,
+  accumulatorRootOf,
+  bytesToHex,
   computeAuctionBidderCommitment,
   computeAuctionBidStateCommitment,
   computeAuctionLotCommitment,
@@ -59,6 +62,19 @@ describe("normalizeName", () => {
 
   it("rejects characters outside the v1 alphabet", () => {
     expect(() => normalizeName("alice-123")).toThrow(/invalid ONT name/);
+  });
+});
+
+describe("accumulatorRootOf", () => {
+  it("computes the canonical root for an exact leaf set", () => {
+    const emptyRoot = bytesToHex(ACCUMULATOR_DEFAULTS[0] ?? new Uint8Array(32));
+    const key = "aa".repeat(32);
+    const value = "11".repeat(32);
+
+    expect(accumulatorRootOf(new Map())).toBe(emptyRoot);
+    expect(accumulatorRootOf(new Map([[key, value]]))).not.toBe(emptyRoot);
+    expect(accumulatorRootOf(new Map([[key.toUpperCase(), value.toUpperCase()]]))).toBe(accumulatorRootOf(new Map([[key, value]])));
+    expect(() => accumulatorRootOf(new Map([["zz".repeat(32), value]]))).toThrow();
   });
 });
 
