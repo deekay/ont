@@ -52,11 +52,26 @@ export type ValueRecordSubmissionResult =
  *                  record.previousRecordHash === expectedPrev — else "predecessor-mismatch".
  *   7. accept      { ok:true, ownershipRef, expectedSequence, expectedPreviousRecordHash }.
  * Append-only / no-rewrite by construction (exact-next sequence + chains-to-head). Total; never throws (→ reject).
- *
- * STUB (B4-RESOLVE-GUARD, tests-first): returns a fixed reject so the res-guard.* red battery fails.
  */
-export function validateValueRecordSubmission(_input: ValidateValueRecordSubmissionInput): ValueRecordSubmissionResult {
-  void computeValueRecordHash;
-  void verifyValueRecord;
-  return { ok: false, reason: "invalid-signature" };
+export function validateValueRecordSubmission(input: ValidateValueRecordSubmissionInput): ValueRecordSubmissionResult {
+  try {
+    if (input === null || typeof input !== "object") return { ok: false, reason: "invalid-signature" };
+    const { record, currentOwnership, existingHead } = input;
+
+    if (!verifyValueRecord(record)) return { ok: false, reason: "invalid-signature" };
+    if (currentOwnership === null || typeof currentOwnership !== "object") return { ok: false, reason: "ownership-unknown" };
+    if (record.ownerPubkey !== currentOwnership.currentOwnerPubkey) return { ok: false, reason: "owner-mismatch" };
+    if (record.ownershipRef !== currentOwnership.ownershipRef) return { ok: false, reason: "ownership-ref-mismatch" };
+
+    const expectedSequence = existingHead === null ? 1 : existingHead.sequence + 1;
+    if (record.sequence < expectedSequence) return { ok: false, reason: "stale-sequence" };
+    if (record.sequence > expectedSequence) return { ok: false, reason: "sequence-gap" };
+
+    const expectedPreviousRecordHash = existingHead === null ? null : computeValueRecordHash(existingHead);
+    if (record.previousRecordHash !== expectedPreviousRecordHash) return { ok: false, reason: "predecessor-mismatch" };
+
+    return { ok: true, ownershipRef: currentOwnership.ownershipRef, expectedSequence, expectedPreviousRecordHash };
+  } catch {
+    return { ok: false, reason: "invalid-signature" }; // fail-closed on any malformed input — never a false append
+  }
 }
