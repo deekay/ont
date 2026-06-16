@@ -251,6 +251,18 @@ describe("buildConfirmedBatchAnchor — firewall-negatives (no fact, or a fact t
     expect(r.reason).toBe("anchor-malformed");
   });
 
+  it("an OP_RETURN with trailing bytes after the push → anchor-malformed (script consumed exactly, no loose parse)", () => {
+    const withTrailing = anchorTxWith([
+      { valueSats: 0n, scriptPubKeyHex: opReturn(rootAnchorPayload(ROOT, 2)) + "00" }, // valid push + 1 trailing byte
+      { valueSats: 7_000_000n, scriptPubKeyHex: "51" },
+    ]);
+    const b = blockFor(withTrailing);
+    const r = buildConfirmedBatchAnchor({ ...validInput(), anchorTx: withTrailing, blockHeaderHex: b.headerHex, headerSource: b.headerSource });
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.reason).toBe("anchor-malformed");
+  });
+
   it("multiple RootAnchor OP_RETURNs without an explicit anchorVout → anchor-malformed (no first-match)", () => {
     const twoAnchors = anchorTxWith([
       { valueSats: 0n, scriptPubKeyHex: opReturn(rootAnchorPayload(ROOT, 2)) },

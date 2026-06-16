@@ -68,16 +68,139 @@ export type ConfirmedBatchAnchorResult =
  *   5. mint      confirmedAnchor { anchorTxid: txid, minedHeight, anchoredRoot: decoded.newRoot,
  *                batchSize: decoded.batchSize }; feeTxParts { anchorTx, prevoutTxs } (SAME anchorTx object).
  *
- * STUB (B4-INDEX-ANCHOR, tests-first): returns a fixed reject so the idx-anchor.* red battery fails for
- * the right reason until the adapter is implemented.
+ * Total + fail-closed; never throws.
  */
 export function buildConfirmedBatchAnchor(
-  _input: BuildConfirmedBatchAnchorInput,
+  input: BuildConfirmedBatchAnchorInput,
 ): ConfirmedBatchAnchorResult {
-  void legacyTxidOf;
-  void merkleRootFromProof;
-  void merkleRootHexFromHeaderHex;
-  void decodeEvent;
-  void EventType;
-  return { ok: false, reason: "anchor-malformed" };
+  try {
+    if (input === null || typeof input !== "object") return reject("anchor-malformed");
+    const { anchorTx, prevoutTxs, blockHeaderHex, minedHeight, merkle, pos, headerSource, anchorVout } = input;
+
+    // 0. height — a malformed height must never reach the header source or be minted.
+    if (!Number.isInteger(minedHeight) || minedHeight < 0) return reject("anchor-noncanonical-header");
+
+    // 1. txid — binds inclusion AND fees to the SAME tx.
+    const anchorTxid = legacyTxidOf(anchorTx);
+    if (anchorTxid === null) return reject("anchor-malformed");
+
+    // 2. payload — the decoded RootAnchor (no caller side-channel). anchorVout is no-fallback.
+    const decoded = selectRootAnchor(anchorTx, anchorVout);
+    if (decoded === null) return reject("anchor-malformed");
+
+    // 3. canonical — the block header must be the source's header at minedHeight (null/throw → reject).
+    let canonical: string | null;
+    try {
+      canonical = headerSource.headerHexAtHeight(minedHeight);
+    } catch {
+      return reject("anchor-noncanonical-header");
+    }
+    if (
+      typeof blockHeaderHex !== "string" ||
+      canonical === null ||
+      canonical.toLowerCase() !== blockHeaderHex.toLowerCase()
+    ) {
+      return reject("anchor-noncanonical-header");
+    }
+
+    // 4. inclusion — recompute the Merkle root and match the header's committed root (bytes 36..68).
+    const computed = merkleRootFromProof(anchorTxid, Array.isArray(merkle) ? merkle : [], pos);
+    const headerRoot = merkleRootHexFromHeaderHex(blockHeaderHex);
+    if (computed === null || headerRoot === null || bytesToHex(computed) !== headerRoot) {
+      return reject("anchor-not-included");
+    }
+
+    // 5. mint — chain-bound fact + fee parts (the SAME anchorTx object).
+    return {
+      ok: true,
+      confirmedAnchor: { anchorTxid, minedHeight, anchoredRoot: decoded.newRoot, batchSize: decoded.batchSize },
+      feeTxParts: { anchorTx, prevoutTxs },
+    };
+  } catch {
+    return reject("anchor-malformed");
+  }
+}
+
+function reject(reason: ConfirmedBatchAnchorRejectReason): ConfirmedBatchAnchorResult {
+  return { ok: false, reason };
+}
+
+function bytesToHex(bytes: Uint8Array): string {
+  let hex = "";
+  for (const b of bytes) hex += b.toString(16).padStart(2, "0");
+  return hex;
+}
+
+function hexToBytesOrNull(hex: unknown): Uint8Array | null {
+  if (typeof hex !== "string" || hex.length % 2 !== 0 || !/^[0-9a-fA-F]*$/.test(hex)) return null;
+  const out = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < out.length; i += 1) out[i] = Number.parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+  return out;
+}
+
+/**
+ * The data bytes of a script that is EXACTLY `OP_RETURN <push> <data>` and NOTHING ELSE — or null. The
+ * script must be consumed exactly (CL green-watch): a single direct push (0x01..0x4b) or OP_PUSHDATA1
+ * (0x4c len), with `data` ending the script (no trailing bytes, not a loose "first push wins" parse).
+ */
+function opReturnData(scriptPubKeyHex: unknown): Uint8Array | null {
+  const script = hexToBytesOrNull(scriptPubKeyHex);
+  if (script === null || script.length < 2 || script[0] !== 0x6a) return null;
+  const op = script[1]!;
+  let dataStart: number;
+  let len: number;
+  if (op >= 0x01 && op <= 0x4b) {
+    len = op;
+    dataStart = 2;
+  } else if (op === 0x4c) {
+    if (script.length < 3) return null;
+    len = script[2]!;
+    dataStart = 3;
+  } else {
+    return null; // OP_0 / OP_PUSHDATA2/4 / opcodes are not a single data push we accept
+  }
+  if (dataStart + len !== script.length) return null; // must consume the script EXACTLY
+  return script.slice(dataStart, dataStart + len);
+}
+
+interface DecodedRootAnchor {
+  readonly newRoot: string;
+  readonly batchSize: number;
+}
+
+/** Decode the candidate output's OP_RETURN as a RootAnchor, or null. decodeEvent throws → caught. */
+function decodeRootAnchorAt(tx: LegacyTransaction, vout: number): DecodedRootAnchor | null {
+  const output = tx.outputs[vout];
+  if (output === undefined) return null;
+  const data = opReturnData(output.scriptPubKeyHex);
+  if (data === null) return null;
+  let event: ReturnType<typeof decodeEvent>;
+  try {
+    event = decodeEvent(data);
+  } catch {
+    return null;
+  }
+  if (event.type !== EventType.RootAnchor) return null;
+  return { newRoot: event.newRoot, batchSize: event.batchSize };
+}
+
+/**
+ * Select the RootAnchor to mint from. With an explicit `anchorVout` it must be an integer in
+ * [0, outputs.length) decoding to a RootAnchor — NO fallback to other outputs. Otherwise EXACTLY ONE
+ * output must decode to a RootAnchor (0 or >1 → null, no silent first-match).
+ */
+function selectRootAnchor(tx: LegacyTransaction, anchorVout: number | undefined): DecodedRootAnchor | null {
+  if (tx === null || typeof tx !== "object" || !Array.isArray(tx.outputs)) return null;
+  if (anchorVout !== undefined) {
+    if (!Number.isInteger(anchorVout) || anchorVout < 0 || anchorVout >= tx.outputs.length) return null;
+    return decodeRootAnchorAt(tx, anchorVout);
+  }
+  let found: DecodedRootAnchor | null = null;
+  for (let i = 0; i < tx.outputs.length; i += 1) {
+    const candidate = decodeRootAnchorAt(tx, i);
+    if (candidate === null) continue;
+    if (found !== null) return null; // more than one decodable RootAnchor → ambiguous, no first-match
+    found = candidate;
+  }
+  return found;
 }
