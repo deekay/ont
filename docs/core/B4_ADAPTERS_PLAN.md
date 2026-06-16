@@ -1,7 +1,8 @@
 # B4 — real adapters: feeding the audited B3 enforcement from the live network
 
-> **Status: IN PROGRESS. Writer: ClaudeleLunatique. Reviewer: ChatLunatique.** Opens after B3
-> integration merged to `main` @ `b3b74f8` (DK: "let's go on to B4"). Branch: `clean-build-b4`.
+> **Status: ✅ COMPLETE (modulo parked REFUND). Writer: ClaudeleLunatique. Reviewer: ChatLunatique.** Opens
+> after B3 integration merged to `main` @ `b3b74f8` (DK: "let's go on to B4"). Branch: `clean-build-b4`
+> (local, NOT pushed — DK merge gate).
 >
 > **Slice progress:** B4-HEADER **GREEN @ `0ee8a70`** (green-OK `0877d466`; hdr.* 18/18; `@ont/adapter-header`).
 > B4-INDEX design-concur granted (`ca3e20aa`). B4-INDEX-ANCHOR **GREEN @ `bf060d4`** (green-OK `909f7202`;
@@ -13,8 +14,14 @@
 > HEADER + INDEX-{ANCHOR,COMMIT,DATASOURCE,INVOKE} all green; DK milestone posted (`72b71e8f`).
 > B4-DA **GREEN @ `b9ab194`** (green-OK `32ad45c3`; da.* 15/15; `@ont/adapter-da`; provisional transport
 > §10.1 parked for DK). B4-PUB-ANCHOR **GREEN @ `87ed528`** (green-OK `30aff26c`; pub-anchor.* 13/13;
-> `@ont/adapter-publisher`; write→read round-trip via `buildConfirmedBatchAnchor`). B4-RESOLVE
-> **design-concur (§12)** — pending CL (LAST B4 phase; submission store-guards = firewall-ish).
+> `@ont/adapter-publisher`; write→read round-trip via `buildConfirmedBatchAnchor`). **✅ B4-RESOLVE COMPLETE**
+> — GUARD (`23e9d36`) + RECOVER (`79abe5c`) submission store-guards + READ (`2ba888d`) + READ-RECOVERY
+> (`e7ff2b6`) read firewalls; `@ont/adapter-resolver` 50/50; DK milestone posted (`c19a8f0f`). B4-PUB-INVOKE
+> **GREEN @ `e59a4b8`** (green-OK `3cd193a3`; pub-invoke.* 16/16; adapter-publisher 29/29; `assembleRecover
+> OwnerInvokeTx` write→read round-trip via `buildConfirmedRecoverOwnerInvoke`). B4-PUB-BROADCAST resolved as
+> the §11.4 edge-I/O note (CL-concurred; no unit slice, live-smoke deferred). **All five adapters green.**
+> **Parked for DK:** B4-PUB-REFUND loss-accounting encoding (§11.2); DA provisional transport (§10.1);
+> `>80B` carrier (OP_RETURN-PUSHDATA1 in use). Next phase: **B5 surfaces**.
 
 ## 1. The gap
 
@@ -685,12 +692,39 @@ txid is `legacyTxidOf` of the assembled tx, which the round-trip test anchors in
 
 ### 11.2 Later sub-slices (after ANCHOR)
 
-- **B4-PUB-CLAIM** — claim / settlement tx assembly (mine `@ont/architect` transfer/auction PSBT shapes;
-  the per-claim outputs). Round-trips through the relevant read predicate.
-- **B4-PUB-BROADCAST** — the I/O edge: sign (wallet handoff / PSBT) + esplora broadcast. Live-network smoke,
-  separate from the unit gate (signet decommissioned).
-- **B4-PUB-REFUND** — pay-first + per-leaf loss/refund. **Flag:** the refund/loss accounting encoding is
-  likely unspec'd → park-for-DK if it needs a normative rule (it is operator economics, not consensus).
+- **B4-PUB-CLAIM** — claim / settlement tx assembly. **Scoped to B4-PUB-INVOKE** (CL design-concur
+  `8664ce7e`): the only operator-broadcast claim tx with a narrow confirmed-fact read counterpart
+  (`buildConfirmedRecoverOwnerInvoke`). **GREEN @ `e59a4b8`** (green-OK `3cd193a3`; pub-invoke.* 16/16;
+  `assembleRecoverOwnerInvokeTx` — vout-0 `"6a4cab"` PUSHDATA1 RecoverOwner carrier; write→read round-trip).
+  **Transfer / AuctionBid are NOT assembled in B4** — their envelopes are B5 wallet-handoff (W17), and there
+  is no single-tx confirmed-fact reader for them (they are leaf inputs to the batched path); reopen only if
+  DK widens the operator-surface scope.
+- **B4-PUB-BROADCAST** — see §11.4 (resolved as an edge-I/O note, not a unit slice).
+- **B4-PUB-REFUND** — pay-first + per-leaf loss/refund. **PARKED for DK:** the refund/loss accounting
+  encoding is likely unspec'd and needs a normative rule before it can be built (operator economics, not
+  consensus). Drafted decision-ready for DK; NOT agent-decided.
+
+### 11.4 B4-PUB-BROADCAST — edge-I/O note (no unit slice) — CL-concurred (`3cd193a3`)
+
+**Purpose.** Get an assembled, signed ONT transaction onto the Bitcoin network.
+
+**Scope.** Two edge concerns, both OUTSIDE the clean-build pure core:
+1. **Sign** — wallet-handoff / PSBT. This is **B5 wallet-handoff** territory (W17 envelope precedent); carving
+   a PSBT helper in B4 would prematurely specify B5 shape. NOT built here.
+2. **Broadcast** — submit the raw tx to an Esplora/Bitcoin endpoint. Pure network I/O; produces no
+   witness/projection the audited B3 layer consumes (the indexer re-reads the *confirmed* chain via the
+   B4-INDEX read firewalls — broadcast is not a trust boundary).
+
+**No new pure core.** B4-PUB-BROADCAST adds no deterministic, unit-testable function: the assemblers
+(`assembleRootAnchorTx`, `assembleRecoverOwnerInvokeTx`) already produce the serializable tx, and the
+read-side firewalls already verify what lands on-chain. There is nothing left to recompute-don't-trust.
+
+**Tests.** Live-network **smoke only**, DEFERRED until a live target exists — signet is decommissioned
+(nothing-is-precious), so there is no meaningful unit gate to write now. When a target is stood up, the smoke
+test = assemble → sign (B5) → broadcast → observe confirmation → the B4-INDEX read firewall accepts it
+(closing the same write→read loop the unit round-trips already prove against synthetic blocks).
+
+**Status.** Resolved as this note (CL-concurred). With it, **B4 is complete modulo the parked REFUND.**
 
 ### 11.3 B4-PUB design-concur — open calls (my leans)
 
