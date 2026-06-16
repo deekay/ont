@@ -1,0 +1,21 @@
+{
+  "name": "@ont/wallet",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "ONT B5 surface — the wallet (clean-build). The ONE surface that owns key material + signing (the only boundary-lint crypto-exempt surface). Exposes a narrow WalletSigner contract the CLI/claim DELEGATE to; consumes the B4/B5 adapters for all rules (re-encodes no consensus/transfer/auction logic). See docs/core/B5_WALLET_CLASSIFICATION.md.",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run build -w @ont/protocol && npm run build -w @ont/bitcoin && npm run build -w @ont/wire && npm run build -w @ont/adapter-resolver && vitest run"
+  },
+  "dependencies": {
+    "@ont/protocol": "file:../../packages/protocol",
+    "@scure/bip39": "^1.6.0",
+    "@scure/bip32": "^1.7.0"
+  },
+  "devDependencies": {
+    "@ont/adapter-resolver": "file:../../packages/adapter-resolver",
+    "vitest": "^3.2.4"
+  }
+}

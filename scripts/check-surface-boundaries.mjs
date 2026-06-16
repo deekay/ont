@@ -20,8 +20,10 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 
 // EXPLICIT allowlist of clean-build surfaces under the boundary gate. Extend as each B5 surface is rebuilt.
-// (When B5-WALLET joins, it is the one surface allowed crypto/signing libs — add a per-surface exemption then.)
-const ALLOWLIST = ["apps/claim", "apps/cli"];
+const ALLOWLIST = ["apps/claim", "apps/cli", "apps/wallet"];
+// apps/wallet is the ONE surface that owns key material + signing (B5_WALLET_CLASSIFICATION.md) — it alone is
+// exempt from CRYPTO_DENY. Every other surface stays denied (signing is delegated to the wallet's WalletSigner).
+const CRYPTO_EXEMPT = new Set(["apps/wallet"]);
 
 const SCAN_EXT = ["ts", "tsx", "mts", "cts", "js", "mjs", "cjs"];
 const CRYPTO_DENY = [/^@noble\//, /^@scure\//, /^bitcoinjs-lib$/, /^ecpair$/, /^tiny-secp256k1$/, /^secp256k1$/];
@@ -42,13 +44,15 @@ function specifiersOf(source) {
   return specs;
 }
 
-/** Return a deny-reason for a specifier, or null if allowed. */
-function violationFor(spec) {
+/** Return a deny-reason for a specifier in `surface`, or null if allowed. */
+function violationFor(spec, surface) {
   if (/(^|\/)legacy\//.test(spec) || spec.includes("legacy/")) return "reaches into legacy/ (quarantined old code)";
   if (spec.includes("packages/")) return "relative reach into packages/* (use the published @ont/* entrypoint)";
   if (/^@ont\/[^/]+\/(src|dist)(\/|$)/.test(spec)) return "@ont/*/src|dist deep import (use the package entrypoint)";
-  for (const re of CRYPTO_DENY) {
-    if (re.test(spec)) return `external crypto/signing lib '${spec}' (signing is B5-WALLET only)`;
+  if (!CRYPTO_EXEMPT.has(surface)) {
+    for (const re of CRYPTO_DENY) {
+      if (re.test(spec)) return `external crypto/signing lib '${spec}' (signing is B5-WALLET only)`;
+    }
   }
   return null;
 }
@@ -78,7 +82,7 @@ for (const surface of ALLOWLIST) {
   for (const file of files) {
     const source = readFileSync(file, "utf8");
     for (const spec of specifiersOf(source)) {
-      const reason = violationFor(spec);
+      const reason = violationFor(spec, surface);
       if (reason) {
         console.error(`BOUNDARY: ${file}: '${spec}' — ${reason}`);
         violations += 1;
