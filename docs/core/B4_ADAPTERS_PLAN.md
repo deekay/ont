@@ -11,7 +11,8 @@
 > adapter-indexer 59/59). B4-INDEX-INVOKE **GREEN @ `ba5cfcb`** (green-OK `235d906d`; idx-invoke.* 13/13;
 > adapter-indexer 72/72; shared `src/inclusion.ts` refactor @ `38add0d`). **✅ B4-INDEX COMPLETE** —
 > HEADER + INDEX-{ANCHOR,COMMIT,DATASOURCE,INVOKE} all green; DK milestone posted (`72b71e8f`).
-> B4-DA **design-concur (§10)** — pending CL.
+> B4-DA **GREEN @ `b9ab194`** (green-OK `32ad45c3`; da.* 15/15; `@ont/adapter-da`; provisional transport
+> §10.1 parked for DK). B4-PUB **design-concur (§11)** — pending CL (write-side; round-trip bar).
 
 ## 1. The gap
 
@@ -639,3 +640,64 @@ structurally (DATASOURCE rejects empty — B4-DA is not the non-empty verifier);
 lowercase-64-hex objects in TRANSPORT ORDER (no sort / dedup in B4-DA); async null/reject/throw/non-string
 → null; the firewall pipe (positives + negatives) runs through `verifyServedDelta` + the real
 `verifyAvailabilityHeight`. Proceeding to the **B4-DA red battery** (no further concur round needed).
+
+## 11. B4-PUB design — the publisher write-side (design-first)
+
+B4-HEADER + B4-INDEX (4 sub-slices) + B4-DA are all green — the read-side firewall is complete. B4-PUB is
+the WRITE-side: assemble the RootAnchor / claim transactions the publisher broadcasts. **Key framing: a
+write-side adapter is NOT firewall-minting** — it produces txs from the operator's own intent, it does not
+validate untrusted network input. So the §4 "hostile-input → no false-accept" bar does NOT apply here.
+Instead the bar is **WRITE→READ round-trip: the assembled RootAnchor tx, dropped into a block, is ACCEPTED
+by the read-side `buildConfirmedBatchAnchor` (B4-INDEX-ANCHOR)** — the audited read path verifies what the
+write path produced, closing the loop with no new trust.
+
+Package: **`@ont/adapter-publisher`**. The clean-build core is a PURE `LegacyTransaction` assembly
+(`@ont/bitcoin` + `@ont/wire`); signing / PSBT / broadcast are I/O at the edge (the old `@ont/architect`
+bitcoinjs-lib PSBT builder + `apps/publisher` esplora client are mining reference, and PSBT-for-wallet-
+signing is a B5 wallet-handoff concern — W17 envelope precedent).
+
+### 11.1 First sub-slice — B4-PUB-ANCHOR (RootAnchor assembly)
+
+```
+// PURE: assemble the unsigned RootAnchor tx (total + deterministic).
+assembleRootAnchorTx({
+  prevRoot, newRoot, batchSize,                 // the batch the operator is anchoring (#53)
+  fundingInputs: readonly { prevoutTxid, prevoutVout, sequence? }[],   // the operator's funding UTXOs
+  changeOutput?: { valueSats, scriptPubKeyHex },  // optional change
+  version?, locktime?,
+}) -> LegacyTransaction | null
+  // outputs = [ { valueSats: 0, scriptPubKeyHex: opReturn(encodeEvent({type:RootAnchor,prevRoot,newRoot,batchSize})) },
+  //             ...(changeOutput ? [changeOutput] : []) ]
+  // inputs  = fundingInputs (scriptSig empty — signing is wallet-handoff); a malformed root/size → null.
+```
+The OP_RETURN carries the SAME `encodeEvent(RootAnchor 0x0b)` (73 B, direct push) that the read-side
+decodes — guaranteeing the write/read agree by construction. Unsigned (empty scriptSig); the on-chain
+txid is `legacyTxidOf` of the assembled tx, which the round-trip test anchors in a synthetic 1-tx block.
+
+**Planned `pub-anchor.*` battery (WRITE→READ round-trip = the bar):**
+- **round-trip** — `assembleRootAnchorTx(...)` → a `LegacyTransaction` whose OP_RETURN, placed in a 1-tx
+  block at height h, is ACCEPTED by `buildConfirmedBatchAnchor` (anchoredRoot === newRoot, batchSize matches).
+- structural conformance — exactly one RootAnchor OP_RETURN at vout 0; the decoded `{prevRoot,newRoot,
+  batchSize}` equals the inputs; funding inputs preserved in order.
+- malformed root / non-u32 batchSize → null (encodeEvent rejects → caught); determinism; never throws.
+
+### 11.2 Later sub-slices (after ANCHOR)
+
+- **B4-PUB-CLAIM** — claim / settlement tx assembly (mine `@ont/architect` transfer/auction PSBT shapes;
+  the per-claim outputs). Round-trips through the relevant read predicate.
+- **B4-PUB-BROADCAST** — the I/O edge: sign (wallet handoff / PSBT) + esplora broadcast. Live-network smoke,
+  separate from the unit gate (signet decommissioned).
+- **B4-PUB-REFUND** — pay-first + per-leaf loss/refund. **Flag:** the refund/loss accounting encoding is
+  likely unspec'd → park-for-DK if it needs a normative rule (it is operator economics, not consensus).
+
+### 11.3 B4-PUB design-concur — open calls (my leans)
+
+1. **Write-side bar = round-trip, not firewall.** The unit gate is "assembled tx → read-side accepts," not
+   "hostile input → no false-accept" (B4-PUB validates no untrusted input). **Lean: this.**
+2. **Pure `LegacyTransaction` assembly** for the clean-build core; PSBT / wallet-signing / broadcast are
+   I/O at the edge (B4-PUB-BROADCAST) or B5 wallet-handoff. **Lean: this** (keeps the core pure + testable).
+3. **B4-PUB-ANCHOR first** (RootAnchor assembly), then CLAIM / BROADCAST / REFUND. **Lean: this.**
+4. **No new law** — RootAnchor encoding (0x0b) + the tx shape are ratified; funding/change/refund are
+   operator economics. Any unspec'd refund/loss encoding is PARKED for DK. Confirm the line.
+
+On concur (esp. #1 the round-trip bar + #2 pure-assembly scope) I open **B4-PUB-ANCHOR red battery**.
