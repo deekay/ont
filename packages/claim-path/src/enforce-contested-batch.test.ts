@@ -22,6 +22,8 @@ const BIND_C = "c0".repeat(32);
 const OWNER_A = "a1".repeat(32);
 const OWNER_B = "b1".repeat(32);
 const OWNER_C = "c2".repeat(32);
+const OWNER_D = "d2".repeat(32);
+const BIND_D = "d0".repeat(32);
 
 const baseLeaves = [{ keyHex: BASE_KEY, valueHex: BASE_VAL }];
 const PREV_ROOT = accumulatorRootOf(new Map([[BASE_KEY, BASE_VAL]]));
@@ -79,12 +81,14 @@ const OWNER_B_ID = { kind: "owner-key" as const, ownerKeyHex: OWNER_B };
 
 describe("enforceContestedBatch — happy derivation + inserted provenance", () => {
   it("an uncontested multi-leaf delta → canonical root + all inserted, empty contestedToL1", () => {
-    const { verdict } = enforceContestedBatch(input({ leaves: [leaf(), leafB()] }));
+    const { trace, verdict } = enforceContestedBatch(input({ leaves: [leaf(), leafB()] }));
     expect(verdict.accepted).toBe(true);
     if (!verdict.accepted) return;
     expect(verdict.canonicalRoot).toBe(rootWith([[LEAF_A, BIND_A], [LEAF_B, BIND_B]]));
     expect(verdict.contestedToL1).toEqual([]);
     expect(verdict.inserted.map((i) => i.leafKeyHex).sort()).toEqual([LEAF_A, LEAF_B].sort());
+    // The result is an evidence trace + verdict — a green cannot return an empty trace.
+    expect(trace).toEqual([{ stage: "derive", ok: true, reason: "dcv-derived" }]);
   });
 
   it("is deterministic under leaf-order permutation", () => {
@@ -117,18 +121,23 @@ describe("enforceContestedBatch — contested distinct-owner → L1", () => {
     ]);
   });
 
-  it("owner-extraction hygiene: only includable-priority owners, sorted, no winner field; excluded/non-priority excluded", () => {
-    // A third LEAF_A claim that is non-priority (#69) must NOT enter contendingOwners.
+  it("owner-extraction hygiene: only includable-priority owners, sorted, no winner field; excluded + non-priority excluded", () => {
+    // A non-priority (#69) AND a DA-excluded extra claim for the contested leaf must NOT enter contendingOwners.
     const cNonPriority = leaf(
       { leafKeyHex: LEAF_A, owner: { kind: "owner-key", ownerKeyHex: OWNER_C }, ownerValueBindingHex: BIND_C, batchId: "batch-5",
         daVerdict: { kind: "includable", firstCompleteServedHeight: 112, holdsPriority: false } },
       BIND_C,
     );
-    const { verdict } = enforceContestedBatch(input({ leaves: [bContest(), aContest(), cNonPriority] })); // reversed order
+    const dExcluded = leaf(
+      { leafKeyHex: LEAF_A, owner: { kind: "owner-key", ownerKeyHex: OWNER_D }, ownerValueBindingHex: BIND_D, batchId: "batch-6",
+        daVerdict: { kind: "excluded", firstCompleteServedHeight: null, holdsPriority: false } },
+      BIND_D,
+    );
+    const { verdict } = enforceContestedBatch(input({ leaves: [bContest(), aContest(), cNonPriority, dExcluded] })); // reversed order
     expect(verdict.accepted).toBe(true);
     if (!verdict.accepted) return;
     const routed = verdict.contestedToL1.find((c) => c.leafKeyHex === LEAF_A);
-    expect(routed?.contendingOwners).toEqual([OWNER_A_ID, OWNER_B_ID]); // order-independent + C excluded
+    expect(routed?.contendingOwners).toEqual([OWNER_A_ID, OWNER_B_ID]); // order-independent; C (non-priority) + D (excluded) dropped
     expect(Object.keys(routed ?? {}).sort()).toEqual(["contendingOwners", "leafKeyHex", "name"]); // no winner field
   });
 });
@@ -159,12 +168,13 @@ describe("enforceContestedBatch — coalesce / skip / fail-closed", () => {
     expect(verdict.contestedToL1).toEqual([]);
   });
 
-  it("a batch-local duplicate fails closed (dcv-batch-local-duplicate surfaced)", () => {
+  it("a batch-local duplicate fails closed (dcv-batch-local-duplicate surfaced in verdict + trace)", () => {
     const dupA = leaf({ batchLocalIndex: 1 }, BIND_A); // same key + same batchId (batch-1) as leaf()
-    const { verdict } = enforceContestedBatch(input({ leaves: [leaf(), dupA] }));
+    const { trace, verdict } = enforceContestedBatch(input({ leaves: [leaf(), dupA] }));
     expect(verdict.accepted).toBe(false);
     if (verdict.accepted) return;
     expect(verdict.reason).toBe("dcv-batch-local-duplicate");
+    expect(trace).toEqual([{ stage: "derive", ok: false, reason: "dcv-batch-local-duplicate" }]);
   });
 
   it("a winner-leakage projection (unique claimed for a collision) fails closed (dcv-projection-contradiction)", () => {
