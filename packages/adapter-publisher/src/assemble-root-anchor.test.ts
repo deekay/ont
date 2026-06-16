@@ -130,6 +130,7 @@ describe("assembleRootAnchorTx — malformed operator intent → null (never thr
 
   it("malformed changeOutput (negative value / odd-hex / uppercase-hex / OP_RETURN script) → null", () => {
     expect(assembleRootAnchorTx(validInput({ changeOutput: { valueSats: -1n, scriptPubKeyHex: "51" } }))).toBeNull();
+    expect(assembleRootAnchorTx(validInput({ changeOutput: { valueSats: 1n << 64n, scriptPubKeyHex: "51" } }))).toBeNull(); // > u64 max → not serializable → null
     expect(assembleRootAnchorTx(validInput({ changeOutput: { valueSats: 1000n, scriptPubKeyHex: "xyz" } }))).toBeNull();
     expect(assembleRootAnchorTx(validInput({ changeOutput: { valueSats: 1000n, scriptPubKeyHex: "AB".repeat(11) } }))).toBeNull(); // valid-hex UPPERCASE → not serializable → null
     expect(assembleRootAnchorTx(validInput({ changeOutput: { valueSats: 1000n, scriptPubKeyHex: "6a04deadbeef" } }))).toBeNull(); // no OP_RETURN change

@@ -81,7 +81,9 @@ export function assembleRootAnchorTx(input: AssembleRootAnchorInput): LegacyTran
     if (changeOutput !== undefined) {
       if (changeOutput === null || typeof changeOutput !== "object") return null;
       const { valueSats, scriptPubKeyHex } = changeOutput;
-      if (typeof valueSats !== "bigint" || valueSats < 0n) return null;
+      // u64 bound — the serializer rejects > 0xffff_ffff_ffff_ffff, so an oversized amount must be null
+      // here (the "serializable tx or null" contract), not a tx whose legacyTxidOf is null.
+      if (typeof valueSats !== "bigint" || valueSats < 0n || valueSats > 0xffff_ffff_ffff_ffffn) return null;
       // lowercase even hex, and never an OP_RETURN (no ambiguous second RootAnchor) — keeps exactly-one.
       if (typeof scriptPubKeyHex !== "string" || !HEX_EVEN_LOWER.test(scriptPubKeyHex) || scriptPubKeyHex.startsWith("6a")) return null;
       outputs.push({ valueSats, scriptPubKeyHex });
