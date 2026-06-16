@@ -63,15 +63,28 @@ const fail = (reason: string): RecoveryDescriptorWitnessResult => ({ ok: false, 
 export function verifyRecoveryDescriptorWitness(
   input: VerifyRecoveryDescriptorWitnessInput,
 ): RecoveryDescriptorWitnessResult {
-  // RED PHASE (D-RC green pending CL red-battery review): the digest-match + height mint is not yet
-  // implemented. The stub rejects with a sentinel so the rc.* battery is red until the green lands.
-  void input;
-  void HEX_64;
-  void isObject;
-  void isClosedShape;
-  void isU32;
-  void INPUT_KEYS;
-  void recoveryDescriptorDigest;
-  void bytesToHex;
-  return fail("rc-pending-green-impl");
+  // ---- top-level totality (closed shape; descriptor must be a non-null object; no source channel) ----
+  const inp = input as unknown;
+  if (!isObject(inp) || !isClosedShape(inp, INPUT_KEYS)) return fail("rc-input-malformed");
+  if (!isObject(inp.descriptor)) return fail("rc-input-malformed");
+  if (typeof inp.committedDescriptorHash !== "string" || !HEX_64.test(inp.committedDescriptorHash)) {
+    return fail("rc-input-malformed");
+  }
+  if (!isU32(inp.confirmedInvokeMinedHeight)) return fail("rc-input-malformed");
+
+  // ---- recompute the descriptor fingerprint (guarded: @ont/wire throws on a content-malformed descriptor) ----
+  let digestHex: string;
+  try {
+    digestHex = bytesToHex(recoveryDescriptorDigest(inp.descriptor));
+  } catch {
+    return fail("rc-descriptor-malformed");
+  }
+  if (digestHex !== inp.committedDescriptorHash) return fail("rc-descriptor-hash-mismatch");
+
+  // ---- mint: witnessedByHeight = h_r (O1, #86). The descriptor's authorization (R2/R3/R4/R7) and its
+  // closed-envelope shape stay the kernel's acceptRecoverOwner — D-RC mints on digest-match + h_r only. ----
+  return {
+    ok: true,
+    witness: { kind: "b3-verified-recovery-descriptor-witness", witnessedByHeight: inp.confirmedInvokeMinedHeight },
+  };
 }
