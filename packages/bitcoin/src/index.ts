@@ -10,6 +10,17 @@ export {
 
 export { bitsToTarget, headerMeetsTarget } from "./block-header.js";
 
+export {
+  validateHeaderChain,
+  type BitcoinHeaderSource,
+  type BitcoinDifficultyCheckpoint,
+  type BitcoinNetworkParams,
+  type ValidatedHeaderChain,
+  type RejectedHeaderChain,
+  type HeaderChainRejectReason,
+  type HeaderChainResult,
+} from "./validate-header-chain.js";
+
 export interface BitcoinNetworkConfig {
   readonly network: "regtest" | "signet" | "testnet" | "mainnet";
   readonly rpcUrl?: string;
