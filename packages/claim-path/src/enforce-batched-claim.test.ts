@@ -30,6 +30,8 @@ import {
   enforceBatchedClaim,
   type BatchDataSource,
   type BatchedClaimInput,
+  type BatchedClaimPolicy,
+  type BatchedClaimResult,
   type BatchedClaimSources,
 } from "./enforce-batched-claim.js";
 
@@ -159,6 +161,33 @@ const K = 6;
 const W = 2;
 const C = 3;
 
+// Trusted launch policy (NOT producer claim material): DA window + gate-fee schedule (same trust tier).
+// Curve floor 100_000 for ≥5-byte names; "alice" is 5 bytes ⇒ Σg = 100_000 ≤ the anchor's paidFee 1_000_000.
+const SCHEDULE = { gateOneByteSats: 1_000_000n, gateLongNameFloorSats: 100_000n };
+const POLICY: BatchedClaimPolicy = { window: { K, W, C }, gateFeeSchedule: SCHEDULE };
+
+// Verified committed-batch projection (firewall-minted; canonicalNameByteLength is NOT producer-chosen).
+const COMMITTED_BATCH = {
+  anchoredRoot: ANCHORED_ROOT,
+  batchSize: 1,
+  leaves: [{ leafKeyHex: LEAF, canonicalNameByteLength: 5 }],
+};
+// A 2-leaf committed projection for the batchSize-2 completeness tests: gate-fee passes (Σg 200k ≤ 1M),
+// so completeness still catches the served-count mismatch downstream.
+const COMMITTED_BATCH_2 = {
+  anchoredRoot: ANCHORED_ROOT,
+  batchSize: 2,
+  leaves: [
+    { leafKeyHex: LEAF, canonicalNameByteLength: 5 },
+    { leafKeyHex: OTHER_KEY, canonicalNameByteLength: 6 },
+  ],
+};
+// The parsed anchor tx + prevouts (NO schedule) the fee/inclusion adapter supplies for the anchor txid.
+const FEE_TX_PARTS = { anchorTx: ANCHOR_TX, prevoutTxs: [FEE_PREVOUT_A, FEE_PREVOUT_B] };
+// A different anchor tx (distinct outputs → distinct txid) — a hostile fee witness not bound to the anchor.
+const OTHER_ANCHOR_TX: LegacyTransaction = { ...ANCHOR_TX, outputs: [{ valueSats: 6_900_000n, scriptPubKeyHex: "6a04deadbeef" }] };
+const OTHER_FEE_TX_PARTS = { anchorTx: OTHER_ANCHOR_TX, prevoutTxs: [FEE_PREVOUT_A, FEE_PREVOUT_B] };
+
 function headerSource(at?: (h: number) => string | null): BitcoinHeaderSource {
   return { headerHexAtHeight: at ?? ((h) => (h === ANCHOR_HEIGHT ? ANCHOR_HEADER : null)) };
 }
@@ -167,6 +196,8 @@ function batchDataSource(over: Partial<BatchDataSource> = {}): BatchDataSource {
   return {
     baseLeavesForPrevRoot: over.baseLeavesForPrevRoot ?? ((r) => (r === PREV_ROOT ? BASE : null)),
     servedLeavesForRoot: over.servedLeavesForRoot ?? ((r) => (r === ANCHORED_ROOT ? SERVED_DELTA : null)),
+    committedBatchForRoot: over.committedBatchForRoot ?? ((r) => (r === ANCHORED_ROOT ? COMMITTED_BATCH : null)),
+    feeTxForAnchor: over.feeTxForAnchor ?? ((t) => (t === ANCHOR_TXID ? FEE_TX_PARTS : null)),
   };
 }
 
@@ -174,13 +205,18 @@ function claim(over: Partial<BatchedClaimInput> = {}): BatchedClaimInput {
   return {
     proofBundle: BUNDLE,
     anchor: { txid: ANCHOR_TXID, prevRoot: PREV_ROOT, anchoredRoot: ANCHORED_ROOT, anchorHeight: ANCHOR_HEIGHT, batchSize: 1 },
-    window: { K, W, C },
     ...over,
   };
 }
 
 function sources(over: { header?: BitcoinHeaderSource; batch?: BatchDataSource } = {}): BatchedClaimSources {
   return { headerSource: over.header ?? headerSource(), batchDataSource: over.batch ?? batchDataSource() };
+}
+
+// Trusted policy is a required 3rd arg; the wrapper defaults it to the launch POLICY for the existing
+// tests, while gate-fee tests pass an explicit policy (e.g. a higher schedule) to probe underpay.
+function run(c: BatchedClaimInput, s: BatchedClaimSources, p: BatchedClaimPolicy = POLICY): BatchedClaimResult {
+  return enforceBatchedClaim(c, s, p);
 }
 
 const stepOk = (r: { trace: readonly { step: string; ok: boolean }[] }, step: string): boolean | undefined =>
@@ -190,21 +226,21 @@ const reached = (r: { trace: readonly { step: string }[] }, step: string): boole
 
 describe("I-HARNESS enforceBatchedClaim — end-to-end batched-claim enforcement (4-stage)", () => {
   it("accepts a coherent honest claim: every audited stage ok, ordered trace, a name-state delta", () => {
-    const r = enforceBatchedClaim(claim(), sources());
+    const r = run(claim(), sources());
     expect(r.accepted).toBe(true);
     expect(r.reason).toBe("batched-claim-accepted");
-    expect(r.trace.map((e) => e.step)).toEqual(["inclusion", "availability", "completeness", "verdict"]);
+    expect(r.trace.map((e) => e.step)).toEqual(["inclusion", "gate-fee", "availability", "completeness", "verdict"]);
     expect(r.trace.every((e) => e.ok)).toBe(true);
     expect(r.nameStateDelta).toEqual({ anchoredRoot: ANCHORED_ROOT, firstServableHeight: ANCHOR_HEIGHT });
   });
 
   it("is pure + deterministic — identical inputs give a byte-identical result", () => {
-    expect(enforceBatchedClaim(claim(), sources())).toEqual(enforceBatchedClaim(claim(), sources()));
+    expect(run(claim(), sources())).toEqual(run(claim(), sources()));
   });
 
   it("rejects absent Bitcoin inclusion at the inclusion step, preserving the failed audited check id", () => {
     const noInclusion = { ...(BUNDLE as Record<string, unknown>), bitcoinInclusion: undefined };
-    const r = enforceBatchedClaim(claim({ proofBundle: noInclusion }), sources());
+    const r = run(claim({ proofBundle: noInclusion }), sources());
     expect(r.accepted).toBe(false);
     expect(stepOk(r, "inclusion")).toBe(false);
     // the trace must carry the REAL failed proof-bundle check, not the first passing one.
@@ -212,7 +248,7 @@ describe("I-HARNESS enforceBatchedClaim — end-to-end batched-claim enforcement
   });
 
   it("rejects a stale / noncanonical header at inclusion, preserving the failed audited check id", () => {
-    const r = enforceBatchedClaim(claim(), sources({ header: headerSource(() => null) }));
+    const r = run(claim(), sources({ header: headerSource(() => null) }));
     expect(r.accepted).toBe(false);
     expect(stepOk(r, "inclusion")).toBe(false);
     expect(r.trace.find((e) => e.step === "inclusion")?.reason).toContain("btc.0.chain");
@@ -220,14 +256,14 @@ describe("I-HARNESS enforceBatchedClaim — end-to-end batched-claim enforcement
 
   it("precedence: inclusion failure stops BEFORE availability/completeness are evaluated", () => {
     const noInclusion = { ...(BUNDLE as Record<string, unknown>), bitcoinInclusion: undefined };
-    const r = enforceBatchedClaim(claim({ proofBundle: noInclusion }), sources({ batch: batchDataSource({ servedLeavesForRoot: () => null }) }));
+    const r = run(claim({ proofBundle: noInclusion }), sources({ batch: batchDataSource({ servedLeavesForRoot: () => null }) }));
     expect(stepOk(r, "inclusion")).toBe(false);
     expect(reached(r, "availability")).toBe(false);
     expect(reached(r, "completeness")).toBe(false);
   });
 
   it("rejects withheld served bytes at availability — before any completeness/delta", () => {
-    const r = enforceBatchedClaim(claim(), sources({ batch: batchDataSource({ servedLeavesForRoot: () => null }) }));
+    const r = run(claim(), sources({ batch: batchDataSource({ servedLeavesForRoot: () => null }) }));
     expect(r.accepted).toBe(false);
     expect(stepOk(r, "availability")).toBe(false);
     expect(reached(r, "completeness")).toBe(false);
@@ -236,14 +272,20 @@ describe("I-HARNESS enforceBatchedClaim — end-to-end batched-claim enforcement
   it("rejects a committed-batchSize / served-count mismatch at completeness (availability still reconstructs)", () => {
     // batchSize claims 2, but the served delta is the real 1 leaf that reconstructs anchoredRoot:
     // availability passes (bytes reconstruct), completeness fails on the count.
-    const r = enforceBatchedClaim(claim({ anchor: { txid: ANCHOR_TXID, prevRoot: PREV_ROOT, anchoredRoot: ANCHORED_ROOT, anchorHeight: ANCHOR_HEIGHT, batchSize: 2 } }), sources());
+    const r = run(
+      claim({ anchor: { txid: ANCHOR_TXID, prevRoot: PREV_ROOT, anchoredRoot: ANCHORED_ROOT, anchorHeight: ANCHOR_HEIGHT, batchSize: 2 } }),
+      sources({ batch: batchDataSource({ committedBatchForRoot: () => COMMITTED_BATCH_2 }) }),
+    );
     expect(r.accepted).toBe(false);
     expect(stepOk(r, "availability")).toBe(true);
     expect(stepOk(r, "completeness")).toBe(false);
   });
 
   it("precedence: completeness failure stops BEFORE any name-state delta", () => {
-    const r = enforceBatchedClaim(claim({ anchor: { txid: ANCHOR_TXID, prevRoot: PREV_ROOT, anchoredRoot: ANCHORED_ROOT, anchorHeight: ANCHOR_HEIGHT, batchSize: 2 } }), sources());
+    const r = run(
+      claim({ anchor: { txid: ANCHOR_TXID, prevRoot: PREV_ROOT, anchoredRoot: ANCHORED_ROOT, anchorHeight: ANCHOR_HEIGHT, batchSize: 2 } }),
+      sources({ batch: batchDataSource({ committedBatchForRoot: () => COMMITTED_BATCH_2 }) }),
+    );
     expect(r.accepted).toBe(false);
     expect(stepOk(r, "completeness")).toBe(false);
     expect(r.nameStateDelta).toBeUndefined();
@@ -252,27 +294,27 @@ describe("I-HARNESS enforceBatchedClaim — end-to-end batched-claim enforcement
   it("content-only: withheld content rejects; presenting the actual matching content is the only way to mint the witness", () => {
     // Per #84/O1 the non-content rule is: omitted bytes give no witness, and no timestamp/receipt channel
     // exists to substitute. The ONLY difference here is presence of the real content.
-    const withheld = enforceBatchedClaim(claim(), sources({ batch: batchDataSource({ servedLeavesForRoot: () => null }) }));
-    const present = enforceBatchedClaim(claim(), sources());
+    const withheld = run(claim(), sources({ batch: batchDataSource({ servedLeavesForRoot: () => null }) }));
+    const present = run(claim(), sources());
     expect(withheld.accepted).toBe(false);
     expect(present.accepted).toBe(true);
   });
 
   it("is total on a throwing seam — a header/batch source that throws yields a failed trace step, not an exception", () => {
     const throwingHeader: BitcoinHeaderSource = { headerHexAtHeight: () => { throw new Error("header source down"); } };
-    const rh = enforceBatchedClaim(claim(), sources({ header: throwingHeader }));
+    const rh = run(claim(), sources({ header: throwingHeader }));
     expect(rh.accepted).toBe(false);
     expect(stepOk(rh, "inclusion")).toBe(false);
 
     const throwingBatch = batchDataSource({ servedLeavesForRoot: () => { throw new Error("batch source down"); } });
-    expect(() => enforceBatchedClaim(claim(), sources({ batch: throwingBatch }))).not.toThrow();
-    const rb = enforceBatchedClaim(claim(), sources({ batch: throwingBatch }));
+    expect(() => run(claim(), sources({ batch: throwingBatch }))).not.toThrow();
+    const rb = run(claim(), sources({ batch: throwingBatch }));
     expect(rb.accepted).toBe(false);
     expect(stepOk(rb, "availability")).toBe(false);
   });
 
   it("binds input.anchor to the bundle: a txid / anchorHeight mismatch rejects at inclusion, before availability", () => {
-    const badTxid = enforceBatchedClaim(
+    const badTxid = run(
       claim({ anchor: { txid: "99".repeat(32), prevRoot: PREV_ROOT, anchoredRoot: ANCHORED_ROOT, anchorHeight: ANCHOR_HEIGHT, batchSize: 1 } }),
       sources(),
     );
@@ -280,7 +322,7 @@ describe("I-HARNESS enforceBatchedClaim — end-to-end batched-claim enforcement
     expect(stepOk(badTxid, "inclusion")).toBe(false);
     expect(reached(badTxid, "availability")).toBe(false);
 
-    const badHeight = enforceBatchedClaim(
+    const badHeight = run(
       claim({ anchor: { txid: ANCHOR_TXID, prevRoot: PREV_ROOT, anchoredRoot: ANCHORED_ROOT, anchorHeight: ANCHOR_HEIGHT + 1, batchSize: 1 } }),
       sources(),
     );
@@ -290,7 +332,7 @@ describe("I-HARNESS enforceBatchedClaim — end-to-end batched-claim enforcement
   it("binds anchoredRoot to the bundle's membership root: a root-B claim with reconstructing B bytes still rejects (no membership-A + bytes-B)", () => {
     // input.anchor commits root B and batchDataSource serves B's reconstructing bytes, but the BUNDLE
     // commits root A. The bind must reject before availability/completeness — never accept the cross.
-    const r = enforceBatchedClaim(
+    const r = run(
       claim({ anchor: { txid: ANCHOR_TXID, prevRoot: PREV_ROOT, anchoredRoot: ANCHORED_ROOT_2, anchorHeight: ANCHOR_HEIGHT, batchSize: 1 } }),
       sources({ batch: batchDataSource({ servedLeavesForRoot: (root) => (root === ANCHORED_ROOT_2 ? SERVED_DELTA_2 : null) }) }),
     );
@@ -301,9 +343,80 @@ describe("I-HARNESS enforceBatchedClaim — end-to-end batched-claim enforcement
   });
 
   it("a null base (baseLeavesForPrevRoot returns null) fails at availability — never treated as an empty base, never reaches completeness", () => {
-    const r = enforceBatchedClaim(claim(), sources({ batch: batchDataSource({ baseLeavesForPrevRoot: () => null }) }));
+    const r = run(claim(), sources({ batch: batchDataSource({ baseLeavesForPrevRoot: () => null }) }));
     expect(r.accepted).toBe(false);
     expect(stepOk(r, "availability")).toBe(false);
     expect(reached(r, "completeness")).toBe(false);
+  });
+});
+
+// I-FEE-PATH (§10): the MANDATORY gate-fee stage — inclusion → gate-fee → availability → completeness →
+// verdict. A claim cannot reach a verdict / nameStateDelta unless gate-fee admission passes. The schedule
+// is the TRUSTED policy param; the seam supplies only {anchorTx, prevoutTxs}. RED until the stage lands.
+const UNDERPAY_POLICY: BatchedClaimPolicy = {
+  window: { K, W, C },
+  // floor 2_000_000 for the ≥5-byte name ⇒ Σg = 2_000_000 > paidFee 1_000_000.
+  gateFeeSchedule: { gateOneByteSats: 1_000_000n, gateLongNameFloorSats: 2_000_000n },
+};
+
+describe("I-FEE-PATH enforceBatchedClaim — mandatory gate-fee stage", () => {
+  it("inclusion fault never reaches gate-fee (gate-fee runs only after the anchor bind)", () => {
+    const noInclusion = { ...(BUNDLE as Record<string, unknown>), bitcoinInclusion: undefined };
+    const r = run(claim({ proofBundle: noInclusion }), sources());
+    expect(stepOk(r, "inclusion")).toBe(false);
+    expect(reached(r, "gate-fee")).toBe(false);
+  });
+
+  it("underpaid batch rejects AT gate-fee — no availability/completeness, no nameStateDelta", () => {
+    const r = run(claim(), sources(), UNDERPAY_POLICY);
+    expect(r.accepted).toBe(false);
+    expect(stepOk(r, "gate-fee")).toBe(false);
+    expect(r.trace.find((e) => e.step === "gate-fee")?.reason).toContain("gf-underpaid");
+    expect(reached(r, "availability")).toBe(false);
+    expect(reached(r, "completeness")).toBe(false);
+    expect(r.nameStateDelta).toBeUndefined();
+  });
+
+  it("a hostile fee tx (anchorTx != bound txid) rejects at gate-fee", () => {
+    const r = run(claim(), sources({ batch: batchDataSource({ feeTxForAnchor: () => OTHER_FEE_TX_PARTS }) }));
+    expect(r.accepted).toBe(false);
+    expect(stepOk(r, "gate-fee")).toBe(false);
+    expect(r.trace.find((e) => e.step === "gate-fee")?.reason).toContain("gf-anchor-txid-mismatch");
+    expect(reached(r, "availability")).toBe(false);
+  });
+
+  it("a null committed-batch projection rejects at gate-fee (fail closed)", () => {
+    const r = run(claim(), sources({ batch: batchDataSource({ committedBatchForRoot: () => null }) }));
+    expect(r.accepted).toBe(false);
+    expect(stepOk(r, "gate-fee")).toBe(false);
+    expect(reached(r, "availability")).toBe(false);
+  });
+
+  it("a null fee tx rejects at gate-fee (fail closed)", () => {
+    const r = run(claim(), sources({ batch: batchDataSource({ feeTxForAnchor: () => null }) }));
+    expect(r.accepted).toBe(false);
+    expect(stepOk(r, "gate-fee")).toBe(false);
+    expect(reached(r, "availability")).toBe(false);
+  });
+
+  it("a throwing fee/committed-batch seam fails closed at gate-fee (never an exception)", () => {
+    const throwing = batchDataSource({ committedBatchForRoot: () => { throw new Error("committed-batch source down"); } });
+    expect(() => run(claim(), sources({ batch: throwing }))).not.toThrow();
+    const r = run(claim(), sources({ batch: throwing }));
+    expect(r.accepted).toBe(false);
+    expect(stepOk(r, "gate-fee")).toBe(false);
+    expect(reached(r, "availability")).toBe(false);
+  });
+
+  it("a fake low schedule riding on the fee seam is IGNORED — the trusted policy schedule decides", () => {
+    // The seam object carries a tiny `schedule` that WOULD pass if used; the orchestrator injects the
+    // trusted UNDERPAY_POLICY schedule instead, so the batch is still underpaid and rejects.
+    const sneaky = batchDataSource({
+      feeTxForAnchor: () => ({ ...FEE_TX_PARTS, schedule: { gateOneByteSats: 1n, gateLongNameFloorSats: 1n } }),
+    });
+    const r = run(claim(), sources({ batch: sneaky }), UNDERPAY_POLICY);
+    expect(r.accepted).toBe(false);
+    expect(stepOk(r, "gate-fee")).toBe(false);
+    expect(r.trace.find((e) => e.step === "gate-fee")?.reason).toContain("gf-underpaid");
   });
 });

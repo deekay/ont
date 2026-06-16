@@ -12,12 +12,23 @@ import {
   verifyProofBundleAgainstBitcoin,
   type BatchCompletenessPredicateInput,
   type BitcoinHeaderSource,
+  type CommittedBatchContents,
   type DcvAnchorCoordinates,
   type DcvDaVerdict,
+  type GateFeeSchedule,
+  type GateFeeWitness,
 } from "@ont/consensus";
 import { verifyAvailabilityHeight, type ServedLeaf } from "@ont/evidence";
 
 export type { BitcoinHeaderSource };
+
+/**
+ * The fee-tx witness PARTS a B4 fee/inclusion adapter supplies — the parsed anchor tx + its input prevout
+ * txs, WITHOUT a schedule. The orchestrator assembles the kernel `GateFeeWitness` itself, injecting the
+ * TRUSTED `policy.gateFeeSchedule`; a `schedule` riding on the seam object is never read (false-accept
+ * defense — a hostile/buggy seam can't lower the fee curve). Named (not `Omit`) so the seam is explicit.
+ */
+export type GateFeeTxWitnessParts = Pick<GateFeeWitness, "anchorTx" | "prevoutTxs">;
 
 /**
  * B3 typed data-source seam (fixture-backed now; a real publisher/indexer adapter in B4). Supplies the
@@ -29,6 +40,14 @@ export interface BatchDataSource {
   baseLeavesForPrevRoot(prevRoot: string): ReadonlyMap<string, string> | null;
   /** The presented served batch leaves for the `anchoredRoot`, or null if withheld. */
   servedLeavesForRoot(anchoredRoot: string): readonly ServedLeaf[] | null;
+  /**
+   * The VERIFIED committed-batch projection for the `anchoredRoot` (full committed set; #52) — firewall-
+   * minted behind the adapter/indexer, NOT raw producer data, because `canonicalNameByteLength` is
+   * fee-critical (a lowered length underpays like a low schedule). Null if absent → fail closed at gate-fee.
+   */
+  committedBatchForRoot(anchoredRoot: string): CommittedBatchContents | null;
+  /** The parsed anchor tx + its input prevout txs (no schedule) for the anchor txid, or null. */
+  feeTxForAnchor(anchorTxid: string): GateFeeTxWitnessParts | null;
 }
 
 export interface BatchedClaimSources {
@@ -57,14 +76,23 @@ export interface BatchedClaimInput {
   /** The proof bundle carrying `bitcoinInclusion.anchors` (consumed by verifyProofBundleAgainstBitcoin). */
   readonly proofBundle: unknown;
   readonly anchor: BatchedClaimAnchor;
+}
+
+/**
+ * Trusted launch-freeze policy — NOT producer claim material. The DA `window` and the gate-fee
+ * `gateFeeSchedule` are the same trust tier; the orchestrator injects the schedule into the gate-fee
+ * witness so a seam can never choose it.
+ */
+export interface BatchedClaimPolicy {
   readonly window: BatchedClaimWindow;
+  readonly gateFeeSchedule: GateFeeSchedule;
 }
 
 // Four-stage pipeline (CL concur, event 9f4cebb4): `inclusion` subsumes SPV + structural accumulator
 // MEMBERSHIP; `completeness` owns the prevRoot→newRoot REPLAY. The separate membership + canonical-root
 // stages are dropped (not independently isolatable without duplicating audited checks); the contested
 // distinct-owner path that `deriveCanonicalRoot` adds beyond replay is a follow-up I-CONTESTED slice.
-export type ClaimStep = "inclusion" | "availability" | "completeness" | "verdict";
+export type ClaimStep = "inclusion" | "gate-fee" | "availability" | "completeness" | "verdict";
 
 /** One per-step evidence trace entry. Evidence is summarized (digest / root / count) — never raw bytes. */
 export interface ClaimTraceEntry {
@@ -119,13 +147,15 @@ export interface BatchedClaimResult {
 export function enforceBatchedClaim(
   input: BatchedClaimInput,
   sources: BatchedClaimSources,
+  policy: BatchedClaimPolicy,
 ): BatchedClaimResult {
   const trace: ClaimTraceEntry[] = [];
   const reject = (step: ClaimStep, reason: string): BatchedClaimResult => {
     trace.push({ step, ok: false, reason });
     return { accepted: false, reason: `hrns-rejected-at-${step}: ${reason}`, trace };
   };
-  const { anchor, window } = input;
+  const { anchor } = input;
+  const { window } = policy;
 
   // ---- Stage 1: inclusion — verify the bundle against Bitcoin, then BIND input.anchor to it ----
   let report: { readonly valid: boolean; readonly checks: readonly { id: string; status: string; message: string }[] };
