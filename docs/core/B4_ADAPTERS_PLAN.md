@@ -3,8 +3,10 @@
 > **Status: IN PROGRESS. Writer: ClaudeleLunatique. Reviewer: ChatLunatique.** Opens after B3
 > integration merged to `main` @ `b3b74f8` (DK: "let's go on to B4"). Branch: `clean-build-b4`.
 >
-> **Slice progress:** B4-HEADER **GREEN @ `0ee8a70`** (CL red-OK round 2 `49222e9e` → green-OK; hdr.*
-> 18/18; `@ont/adapter-header`). B4-INDEX **design-concur (§9)** — pending CL.
+> **Slice progress:** B4-HEADER **GREEN @ `0ee8a70`** (green-OK `0877d466`; hdr.* 18/18; `@ont/adapter-header`).
+> B4-INDEX design-concur granted (`ca3e20aa`). B4-INDEX-ANCHOR **GREEN @ `bf060d4`** (CL red-OK r2
+> `19f9317f` → green-OK; idx-anchor.* 24/24; `@ont/adapter-indexer` + the `@ont/bitcoin` merkle primitive
+> promotion, consensus regression 466✓). B4-INDEX-COMMIT **design-concur (§9.6)** — pending CL.
 
 ## 1. The gap
 
@@ -315,3 +317,71 @@ confirmed importable; persistence deferred; parking line for unspec'd batch-mate
 API fixes (structured `anchorTx: LegacyTransaction`; `prevoutTxs` in the input) + the merkle-primitive
 promotion + the extra red pins are folded into §9.4. CL: "with those adjustments, the red path is clear" —
 proceeding to **B4-INDEX-ANCHOR red battery** (no further concur round needed).
+
+**LANDED (green @ `bf060d4`, CL red-OK r2 `19f9317f` + green-watch).** `@ont/adapter-indexer`, idx-anchor.*
+24/24. `merkleRootFromProof` + `merkleRootHexFromHeaderHex` promoted to `@ont/bitcoin` (pos non-neg-int
+guard); `proof-bundle.ts` repointed to the shared primitive (private copy + orphaned helpers removed),
+behavior-preserving — `@ont/consensus` 466 pass / 2 skip. `buildConfirmedBatchAnchor` 0–5 step bind;
+`opReturnData` consumes the script EXACTLY (OP_RETURN + single direct-push/PUSHDATA1, no trailing — CL
+green-watch, trailing-bytes test added). Red rounds: `1ee1185` (r1) → `20e05f7` (r2: pos / anchorVout
+no-fallback / minedHeight shape).
+
+## 9.6 B4-INDEX-COMMIT design — the committed-batch projection (design-first)
+
+The fee-critical firewall. `committedBatchForRoot(anchoredRoot) → CommittedBatchContents | null` must be a
+VERIFIED projection (#52), NOT raw producer data: a lowered `canonicalNameByteLength` underpays exactly
+like a low schedule, so the indexer RECOMPUTES every leaf from the batch material and binds the full set to
+the anchored accumulator root — a lying name or length cannot survive.
+
+**The binding (recompute-don't-trust).** The audited accumulator commits `leafKey = H(name) → ownerPubkey`
+(the NAME itself is not in the tree — only its hash). `accumulatorRootOf(leaves)` replays `prevRoot + delta
+→ newRoot` (insert-only disjoint delta, batch-completeness `bc.*`). So the projection: recompute each
+batch entry's `leafKey = sha256Hex(normalizeName(name))` (reject non-canonical name bytes, W3), form the
+delta, verify `accumulatorRootOf(baseLeaves ∪ delta) === anchoredRoot` and `|delta| === batchSize`, and set
+`canonicalNameByteLength = utf8ByteLength(normalizeName(name))` from the VERIFIED name. A lying name → its
+hash isn't the committed leaf key → root mismatch → null; a lowered length is impossible (recomputed).
+
+```
+// PURE core (total + fail-closed; never throws).
+buildCommittedBatchForRoot({
+  anchoredRoot,                                   // from the confirmed anchor (trusted: chain-bound)
+  batchSize,                                       // from the confirmed anchor
+  baseLeaves: ReadonlyMap<string, string>,         // the prevRoot base (K-deep), verified accumulatorRootOf === prevRoot
+  batchEntries: readonly { name, ownerPubkey }[],  // UNTRUSTED published batch material
+  prevRoot,                                        // to verify baseLeaves and disjointness
+}) -> CommittedBatchContents | null
+  1. base       accumulatorRootOf(baseLeaves) === prevRoot — else null (a hostile base can't be trusted)
+  2. delta      for each entry: leafKey = sha256Hex(normalizeName(name)) (non-canonical name → null);
+                value = ownerPubkey; delta must be disjoint from baseLeaves + internally unique (insert-only)
+  3. bind       accumulatorRootOf(baseLeaves ∪ delta) === anchoredRoot — else null
+  4. size       delta.size === batchSize — else null
+  5. project    leaves = [{ leafKeyHex: leafKey, canonicalNameByteLength: utf8Len(normalizeName(name)) }]
+                return { anchoredRoot, batchSize, leaves }
+```
+
+**Planned `idx-commit.*` red battery (firewall pipe = the bar):**
+- **firewall-positive** — a valid base + batch → a projection that `gateFeeValidation` / `enforceGateFee`
+  consumes to the CORRECT Σ g (reuse the I-FEE-A leaf set; assert the recomputed lengths drive the fee).
+- **lying length** — a producer-supplied shorter `canonicalNameByteLength` is structurally absent (the API
+  takes names, not lengths); pin the projected length is recomputed from the name (a 1-byte vs 9-byte name
+  changes Σ g, and the wrong name can't bind).
+- **lying name / wrong leaf** — a name whose `H(name)` isn't in the anchored accumulator → root mismatch → null.
+- **wrong size** — `delta.size !== batchSize` → null (a dropped/extra leaf, #52: Σ g over the FULL set).
+- **hostile base** — `accumulatorRootOf(baseLeaves) !== prevRoot` → null (no trust of an unverified base).
+- **non-canonical name bytes** (W3) → null; **duplicate committed name** (non-disjoint / repeated) → null.
+- determinism; never throws.
+
+### 9.7 B4-INDEX-COMMIT design-concur — open calls (my leans)
+
+1. **Batch material shape.** `batchEntries = { name, ownerPubkey }[]` is the minimum to recompute leafKey +
+   length + the accumulator value. **Lean: this**; confirm whether value records (sequence/payload) are
+   needed here or stay a later projection (the fee basis only needs name + the accumulator value).
+2. **Base supply.** `baseLeaves` as a verified map (recompute `accumulatorRootOf === prevRoot`) vs
+   per-leaf membership proofs. **Lean: the map** (mirrors `BatchDataSource.baseLeavesForPrevRoot`; the
+   B4-INDEX-DATASOURCE slice mints it) — the COMMIT slice verifies the map binds to prevRoot.
+3. **Insert-only disjointness.** The delta must be disjoint from base + internally unique (batch-completeness
+   `bc.*` insert-only). **Lean: enforce here** (a non-disjoint delta → null), not deferred.
+4. **No new law.** leafKey = `H(name)`, accumulator replay, canonical-name (W3) are all ratified shapes;
+   the projection only RECOMPUTES them. Any unspec'd batch-material encoding is PARKED for DK. Confirm.
+
+On concur I open **B4-INDEX-COMMIT red battery**.
