@@ -1,5 +1,5 @@
 import type { ServedValueHistoryResult, ServedRecoveryHistoryResult } from "@ont/adapter-resolver";
-import type { CliTxRead } from "./read-port.js";
+import type { CliTxRead, ResolverRawRead } from "./read-port.js";
 
 // B5-CLI — read rendering (pure surface cores). Fold a fetched read into a CLI view-model. The two resolver
 // history renders carry the resolver's not-ownership-authority / resolver-indexed-mirror stamps VERBATIM (the
@@ -62,4 +62,20 @@ export function renderTx(tx: CliTxRead): RenderTxResult {
   } catch {
     return { ok: false, reason: "unavailable" };
   }
+}
+
+// Raw resolver read display (lean ii). The envelope's stamps are validated EXACTLY + carried; `data` is passed
+// through UNCHANGED (opaque). Missing/wrong stamps or a malformed envelope → unavailable; authority is NEVER
+// inferred from the payload.
+export interface RawView {
+  readonly provenance: "resolver-indexed-mirror";
+  readonly authority: "not-ownership-authority";
+  readonly data: unknown;
+}
+export type RenderResolverRawResult = { readonly ok: true; readonly view: RawView } | { readonly ok: false; readonly reason: "unavailable" };
+
+/** RED stub. Green: validate env object + EXACT stamps → {ok:true, view:{provenance, authority, data}} (data unchanged); else unavailable. */
+export function renderResolverRaw(env: ResolverRawRead): RenderResolverRawResult {
+  void env;
+  return { ok: false, reason: "unavailable" };
 }

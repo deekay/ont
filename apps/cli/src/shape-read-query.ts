@@ -1,4 +1,5 @@
 import { isCanonicalName, isHex32Rendering } from "@ont/wire";
+import type { ResolverRawQuery } from "./read-port.js";
 
 // B5-CLI — read-query shaping (pure surface cores). Per-family shapers validate the caller's arg, consuming
 // @ont/wire rules (reject-don't-normalize), never reimplementing them. A thin dispatcher routes each read
@@ -56,4 +57,17 @@ export function shapeReadQuery(command: ReadCommand, arg: string): ReadQuery {
   } catch {
     return { ok: false, reason: "unknown-command" };
   }
+}
+
+// The 5 raw single/activity reads (lean ii). Shaping produces a discriminated ResolverRawQuery (never a caller
+// endpoint string); 4 are name-keyed (reuse shapeNameQuery), list-activity is no-arg.
+export type RawReadCommand = "get-name" | "get-value" | "get-recovery-descriptor" | "get-name-activity" | "list-activity";
+
+export type RawReadQuery = { readonly ok: true; readonly query: ResolverRawQuery } | { readonly ok: false; readonly reason: ShapeRejectReason };
+
+/** RED stub. Green: name-keyed → shapeNameQuery(arg) → {ok, query:{command,name}}; list-activity → {ok, query:{command}}; else unknown-command. ROUTING ONLY. */
+export function shapeRawReadQuery(command: RawReadCommand, arg?: string): RawReadQuery {
+  void command;
+  void arg;
+  return { ok: false, reason: "unknown-command" };
 }
