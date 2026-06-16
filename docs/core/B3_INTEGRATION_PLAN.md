@@ -189,10 +189,11 @@ total/fail-closed, never throws. Plus a bitcoin-level block-170 pin (relocation 
 
 ## 8. I-REC design (recovery-invoke integration) — design-first
 
-The recovery-invoke enforcement orchestrator: an untrusted supply presents the confirmed invoke + the
-recovery descriptor `D` + current name-state; I-REC binds `h_r`, mints the §3c descriptor witness
-(recompute-not-trust), and feeds the kernel `acceptRecoverOwner`. Returns an **evidence trace + kernel
-verdict** (never a bare ownership mutation), mirroring I-HARNESS. Lives in `@ont/claim-path`.
+The recovery-invoke enforcement orchestrator: an untrusted supply presents a verified confirmed-invoke
+seam fact + the recovery descriptor `D` + current name-state; I-REC cross-binds the fact, mints the §3c
+descriptor witness (recompute-not-trust) at the confirmed `h_r`, and feeds the kernel `acceptRecoverOwner`.
+Returns an **evidence trace + admission verdict** (never a state mutation), mirroring I-HARNESS. Lives in
+`@ont/claim-path`.
 
 The kernel surface (already audited, B2/B3 §2):
 ```
@@ -208,43 +209,60 @@ asserted `{witnessedByHeight}` is rejected by the kernel. So I-REC's whole job i
 from chain-bound facts and wire it in; it never re-checks the descriptor authorization (R2/R3/R4/R7 stay
 kernel).
 
-**Recommended pipeline (mirrors I-HARNESS 4-stage; fail-closed each step):**
+**Design-concur — RESOLVED (ChatLunatique, event 67a92497).**
+1. **h_r binding → C (consume a verified confirmed-invoke seam fact).** `verifyProofBundleAgainstBitcoin`'s
+   direct-L1 source is auction/settlement-shaped (`auctionTranscript`/`winner`/`settlementProof`) and does
+   not model a RecoverOwner tx without inventing a new bundle source (don't bend it); B (a raw single-tx
+   inclusion verifier) hides a D-BI refactor inside the recovery slice. I-REC consumes a **closed,
+   verified `ConfirmedRecoverOwnerInvoke` seam fact** (B4's inclusion adapter produces it; fixture in B3) —
+   NOT a loose producer assertion. The h_r firewall lives in the (already-green) inclusion/D-BI builder
+   behind the seam; I-REC derives both the D-RC input and the kernel `minedHeight` from that one fact.
+2. **invokeFacts provenance → structured + UNMINED.** The seam carries the parsed invoke payload as
+   `invokeFields` WITHOUT `minedHeight`; I-REC builds the kernel `RecoverOwnerInvokeFacts` by adding
+   `minedHeight` from the confirmed invoke. An `invokeFields` carrying `minedHeight` / `source` / a
+   timestamp / a witness fails closed (closed-shape). The kernel still owns R7 signature + authority.
+3. **nameState → seam, closed-shape.** Current consensus state (fixture in B3, indexer in B4), never
+   derived; `acceptRecoverOwner` owns the R2/R3/R4/R5/R7/R10 reason vocabulary in the authority trace.
+4. **Scope / output → authorization verdict, NO state mutation.** `acceptRecoverOwner` does NOT rotate the
+   owner — the engine opens `pendingRecovery` only after PR-34 successor-bond/address checks, then rotation
+   happens at finalization. So I-REC (PR-34 out) emits an **admission verdict, not a delta**:
+   `{ authorized:true, kind:"recovery-invoke-authorized", proposedOwnerPubkey, challengeWindowBlocks,
+   recoveryDescriptorHash }` — and the happy path asserts NO owner / new-bond / `pendingRecovery` mutation
+   is emitted. (Bond-continuity #79 + PR-34 successor-bond = a later slice that would emit the real
+   `pendingRecovery` delta.)
+
+**Seam shape (closed):**
 ```
-enforceRecoveryInvoke(input, sources) -> { trace, verdict }
-  1. inclusion   bind the invoke tx to the canonical chain at h_r (headerSource — the I-SPV seam),
-                 deriving the confirmed minedHeight h_r + the invoke's committed recoveryDescriptorHash
-  2. witness     verifyRecoveryDescriptorWitness({ descriptor, committedDescriptorHash = the bound
-                 invoke's hash, confirmedInvokeMinedHeight = h_r }) -> mints witness | rc-* reject
-  3. authority   acceptRecoverOwner(invokeFacts{…, minedHeight=h_r}, {descriptor, witness}, nameState,
-                 recoveryParams) -> verdict
-  4. verdict     accept + name-state delta (new owner key + descriptor head) | reject
+ConfirmedRecoverOwnerInvoke {            // verified inclusion/adapter output (h_r firewall behind it)
+  txid, minedHeight (h_r), recoveryDescriptorHash (chain-committed), invokeFields: UnminedInvokeFields }
+UnminedInvokeFields {                     // RecoverOwnerInvokeFacts MINUS minedHeight (closed)
+  prevStateTxid, newOwnerPubkey, flags, successorBondVout, challengeWindowBlocks,
+  recoveryDescriptorHash, signature }
+enforceRecoveryInvoke({ confirmedInvoke, descriptor, nameState, recoveryParams }) -> { trace, verdict }
 ```
 
-**Cross-binding pin (the I-HARNESS lesson):** `recoveryDescriptorHash` + `minedHeight` fed to D-RC and
-the kernel MUST come from the SAME chain-bound invoke — no "facts from invoke A + inclusion of tx B"
-false accept. The orchestrator derives both from the one confirmed invoke; a mismatch fails closed.
+**Pipeline (fail-closed each step):**
+```
+  1. validate + CROSS-BIND  closed-shape all inputs; invokeFields.recoveryDescriptorHash ===
+                            confirmedInvoke.recoveryDescriptorHash else rec-cross-bind-mismatch (before
+                            D-RC/kernel — no "fields for invoke A + inclusion of tx B")
+  2. witness                verifyRecoveryDescriptorWitness({ descriptor, committedDescriptorHash =
+                            confirmedInvoke.recoveryDescriptorHash, confirmedInvokeMinedHeight =
+                            confirmedInvoke.minedHeight }) -> mint | rc-* reject (surfaced in trace)
+  3. authority              acceptRecoverOwner({ ...invokeFields, minedHeight: confirmedInvoke.minedHeight },
+                            { descriptor, witness }, nameState, recoveryParams) -> { accepted, reason }
+  4. verdict                accepted -> { authorized:true, kind:"recovery-invoke-authorized",
+                            proposedOwnerPubkey, challengeWindowBlocks, recoveryDescriptorHash }; else
+                            { authorized:false, reason } — NO name-state delta
+```
+The confirmed height is the ONLY height used (witnessedByHeight = kernel minedHeight = confirmedInvoke.minedHeight).
 
-**Design-concur — open calls (my leans):**
-1. **h_r binding (the main fork).** (A) compose `verifyProofBundleAgainstBitcoin` over a direct-L1 invoke
-   bundle vs the I-SPV `headerSource` (reuses the audited against-Bitcoin verifier, firewall-honest,
-   exactly the I-HARNESS pattern — but the proof-bundle direct-L1 source is auction-shaped, may not fit a
-   RecoverOwner tx); (B) a thin single-tx Merkle-inclusion verify vs `headerSource`; (C) consume a
-   pre-verified D-BI confirmed-invoke fact from a typed seam (lightest; the h_r firewall lives in the
-   already-green D-BI builder, fixture-backed in B3). **Lean: A if the invoke fits the direct-L1 bundle,
-   else C** — h_r must be recompute-not-trust at the seam boundary either way.
-2. **invokeFacts provenance.** Parse the RecoverOwner 0x09 wire event (@ont/wire) → `RecoverOwnerInvokeFacts`
-   inside I-REC, vs consume structured `invokeFacts` from the seam (kernel still does the R7 signature /
-   authority check). **Lean: consume structured facts from the confirmed-invoke seam** (the wire parse is a
-   B4 adapter concern; I-REC binds + composes), with the cross-binding pin enforcing facts⇔included-tx.
-3. **nameState provenance.** Current consensus state (owner/head/ownershipRef/descriptor-head) is consumed
-   from a name-state seam (fixture in B3, indexer in B4), never derived. **Lean: seam, confirm boundary.**
-4. **Scope.** I-REC = the descriptor-witness path only. Bond-continuity (#79 `bondContinuityBreak`) and
-   successor-bond binding (PR-34) are NOT inputs to `acceptRecoverOwner` → out of I-REC (separate slice).
-   **Lean: confirm bond-continuity stays out.**
-
-**Planned `rec.*` red battery (sketch, pending concur):** happy invoke → accept + new-owner delta;
-determinism; producer-asserted witness ignored (kernel mints only via D-RC); descriptor-hash mismatch →
-`rc-descriptor-hash-mismatch` (no witness, reject); cross-binding (facts' hash ≠ bound invoke's hash) →
-reject; witnessed-too-late (h_r + W_r) → kernel reject; non-cancel flags / wrong ownershipRef / stale head
-→ kernel rejects surfaced in the trace; malformed invoke / descriptor / nameState → fail-closed; never
-throws.
+**`rec.*` red battery:** happy invoke → `recovery-invoke-authorized` + proposedOwnerPubkey/challengeWindow/
+descriptorHash, asserting **no owner / new-bond / pendingRecovery mutation** is emitted; determinism; the
+confirmed height is the only height (witness + kernel minedHeight both = h_r); a producer-supplied
+witness/`witnessedByHeight` field fails closed (closed-shape — replaces "witnessed-too-late", which #86/
+D-RC makes unreachable); cross-bind (`invokeFields` hash ≠ confirmed hash) → `rec-cross-bind-mismatch`;
+descriptor digest ≠ committed hash → `rc-descriptor-hash-mismatch` (via D-RC, no witness, reject); kernel
+rejects surfaced in the trace (wrong ownershipRef R4 / stale head R3 / non-cancel flags); malformed
+confirmed-invoke / `invokeFields` (extra `minedHeight`) / descriptor / nameState / params → fail-closed;
+never throws.
