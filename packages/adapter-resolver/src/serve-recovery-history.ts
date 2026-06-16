@@ -1,4 +1,4 @@
-import type { SignedRecoveryDescriptor } from "@ont/protocol";
+import { computeRecoveryDescriptorHash, normalizeName, verifyRecoveryDescriptor, type SignedRecoveryDescriptor } from "@ont/protocol";
 import type { OwnershipInterval } from "./validate-submission.js";
 
 // B4-RESOLVE-READ-RECOVERY (B4_ADAPTERS_PLAN §12.2) — the resolver's recovery-history read projection. The
@@ -40,8 +40,7 @@ export type ServedRecoveryHistoryResult =
   | { readonly ok: false; readonly reason: ServedRecoveryHistoryRejectReason };
 
 /**
- * RED stub (B4-RESOLVE-READ-RECOVERY): rejects every projection until the read firewall lands. Green contract
- * (mirror of projectServedValueHistory):
+ * GREEN contract (B4-RESOLVE-READ-RECOVERY), mirror of projectServedValueHistory:
  *   pre  currentOwnership !== null (object) — else "ownership-unknown".
  *   pre  descriptors is a non-empty array — else "empty-history".
  *   (the requested name is normalized ONCE up front and reused for every descriptor comparison.)
@@ -54,11 +53,42 @@ export type ServedRecoveryHistoryResult =
  *     5. sequence    descriptor.sequence === i + 1 — else "sequence-broken" (contiguous run 1..N in order).
  *     6. predecessor descriptor.previousDescriptorHash ===
  *                    (i === 0 ? null : computeRecoveryDescriptorHash(descriptors[i-1])) — else "predecessor-mismatch".
- *   accept { ok:true, name: normalizedName, ownershipRef, descriptors (served as-is), head: descriptors[N-1],
- *           provenance: "resolver-indexed-mirror", authority: "not-ownership-authority" }.
+ *   accept { ok:true, name: normalizedName, ownershipRef, descriptors (the same caller descriptors, served
+ *           as-is), head: descriptors[N-1], provenance: "resolver-indexed-mirror",
+ *           authority: "not-ownership-authority" }.
  * Reject-whole-chain (fail-closed): any single break rejects the entire history. Total; never throws (→ reject).
  */
 export function projectServedRecoveryHistory(input: ProjectServedRecoveryHistoryInput): ServedRecoveryHistoryResult {
-  void input;
-  return { ok: false, reason: "invalid-signature" };
+  try {
+    if (input === null || typeof input !== "object") return { ok: false, reason: "ownership-unknown" };
+    const { name, currentOwnership, descriptors } = input;
+
+    if (currentOwnership === null || typeof currentOwnership !== "object") return { ok: false, reason: "ownership-unknown" };
+    if (!Array.isArray(descriptors) || descriptors.length === 0) return { ok: false, reason: "empty-history" };
+
+    const normalizedName = normalizeName(name);
+
+    for (let i = 0; i < descriptors.length; i += 1) {
+      const descriptor = descriptors[i];
+      if (!verifyRecoveryDescriptor(descriptor)) return { ok: false, reason: "invalid-signature" };
+      if (descriptor.name !== normalizedName) return { ok: false, reason: "name-mismatch" };
+      if (descriptor.ownerPubkey !== currentOwnership.currentOwnerPubkey) return { ok: false, reason: "owner-mismatch" };
+      if (descriptor.ownershipRef !== currentOwnership.ownershipRef) return { ok: false, reason: "ownership-ref-mismatch" };
+      if (descriptor.sequence !== i + 1) return { ok: false, reason: "sequence-broken" };
+      const expectedPreviousDescriptorHash = i === 0 ? null : computeRecoveryDescriptorHash(descriptors[i - 1]);
+      if (descriptor.previousDescriptorHash !== expectedPreviousDescriptorHash) return { ok: false, reason: "predecessor-mismatch" };
+    }
+
+    return {
+      ok: true,
+      name: normalizedName,
+      ownershipRef: currentOwnership.ownershipRef,
+      descriptors,
+      head: descriptors[descriptors.length - 1],
+      provenance: "resolver-indexed-mirror",
+      authority: "not-ownership-authority",
+    };
+  } catch {
+    return { ok: false, reason: "invalid-signature" }; // fail-closed on any malformed input — never a false serve
+  }
 }
