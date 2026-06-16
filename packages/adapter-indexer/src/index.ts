@@ -6,3 +6,10 @@ export {
   type ConfirmedBatchAnchorResult,
   type ConfirmedBatchAnchorRejectReason,
 } from "./confirmed-batch-anchor.js";
+
+// B4-INDEX-COMMIT: the fee-critical committed-batch projection (B4_ADAPTERS_PLAN §9.6).
+export {
+  buildCommittedBatchForRoot,
+  type CommittedBatchEntry,
+  type BuildCommittedBatchInput,
+} from "./committed-batch.js";

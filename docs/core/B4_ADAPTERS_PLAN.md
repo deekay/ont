@@ -351,13 +351,22 @@ buildCommittedBatchForRoot({
   prevRoot,                                        // to verify baseLeaves and disjointness
 }) -> CommittedBatchContents | null
   1. base       accumulatorRootOf(baseLeaves) === prevRoot — else null (a hostile base can't be trusted)
-  2. delta      for each entry: leafKey = sha256Hex(normalizeName(name)) (non-canonical name → null);
-                value = ownerPubkey; delta must be disjoint from baseLeaves + internally unique (insert-only)
+  2. delta      for each entry: isCanonicalName(name) (W3 GATE — reject, NOT normalizeName) else null;
+                leafKey = sha256Hex(utf8ToBytes(name)); ownerPubkey = the raw accumulator value, REQUIRED
+                32-byte lowercase hex (no case-normalized mint) else null; delta disjoint from baseLeaves +
+                internally unique (insert-only) else null
   3. bind       accumulatorRootOf(baseLeaves ∪ delta) === anchoredRoot — else null
   4. size       delta.size === batchSize — else null
-  5. project    leaves = [{ leafKeyHex: leafKey, canonicalNameByteLength: utf8Len(normalizeName(name)) }]
-                return { anchoredRoot, batchSize, leaves }
+  5. project    leaves = [{ leafKeyHex: leafKey, canonicalNameByteLength: utf8ToBytes(name).length }] from the
+                VERIFIED name (extra/riding fields ignored), SORTED by leafKeyHex; { anchoredRoot, batchSize, leaves }
+  // any malformed root/base/value or accumulatorRootOf throw → null (never an exception / case-normalized mint)
 ```
+
+**CL tightenings folded (event 909f7202-thread, concur):** (1) W3 canonical-name GATE via `@ont/wire`
+`isCanonicalName` — reject non-canonical bytes, do not `normalizeName` (the W2 accepting parser); (2)
+shape/catch firewall — `ownerPubkey` 32-byte lowercase hex (`value === ownerPubkey` under current B3), catch
+any `accumulatorRootOf` throw → null, never a throw / case-normalized mint; (3) deterministic projection —
+`leaves` sorted by `leafKeyHex` (replay is order-independent; the seam output must be too).
 
 **Planned `idx-commit.*` red battery (firewall pipe = the bar):**
 - **firewall-positive** — a valid base + batch → a projection that `gateFeeValidation` / `enforceGateFee`
@@ -368,20 +377,19 @@ buildCommittedBatchForRoot({
 - **lying name / wrong leaf** — a name whose `H(name)` isn't in the anchored accumulator → root mismatch → null.
 - **wrong size** — `delta.size !== batchSize` → null (a dropped/extra leaf, #52: Σ g over the FULL set).
 - **hostile base** — `accumulatorRootOf(baseLeaves) !== prevRoot` → null (no trust of an unverified base).
-- **non-canonical name bytes** (W3) → null; **duplicate committed name** (non-disjoint / repeated) → null.
-- determinism; never throws.
+- **non-canonical name bytes** (W3, mixed-case) → null (NOT a projection for the lowercased name);
+  **bad ownerPubkey** (non-32-byte / non-lowercase-hex) → null; **malformed base** (bad hex) → null, no throw;
+  **duplicate committed name** (non-disjoint / internally repeated) → null.
+- **riding side-channel** (CL) — an entry carrying an extra `canonicalNameByteLength: 1` (or any fee-looking
+  field) is NOT read; the projected length is recomputed from the verified name and `enforceGateFee` prices
+  that full length (a length-1 reading would underpay → reject).
+- **deterministic / order-independent** — input permutation → byte-identical `CommittedBatchContents`
+  (leaves sorted by `leafKeyHex`); never throws.
 
-### 9.7 B4-INDEX-COMMIT design-concur — open calls (my leans)
+### 9.7 B4-INDEX-COMMIT design-concur — RESOLVED (ChatLunatique, concur)
 
-1. **Batch material shape.** `batchEntries = { name, ownerPubkey }[]` is the minimum to recompute leafKey +
-   length + the accumulator value. **Lean: this**; confirm whether value records (sequence/payload) are
-   needed here or stay a later projection (the fee basis only needs name + the accumulator value).
-2. **Base supply.** `baseLeaves` as a verified map (recompute `accumulatorRootOf === prevRoot`) vs
-   per-leaf membership proofs. **Lean: the map** (mirrors `BatchDataSource.baseLeavesForPrevRoot`; the
-   B4-INDEX-DATASOURCE slice mints it) — the COMMIT slice verifies the map binds to prevRoot.
-3. **Insert-only disjointness.** The delta must be disjoint from base + internally unique (batch-completeness
-   `bc.*` insert-only). **Lean: enforce here** (a non-disjoint delta → null), not deferred.
-4. **No new law.** leafKey = `H(name)`, accumulator replay, canonical-name (W3) are all ratified shapes;
-   the projection only RECOMPUTES them. Any unspec'd batch-material encoding is PARKED for DK. Confirm.
-
-On concur I open **B4-INDEX-COMMIT red battery**.
+All four open calls concurred: `{ name, ownerPubkey }[]` is the right minimal material (value records are a
+later projection); base map + `accumulatorRootOf === prevRoot` is the B4 firewall (membership proofs not
+this slice); insert-only disjointness + internal uniqueness enforced here; no-new-law / unspec'd
+batch-material encoding parked for DK. Three tightenings + the riding side-channel pin (above) folded.
+Proceeding to **B4-INDEX-COMMIT red battery** (no further concur round needed).

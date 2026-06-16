@@ -18,6 +18,7 @@
   "dependencies": {
     "@ont/bitcoin": "file:../bitcoin",
     "@ont/wire": "file:../wire",
+    "@ont/protocol": "file:../protocol",
     "@ont/claim-path": "file:../claim-path"
   },
   "devDependencies": {
