@@ -19,10 +19,10 @@
     "@ont/bitcoin": "file:../bitcoin",
     "@ont/wire": "file:../wire",
     "@ont/protocol": "file:../protocol",
+    "@ont/consensus": "file:../consensus",
     "@ont/claim-path": "file:../claim-path"
   },
   "devDependencies": {
-    "@ont/consensus": "file:../consensus",
     "vitest": "^3.2.4"
   }
 }

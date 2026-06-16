@@ -48,14 +48,45 @@ const HEX_64_LOWER = /^[0-9a-f]{64}$/;
  *   5. project leaves = [{ leafKeyHex, canonicalNameByteLength: utf8ToBytes(name).length }] from the VERIFIED
  *              name (never a producer-supplied length), SORTED by leafKeyHex (order-independent seam output).
  * A malformed root/base/value or any accumulatorRootOf throw → null (never an exception / case-normalized mint).
- *
- * STUB (B4-INDEX-COMMIT, tests-first): returns null so the idx-commit.* red battery fails until implemented.
  */
-export function buildCommittedBatchForRoot(_input: BuildCommittedBatchInput): CommittedBatchContents | null {
-  void accumulatorRootOf;
-  void sha256Hex;
-  void utf8ToBytes;
-  void isCanonicalName;
-  void HEX_64_LOWER;
-  return null;
+export function buildCommittedBatchForRoot(input: BuildCommittedBatchInput): CommittedBatchContents | null {
+  try {
+    if (input === null || typeof input !== "object") return null;
+    const { anchoredRoot, batchSize, baseLeaves, prevRoot, batchEntries } = input;
+    if (typeof anchoredRoot !== "string" || typeof prevRoot !== "string") return null;
+    if (!Number.isInteger(batchSize) || batchSize < 0) return null;
+    if (!(baseLeaves instanceof Map) || !Array.isArray(batchEntries)) return null;
+
+    // 1. base — no trust of an unverified base.
+    if (accumulatorRootOf(baseLeaves) !== prevRoot) return null;
+
+    // 2. delta — recompute each leaf; W3 gate; lowercase-hex owner value; insert-only disjoint + unique.
+    const delta = new Map<string, string>();
+    const leaves: { leafKeyHex: string; canonicalNameByteLength: number }[] = [];
+    for (const entry of batchEntries) {
+      if (entry === null || typeof entry !== "object") return null;
+      const { name, ownerPubkey } = entry; // read ONLY name + ownerPubkey — riding fields ignored
+      if (typeof name !== "string" || !isCanonicalName(name)) return null; // W3: reject, never normalize
+      if (typeof ownerPubkey !== "string" || !HEX_64_LOWER.test(ownerPubkey)) return null;
+      const nameBytes = utf8ToBytes(name);
+      const leafKeyHex = sha256Hex(nameBytes);
+      if (baseLeaves.has(leafKeyHex) || delta.has(leafKeyHex)) return null; // insert-only + unique
+      delta.set(leafKeyHex, ownerPubkey);
+      leaves.push({ leafKeyHex, canonicalNameByteLength: nameBytes.length });
+    }
+
+    // 3. bind — the full committed set must replay to the anchored root.
+    const full = new Map<string, string>(baseLeaves);
+    for (const [k, v] of delta) full.set(k, v);
+    if (accumulatorRootOf(full) !== anchoredRoot) return null;
+
+    // 4. size — Σ g is over the FULL committed set (#52); a dropped/extra leaf must not slip.
+    if (delta.size !== batchSize) return null;
+
+    // 5. project — deterministic, order-independent (sorted by leafKeyHex); length from the verified name.
+    leaves.sort((a, b) => (a.leafKeyHex < b.leafKeyHex ? -1 : a.leafKeyHex > b.leafKeyHex ? 1 : 0));
+    return { anchoredRoot, batchSize, leaves };
+  } catch {
+    return null;
+  }
 }
