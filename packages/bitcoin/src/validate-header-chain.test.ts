@@ -196,6 +196,15 @@ describe("validateHeaderChain — synthetic within-epoch", () => {
     expect(a).toEqual(b);
   });
 
+  it("includes the checkpoint's accumulated work in the total (not just header work)", () => {
+    const cpWithWork: BitcoinDifficultyCheckpoint = { ...cp, cumulativeWorkHex: "100" };
+    const r = validateHeaderChain(headersHex, 5, cpWithWork, SYNTH_PARAMS);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const expected = BigInt("0x100") + blockProof(bitsToTarget(EPOCH_BITS)) * 3n;
+    expect(BigInt("0x" + r.cumulativeWorkHex)).toBe(expected);
+  });
+
   it("rejects a first header that infers its own (different) bits — not from the checkpoint", () => {
     // Guardrail #1: a mid-epoch segment cannot set its own expected difficulty.
     const chain = mineChain(CP_HASH_INTERNAL, [{ bits: 0x20007fff, time: 100_001 }]);
@@ -280,11 +289,14 @@ describe("validateHeaderChain — synthetic within-epoch", () => {
 
 describe("validateHeaderChain — synthetic retarget boundary (height 8)", () => {
   // Checkpoint at height 7 (last of epoch [4..7]); height 8 begins a new epoch and retargets.
-  function boundaryCheckpoint(actualTimespan: number): BitcoinDifficultyCheckpoint {
+  function boundaryCheckpoint(
+    actualTimespan: number,
+    bits: number = EPOCH_BITS,
+  ): BitcoinDifficultyCheckpoint {
     return {
       height: 7,
       hashHex: CP_HASH_DISPLAY,
-      bits: EPOCH_BITS,
+      bits,
       time: 200_000 + actualTimespan,
       epochStartTime: 200_000, // first block of epoch [4..7]
       cumulativeWorkHex: "0",
@@ -321,6 +333,29 @@ describe("validateHeaderChain — synthetic retarget boundary (height 8)", () =>
   it("clamps actualTimespan to powTargetTimespan/4 (mantissa 0x3fff)", () => {
     const cp = boundaryCheckpoint(5); // far below /4=16383 → clamp → bits 0x20003fff
     const h8 = mineHeader(CP_HASH_INTERNAL, 0x20003fff, 200_100);
+    const r = validateHeaderChain([bytesToHex(h8)], 8, cp, SYNTH_PARAMS);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.tipHeight).toBe(8);
+  });
+
+  it("clamps a slow timespan to powTargetTimespan*4 (expected target = prior * 4)", () => {
+    // actualTimespan 1_000_000 >> 65535*4=262140 → clamp to *4. prior bits 0x20002000
+    // (8192<<232) → newTarget 32768<<232 → bits 0x20008000 (≤ powLimit; exercises the
+    // compact sign-bit normalization).
+    const cp = boundaryCheckpoint(1_000_000, 0x20002000);
+    const h8 = mineHeader(CP_HASH_INTERNAL, 0x20008000, 200_100);
+    const r = validateHeaderChain([bytesToHex(h8)], 8, cp, SYNTH_PARAMS);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.tipHeight).toBe(8);
+  });
+
+  it("caps a retarget that would exceed powLimit to the powLimit bits", () => {
+    // prior bits 0x20004001 (16385<<232); clamped *4 = 65540<<232 > powLimit (65536<<232)
+    // → cap to powLimit → expected bits 0x20010000.
+    const cp = boundaryCheckpoint(1_000_000, 0x20004001);
+    const h8 = mineHeader(CP_HASH_INTERNAL, 0x20010000, 200_100);
     const r = validateHeaderChain([bytesToHex(h8)], 8, cp, SYNTH_PARAMS);
     expect(r.ok).toBe(true);
     if (!r.ok) return;
@@ -373,6 +408,14 @@ describe("validateHeaderChain — input validation + totality", () => {
 
   it("rejects a malformed checkpoint", () => {
     const bad: BitcoinDifficultyCheckpoint = { ...cp, hashHex: "xyz" };
+    const r = validateHeaderChain(headersHex, 5, bad, SYNTH_PARAMS);
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.reason).toBe("spv-checkpoint-malformed");
+  });
+
+  it("rejects a checkpoint with malformed cumulative work", () => {
+    const bad: BitcoinDifficultyCheckpoint = { ...cp, cumulativeWorkHex: "nothex" };
     const r = validateHeaderChain(headersHex, 5, bad, SYNTH_PARAMS);
     expect(r.ok).toBe(false);
     if (r.ok) return;
