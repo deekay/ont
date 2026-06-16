@@ -1,4 +1,4 @@
-import type { SignedRecoveryDescriptor } from "@ont/protocol";
+import { computeRecoveryDescriptorHash, verifyRecoveryDescriptor, type SignedRecoveryDescriptor } from "@ont/protocol";
 import type { OwnershipInterval, SubmissionRejectReason } from "./validate-submission.js";
 
 // B4-RESOLVE-RECOVER (B4_ADAPTERS_PLAN §12.2) — the resolver's append-only recovery-descriptor submission
@@ -31,22 +31,43 @@ export type RecoveryDescriptorSubmissionResult =
   | { readonly ok: false; readonly reason: SubmissionRejectReason };
 
 /**
- * RED stub (B4-RESOLVE-RECOVER): rejects every submission with the unpinned-shape reason until the guard
- * lands. The green contract mirrors validateValueRecordSubmission exactly:
+ * GREEN contract (B4-RESOLVE-RECOVER), mirroring validateValueRecordSubmission exactly:
  *   1. signature   verifyRecoveryDescriptor(descriptor) — else "invalid-signature".
  *   2. ownership   currentOwnership !== null — else "ownership-unknown".
- *   3. owner       descriptor.ownerPubkey === currentOwnership.currentOwnerPubkey — else "owner-mismatch".
+ *   3. owner       descriptor.ownerPubkey === currentOwnership.currentOwnerPubkey — else "owner-mismatch"
+ *                  (verifyRecoveryDescriptor only proves a self-signature by descriptor.ownerPubkey; the
+ *                  signer must also be the indexed CURRENT owner for the interval).
  *   4. ref         descriptor.ownershipRef === currentOwnership.ownershipRef — else "ownership-ref-mismatch".
  *   5. sequence    expected = existingHead === null ? 1 : existingHead.sequence + 1;
- *                  < expected → "stale-sequence"; > expected → "sequence-gap".
+ *                  descriptor.sequence < expected → "stale-sequence"; > expected → "sequence-gap".
  *   6. predecessor expectedPrev = existingHead === null ? null : computeRecoveryDescriptorHash(existingHead);
  *                  descriptor.previousDescriptorHash === expectedPrev — else "predecessor-mismatch".
  *   7. accept      { ok:true, ownershipRef, expectedSequence, expectedPreviousDescriptorHash }.
- * Append-only / no-rewrite by construction. Total; never throws (→ reject).
+ * Descriptor-field validity (recoveryAddress/signingProfile/challengeWindowBlocks) is owned by step 1's signed
+ * digest; the guard adds no extra field policy. Append-only / no-rewrite by construction (exact-next sequence +
+ * chains-to-head). Total; never throws (→ reject).
  */
 export function validateRecoveryDescriptorSubmission(
   input: ValidateRecoveryDescriptorSubmissionInput
 ): RecoveryDescriptorSubmissionResult {
-  void input;
-  return { ok: false, reason: "invalid-signature" };
+  try {
+    if (input === null || typeof input !== "object") return { ok: false, reason: "invalid-signature" };
+    const { descriptor, currentOwnership, existingHead } = input;
+
+    if (!verifyRecoveryDescriptor(descriptor)) return { ok: false, reason: "invalid-signature" };
+    if (currentOwnership === null || typeof currentOwnership !== "object") return { ok: false, reason: "ownership-unknown" };
+    if (descriptor.ownerPubkey !== currentOwnership.currentOwnerPubkey) return { ok: false, reason: "owner-mismatch" };
+    if (descriptor.ownershipRef !== currentOwnership.ownershipRef) return { ok: false, reason: "ownership-ref-mismatch" };
+
+    const expectedSequence = existingHead === null ? 1 : existingHead.sequence + 1;
+    if (descriptor.sequence < expectedSequence) return { ok: false, reason: "stale-sequence" };
+    if (descriptor.sequence > expectedSequence) return { ok: false, reason: "sequence-gap" };
+
+    const expectedPreviousDescriptorHash = existingHead === null ? null : computeRecoveryDescriptorHash(existingHead);
+    if (descriptor.previousDescriptorHash !== expectedPreviousDescriptorHash) return { ok: false, reason: "predecessor-mismatch" };
+
+    return { ok: true, ownershipRef: currentOwnership.ownershipRef, expectedSequence, expectedPreviousDescriptorHash };
+  } catch {
+    return { ok: false, reason: "invalid-signature" }; // fail-closed on any malformed input — never a false append
+  }
 }
