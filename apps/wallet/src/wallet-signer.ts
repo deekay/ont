@@ -1,4 +1,10 @@
-import type { SignedValueRecord, SignedRecoveryDescriptor } from "@ont/protocol";
+import {
+  signValueRecord,
+  signRecoveryDescriptor,
+  type SignedValueRecord,
+  type SignedRecoveryDescriptor,
+} from "@ont/protocol";
+import { deriveOwnerKey } from "./key-derivation.js";
 
 // B5-WALLET (first slice) — the WalletSigner contract: the NARROW port the CLI / claim DELEGATE to. It exposes
 // the owner pubkey + signing over value-records / recovery-descriptors; the private key/seed are held inside
@@ -48,7 +54,19 @@ export type CreateWalletSignerResult =
  * returned or exposed on the signer.
  */
 export function createWalletSigner(mnemonic: string, index = 0): CreateWalletSignerResult {
-  void mnemonic;
-  void index;
-  return { ok: false, reason: "malformed-mnemonic" };
+  const derived = deriveOwnerKey(mnemonic, index);
+  if (!derived.ok) return { ok: false, reason: derived.reason };
+  // The private key is captured ONLY in this closure — never an enumerable property of the signer, so it
+  // never appears by key name or in a serialized dump (the no-key-exposure pin).
+  const { ownerPrivateKeyHex, ownerPubkey } = derived.key;
+  const signer: WalletSigner = {
+    ownerPubkey,
+    signValueRecord(fields: ValueRecordSignFields): SignedValueRecord {
+      return signValueRecord({ ...fields, ownerPrivateKeyHex });
+    },
+    signRecoveryDescriptor(fields: RecoveryDescriptorSignFields): SignedRecoveryDescriptor {
+      return signRecoveryDescriptor({ ...fields, ownerPrivateKeyHex });
+    },
+  };
+  return { ok: true, signer };
 }
