@@ -8,7 +8,10 @@
 > idx-anchor.* 24/24; `@ont/adapter-indexer` + the `@ont/bitcoin` merkle primitive promotion, consensus
 > regression 466✓). B4-INDEX-COMMIT **GREEN @ `57243f7`** (green-OK `b3939632`; idx-commit.*
 > 12/12). B4-INDEX-DATASOURCE **GREEN @ `7c9552b`** (CL red-OK r2 `d6800ce3` → green-OK; idx-ds.* 23/23;
-> adapter-indexer 59/59). B4-INDEX-INVOKE **design-concur (§9.10)** — pending CL (last B4-INDEX sub-slice).
+> adapter-indexer 59/59). B4-INDEX-INVOKE **GREEN @ `ba5cfcb`** (green-OK `235d906d`; idx-invoke.* 13/13;
+> adapter-indexer 72/72; shared `src/inclusion.ts` refactor @ `38add0d`). **✅ B4-INDEX COMPLETE** —
+> HEADER + INDEX-{ANCHOR,COMMIT,DATASOURCE,INVOKE} all green; DK milestone posted (`72b71e8f`).
+> B4-DA **design-concur (§10)** — pending CL.
 
 ## 1. The gap
 
@@ -547,3 +550,76 @@ rejects `non-invoke-flags` (adapter decodes+binds, never pre-decides authority);
 otherwise); malformed `minedHeight` never consults `headerSource`; PUSHDATA1 positive + reject trailing /
 multi-push / unsupported push forms. Refactor landed @ `38add0d` (shared `src/inclusion.ts`, ANCHOR
 re-pointed, 59/59 green). Proceeding to **B4-INDEX-INVOKE red battery** (no further concur round needed).
+
+## 10. B4-DA design — the served-bytes transport (`/da/{root}`) (design-first)
+
+B4-INDEX is complete (HEADER + INDEX-{ANCHOR,COMMIT,DATASOURCE,INVOKE} all green). B4-DA is the served-bytes
+DELIVERY behind B4-INDEX-DATASOURCE's `servedLeavesForRoot`: DATASOURCE took `presentedServed` as a
+fixture-injected `ServedLeaf[]` and VERIFIES it reconstructs the anchored root; B4-DA does the REAL fetch +
+parse of the `/da/{root}` payload into that `ServedLeaf[]`. **Split (the B4-HEADER precedent): B4-DA
+FETCHES + PARSES (untrusted bytes → `ServedLeaf[]`); DATASOURCE VERIFIES (root reconstruction).** A withheld
+/ malformed serve → `null` → DATASOURCE fails closed (`served-bytes-withheld`); a parsed delta that doesn't
+reconstruct → DATASOURCE rejects. B4-DA decides nothing.
+
+Package: **`@ont/adapter-da`**. Prod dep `@ont/evidence` (`ServedLeaf`); the firewall test imports the
+DATASOURCE cores (`@ont/adapter-indexer`) + `@ont/evidence` (`verifyAvailabilityHeight`) for the pipe.
+
+### 10.1 The served-transport format — UNSPEC'd → a parked-for-DK proposal
+
+**Recon finding:** the `/da/{root}` served-bytes encoding is NOT specified anywhere — `WIRE_FORMAT` frames
+on-chain events (its W15/availability-marker frame was retired by marker-fold), and `@ont/evidence`
+`served-bytes.ts` consumes a `ServedLeaf[]` (it never serializes one). The old `apps/*` are mining
+reference only. So B4-DA needs a served-transport serialization that does not yet exist in canon.
+
+**Proposed minimal canonical format (decision-ready; PARKED for DK as new transport spec):**
+```
+served-transport := version(1) ‖ count(u32, big-endian — WIRE u32 convention) ‖ count × leaf
+leaf            := keyHex-bytes(32) ‖ valueHex-bytes(32)      // 64 bytes per leaf, internal binary
+```
+- `version` MUST be `0x01` (unknown → reject); total length MUST equal `5 + 64 × count` EXACTLY (no trailing
+  bytes — the B4-HEADER exact-count discipline); `count` is the declared leaf count and must match.
+- Parse output: each leaf → `{ keyHex, valueHex }` as 32-byte LOWERCASE hex. Structural decode only —
+  DATASOURCE owns dedup / disjointness / non-empty / root reconstruction (B4-DA does not re-verify).
+- This is a SERIALIZATION (delivery), not a consensus rule, but it is NEW wire/transport spec → **DK
+  ratifies the format**; B4-DA proceeds on this proposal with a flagged reopen (the `>80B carrier`
+  precedent). Alternative encodings (length-prefixed-hex, JSON, CBOR, erasure-coded chunks) parked for DK.
+
+### 10.2 B4-DA API (design)
+
+```
+// the network I/O seam (real HTTP /da/{root} in production; fixture in tests). ASYNC.
+DaSource { fetchServed(anchoredRoot: string): Promise<string | null> }   // raw served-transport hex, or null
+
+// PURE: parse the served-transport bytes → ServedLeaf[] (structural; lowercase-hex; exact-length firewall).
+parseServedTransport(rawHex: string): readonly ServedLeaf[] | null
+  version 0x01 + length === 5 + 64*count + lowercase-hex leaves → ServedLeaf[]; else null
+
+// ASYNC wrapper: fetch → parse (never throws / rejects).
+fetchServedLeaves({ daSource, anchoredRoot }): Promise<readonly ServedLeaf[] | null>
+  raw = await daSource.fetchServed(anchoredRoot); null/reject/throw → null; else parseServedTransport(raw)
+```
+The B3 path: B4-DA `fetchServedLeaves` → DATASOURCE `verifyServedDelta({prevRoot, anchoredRoot, baseLeaves,
+presentedServed})` → REAL `verifyAvailabilityHeight` reconstructs `anchoredRoot`. A hostile DA source
+(withheld / tampered bytes / wrong leaves) yields no verified delta, so availability fails closed.
+
+**Planned `da.*` red battery:** parse round-trip (a canonical buffer → the exact `ServedLeaf[]`); the parsed
+delta feeds DATASOURCE `verifyServedDelta` + the REAL `verifyAvailabilityHeight` to reconstruct `anchoredRoot`
+(firewall-positive); exact-length firewall (short/long/trailing → null); bad version → null; non-lowercase
+/ malformed hex impossible from binary (bytes → lowercase always), so the hostile case is a tampered leaf →
+DATASOURCE root-mismatch → no availability; provider null / reject / throw → null (never throws); a
+parsed-but-wrong delta (omitted/extra leaf) → DATASOURCE rejects (pipe-negative); determinism.
+
+### 10.3 B4-DA design-concur — open calls (my leans)
+
+1. **Fetch/parse split (B4-HEADER precedent).** async `DaSource.fetchServed` seam + pure
+   `parseServedTransport` + async `fetchServedLeaves` wrapper; B4-DA fetches+parses, DATASOURCE verifies.
+   **Lean: this.**
+2. **Served-transport format (§10.1) — the BIG call.** Propose `version ‖ count(u32 BE) ‖ count×[key32‖value32]`,
+   exact-length, lowercase-hex out. **PARK for DK** (new transport spec); proceed on the proposal with a
+   flagged reopen. **Lean: this minimal canonical binary format.**
+3. **No re-verification in B4-DA.** The root-reconstruction firewall stays in DATASOURCE; B4-DA only decodes
+   bytes (a structural parse). **Lean: this** (single firewall source, like the indexer/resolver split).
+4. **No new consensus law.** The transport is delivery; consensus is unchanged. The format proposal is the
+   only DK-facing item. Confirm the parking line.
+
+On concur (esp. #2 the format ruling) I open the **B4-DA red battery**.
