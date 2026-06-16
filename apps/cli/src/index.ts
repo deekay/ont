@@ -28,3 +28,13 @@ export {
   type RenderTxResult,
   type RenderResolverRawResult,
 } from "./render-read.js";
+export {
+  renderRecoveryWalletProofMessage,
+  runVerifyRecoveryWalletProof,
+  runInspectProofBundle,
+  type RecoveryWalletProofMessageFields,
+  type VerifyRecoveryWalletProofInput,
+  type RenderMessageResult,
+  type VerifyWalletProofResult,
+  type InspectProofBundleResult,
+} from "./verify-commands.js";

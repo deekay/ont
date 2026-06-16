@@ -7,14 +7,15 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "npm run build -w @ont/protocol && npm run build -w @ont/wire && npm run build -w @ont/adapter-resolver && vitest run"
+    "test": "npm run build -w @ont/protocol && npm run build -w @ont/bitcoin && npm run build -w @ont/wire && npm run build -w @ont/consensus && npm run build -w @ont/adapter-resolver && vitest run"
   },
   "dependencies": {
     "@ont/wire": "file:../../packages/wire",
+    "@ont/protocol": "file:../../packages/protocol",
+    "@ont/consensus": "file:../../packages/consensus",
     "@ont/adapter-resolver": "file:../../packages/adapter-resolver"
   },
   "devDependencies": {
-    "@ont/protocol": "file:../../packages/protocol",
     "vitest": "^3.2.4"
   }
 }
