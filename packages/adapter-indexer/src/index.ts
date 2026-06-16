@@ -13,3 +13,13 @@ export {
   type CommittedBatchEntry,
   type BuildCommittedBatchInput,
 } from "./committed-batch.js";
+
+// B4-INDEX-DATASOURCE: the availability seam (B4_ADAPTERS_PLAN §9.8).
+export {
+  verifyBaseLeaves,
+  verifyServedDelta,
+  createAvailabilitySource,
+  type AvailabilitySource,
+  type IndexedBatchRecord,
+  type VerifyServedDeltaInput,
+} from "./availability-source.js";

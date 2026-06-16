@@ -20,6 +20,7 @@
     "@ont/wire": "file:../wire",
     "@ont/protocol": "file:../protocol",
     "@ont/consensus": "file:../consensus",
+    "@ont/evidence": "file:../evidence",
     "@ont/claim-path": "file:../claim-path"
   },
   "devDependencies": {

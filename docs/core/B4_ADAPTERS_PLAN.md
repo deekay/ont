@@ -439,20 +439,26 @@ this slice VERIFIES it, B4-DA FETCHES it.
 - **served firewall** — withheld (`null`/empty) → null; a tampered / omitted / extra leaf so
   `root(base ∪ served) !== anchoredRoot` → null; non-disjoint (served key already in base) → null.
 - **shape** — a non-32-byte / non-lowercase-hex `keyHex`/`valueHex` → null; duplicate served key → null.
+- **fresh canonical copies out** (CL) — `verifyBaseLeaves` returns a fresh Map (`not.toBe` the caller's);
+  `verifyServedDelta` returns a fresh array sorted by `keyHex` (order-independent like COMMIT).
+- **non-Map base** (map-like object) / **null base** → null (never synthesized into an empty accumulator);
+  a genesis empty Map is valid ONLY for the empty `prevRoot`.
+- **wrapper cross-bind** (CL) — `servedLeavesForRoot(anchoredRoot)` verifies the record's payload against
+  THAT record's indexed `prevRoot`/`baseLeaves` (not a raw lookup); a wrong/unverified base → null.
 - **firewall-negative pipe** — each hostile served/base path → `verifyAvailabilityHeight` throws/rejects →
   no availability (the adapter mints null upstream).
 - determinism; never throws.
 
-### 9.9 B4-INDEX-DATASOURCE design-concur — open calls (my leans)
+### 9.9 B4-INDEX-DATASOURCE design-concur — RESOLVED (ChatLunatique, event 01771c30)
 
-1. **Two firewall cores + a thin wrapper.** `verifyBaseLeaves` + `verifyServedDelta` pure cores, with a
-   `BatchDataSource` wrapper keyed by root. **Lean: this** (the wrapper decides nothing; the cores firewall).
-2. **`presentedServed` is injected here, fetched by B4-DA.** This slice verifies a presented `ServedLeaf[]`
-   (recorded-fixture seam); B4-DA does the real `/da/{root}` fetch + W15 transport. **Lean: this split.**
-3. **Never-empty-base default.** A base that doesn't verify to `prevRoot`, or an absent base, is a
-   fail-closed `null` — never a silent empty-base accumulator (the B3 stage's `base-leaves-absent` /
-   `E-ND` rule). **Lean: enforce here.**
-4. **No new law.** `ServedLeaf` shape, accumulator replay, insert-only disjointness are ratified; the cores
-   only RECOMPUTE. Any unspec'd served-transport encoding is PARKED for DK (W15 / B4-DA). Confirm.
-
-On concur I open **B4-INDEX-DATASOURCE red battery**.
+All four open calls concurred (two pure cores + thin wrapper; `presentedServed` fixture-injected here /
+real `/da/{root}` transport in B4-DA; absent/unverified base fails closed, never a silent empty accumulator;
+no-new-law / W15 transport parked for DK). Four tightenings folded (above + the green contracts in
+`availability-source.ts`): (1) `verifyBaseLeaves` requires a real Map, validates every key/value lowercase
+hex, catches `accumulatorRootOf`, returns a FRESH canonical Map (never caller-owned); (2) served strictness
+— validate `prevRoot`/`anchoredRoot` + each leaf lowercase hex before replay, reject duplicate keys, return
+a fresh sorted-by-`keyHex` array; (3) no-empty-default nuance — null/missing never becomes empty; an
+explicit empty Map is valid only for the genesis empty `prevRoot`; (4) wrapper cross-bind —
+`servedLeavesForRoot` verified against the indexed `prevRoot`/`baseLeaves`, not a raw root lookup.
+Green-watch: `@ont/evidence` added as a direct adapter-indexer dependency (`ServedLeaf` is a prod import).
+Proceeding to **B4-INDEX-DATASOURCE red battery** (no further concur round needed).
