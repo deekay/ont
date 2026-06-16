@@ -33,16 +33,27 @@ const HEX_64_LOWER = /^[0-9a-f]{64}$/;
  *   every key + value lowercase 32-byte hex; build a FRESH canonical Map; accumulatorRootOf(fresh) ===
  *   prevRoot ? the fresh Map : null. A genesis empty Map is valid iff prevRoot === accumulatorRootOf(∅).
  *   Total + fail-closed; accumulatorRootOf wrapped; never throws; never returns caller-owned material.
- *
- * STUB (tests-first): returns null until implemented.
+ *   HEX_64_LOWER (lowercase-only) is checked BEFORE accumulatorRootOf, so the adapter stays stricter than
+ *   the permissive (lowercasing) accumulator/evidence layers — uppercase never silently binds.
  */
 export function verifyBaseLeaves(
-  _prevRoot: string,
-  _baseLeaves: ReadonlyMap<string, string>,
+  prevRoot: string,
+  baseLeaves: ReadonlyMap<string, string>,
 ): ReadonlyMap<string, string> | null {
-  void accumulatorRootOf;
-  void HEX_64_LOWER;
-  return null;
+  try {
+    if (typeof prevRoot !== "string" || !HEX_64_LOWER.test(prevRoot)) return null;
+    if (!(baseLeaves instanceof Map)) return null;
+    const fresh = new Map<string, string>();
+    for (const [k, v] of baseLeaves as Map<unknown, unknown>) {
+      if (typeof k !== "string" || !HEX_64_LOWER.test(k)) return null;
+      if (typeof v !== "string" || !HEX_64_LOWER.test(v)) return null;
+      fresh.set(k, v);
+    }
+    if (accumulatorRootOf(fresh) !== prevRoot) return null; // genesis empty binds iff prevRoot === root(∅)
+    return fresh;
+  } catch {
+    return null;
+  }
 }
 
 export interface VerifyServedDeltaInput {
@@ -58,12 +69,34 @@ export interface VerifyServedDeltaInput {
  *   presentedServed non-empty; every leaf keyHex+valueHex lowercase 32-byte hex; insert-only disjoint from
  *   the base + internally unique (duplicate key → null); accumulatorRootOf(base ∪ served) === anchoredRoot
  *   ? a FRESH array of FRESH { keyHex, valueHex } objects SORTED by keyHex : null (never caller-owned leaf
- *   objects). Total + fail-closed; never throws.
- *
- * STUB (tests-first): returns null until implemented.
+ *   objects). HEX_64_LOWER (lowercase-only) is checked on the roots + every leaf BEFORE accumulatorRootOf.
+ *   Total + fail-closed; never throws.
  */
-export function verifyServedDelta(_input: VerifyServedDeltaInput): readonly ServedLeaf[] | null {
-  return null;
+export function verifyServedDelta(input: VerifyServedDeltaInput): readonly ServedLeaf[] | null {
+  try {
+    if (input === null || typeof input !== "object") return null;
+    const { prevRoot, anchoredRoot, baseLeaves, presentedServed } = input;
+    if (typeof anchoredRoot !== "string" || !HEX_64_LOWER.test(anchoredRoot)) return null;
+    const base = verifyBaseLeaves(prevRoot, baseLeaves); // validates prevRoot + base (lowercase, binds)
+    if (base === null) return null;
+    if (!Array.isArray(presentedServed) || presentedServed.length === 0) return null;
+    const full = new Map<string, string>(base);
+    const fresh: ServedLeaf[] = [];
+    for (const leaf of presentedServed) {
+      if (leaf === null || typeof leaf !== "object") return null;
+      const { keyHex, valueHex } = leaf;
+      if (typeof keyHex !== "string" || !HEX_64_LOWER.test(keyHex)) return null;
+      if (typeof valueHex !== "string" || !HEX_64_LOWER.test(valueHex)) return null;
+      if (full.has(keyHex)) return null; // insert-only: disjoint from base + internally unique
+      full.set(keyHex, valueHex);
+      fresh.push({ keyHex, valueHex }); // fresh canonical leaf object, never caller-owned
+    }
+    if (accumulatorRootOf(full) !== anchoredRoot) return null;
+    fresh.sort((a, b) => (a.keyHex < b.keyHex ? -1 : a.keyHex > b.keyHex ? 1 : 0));
+    return fresh;
+  } catch {
+    return null;
+  }
 }
 
 /**
