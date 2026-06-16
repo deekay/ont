@@ -10,6 +10,7 @@
   "scripts": {
     "build": "npm run build --workspaces --if-present",
     "check": "npm run test",
+    "check:surfaces": "node ./scripts/check-surface-boundaries.mjs",
     "bootstrap:vps": "bash ./scripts/bootstrap-vps.sh",
     "bootstrap:ont-domain:vps": "bash ./scripts/bootstrap-ont-domain.sh",
     "bootstrap:private-signet:vps": "bash ./scripts/bootstrap-private-signet-vps.sh",
