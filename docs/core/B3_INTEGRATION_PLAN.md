@@ -58,13 +58,61 @@ inputs and B3 §2 filled the formats.)
 3. **I-REC** + **I-FEE** — independent wiring once the harness seams exist.
 4. Full network adapters → **B4**.
 
-## 5. Open calls for CL design-concur
+## 5. Design-concur — RESOLVED (ChatLunatique, event 480d89aa)
 
-1. **B3/B4 boundary (§2):** is "B3 integration = end-to-end enforcement over fixtures + typed seams,
-   full adapters → B4" the right line? (My lean: yes — keeps B3 about *enforcement correctness*, B4
-   about *network plumbing*.)
-2. **First slice:** I-HARNESS first (compose + prove fail-closed + surface seams), or I-SPV first
-   (launch gate, foundational)? My lean: I-HARNESS — it de-risks the composition and the SPV slice
-   then slots into a working harness.
-3. **Mining batch-rail.ts:** harvest its leaderless delta-merge / notice-window / collision logic into
-   the production orchestrator (re-keyed to the ratified predicates), then quarantine the sim — agreed?
+1. **B3/B4 boundary — CONFIRMED.** B3 integration owns pure orchestration + typed data-source seams +
+   fixture/fake sources proving enforcement correctness; B4 owns the real
+   publisher/indexer/resolver/canonical-header adapters. This **restates the ratified clean-build
+   phasing** (#46 / B0: "B3 batched claim path (DA enforcement production) → B4
+   publisher/indexer/resolver") — the established line, not a new decision. DK's "advance to B3
+   integration" (event f52d1918) + that ratification = the boundary; DK may still redirect to a
+   broader B3.
+2. **First slice — I-HARNESS** (not I-SPV first). The **SPV seam is present from day one**: a fixture
+   canonical-header source is fine; a deprecated structural-only path is NOT acceptable.
+3. **batch-rail.ts — MINE, do not import.** Harvest the invariants (DA-filter-before-merge,
+   deterministic Bitcoin-coordinate ordering, notice-window lifecycle, contested→L1,
+   late-claim→already-owned) into the production orchestrator, re-keyed around #47 folded anchor / #84
+   VerifiedAvailability / #83 completeness / D-CV projections; strip the old markerHeight/local-node
+   semantics; quarantine the sim after extraction.
+
+**Added constraint (CL):** the orchestrator outputs an **evidence trace + kernel verdict**, NOT a bare
+ownership mutation — keeps false-accept review sharp and makes B4 adapter substitution clean.
+
+## 6. I-HARNESS design (first slice)
+
+The end-to-end batched-claim enforcement orchestrator over fixture chain data. Pure (no I/O); consumes
+typed data-source seams; returns an **evidence trace + kernel verdict** (never a bare mutation).
+
+```
+enforceBatchedClaim(input, sources) -> { trace, verdict }
+  sources (typed seams — fixture-backed in B3; real adapters in B4):
+    - headerSource:    canonical best-chain headers (the SPV seam — fixture now, real in B4)
+    - batchDataSource: leaves for an anchored root (membership + served bytes)
+  pipeline (compose the ratified §2 pieces, fail-closed at each step):
+    1. inclusion     buildBitcoinInclusion + verifyProofBundleAgainstBitcoin vs headerSource
+                     (NOT the deprecated structural alias)
+    2. canonical-root deriveCanonicalRoot over the anchored deltas (#47 folded anchor / D-CV)
+    3. membership    buildMembershipProof / verify each presented leaf vs the anchored root
+    4. availability  verifyAvailabilityHeight (#84; fail-closed over the presented bytes)
+    5. completeness  evaluateBatchCompleteness (#83)
+    6. verdict       the audited kernel predicate(s) consume the above as witnessed inputs
+  output: { trace: <per-step evidence + reason>, verdict: <accept/reject + name-state delta> }
+```
+
+**Orchestration invariants (mined from batch-rail.ts, re-keyed):** DA-filter before merge;
+deterministic Bitcoin-coordinate ordering (height, txIndex, vout); notice-window lifecycle;
+contested→L1; late-claim→already-owned.
+
+**`hrns.*` red battery (CL's pins):** absent/corrupt Bitcoin inclusion rejects; stale/noncanonical
+fixture header rejects; missing served bytes rejects (fail-closed availability); N−1 / N+1 / duplicate
+leaf rejects (completeness); **withhold-then-reveal grants no revival** (once forfeited under #84 a late
+reveal does not resurrect); a local receipt / source timestamp is ignored (no oracle channel); plus the
+happy path producing a clean accept trace.
+
+**Scope guards:** fixture sources only (no network); pure + deterministic; outputs trace+verdict, never
+a bare mutation; uses ONLY ratified predicates (no new consensus law).
+
+**Design Qs for CL before the red battery:** (a) the seam interfaces (headerSource / batchDataSource) +
+the trace shape — right altitude? (b) package home — a new `@ont/claim-path` orchestrator vs extending
+an existing package? (c) the verdict step — one composite predicate call, or the orchestrator threads
+the several §2 predicates (my lean: thread them, since each is independently audited)?
