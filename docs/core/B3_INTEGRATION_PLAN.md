@@ -126,3 +126,45 @@ a bare mutation; uses ONLY ratified predicates (no new consensus law).
 availability itself so no timestamp/receipt is authority). (b) new `@ont/claim-path` package. (c) thread
 the §2 predicates explicitly (no new composite); fail closed at the first failed stage, trace shows
 which predicate rejected.
+
+## 7. I-SPV design (second slice) — the canonical-best-chain header source (#82 launch gate)
+
+I-HARNESS depends on a `BitcoinHeaderSource` (the inclusion seam consumed by
+`verifyProofBundleAgainstBitcoin`); the harness battery used a **fixture** source. I-SPV makes that
+source **trustworthy** — a light-client header verifier that turns raw 80-byte headers into a canonical
+best-chain `BitcoinHeaderSource`, so a valid-PoW-but-off-chain header cannot be substituted. This is the
+#82 launch gate ("verify against Bitcoin with an independent canonical best-chain header source").
+
+**The gap.** Per-header PoW (`headerMeetsTarget` / `bitsToTarget`) exists but is **internal/unexported**
+in `proof-bundle.ts`; there is **no header-chain linkage / best-chain validator** anywhere, and
+`@ont/bitcoin` has no header primitives. Header layout: `nBits` at bytes 72–75 (LE), `prevBlock` at
+bytes 4–36 (internal LE); block hash = `reverse(dsha256(header))`, and `header[i].prevBlock ==
+dsha256(header[i-1])` (internal order).
+
+**Deliverable (sketch).**
+```
+validateHeaderChain(headersHex: string[], startHeight: number, prevCheckpointHashHex?: string)
+  -> { ok: true, headerSource: BitcoinHeaderSource } | { ok: false, reason }
+  - per header i: 80-byte + headerMeetsTarget(header) (PoW)            else reject
+  - i>0 (and i==0 vs prevCheckpointHashHex if given): prevBlock(i) == dsha256(header[i-1])  else reject
+  - headerSource.headerHexAtHeight(h) = the validated header at h, or null outside the validated range
+```
+The I-HARNESS inclusion seam consumes the returned `headerSource`; B4 feeds the real network headers.
+
+**Open calls for CL design-concur.**
+1. **Location.** A new `@ont/bitcoin` primitive (my lean — the Bitcoin-primitive home, like `legacyTxidOf`;
+   reusable by both `proof-bundle.ts` and `@ont/claim-path`), vs `@ont/claim-path`-local.
+2. **PoW helper.** Relocate `headerMeetsTarget` / `bitsToTarget` from `proof-bundle.ts` → `@ont/bitcoin`
+   (single source; `proof-bundle.ts` re-imports — behavior-preserving, the `legacyTxidOf` (#85) /
+   `accumulatorRootOf` (#83) relocation precedent), vs reimplement in the validator (PoW duplication).
+   My lean: relocate. NB: touches audited `proof-bundle.ts` (a #44-aware move).
+3. **Scope.** B3 first cut = a **linear** chain (per-header PoW + prev-hash linkage from a trusted
+   checkpoint) producing the source — this already closes the "off-chain-header substitution" gate for a
+   given chain. Difficulty-**retarget** validation (the 2016-block adjustment) + most-work **reorg/best-chain
+   selection** among competing forks = a flagged follow-up **I-SPV-2** (heavier; arguably B4 network
+   territory). My lean: linear-first; pull reorg/retarget forward only if you want the full launch-gate now.
+
+**Planned `spv.*` red battery:** a linear PoW+linkage chain validates → `headerHexAtHeight` returns the
+right headers; bad PoW rejects; broken linkage (wrong `prevBlock`) rejects; an off-chain header (valid
+PoW, wrong linkage) rejects; checkpoint-mismatch at i==0 rejects; non-80-byte/malformed rejects;
+`headerHexAtHeight` returns null outside the validated range; total/fail-closed, never throws.
