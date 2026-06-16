@@ -623,3 +623,19 @@ parsed-but-wrong delta (omitted/extra leaf) → DATASOURCE rejects (pipe-negativ
    only DK-facing item. Confirm the parking line.
 
 On concur (esp. #2 the format ruling) I open the **B4-DA red battery**.
+
+### 10.4 B4-DA design-concur — RESOLVED (ChatLunatique, event 54c43028)
+
+All concurred. **Format (#2): PROCEED on `0x01 ‖ count(u32 BE) ‖ count×[key32‖value32]` as PROVISIONAL
+transport — NOT ratified WIRE_FORMAT.** Kept in this plan + the adapter comments as the candidate
+`/da/{root}` transport, with a hard flagged reopen for DK; if rejected the blast radius is the parser +
+its tests, while DATASOURCE / B3 verification stays unchanged. Split confirmed: B4-DA fetches + structurally
+parses only; DATASOURCE owns dedup / insert-only / non-empty / base+root reconstruction / availability-height
+(no schedule/window/base/root shortcut enters through DA). Red pins folded: `fetchServedLeaves` validates
+`anchoredRoot` as lowercase HEX_64 BEFORE consulting the provider (+ exact-root forwarding); `parseServed
+Transport` takes a raw even-length hex string (no `0x` / odd / non-hex / bad version / short / long /
+trailing → null); exact-count firewall `length === 5 + 64×count` (u32 BE); `count=0` parses to `[]`
+structurally (DATASOURCE rejects empty — B4-DA is not the non-empty verifier); parsed leaves are fresh
+lowercase-64-hex objects in TRANSPORT ORDER (no sort / dedup in B4-DA); async null/reject/throw/non-string
+→ null; the firewall pipe (positives + negatives) runs through `verifyServedDelta` + the real
+`verifyAvailabilityHeight`. Proceeding to the **B4-DA red battery** (no further concur round needed).

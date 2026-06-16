@@ -1,0 +1,26 @@
+{
+  "name": "@ont/adapter-da",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "ONT B4 adapter — the served-bytes DA transport (/da/{root}). Fetches the served-bytes payload from an untrusted DA source and structurally parses the candidate transport (version ‖ count ‖ leaves) into a ServedLeaf[]. It fetches + parses only; the B4-INDEX-DATASOURCE seam owns dedup / insert-only / non-empty / root reconstruction. Decides nothing.",
+  "exports": {
+    ".": {
+      "types": "./dist/adapter-da/src/index.d.ts",
+      "default": "./dist/adapter-da/src/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build -w @ont/protocol && npm run build -w @ont/bitcoin && npm run build -w @ont/wire && npm run build -w @ont/consensus && npm run build -w @ont/evidence && npm run build -w @ont/claim-path && npm run build -w @ont/adapter-indexer && vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@ont/evidence": "file:../evidence"
+  },
+  "devDependencies": {
+    "@ont/adapter-indexer": "file:../adapter-indexer",
+    "@ont/protocol": "file:../protocol",
+    "vitest": "^3.2.4"
+  }
+}
