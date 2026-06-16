@@ -263,7 +263,7 @@ Apps and tools:
 
 - [../../apps/resolver/src/index.ts](../../apps/resolver/src/index.ts) - resolver/indexer API and runtime.
 - [../../apps/web/src/](../../apps/web/src/) - product UI, explorer, auction prep, recovery/value flows.
-- [../../apps/cli/src/index.ts](../../apps/cli/src/index.ts) - operator and power-user workflows.
+- [../../legacy/apps/cli/src/index.ts](../../legacy/apps/cli/src/index.ts) - operator and power-user workflows (quarantined; clean-build rewrite in B5 — see docs/core/B5_CLI_CLASSIFICATION.md).
 - [../../apps/wallet/src/](../../apps/wallet/src/) - local wallet/client prototype.
 - [../../packages/architect/src/](../../packages/architect/src/) - reusable transaction-prep helpers.
 
