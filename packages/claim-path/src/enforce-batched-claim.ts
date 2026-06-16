@@ -53,13 +53,11 @@ export interface BatchedClaimInput {
   readonly window: BatchedClaimWindow;
 }
 
-export type ClaimStep =
-  | "inclusion"
-  | "canonical-root"
-  | "membership"
-  | "availability"
-  | "completeness"
-  | "verdict";
+// Four-stage pipeline (CL concur, event 9f4cebb4): `inclusion` subsumes SPV + structural accumulator
+// MEMBERSHIP; `completeness` owns the prevRoot→newRoot REPLAY. The separate membership + canonical-root
+// stages are dropped (not independently isolatable without duplicating audited checks); the contested
+// distinct-owner path that `deriveCanonicalRoot` adds beyond replay is a follow-up I-CONTESTED slice.
+export type ClaimStep = "inclusion" | "availability" | "completeness" | "verdict";
 
 /** One per-step evidence trace entry. Evidence is summarized (digest / root / count) — never raw bytes. */
 export interface ClaimTraceEntry {
@@ -89,17 +87,22 @@ export interface BatchedClaimResult {
  * Enforce a batched claim end-to-end (I-HARNESS). Threads the ratified §2 pipeline, fails closed at the
  * first failed stage in precedence order, and returns an evidence trace + verdict.
  *
- * GREEN CONTRACT (precedence — each stage gates the next; total, fails closed, never throws):
- *   1. inclusion      `verifyProofBundleAgainstBitcoin(proofBundle, { headerSource })` — NOT the
- *                     deprecated structural alias; a stale / noncanonical / absent header fails here.
- *   2. canonical-root `deriveCanonicalRoot` over the base (`batchDataSource.baseLeavesForPrevRoot`) + delta.
- *   3. membership     verify each served leaf against the anchored root.
- *   4. availability   `verifyAvailabilityHeight({ baseLeaves, servedDelta, binding, confirmedAnchorMinedHeight })`;
- *                     withheld served bytes (`servedLeavesForRoot === null`) fails HERE, before any
- *                     canonical-root accept can stand, and no non-content channel (timestamp/receipt) revives it.
- *   5. completeness   `evaluateBatchCompleteness(...)` — fails BEFORE any name-state delta.
- *   6. verdict        the audited kernel predicate(s) consume the above → accept + `NameStateDelta`, or reject.
- *   No source timestamp / resolver receipt is ever read (no oracle channel).
+ * GREEN CONTRACT (4 stages; precedence — each gates the next; total, fails closed, never throws):
+ *   1. inclusion     `verifyProofBundleAgainstBitcoin(proofBundle, { headerSource })` — NOT the
+ *                    deprecated structural alias. Subsumes SPV/header-canonicality + the bundle's
+ *                    structural accumulator MEMBERSHIP. A stale/noncanonical/absent header, or a
+ *                    membership/structure fault, fails here.
+ *   2. availability  `verifyAvailabilityHeight({ baseLeaves, servedDelta, binding, confirmedAnchorMinedHeight })`,
+ *                    `servedDelta` = `batchDataSource.servedLeavesForRoot(anchoredRoot)`, `baseLeaves` =
+ *                    `baseLeavesForPrevRoot(anchor.prevRoot)`. Withheld served bytes (`null`) fails HERE;
+ *                    no non-content channel (timestamp/receipt) revives absent bytes — only presenting the
+ *                    actual matching content mints the witness (`firstServableHeight = h`, #84/O1).
+ *   3. completeness  `evaluateBatchCompleteness(...)` — owns the prevRoot→newRoot REPLAY; the harness
+ *                    builds the per-leaf projections + the availability-derived daVerdict; fails BEFORE
+ *                    any name-state delta (e.g. committed `batchSize` ≠ served count → count-mismatch).
+ *   4. verdict       accept → `NameStateDelta { anchoredRoot, firstServableHeight }`; else reject.
+ *   The contested distinct-owner path (`deriveCanonicalRoot` → L1) is a follow-up I-CONTESTED slice.
+ *   Seam throws (headerSource / batchDataSource) are caught into a failed trace step, never propagated.
  */
 export function enforceBatchedClaim(
   input: BatchedClaimInput,

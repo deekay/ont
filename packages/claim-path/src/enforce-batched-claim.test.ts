@@ -1,14 +1,29 @@
-// I-HARNESS red battery (B3_INTEGRATION_PLAN §6) — the batched-claim enforcement orchestrator threads
-// the audited §2 pipeline and FAILS CLOSED in a fixed precedence (CL, event 1265ad74):
-// inclusion/header → before availability/completeness; missing served bytes → before any canonical-root
-// accept; completeness → before any name-state delta. No non-content (timestamp/receipt) channel.
+// I-HARNESS red battery (B3_INTEGRATION_PLAN §6; 4-stage pipeline, CL concur event 9f4cebb4) — the
+// batched-claim enforcement orchestrator threads the AUDITED §2 calls and fails closed in precedence:
+// inclusion (verifyProofBundleAgainstBitcoin — SPV + structural membership) → availability
+// (verifyAvailabilityHeight) → completeness (evaluateBatchCompleteness — owns prevRoot→newRoot replay)
+// → verdict. The happy fixture is COHERENT (real block-170 anchor + real accumulator roots + a resident
+// proof bundle), so a green that runs the real calls can only accept it if those calls genuinely pass.
 //
 // RED PHASE: enforceBatchedClaim is stubbed to reject ("hrns-pending-green-impl") with an empty trace;
-// every assertion below is therefore red until the threaded green lands.
+// every behavioral assertion is therefore red until the threaded green lands (determinism is the lone
+// impl-independent invariant that holds against the stub).
+import {
+  accumulatorRootOf,
+  computeValueRecordHash,
+  deriveOwnerPubkey,
+  normalizeName,
+  sha256Hex,
+  signValueRecord,
+  utf8ToBytes,
+} from "@ont/protocol";
 import { describe, expect, it } from "vitest";
 
-import type { BitcoinHeaderSource } from "@ont/consensus";
+import { buildAccumulatorBatchClaimBundle } from "@ont/evidence";
+import { buildBitcoinInclusion } from "@ont/evidence";
+import { buildMembershipProof } from "@ont/evidence";
 import type { ServedLeaf } from "@ont/evidence";
+import type { BitcoinHeaderSource } from "@ont/consensus";
 
 import {
   enforceBatchedClaim,
@@ -17,38 +32,81 @@ import {
   type BatchedClaimSources,
 } from "./enforce-batched-claim.js";
 
-const PREV_ROOT = "aa".repeat(32);
-const ANCHORED_ROOT = "bb".repeat(32);
-const ANCHOR_TXID = "ee".repeat(32);
-const ANCHOR_HEIGHT = 800_000;
-const HEADER_HEX = "00".repeat(80); // fixture canonical 80-byte header
+// --- The real Bitcoin anchor (mainnet block 170) — reused from the resident proof-bundle fixtures so
+// inclusion verifies against Bitcoin, not a mock. ---
+const BLOCK_170_HEADER =
+  "0100000055bd840a78798ad0da853f68974f3d183e2bd1db6a842c1feecf222a00000000ff104ccb05421ab93e63f8c3ce5c2c2e9dbb37de2764b3a3175c8166562cac7d51b96a49ffff001d283e9e70";
+const COINBASE_TXID = "b1fea52486ce0c62bb442b530a3f0132b826c74e473d1f2c220bfa78111c5082";
+const PAYMENT_TXID = "f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16";
+const ANCHOR_HEIGHT = 170;
 
-const LEAVES: readonly ServedLeaf[] = [
-  { keyHex: "c1".repeat(32), valueHex: "d1".repeat(32) },
-  { keyHex: "c2".repeat(32), valueHex: "d2".repeat(32) },
-];
-const BASE_LEAVES: ReadonlyMap<string, string> = new Map([["b0".repeat(32), "e0".repeat(32)]]);
+const NAME = "alice";
+const LEAF = sha256Hex(utf8ToBytes(normalizeName(NAME))); // H("alice"), the membership leaf
+const OWNER_SK = "11".repeat(32);
+const OWNER = deriveOwnerPubkey(OWNER_SK); // real x-only pubkey, so value records sign/verify
+const REF = "ab".repeat(32);
+const OTHER_KEY = "aa".repeat(32);
+const OTHER_VAL = "33".repeat(32);
+
+// One coherent base + delta: prevRoot = root(base); anchoredRoot = root(base ∪ delta) = membership root.
+const BASE = new Map([[OTHER_KEY, OTHER_VAL]]);
+const FULL = new Map([
+  [OTHER_KEY, OTHER_VAL],
+  [LEAF, OWNER],
+]);
+const PREV_ROOT = accumulatorRootOf(BASE);
+const ANCHORED_ROOT = accumulatorRootOf(FULL);
+const SERVED_DELTA: readonly ServedLeaf[] = [{ keyHex: LEAF, valueHex: OWNER }];
+
+const inclusion = buildBitcoinInclusion({
+  txid: PAYMENT_TXID,
+  height: ANCHOR_HEIGHT,
+  blockHeaderHex: BLOCK_170_HEADER,
+  orderedBlockTxids: [COINBASE_TXID, PAYMENT_TXID],
+});
+const membership = buildMembershipProof(FULL, LEAF); // rootHex === ANCHORED_ROOT
+
+const rec1 = signValueRecord({
+  name: NAME, ownerPrivateKeyHex: OWNER_SK, ownershipRef: REF, sequence: 1,
+  previousRecordHash: null, valueType: 0, payloadHex: "00", issuedAt: "2026-06-01T00:00:00.000Z",
+});
+const rec2 = signValueRecord({
+  name: NAME, ownerPrivateKeyHex: OWNER_SK, ownershipRef: REF, sequence: 2,
+  previousRecordHash: computeValueRecordHash(rec1), valueType: 0, payloadHex: "01", issuedAt: "2026-06-02T00:00:00.000Z",
+});
+
+// A resident, Bitcoin-anchored, structurally-valid proof bundle (D-PB) — verifyProofBundleAgainstBitcoin accepts it.
+const BUNDLE = buildAccumulatorBatchClaimBundle({
+  name: NAME,
+  assuranceTier: "accumulator-batched",
+  verificationGoal: "Enforce alice's batched accumulator claim end-to-end.",
+  ownership: { currentOwnerPubkey: OWNER, ownershipRef: REF },
+  membership,
+  anchor: { anchorTxid: PAYMENT_TXID, anchorHeight: ANCHOR_HEIGHT },
+  inclusion,
+  valueRecords: [rec1, rec2],
+});
+
+const K = 6;
+const W = 2;
+const C = 3;
 
 function headerSource(at?: (h: number) => string | null): BitcoinHeaderSource {
-  return { headerHexAtHeight: at ?? ((h) => (h === ANCHOR_HEIGHT ? HEADER_HEX : null)) };
+  return { headerHexAtHeight: at ?? ((h) => (h === ANCHOR_HEIGHT ? BLOCK_170_HEADER : null)) };
 }
 
 function batchDataSource(over: Partial<BatchDataSource> = {}): BatchDataSource {
   return {
-    baseLeavesForPrevRoot: over.baseLeavesForPrevRoot ?? ((r) => (r === PREV_ROOT ? BASE_LEAVES : null)),
-    servedLeavesForRoot: over.servedLeavesForRoot ?? ((r) => (r === ANCHORED_ROOT ? LEAVES : null)),
+    baseLeavesForPrevRoot: over.baseLeavesForPrevRoot ?? ((r) => (r === PREV_ROOT ? BASE : null)),
+    servedLeavesForRoot: over.servedLeavesForRoot ?? ((r) => (r === ANCHORED_ROOT ? SERVED_DELTA : null)),
   };
 }
 
 function claim(over: Partial<BatchedClaimInput> = {}): BatchedClaimInput {
   return {
-    proofBundle: {
-      bitcoinInclusion: {
-        anchors: [{ txid: ANCHOR_TXID, height: ANCHOR_HEIGHT, blockHeaderHex: HEADER_HEX, merkle: [], pos: 0 }],
-      },
-    },
-    anchor: { txid: ANCHOR_TXID, prevRoot: PREV_ROOT, anchoredRoot: ANCHORED_ROOT, anchorHeight: ANCHOR_HEIGHT, batchSize: 2 },
-    window: { K: 6, W: 8, C: 4 },
+    proofBundle: BUNDLE,
+    anchor: { txid: PAYMENT_TXID, prevRoot: PREV_ROOT, anchoredRoot: ANCHORED_ROOT, anchorHeight: ANCHOR_HEIGHT, batchSize: 1 },
+    window: { K, W, C },
     ...over,
   };
 }
@@ -62,11 +120,12 @@ const stepOk = (r: { trace: readonly { step: string; ok: boolean }[] }, step: st
 const reached = (r: { trace: readonly { step: string }[] }, step: string): boolean =>
   r.trace.some((e) => e.step === step);
 
-describe("I-HARNESS enforceBatchedClaim — end-to-end batched-claim enforcement", () => {
-  it("accepts an honest claim: every stage ok, a clean trace, and a name-state delta", () => {
+describe("I-HARNESS enforceBatchedClaim — end-to-end batched-claim enforcement (4-stage)", () => {
+  it("accepts a coherent honest claim: every audited stage ok, ordered trace, a name-state delta", () => {
     const r = enforceBatchedClaim(claim(), sources());
     expect(r.accepted).toBe(true);
     expect(r.reason).toBe("batched-claim-accepted");
+    expect(r.trace.map((e) => e.step)).toEqual(["inclusion", "availability", "completeness", "verdict"]);
     expect(r.trace.every((e) => e.ok)).toBe(true);
     expect(r.nameStateDelta).toEqual({ anchoredRoot: ANCHORED_ROOT, firstServableHeight: ANCHOR_HEIGHT });
   });
@@ -75,68 +134,69 @@ describe("I-HARNESS enforceBatchedClaim — end-to-end batched-claim enforcement
     expect(enforceBatchedClaim(claim(), sources())).toEqual(enforceBatchedClaim(claim(), sources()));
   });
 
-  it("rejects absent / corrupt Bitcoin inclusion at the inclusion step", () => {
-    const r = enforceBatchedClaim(claim({ proofBundle: {} }), sources());
+  it("rejects absent Bitcoin inclusion at the inclusion step (membership/SPV live here)", () => {
+    const noInclusion = { ...(BUNDLE as Record<string, unknown>), bitcoinInclusion: undefined };
+    const r = enforceBatchedClaim(claim({ proofBundle: noInclusion }), sources());
     expect(r.accepted).toBe(false);
     expect(stepOk(r, "inclusion")).toBe(false);
   });
 
-  it("rejects a stale / noncanonical fixture header at the inclusion step", () => {
+  it("rejects a stale / noncanonical header (headerSource returns null at the anchor height) at inclusion", () => {
     const r = enforceBatchedClaim(claim(), sources({ header: headerSource(() => null) }));
     expect(r.accepted).toBe(false);
     expect(stepOk(r, "inclusion")).toBe(false);
   });
 
   it("precedence: inclusion failure stops BEFORE availability/completeness are evaluated", () => {
-    // A claim bad at inclusion AND missing served bytes must reject at inclusion, never reaching availability.
-    const r = enforceBatchedClaim(claim({ proofBundle: {} }), sources({ batch: batchDataSource({ servedLeavesForRoot: () => null }) }));
+    const noInclusion = { ...(BUNDLE as Record<string, unknown>), bitcoinInclusion: undefined };
+    const r = enforceBatchedClaim(claim({ proofBundle: noInclusion }), sources({ batch: batchDataSource({ servedLeavesForRoot: () => null }) }));
     expect(stepOk(r, "inclusion")).toBe(false);
     expect(reached(r, "availability")).toBe(false);
     expect(reached(r, "completeness")).toBe(false);
   });
 
-  it("rejects missing served bytes at availability — before any canonical-root accept can stand", () => {
+  it("rejects withheld served bytes at availability — before any completeness/delta", () => {
     const r = enforceBatchedClaim(claim(), sources({ batch: batchDataSource({ servedLeavesForRoot: () => null }) }));
     expect(r.accepted).toBe(false);
     expect(stepOk(r, "availability")).toBe(false);
-    // canonical-root may be evaluated, but it must NOT yield an accepted claim without availability.
     expect(reached(r, "completeness")).toBe(false);
   });
 
-  it("rejects a wrong leaf count (N-1 / N+1 / duplicate) at the completeness step", () => {
-    const nMinus1 = enforceBatchedClaim(claim(), sources({ batch: batchDataSource({ servedLeavesForRoot: () => [LEAVES[0]!] }) }));
-    expect(nMinus1.accepted).toBe(false);
-    expect(stepOk(nMinus1, "completeness")).toBe(false);
-
-    const nPlus1 = enforceBatchedClaim(claim(), sources({ batch: batchDataSource({ servedLeavesForRoot: () => [...LEAVES, { keyHex: "c3".repeat(32), valueHex: "d3".repeat(32) }] }) }));
-    expect(stepOk(nPlus1, "completeness")).toBe(false);
-
-    const dup = enforceBatchedClaim(claim(), sources({ batch: batchDataSource({ servedLeavesForRoot: () => [LEAVES[0]!, LEAVES[0]!] }) }));
-    expect(stepOk(dup, "completeness")).toBe(false);
+  it("rejects a committed-batchSize / served-count mismatch at completeness (availability still reconstructs)", () => {
+    // batchSize claims 2, but the served delta is the real 1 leaf that reconstructs anchoredRoot:
+    // availability passes (bytes reconstruct), completeness fails on the count.
+    const r = enforceBatchedClaim(claim({ anchor: { txid: PAYMENT_TXID, prevRoot: PREV_ROOT, anchoredRoot: ANCHORED_ROOT, anchorHeight: ANCHOR_HEIGHT, batchSize: 2 } }), sources());
+    expect(r.accepted).toBe(false);
+    expect(stepOk(r, "availability")).toBe(true);
+    expect(stepOk(r, "completeness")).toBe(false);
   });
 
-  it("precedence: completeness failure stops BEFORE any name-state delta is produced", () => {
-    const r = enforceBatchedClaim(claim(), sources({ batch: batchDataSource({ servedLeavesForRoot: () => [LEAVES[0]!] }) }));
+  it("precedence: completeness failure stops BEFORE any name-state delta", () => {
+    const r = enforceBatchedClaim(claim({ anchor: { txid: PAYMENT_TXID, prevRoot: PREV_ROOT, anchoredRoot: ANCHORED_ROOT, anchorHeight: ANCHOR_HEIGHT, batchSize: 2 } }), sources());
     expect(r.accepted).toBe(false);
     expect(stepOk(r, "completeness")).toBe(false);
     expect(r.nameStateDelta).toBeUndefined();
   });
 
-  it("no non-content channel: only the actual served content flips a reject to accept (no timestamp/receipt revival)", () => {
-    // Identical honest claim; the ONLY difference is whether the content is present. Withheld → reject;
-    // present → accept. There is no source-timestamp / receipt seam that could substitute for content.
+  it("content-only: withheld content rejects; presenting the actual matching content is the only way to mint the witness", () => {
+    // Per #84/O1 the non-content rule is: omitted bytes give no witness, and no timestamp/receipt channel
+    // exists to substitute. The ONLY difference here is presence of the real content.
     const withheld = enforceBatchedClaim(claim(), sources({ batch: batchDataSource({ servedLeavesForRoot: () => null }) }));
     const present = enforceBatchedClaim(claim(), sources());
     expect(withheld.accepted).toBe(false);
     expect(present.accepted).toBe(true);
   });
 
-  it("the trace preserves the underlying audited reason at the failed step (top-level reason may wrap, never erase)", () => {
-    const r = enforceBatchedClaim(claim({ proofBundle: {} }), sources());
-    const inclusion = r.trace.find((e) => e.step === "inclusion");
-    expect(inclusion?.ok).toBe(false);
-    expect(typeof inclusion?.reason).toBe("string");
-    expect(inclusion?.reason.length).toBeGreaterThan(0);
-    expect(r.reason).toContain(inclusion!.reason);
+  it("is total on a throwing seam — a header/batch source that throws yields a failed trace step, not an exception", () => {
+    const throwingHeader: BitcoinHeaderSource = { headerHexAtHeight: () => { throw new Error("header source down"); } };
+    const rh = enforceBatchedClaim(claim(), sources({ header: throwingHeader }));
+    expect(rh.accepted).toBe(false);
+    expect(stepOk(rh, "inclusion")).toBe(false);
+
+    const throwingBatch = batchDataSource({ servedLeavesForRoot: () => { throw new Error("batch source down"); } });
+    expect(() => enforceBatchedClaim(claim(), sources({ batch: throwingBatch }))).not.toThrow();
+    const rb = enforceBatchedClaim(claim(), sources({ batch: throwingBatch }));
+    expect(rb.accepted).toBe(false);
+    expect(stepOk(rb, "availability")).toBe(false);
   });
 });

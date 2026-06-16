@@ -88,31 +88,41 @@ enforceBatchedClaim(input, sources) -> { trace, verdict }
   sources (typed seams — fixture-backed in B3; real adapters in B4):
     - headerSource:    canonical best-chain headers (the SPV seam — fixture now, real in B4)
     - batchDataSource: leaves for an anchored root (membership + served bytes)
-  pipeline (compose the ratified §2 pieces, fail-closed at each step):
-    1. inclusion     buildBitcoinInclusion + verifyProofBundleAgainstBitcoin vs headerSource
-                     (NOT the deprecated structural alias)
-    2. canonical-root deriveCanonicalRoot over the anchored deltas (#47 folded anchor / D-CV)
-    3. membership    buildMembershipProof / verify each presented leaf vs the anchored root
-    4. availability  verifyAvailabilityHeight (#84; fail-closed over the presented bytes)
-    5. completeness  evaluateBatchCompleteness (#83)
-    6. verdict       the audited kernel predicate(s) consume the above as witnessed inputs
+  pipeline (4 stages — CL concur event 9f4cebb4; compose the ratified §2 calls, fail-closed each step):
+    1. inclusion     verifyProofBundleAgainstBitcoin vs headerSource (NOT the deprecated structural
+                     alias) — SUBSUMES SPV/header-canonicality + the bundle's structural accumulator
+                     MEMBERSHIP
+    2. availability  verifyAvailabilityHeight (#84; fail-closed over the presented bytes)
+    3. completeness  evaluateBatchCompleteness (#83) — OWNS the prevRoot→newRoot replay; the harness
+                     builds the per-leaf projections + the availability-derived daVerdict
+    4. verdict       accept + name-state delta, or reject
   output: { trace: <per-step evidence + reason>, verdict: <accept/reject + name-state delta> }
 ```
+
+The separate `membership` + `canonical-root` stages are DROPPED (not independently isolatable without
+duplicating already-audited checks): inclusion subsumes membership, completeness owns the replay. The
+distinct value `deriveCanonicalRoot` adds beyond replay — CONTESTED distinct-owner routing to L1 (#84
+O3) — is a follow-up **I-CONTESTED** slice.
 
 **Orchestration invariants (mined from batch-rail.ts, re-keyed):** DA-filter before merge;
 deterministic Bitcoin-coordinate ordering (height, txIndex, vout); notice-window lifecycle;
 contested→L1; late-claim→already-owned.
 
-**`hrns.*` red battery (CL's pins):** absent/corrupt Bitcoin inclusion rejects; stale/noncanonical
-fixture header rejects; missing served bytes rejects (fail-closed availability); N−1 / N+1 / duplicate
-leaf rejects (completeness); **withhold-then-reveal grants no revival** (once forfeited under #84 a late
-reveal does not resurrect); a local receipt / source timestamp is ignored (no oracle channel); plus the
-happy path producing a clean accept trace.
+**`hrns.*` red battery (coherent fixtures — real block-170 anchor + real accumulator roots + a resident
+proof bundle, so green only accepts when the real calls pass):** honest claim accepts (ordered trace +
+delta); absent inclusion + stale/noncanonical header reject at `inclusion`; inclusion failure stops
+before availability/completeness; withheld served bytes reject at `availability` before completeness;
+a committed-`batchSize`/served-count mismatch rejects at `completeness` while availability still
+reconstructs; completeness failure stops before any name-state delta; **content-only** — withheld
+content rejects and only presenting the actual matching content mints the witness (no timestamp/receipt
+revival, per #84/O1; "no revival after a settled reject" would be a separate prior-verdict/finalize-once
+vector); seam throws (header/batch) become a failed trace step, never an exception.
 
 **Scope guards:** fixture sources only (no network); pure + deterministic; outputs trace+verdict, never
 a bare mutation; uses ONLY ratified predicates (no new consensus law).
 
-**Design Qs for CL before the red battery:** (a) the seam interfaces (headerSource / batchDataSource) +
-the trace shape — right altitude? (b) package home — a new `@ont/claim-path` orchestrator vs extending
-an existing package? (c) the verdict step — one composite predicate call, or the orchestrator threads
-the several §2 predicates (my lean: thread them, since each is independently audited)?
+**Design calls — RESOLVED (CL event 9f4cebb4):** (a) seams `headerSource` + `batchDataSource` + trace
+`{step, ok, reason, evidence?}` — right altitude (no separate served-bytes seam; the orchestrator runs
+availability itself so no timestamp/receipt is authority). (b) new `@ont/claim-path` package. (c) thread
+the §2 predicates explicitly (no new composite); fail closed at the first failed stage, trace shows
+which predicate rejected.
