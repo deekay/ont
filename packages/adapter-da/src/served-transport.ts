@@ -37,23 +37,54 @@ const HEX_EVEN = /^(?:[0-9a-fA-F]{2})*$/;
  * exact-count firewall `bytes.length === 5 + 64 × count` (short / long / trailing → null). Leaves come out
  * as fresh lowercase-hex objects in transport order — NO sort / dedup (DATASOURCE owns canonicalization).
  * `count=0` → `[]` (structural; DATASOURCE rejects empty). Total + fail-closed; never throws.
- *
- * STUB (B4-DA, tests-first): returns null so the `da.*` red battery fails until implemented.
  */
-export function parseServedTransport(_rawHex: string): readonly ServedLeaf[] | null {
-  void HEX_64_LOWER;
-  void HEX_EVEN;
-  return null;
+export function parseServedTransport(rawHex: string): readonly ServedLeaf[] | null {
+  try {
+    if (typeof rawHex !== "string" || !HEX_EVEN.test(rawHex)) return null; // no 0x / odd / non-hex
+    const bytes = hexToBytes(rawHex);
+    if (bytes.length < 5) return null; // version(1) + count(4) minimum
+    if (bytes[0] !== 0x01) return null; // candidate transport version
+    const count = ((bytes[1]! << 24) | (bytes[2]! << 16) | (bytes[3]! << 8) | bytes[4]!) >>> 0; // u32 BE
+    if (bytes.length !== 5 + 64 * count) return null; // exact-count firewall (short / long / trailing)
+    const leaves: ServedLeaf[] = [];
+    for (let i = 0; i < count; i += 1) {
+      const off = 5 + 64 * i;
+      leaves.push({ keyHex: bytesToHex(bytes.slice(off, off + 32)), valueHex: bytesToHex(bytes.slice(off + 32, off + 64)) });
+    }
+    return leaves; // transport order; fresh lowercase-hex leaf objects; no sort / dedup
+  } catch {
+    return null;
+  }
+}
+
+function hexToBytes(hex: string): Uint8Array {
+  const out = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < out.length; i += 1) out[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+  return out;
+}
+
+function bytesToHex(bytes: Uint8Array): string {
+  let h = "";
+  for (const b of bytes) h += b.toString(16).padStart(2, "0");
+  return h;
 }
 
 /**
  * ASYNC wrapper: validate `anchoredRoot` as lowercase HEX_64 FIRST (a malformed root → null WITHOUT
  * consulting the provider — input validity must not depend on provider behavior), then await
  * `daSource.fetchServed(anchoredRoot)` forwarding the EXACT root (null / reject / throw / non-string result
- * → null), then `parseServedTransport`. Total + fail-closed; never throws, never rejects.
- *
- * STUB (B4-DA, tests-first).
+ * → null), then `parseServedTransport`. The whole body (incl. the destructure + the root guard) is wrapped,
+ * so malformed wrapper input (null / missing daSource / non-function fetchServed) also fails closed. Total +
+ * fail-closed; never throws, never rejects.
  */
-export async function fetchServedLeaves(_input: FetchServedLeavesInput): Promise<readonly ServedLeaf[] | null> {
-  return null;
+export async function fetchServedLeaves(input: FetchServedLeavesInput): Promise<readonly ServedLeaf[] | null> {
+  try {
+    const { daSource, anchoredRoot } = input;
+    if (typeof anchoredRoot !== "string" || !HEX_64_LOWER.test(anchoredRoot)) return null; // BEFORE the provider
+    const raw = await daSource.fetchServed(anchoredRoot);
+    if (typeof raw !== "string") return null; // null / undefined / non-string
+    return parseServedTransport(raw);
+  } catch {
+    return null;
+  }
 }
