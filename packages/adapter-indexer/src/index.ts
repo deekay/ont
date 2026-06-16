@@ -23,3 +23,14 @@ export {
   type IndexedBatchRecord,
   type VerifyServedDeltaInput,
 } from "./availability-source.js";
+
+// B4-INDEX-INVOKE: the recover-owner invoke firewall (B4_ADAPTERS_PLAN §9.10).
+export {
+  buildConfirmedRecoverOwnerInvoke,
+  type BuildConfirmedRecoverOwnerInvokeInput,
+  type ConfirmedRecoverOwnerInvokeResult,
+  type ConfirmedRecoverOwnerInvokeRejectReason,
+} from "./confirmed-recover-invoke.js";
+
+// Shared inclusion firewall (B4_ADAPTERS_PLAN §9.11) — reused by ANCHOR + INVOKE.
+export { opReturnData, bindTxInclusion, type InclusionRejectReason, type BindTxInclusionInput, type BindTxInclusionResult } from "./inclusion.js";

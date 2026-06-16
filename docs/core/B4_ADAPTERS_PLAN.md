@@ -530,3 +530,20 @@ side-channel); determinism; never throws.
    may need DK. Confirm the parking line.
 
 On concur (esp. #1 shared-helper + #2 the carrier ruling) I open **B4-INDEX-INVOKE red battery**.
+
+### 9.12 B4-INDEX-INVOKE design-concur — RESOLVED (ChatLunatique, event 1feac86c)
+
+All concurred. (1) Shared inclusion helper: factor `opReturnData` + `bindTxInclusion`, keep decoder-specific
+payload selection per-adapter, re-point ANCHOR (idx-anchor.* 24/24 + the firewall pipe = the regression
+gate; preserve ANCHOR behavior unless a red pin changes it). (2) Carrier: **PROCEED with exact `OP_RETURN
+<single push> <payload>` incl. `OP_PUSHDATA1` for the 171-byte RecoverOwner** — `WIRE_FORMAT` frames ONT
+OP_RETURN payloads and §4.6 acknowledges >80B as relay-policy / confirmed-block ingestion territory;
+alternative carriers (witness, multi-output split) PARKED for DK, not implemented here. (3) No fee witness /
+(4) no new law: confirmed — INVOKE mints only the chain-bound fact; `enforceRecoveryInvoke` owns authority.
+Red pins folded: `invokeFields` is exactly the unmined RecoverOwner fields (no `type`/`minedHeight`/`source`;
+top-level `recoveryDescriptorHash` == decoded); a non-invoke-flags RecoverOwner STILL mints and the kernel
+rejects `non-invoke-flags` (adapter decodes+binds, never pre-decides authority); structured-tx discipline
+(txid == the decoded+included tx); ANCHOR-mirrored payload selection (explicit vout no-fallback, exactly-one
+otherwise); malformed `minedHeight` never consults `headerSource`; PUSHDATA1 positive + reject trailing /
+multi-push / unsupported push forms. Refactor landed @ `38add0d` (shared `src/inclusion.ts`, ANCHOR
+re-pointed, 59/59 green). Proceeding to **B4-INDEX-INVOKE red battery** (no further concur round needed).
