@@ -1,0 +1,26 @@
+{
+  "name": "@ont/adapter-publisher",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "ONT B4 adapter — the publisher write-side. Assembles the RootAnchor / claim transactions the publisher broadcasts, as pure LegacyTransaction structures. A write-side adapter validates no untrusted input; its bar is the WRITE→READ round-trip (the assembled tx is accepted by the audited read-side). Signing / PSBT / broadcast are I/O at the edge or B5 wallet-handoff.",
+  "exports": {
+    ".": {
+      "types": "./dist/adapter-publisher/src/index.d.ts",
+      "default": "./dist/adapter-publisher/src/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build -w @ont/protocol && npm run build -w @ont/bitcoin && npm run build -w @ont/wire && npm run build -w @ont/consensus && npm run build -w @ont/evidence && npm run build -w @ont/claim-path && npm run build -w @ont/adapter-indexer && vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@ont/bitcoin": "file:../bitcoin",
+    "@ont/wire": "file:../wire"
+  },
+  "devDependencies": {
+    "@ont/adapter-indexer": "file:../adapter-indexer",
+    "vitest": "^3.2.4"
+  }
+}

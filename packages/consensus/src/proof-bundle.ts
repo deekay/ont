@@ -1,15 +1,13 @@
 import {
   computeValueRecordHash,
-  concatBytes,
   normalizeName,
-  sha256Bytes,
   sha256Hex,
   type SignedValueRecord,
   utf8ToBytes,
   verifyAccumulatorMembership,
   verifyValueRecord
 } from "@ont/protocol";
-import { headerMeetsTarget } from "@ont/bitcoin";
+import { headerMeetsTarget, merkleRootFromProof } from "@ont/bitcoin";
 
 // The two current acquisition paths. Ark/RGB explorations were removed from the
 // frozen verifier: they were never the launch path, and the sovereignty core
@@ -179,10 +177,6 @@ export interface BitcoinAnchorInclusion {
   readonly pos: number;
 }
 
-function doubleSha256(bytes: Uint8Array): Uint8Array {
-  return sha256Bytes(sha256Bytes(bytes));
-}
-
 function hexToBytesOrNull(hex: unknown): Uint8Array | null {
   if (typeof hex !== "string" || hex.length % 2 !== 0 || !/^[0-9a-fA-F]*$/.test(hex)) {
     return null;
@@ -190,14 +184,6 @@ function hexToBytesOrNull(hex: unknown): Uint8Array | null {
   const out = new Uint8Array(hex.length / 2);
   for (let i = 0; i < out.length; i += 1) {
     out[i] = Number.parseInt(hex.slice(i * 2, i * 2 + 2), 16);
-  }
-  return out;
-}
-
-function reversed(bytes: Uint8Array): Uint8Array {
-  const out = new Uint8Array(bytes.length);
-  for (let i = 0; i < bytes.length; i += 1) {
-    out[i] = bytes[bytes.length - 1 - i] as number;
   }
   return out;
 }
@@ -210,39 +196,13 @@ function bytesToHex(bytes: Uint8Array): string {
   return hex;
 }
 
-// Per-header proof-of-work (bitsToTarget / headerMeetsTarget) now lives in the
-// @ont/bitcoin block-header primitive — a single source shared with the B3 light-client
-// header-chain validator, so the difficulty/byte-order logic cannot drift between the two
-// callers. The trust surface already admits @ont/bitcoin for proof-bundle.ts (it recomputes
-// chain facts from Bitcoin primitives); behavior here is unchanged (the block-170 pin in
-// @ont/bitcoin guards the byte order). Relocation per I-SPV §7 (B3_INTEGRATION_PLAN.md).
-
-/** Recompute the Merkle root (internal byte order) from a txid + sibling path. */
-function merkleRootFromProof(
-  txidDisplayHex: string,
-  siblingsDisplayHex: readonly string[],
-  pos: number,
-): Uint8Array | null {
-  const txid = hexToBytesOrNull(txidDisplayHex);
-  if (txid === null || txid.length !== 32) {
-    return null;
-  }
-  let acc = reversed(txid); // display → internal order
-  let index = pos;
-  for (const siblingHex of siblingsDisplayHex) {
-    const siblingBytes = hexToBytesOrNull(siblingHex);
-    if (siblingBytes === null || siblingBytes.length !== 32) {
-      return null;
-    }
-    const sibling = reversed(siblingBytes);
-    acc =
-      (index & 1) === 1
-        ? doubleSha256(concatBytes(sibling, acc))
-        : doubleSha256(concatBytes(acc, sibling));
-    index >>= 1;
-  }
-  return acc;
-}
+// Per-header proof-of-work (bitsToTarget / headerMeetsTarget) AND the Merkle-inclusion recompute
+// (merkleRootFromProof) now live in @ont/bitcoin primitives — a single source shared with the B3
+// light-client header-chain validator and the B4 indexer's inclusion firewall, so the difficulty /
+// byte-order logic cannot drift between callers. The trust surface already admits @ont/bitcoin for
+// proof-bundle.ts (it recomputes chain facts from Bitcoin primitives); behavior here is unchanged
+// (the block-170 pin in @ont/bitcoin guards the byte order; the @ont/consensus suite regresses this
+// repoint). PoW relocation per I-SPV §7; merkle relocation per B4-INDEX-ANCHOR (B4_ADAPTERS_PLAN §9.4).
 
 function parseAnchorInclusions(bundle: JsonRecord): BitcoinAnchorInclusion[] {
   const section = getRecord(bundle, "bitcoinInclusion");

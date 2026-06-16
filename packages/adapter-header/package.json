@@ -1,0 +1,27 @@
+{
+  "name": "@ont/adapter-header",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "ONT B4 adapter — canonical Bitcoin header source. Fetches a header range from an untrusted provider, validates it through @ont/bitcoin validateHeaderChain (#82) against trusted launch config (checkpoint + params), and returns a BitcoinHeaderSource the audited B3 inclusion verifier consumes. Produces a validated source or nothing; decides nothing.",
+  "exports": {
+    ".": {
+      "types": "./dist/adapter-header/src/index.d.ts",
+      "default": "./dist/adapter-header/src/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build -w @ont/protocol && npm run build -w @ont/bitcoin && npm run build -w @ont/wire && npm run build -w @ont/consensus && npm run build -w @ont/evidence && vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@ont/bitcoin": "file:../bitcoin"
+  },
+  "devDependencies": {
+    "@ont/consensus": "file:../consensus",
+    "@ont/evidence": "file:../evidence",
+    "@ont/protocol": "file:../protocol",
+    "vitest": "^3.2.4"
+  }
+}
