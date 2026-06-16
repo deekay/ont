@@ -1093,3 +1093,19 @@ adapter/txOrder/source channel on a break); two distinct spends at different hei
 surfaced, kernel takes the max; **tied same-height spends → both surfaced, D-BC picks neither**
 (kernel fails closed); incomplete history → `witnessComplete:false` (kernel fails closed); the
 surfaced witness feeds `resolveReopen` happy path; release/maturity/successor stay KERNEL vectors.
+
+**RED round-2 pins (CL review, event `216199288c`).** (1) The stage-1 spend fact is NOT isomorphic
+to a break: `VerifiedBondSpendFact = { spendHeight, spendTxid }` (NOT `releaseHeight`); only the
+bridge output `BondBreakFact` carries `releaseHeight`. (2) Bridge/classification totality — direct
+vectors for malformed `BuildBondContinuityWitnessInput` (wrong-type `witnessComplete`, non-array
+`spends`, extra top-level field) ⇒ `bc-input-malformed`, and per-classification (non-object,
+non-boolean `preMaturity`/`sameTxValidSuccessorBond`, extra signer/source field) ⇒
+`bc-classification-malformed` — no truthiness (`"false"`/`1`) may produce or suppress a break.
+(3) Nested evidence shape — malformed/missing/extra-field `inclusion`, extra-field `bondOutpoint`,
+non-integer height ⇒ `bc-observation-malformed` (before any txid check). (4) Duplicate spend rule —
+the SAME spend fact (same `spendTxid`) presented twice ⇒ `bc-duplicate-spend-fact` (one row must not
+manufacture a same-height tiebreak; two DISTINCT same-height spends still surface both). Reason vocab:
+`bc-observation-malformed` / `bc-spend-tx-malformed` / `bc-spend-txid-mismatch` / `bc-outpoint-not-spent`
+/ `bc-input-malformed` / `bc-classification-malformed` / `bc-duplicate-spend-fact`. CL confirmed NO #44
+boundary-manifest addendum (one-way `@ont/evidence → @ont/consensus`, consensus never imports evidence);
+a later B3-local purity/dependency gate is a non-blocking future option.

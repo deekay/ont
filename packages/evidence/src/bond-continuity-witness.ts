@@ -51,10 +51,16 @@ export interface BondSpendObservation {
   readonly inclusion: ConfirmedSpendInclusion;
 }
 
-/** Stage-1 output: a verified confirmed bond-outpoint spend (a release break ONLY after the #79 bridge). */
+/**
+ * Stage-1 output: a verified confirmed bond-outpoint spend. Deliberately NOT isomorphic to a
+ * `BondBreakFact` — a spend is not a release until the #79 bridge rules it one. It carries
+ * `spendHeight` (NOT `releaseHeight`) + the `spendTxid` that identifies the spend.
+ */
 export interface VerifiedBondSpendFact {
-  /** The confirmed mined height of the spend (`= inclusion.height`). */
-  readonly releaseHeight: number;
+  /** The confirmed mined height of the spend (`= inclusion.height`); becomes a `releaseHeight` only via #79. */
+  readonly spendHeight: number;
+  /** The confirmed spend tx's txid (`= inclusion.txid = legacyTxidOf(spendTx)`); identifies the spend (dedup key). */
+  readonly spendTxid: string;
 }
 
 /** Full-builder input: a spend observation plus the #79 facts the bridge reduces it with. */
@@ -104,7 +110,7 @@ const buildFail = (reason: string): BondContinuityWitnessResult => ({ ok: false,
  *   3. it equals `inclusion.txid` (the presented tx IS the confirmed one) ⇒ else `bc-spend-txid-mismatch`.
  *   4. some `spendTx.inputs[i]` has `prevoutTxid === bondOutpoint.txid && prevoutVout === bondOutpoint.vout`
  *      ⇒ else `bc-outpoint-not-spent`.
- *   mint { releaseHeight: inclusion.height }.
+ *   mint { spendHeight: inclusion.height, spendTxid: inclusion.txid } — a spend fact, NOT a break.
  */
 export function verifyBondSpendFact(obs: BondSpendObservation): BondSpendFactResult {
   // RED PHASE (D-BC green pending CL red-battery review): the txid-bind + outpoint-spend recompute
@@ -121,11 +127,23 @@ export function verifyBondSpendFact(obs: BondSpendObservation): BondSpendFactRes
 
 /**
  * The two-stage builder — verify each spend (stage 1) then reduce via the ratified #79 predicate
- * (stage 2) into the kernel's `BondContinuityWitness`. A malformed/fabricated spend fails the whole
- * build closed (the kernel never sees a partial witness). Only `preMaturity && !sameTxValidSuccessorBond`
- * spends become `breaks` (the bond was spent ⇒ `currentBondOutpointSpent` is true by construction).
- * `witnessComplete` is passed through (engine/B3-resolved). Tied same-height breaks are all surfaced —
- * the kernel (`resolveReopen`) picks neither.
+ * (stage 2) into the kernel's `BondContinuityWitness`.
+ *
+ * GREEN CONTRACT (fail-closed order; total, never throws):
+ *   1. top-level: `input` is an object with exactly `{ witnessComplete, spends }`, `witnessComplete`
+ *      is a boolean, `spends` is an array ⇒ else `bc-input-malformed` (no truthiness: `"false"`/`1`
+ *      are NOT booleans).
+ *   2. per classification `c`: object with exactly `{ observation, preMaturity, sameTxValidSuccessorBond }`,
+ *      both flags strictly boolean (no signer/authorized/source channel) ⇒ else `bc-classification-malformed`.
+ *   3. `verifyBondSpendFact(c.observation)` ⇒ on `!ok`, the whole build fails closed with that reason
+ *      (a fabricated/no-spend observation never yields a partial witness).
+ *   4. dedup: two verified spends sharing `spendTxid` ⇒ `bc-duplicate-spend-fact` (one spend row repeated
+ *      must NOT manufacture a same-height tiebreak; two DISTINCT same-height spends still surface both).
+ *   5. bridge: `bondContinuityBreak({ preMaturity, currentBondOutpointSpent: true, sameTxValidSuccessorBond })`;
+ *      ONLY a released verdict (`preMaturity && !sameTxValidSuccessorBond`) becomes `BondBreakFact
+ *      { releaseHeight: spendHeight }`. Mature / valid-successor spends contribute no break.
+ *   return { witnessComplete (passed through), breaks }. Tied same-height breaks are all surfaced —
+ *   the kernel (`resolveReopen`) derives the latest / picks neither.
  */
 export function buildBondContinuityWitness(input: BuildBondContinuityWitnessInput): BondContinuityWitnessResult {
   // RED PHASE (D-BC green pending CL red-battery review): the evidence+bridge pipeline is not yet

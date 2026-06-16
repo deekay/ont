@@ -51,10 +51,11 @@ const releasedClass = (obs: BondSpendObservation): BondSpendClassification => ({
 });
 
 describe("D-BC evidence stage — verifyBondSpendFact (confirmed bond-outpoint spend)", () => {
-  it("verifies a txid-bound confirmed spend as a spend fact (releaseHeight = inclusion height)", () => {
-    expect(verifyBondSpendFact(obsSpending(800_000, 0))).toEqual({
+  it("verifies a txid-bound confirmed spend as a spend fact (spendHeight + spendTxid, NOT a break)", () => {
+    const obs = obsSpending(800_000, 0);
+    expect(verifyBondSpendFact(obs)).toEqual({
       ok: true,
-      spendFact: { releaseHeight: 800_000 },
+      spendFact: { spendHeight: 800_000, spendTxid: obs.inclusion.txid },
     });
   });
 
@@ -109,6 +110,20 @@ describe("D-BC evidence stage — verifyBondSpendFact (confirmed bond-outpoint s
     const obs = obsSpending(800_000, 0);
     expect(verifyBondSpendFact({ ...obs, servedAt: 12_345 } as never).reason).toBe("bc-observation-malformed");
   });
+
+  it("rejects nested-shape faults before any txid check (malformed/missing/extra inclusion, extra bondOutpoint, non-int height)", () => {
+    const obs = obsSpending(800_000, 0);
+    // malformed inclusion.txid (non-hex)
+    expect(verifyBondSpendFact({ ...obs, inclusion: { txid: "gg".repeat(32), height: 800_000 } }).reason).toBe("bc-observation-malformed");
+    // missing inclusion entirely
+    expect(verifyBondSpendFact({ bondOutpoint: obs.bondOutpoint, spendTx: obs.spendTx } as never).reason).toBe("bc-observation-malformed");
+    // extra field on inclusion (closed shape)
+    expect(verifyBondSpendFact({ ...obs, inclusion: { ...obs.inclusion, evil: 1 } } as never).reason).toBe("bc-observation-malformed");
+    // extra field on bondOutpoint (closed shape)
+    expect(verifyBondSpendFact({ ...obs, bondOutpoint: { ...obs.bondOutpoint, evil: 1 } } as never).reason).toBe("bc-observation-malformed");
+    // non-integer height
+    expect(verifyBondSpendFact({ ...obs, inclusion: { ...obs.inclusion, height: 1.5 } }).reason).toBe("bc-observation-malformed");
+  });
 });
 
 describe("D-BC bridge stage — buildBondContinuityWitness (#79 reduction)", () => {
@@ -155,6 +170,28 @@ describe("D-BC bridge stage — buildBondContinuityWitness (#79 reduction)", () 
 
   it("is total on a malformed/null build input — never throws", () => {
     expect(buildBondContinuityWitness(null as never)).toEqual({ ok: false, reason: "bc-input-malformed" });
+  });
+
+  it("rejects malformed top-level input (wrong-type witnessComplete, non-array spends, extra field) — no truthiness", () => {
+    expect(buildBondContinuityWitness({ witnessComplete: "true", spends: [] } as never)).toEqual({ ok: false, reason: "bc-input-malformed" });
+    expect(buildBondContinuityWitness({ witnessComplete: true, spends: "x" } as never)).toEqual({ ok: false, reason: "bc-input-malformed" });
+    expect(buildBondContinuityWitness({ witnessComplete: true, spends: [], evil: 1 } as never)).toEqual({ ok: false, reason: "bc-input-malformed" });
+  });
+
+  it("rejects a malformed classification (non-object, non-boolean flags, extra signer/source field) — no truthiness", () => {
+    const obs = obsSpending(800_000, 0);
+    expect(buildBondContinuityWitness({ witnessComplete: true, spends: [null] } as never).reason).toBe("bc-classification-malformed");
+    expect(buildBondContinuityWitness({ witnessComplete: true, spends: [{ observation: obs, preMaturity: 1, sameTxValidSuccessorBond: false }] } as never).reason).toBe("bc-classification-malformed");
+    expect(buildBondContinuityWitness({ witnessComplete: true, spends: [{ observation: obs, preMaturity: true, sameTxValidSuccessorBond: "false" }] } as never).reason).toBe("bc-classification-malformed");
+    expect(buildBondContinuityWitness({ witnessComplete: true, spends: [{ observation: obs, preMaturity: true, sameTxValidSuccessorBond: false, signer: "x" }] } as never).reason).toBe("bc-classification-malformed");
+  });
+
+  it("rejects the same spend fact presented twice — no manufactured same-height tiebreak", () => {
+    const obs = obsSpending(800_000, 0); // same observation ⇒ same spendTxid
+    expect(buildBondContinuityWitness({ witnessComplete: true, spends: [releasedClass(obs), releasedClass(obs)] })).toEqual({
+      ok: false,
+      reason: "bc-duplicate-spend-fact",
+    });
   });
 });
 
