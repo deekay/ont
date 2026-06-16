@@ -82,3 +82,33 @@ port (hermetic; no live resolver/signing/broadcast). KEEP requires consume-don't
 auction simulators, no inline predicates/windows/digests, no direct crypto packages (boundary-lint enforced).
 Confirm-at-rewrite: the `inspect-*-package` DELEGATE-vs-KEEP-verify call (whether a non-signing inspector is
 wanted in the CLI vs only in the wallet).
+
+## Build status (clean-build-b5)
+
+- **Read commands (8/8) — GREEN.** First read sub-slice `get-value-history` / `get-recovery-descriptor-history`
+  / `get-tx` (`@ont/cli` shapers + renders over the injected `CliReadPort`, resolver stamps preserved). Raw-read
+  sub-slice `get-name` / `get-value` / `get-recovery-descriptor` / `get-name-activity` / `list-activity` (lean ii:
+  the CLI displays the resolver's raw JSON under a `ResolverRawRead` not-authority envelope; no B4 single-read
+  projections).
+- **Verify cores (3/3) — GREEN.** `print-recovery-wallet-proof-message` (consumes `createRecoveryWalletProofMessage`),
+  `verify-recovery-wallet-proof` (surfaces `verifyRecoveryWalletProof` verbatim), `inspect-proof-bundle` (surfaces
+  `verifyProofBundleStructure` verbatim — structural inspection, not Bitcoin finality).
+
+### Edge KEEP commands — edge-I/O note (no unit slice; CL-concurred, like B4-PUB-BROADCAST §11.4)
+
+The remaining KEEP commands are **edge I/O** with no recompute-don't-trust core to unit-gate; treated as a
+written purpose/scope/tests note, live-network smoke deferred until a target exists (signet decommissioned). No
+keys, no signing, no reinstated old CLI crypto deps.
+
+- `publish-value-record` / `publish-recovery-descriptor` / `publish-recovery-wallet-proof` — POST an
+  ALREADY-SIGNED artifact to the resolver; the resolver's B4 store-guards (`validateValueRecordSubmission` /
+  `validateRecoveryDescriptorSubmission`) are the firewall, so the CLI is a thin edge poster. **Scope:** shape
+  the request + hit a publish port; **tests:** mocked-port request shaping where useful + live smoke deferred.
+- `broadcast-transaction` — submit a fully-signed raw tx to a broadcast port (Esplora/node). **Scope/tests:**
+  edge; live smoke deferred (same posture as B4-PUB-BROADCAST §11.4).
+- `check-rpc` / `check-esplora` / `check-address` — connectivity / address diagnostics. **Scope/tests:** edge
+  diagnostics; live smoke deferred.
+
+With this, **all B5-CLI KEEP commands are accounted for** (reads + verify green; edge as this note). The 15
+DELEGATE commands wait on **B5-WALLET** (the only signer + the W17 transfer/auction-bid handoff); the 4 DROP
+commands are retired.
