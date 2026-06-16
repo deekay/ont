@@ -246,4 +246,45 @@ describe("D-GF gate-fee adequacy + completeness (gateFeeValidation)", () => {
     const broken: LegacyTransaction = { ...baseline.anchorTx, version: -1 };
     expect(gateFeeValidation(ANCHOR, BATCH, { ...FEE, anchorTx: broken })).toEqual({ accepted: false, reason: "gf-tx-malformed" });
   });
+
+  it("is total on malformed top-level envelopes (null anchor / batch / fee) — never throws", () => {
+    // gateFeeValidation is an exported kernel boundary: a malformed top-level envelope must fail
+    // closed with a stable reason, never throw (Stage 1 totality, §14 update 4).
+    expect(gateFeeValidation(null as never, BATCH, FEE)).toEqual({ accepted: false, reason: "gf-input-malformed" });
+    expect(gateFeeValidation(ANCHOR, null as never, FEE)).toEqual({ accepted: false, reason: "gf-input-malformed" });
+    expect(gateFeeValidation(ANCHOR, BATCH, null as never)).toEqual({ accepted: false, reason: "gf-input-malformed" });
+  });
+
+  it("rejects a malformed prevout tx with gf-tx-malformed (serialize failure precedes txid mismatch)", () => {
+    // A prevout tx that does not serialize must fail closed at gf-tx-malformed, NOT fall through the
+    // legacyTxidOf(...) === null comparison to gf-prevout-txid-mismatch (§14 update-3 order).
+    const brokenPrevout: LegacyTransaction = { ...prevoutA, version: -1 };
+    const fee: GateFeeWitness = { ...FEE, prevoutTxs: [brokenPrevout, prevoutB] };
+    expect(gateFeeValidation(ANCHOR, BATCH, fee)).toEqual({ accepted: false, reason: "gf-tx-malformed" });
+  });
+
+  it("pins the short-name g() curve (lengths 1..4: full / halving / floor clamp)", () => {
+    // schedule oneByte 800_000, floor 150_000 ⇒ g(1)=800_000, g(2)=max(150_000,400_000)=400_000,
+    // g(3)=max(150_000,200_000)=200_000, g(4)=max(150_000,100_000)=150_000 (CLAMP: 800_000/8 < floor).
+    // Σ over lengths 1,2,3,4 = 1_550_000. A wrong curve value would shift Σ and break the exact boundary.
+    const sched: GateFeeSchedule = { gateOneByteSats: 800_000n, gateLongNameFloorSats: 150_000n };
+    const shortBatch: CommittedBatchContents = {
+      anchoredRoot: ROOT,
+      batchSize: 4,
+      leaves: [
+        { leafKeyHex: "a1".repeat(32), canonicalNameByteLength: 1 },
+        { leafKeyHex: "a2".repeat(32), canonicalNameByteLength: 2 },
+        { leafKeyHex: "a3".repeat(32), canonicalNameByteLength: 3 },
+        { leafKeyHex: "a4".repeat(32), canonicalNameByteLength: 4 },
+      ],
+    };
+    // An anchor paying EXACTLY 1_550_000 (8_000_000 spent − 6_450_000 out) ⇒ boundary accept.
+    const exact = buildAnchor([prevoutA, prevoutB], [6_450_000n]);
+    const anchor4: GateFeeAnchorFacts = { ...ANCHOR, batchSize: 4, anchorTxid: exact.anchorTxid };
+    const exactFee: GateFeeWitness = { anchorTx: exact.anchorTx, prevoutTxs: [prevoutA, prevoutB], schedule: sched };
+    expect(gateFeeValidation(anchor4, shortBatch, exactFee)).toEqual({ accepted: true, reason: "gate-fee-adequate" });
+    // floor+1 lifts ONLY the clamped g(4) term ⇒ requiredFee 1_550_001 > paidFee 1_550_000 ⇒ underpaid.
+    const sched1: GateFeeSchedule = { gateOneByteSats: 800_000n, gateLongNameFloorSats: 150_001n };
+    expect(gateFeeValidation(anchor4, shortBatch, { ...exactFee, schedule: sched1 })).toEqual({ accepted: false, reason: "gf-underpaid" });
+  });
 });

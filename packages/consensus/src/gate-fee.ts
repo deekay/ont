@@ -151,6 +151,9 @@ export function gateFeeValidation(
   // first prove what fee was actually PAID (fee-fact binding) before the batch + schedule decide
   // whether it is adequate (adequacy context). Each stage fails closed with its own stable reason.
 
+  // ---- Stage 1: top-level envelope shape (totality — an exported kernel boundary must never throw) ----
+  if (!isObject(anchor) || !isObject(batch) || !isObject(fee)) return reject("gf-input-malformed");
+
   // ---- Stage 2: fee-fact binding (recompute every value from a txid-bound tx; trust nothing) ----
   const anchorTxid = legacyTxidOf(fee.anchorTx);
   if (anchorTxid === null) return reject("gf-tx-malformed");
@@ -177,7 +180,11 @@ export function gateFeeValidation(
   for (let i = 0; i < inputs.length; i += 1) {
     const input = inputs[i]!;
     const prevoutTx = fee.prevoutTxs[i]!;
-    if (legacyTxidOf(prevoutTx) !== input.prevoutTxid) return reject("gf-prevout-txid-mismatch");
+    // Malformed serialization is `gf-tx-malformed` (it precedes mismatch in the §14-update-3 order);
+    // only a well-serialized prevout whose txid disagrees with the anchor's input is a mismatch.
+    const prevoutTxid = legacyTxidOf(prevoutTx);
+    if (prevoutTxid === null) return reject("gf-tx-malformed");
+    if (prevoutTxid !== input.prevoutTxid) return reject("gf-prevout-txid-mismatch");
     if (input.prevoutVout < 0 || input.prevoutVout >= prevoutTx.outputs.length) {
       return reject("gf-prevout-vout-out-of-range");
     }

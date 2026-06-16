@@ -1016,3 +1016,24 @@ throws. `gf-*` is the runtime reason prefix; `F8` stays the vector id.
 **Curve (CL confirmed).** Distinct `GateFeeSchedule`, same shape as `openingFloor` (reuse the MATH,
 not the auction type): `g(len)` = `len === 1 ? gateOneByteSats : len <= 4 ? max(gateLongNameFloorSats,
 gateOneByteSats / 2^(len-1)) : gateLongNameFloorSats` (resident integer division).
+
+### §14 update 4 — CL green-review (round 2): top-level totality, malformed-prevout order, short-name pin
+
+CL green-review of the green impl (`cbf9c51`) = not-green-OK, two unpinned runtime edges + one curve
+pin. All applied; `gateFeeValidation` is now total and the curve is exercised across 1..4.
+
+- **Stage 1 top-level totality (`gf-input-malformed`).** `gateFeeValidation` is an exported kernel
+  boundary, so a malformed top-level envelope (`anchor` / `batch` / `fee` not an object — e.g. `null`)
+  must fail closed with a stable reason, never throw. Added a Stage-1 `isObject` guard ahead of the
+  fee-fact binding + direct vectors for null `anchor` / `batch` / `fee`.
+- **Malformed prevout tx ordering.** A `prevoutTxs[i]` that does not serialize made
+  `legacyTxidOf(prevoutTx) === null` fall through to `gf-prevout-txid-mismatch`; under the
+  §14-update-3 order serialize failure is `gf-tx-malformed` and precedes mismatch. The per-input check
+  now reads the txid first, returns `gf-tx-malformed` on `null`, and compares mismatch only after.
+  Vector: `{ ...prevoutA, version: -1 }` in `prevoutTxs[0]` ⇒ `gf-tx-malformed`.
+- **Short-name `g()` pin.** The battery only exercised lengths ≥5; added a vector over lengths 1..4
+  (`oneByte 800_000` / `floor 150_000` ⇒ `g`= 800_000 / 400_000 / 200_000 / 150_000-clamped, Σ
+  1_550_000), boundary-exact accept + a floor+1 underpay that lifts only the clamped `g(4)` term. Pins
+  full / two halvings / floor-clamp so the curve cannot silently drift.
+
+Reason vocab gains `gf-input-malformed`. gate-fee battery 18 → 21.
