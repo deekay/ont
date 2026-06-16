@@ -427,15 +427,16 @@ path + the L1 handoff.
 
 **Proposed pipeline (standalone `enforceContestedBatch`):**
 ```
-enforceContestedBatch(input) -> { trace, result }
+enforceContestedBatch(input) -> { trace, verdict }
   1. derive    deriveCanonicalRoot({ base, baseLeaves, K, leaves[] }) -> DcvDerivationVerdict
-  2. !derived  -> reject (the dcv-* reason surfaced: malformed / stale-base / insert-only / projection-
-                 contradiction / batch-local-duplicate / no-op)
+  2. !derived  -> { trace:[{derive, ok:false, dcv-* reason}], verdict:{ accepted:false, reason } }
+                 (malformed / stale-base / insert-only / projection-contradiction / batch-local-dup / no-op)
   3. derived   -> partition provenance by disposition: inserted (owner in root) | contested-no-owner (→ L1)
                  | skipped-excluded
-  4. result    { canonicalRoot, inserted: [...], contestedToL1: [...] } — contestedToL1 carries each
-                 contested leaf's key + name + the contending owner values for the L1 auction to resolve;
-                 D-CV asserts NO winner selection here (contested-no-owner = no owner in the SMT, #37).
+  4. verdict   { accepted:true, kind:"contested-batch-derived", canonicalRoot, inserted:[...],
+                 contestedToL1:[...] } + trace:[{derive, ok:true, "dcv-derived"}]. Each contestedToL1 entry
+                 = { leafKeyHex, name, contendingOwners } for the L1 auction to resolve; NO winner selection
+                 here (contested-no-owner = no owner in the SMT, #37).
 ```
 
 **#84 O3 / #69 (no new law — already ratified).** `contestedToL1` = names with competing distinct-owner
