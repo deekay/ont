@@ -19,6 +19,7 @@ import {
   type GateFeeWitness,
 } from "@ont/consensus";
 import { verifyAvailabilityHeight, type ServedLeaf } from "@ont/evidence";
+import { enforceGateFee, type ConfirmedBatchAnchor } from "./enforce-gate-fee.js";
 
 export type { BitcoinHeaderSource };
 
@@ -88,10 +89,11 @@ export interface BatchedClaimPolicy {
   readonly gateFeeSchedule: GateFeeSchedule;
 }
 
-// Four-stage pipeline (CL concur, event 9f4cebb4): `inclusion` subsumes SPV + structural accumulator
-// MEMBERSHIP; `completeness` owns the prevRoot→newRoot REPLAY. The separate membership + canonical-root
-// stages are dropped (not independently isolatable without duplicating audited checks); the contested
-// distinct-owner path that `deriveCanonicalRoot` adds beyond replay is a follow-up I-CONTESTED slice.
+// Five-stage pipeline (CL concur, events 9f4cebb4 + eb896af3): `inclusion` subsumes SPV + structural
+// accumulator MEMBERSHIP; `gate-fee` (I-FEE-PATH) enforces Σ g ≥ paid over the chain-bound anchor before
+// any availability work; `completeness` owns the prevRoot→newRoot REPLAY. The separate membership +
+// canonical-root stages are dropped (not independently isolatable without duplicating audited checks);
+// the contested distinct-owner path that `deriveCanonicalRoot` adds beyond replay is a follow-up I-CONTESTED slice.
 export type ClaimStep = "inclusion" | "gate-fee" | "availability" | "completeness" | "verdict";
 
 /** One per-step evidence trace entry. Evidence is summarized (digest / root / count) — never raw bytes. */
@@ -122,7 +124,7 @@ export interface BatchedClaimResult {
  * Enforce a batched claim end-to-end (I-HARNESS). Threads the ratified §2 pipeline, fails closed at the
  * first failed stage in precedence order, and returns an evidence trace + verdict.
  *
- * GREEN CONTRACT (4 stages; precedence — each gates the next; total, fails closed, never throws):
+ * GREEN CONTRACT (5 stages; precedence — each gates the next; total, fails closed, never throws):
  *   1. inclusion     `verifyProofBundleAgainstBitcoin(proofBundle, { headerSource })` — NOT the
  *                    deprecated structural alias. Subsumes SPV/header-canonicality + the bundle's
  *                    structural accumulator MEMBERSHIP. A stale/noncanonical/absent header, or a
@@ -131,16 +133,20 @@ export interface BatchedClaimResult {
  *                    `anchor.anchoredRoot` === the bundle's `accumulatorProof.root` (membership root).
  *                    A mismatch fails here — this forbids the false composition "Bitcoin-included
  *                    membership for root A + served bytes / completeness for a different root B".
- *   2. availability  `verifyAvailabilityHeight({ baseLeaves, servedDelta, binding, confirmedAnchorMinedHeight })`,
+ *   2. gate-fee      `enforceGateFee` over the chain-bound anchor (I-FEE-PATH) — Σ g ≥ paid; the schedule
+ *                    is the trusted `policy.gateFeeSchedule` (the seam supplies only anchorTx + prevoutTxs,
+ *                    so a riding schedule is never read). A null/throwing fee or committed-batch seam, or a
+ *                    `gf-*` reject (underpaid / anchor-txid-mismatch / …), fails HERE — before availability.
+ *   3. availability  `verifyAvailabilityHeight({ baseLeaves, servedDelta, binding, confirmedAnchorMinedHeight })`,
  *                    `servedDelta` = `batchDataSource.servedLeavesForRoot(anchor.anchoredRoot)`, `baseLeaves` =
  *                    `baseLeavesForPrevRoot(anchor.prevRoot)`. Withheld served bytes (`null`) fails HERE;
  *                    a null/throwing base (`baseLeavesForPrevRoot`) fails HERE too — NEVER treated as an
  *                    empty base. No non-content channel (timestamp/receipt) revives absent bytes — only
  *                    presenting the actual matching content mints the witness (`firstServableHeight = h`, #84/O1).
- *   3. completeness  `evaluateBatchCompleteness(...)` — owns the prevRoot→newRoot REPLAY; the harness
+ *   4. completeness  `evaluateBatchCompleteness(...)` — owns the prevRoot→newRoot REPLAY; the harness
  *                    builds the per-leaf projections + the availability-derived daVerdict; fails BEFORE
  *                    any name-state delta (e.g. committed `batchSize` ≠ served count → count-mismatch).
- *   4. verdict       accept → `NameStateDelta { anchoredRoot, firstServableHeight }`; else reject.
+ *   5. verdict       accept → `NameStateDelta { anchoredRoot, firstServableHeight }`; else reject.
  *   The contested distinct-owner path (`deriveCanonicalRoot` → L1) is a follow-up I-CONTESTED slice.
  *   Seam throws (headerSource / batchDataSource) are caught into a failed trace step, never propagated.
  */
@@ -185,7 +191,41 @@ export function enforceBatchedClaim(
     evidence: { anchorTxid: bound.txid, anchorHeight: bound.height, anchoredRoot: bound.root },
   });
 
-  // ---- Stage 2: availability — the served bytes reconstruct the anchored root over a real base ----
+  // ---- Stage 2: gate-fee — the anchor's paid fee covers Σ g over the committed leaf set (#52). Reuse
+  // I-FEE-A over the CHAIN-BOUND anchor; the schedule comes ONLY from trusted `policy` (a seam can't
+  // choose it), and a null/throwing fee or committed-batch seam fails closed HERE, before availability. ----
+  const confirmedAnchor: ConfirmedBatchAnchor = {
+    anchorTxid: bound.txid,
+    minedHeight: bound.height,
+    anchoredRoot: bound.root,
+    batchSize: anchor.batchSize,
+  };
+  let committedBatch: CommittedBatchContents | null;
+  let feeTxParts: GateFeeTxWitnessParts | null;
+  try {
+    committedBatch = sources.batchDataSource.committedBatchForRoot(bound.root);
+    feeTxParts = sources.batchDataSource.feeTxForAnchor(bound.txid);
+  } catch {
+    return reject("gate-fee", "fee-seam-threw");
+  }
+  if (committedBatch === null) return reject("gate-fee", "committed-batch-absent");
+  if (feeTxParts === null) return reject("gate-fee", "fee-tx-absent");
+  const feeResult = enforceGateFee({
+    confirmedAnchor,
+    committedBatch,
+    // Read ONLY anchorTx + prevoutTxs from the seam; the schedule is the trusted policy param (a riding
+    // `schedule` on the seam object is never read — gateFeeValidation then decides on the real curve).
+    feeWitness: { anchorTx: feeTxParts.anchorTx, prevoutTxs: feeTxParts.prevoutTxs, schedule: policy.gateFeeSchedule },
+  });
+  if (!feeResult.verdict.adequate) return reject("gate-fee", feeResult.verdict.reason);
+  trace.push({
+    step: "gate-fee",
+    ok: true,
+    reason: feeResult.verdict.kind,
+    evidence: { anchorTxid: bound.txid, batchSize: anchor.batchSize },
+  });
+
+  // ---- Stage 3: availability — the served bytes reconstruct the anchored root over a real base ----
   let servedDelta: readonly ServedLeaf[] | null;
   let baseLeaves: ReadonlyMap<string, string> | null;
   try {
@@ -212,7 +252,7 @@ export function enforceBatchedClaim(
   }
   trace.push({ step: "availability", ok: true, reason: "served-bytes-available", evidence: { firstServableHeight, servedCount: availBatchSize } });
 
-  // ---- Stage 3: completeness — build the per-leaf projections (no fake-verdict channel: the daVerdict
+  // ---- Stage 4: completeness — build the per-leaf projections (no fake-verdict channel: the daVerdict
   // is derived from the availability result here) and run the ratified #83 predicate ----
   const completeness = evaluateBatchCompleteness(
     buildCompletenessInput(anchor, window, baseLeaves, servedDelta, firstServableHeight, bound.txIndex),
@@ -220,7 +260,7 @@ export function enforceBatchedClaim(
   if (!completeness.accepts) return reject("completeness", completeness.reason);
   trace.push({ step: "completeness", ok: true, reason: completeness.reason });
 
-  // ---- Stage 4: verdict — accept + the name-state delta B4 applies (never a bare mutation here) ----
+  // ---- Stage 5: verdict — accept + the name-state delta B4 applies (never a bare mutation here) ----
   trace.push({ step: "verdict", ok: true, reason: "batched-claim-accepted" });
   return {
     accepted: true,
