@@ -1,4 +1,4 @@
-import type { SignedValueRecord } from "@ont/protocol";
+import { computeValueRecordHash, normalizeName, verifyValueRecord, type SignedValueRecord } from "@ont/protocol";
 import type { OwnershipInterval } from "./validate-submission.js";
 
 // B4-RESOLVE-READ (B4_ADAPTERS_PLAN §12.2) — the resolver's value-history read projection. The GET face is a
@@ -40,23 +40,54 @@ export type ServedValueHistoryResult =
   | { readonly ok: false; readonly reason: ServedValueHistoryRejectReason };
 
 /**
- * RED stub (B4-RESOLVE-READ): rejects every projection until the read firewall lands. Green contract:
+ * GREEN contract (B4-RESOLVE-READ):
  *   pre  currentOwnership !== null (object) — else "ownership-unknown".
  *   pre  records is a non-empty array — else "empty-history".
+ *   (the requested name is normalized ONCE up front and reused for every record comparison.)
  *   for each record at index i (0-based), in order:
  *     1. signature   verifyValueRecord(record) — else "invalid-signature".
- *     2. name        record.name === normalizeName(name) — else "name-mismatch".
+ *     2. name        record.name === normalizedName — else "name-mismatch".
  *     3. owner       record.ownerPubkey === currentOwnership.currentOwnerPubkey — else "owner-mismatch"
  *                    (checked for EVERY record, not just the head).
  *     4. ref         record.ownershipRef === currentOwnership.ownershipRef — else "ownership-ref-mismatch".
  *     5. sequence    record.sequence === i + 1 — else "sequence-broken" (contiguous run 1..N in order).
  *     6. predecessor record.previousRecordHash === (i === 0 ? null : computeValueRecordHash(records[i-1]))
  *                    — else "predecessor-mismatch".
- *   accept { ok:true, name: normalizeName(name), ownershipRef, records, head: records[N-1],
- *           provenance: "resolver-indexed-mirror", authority: "not-ownership-authority" }.
+ *   accept { ok:true, name: normalizedName, ownershipRef, records (the same caller records, served as-is),
+ *           head: records[N-1], provenance: "resolver-indexed-mirror", authority: "not-ownership-authority" }.
  * Reject-whole-chain (fail-closed): any single break rejects the entire history. Total; never throws (→ reject).
  */
 export function projectServedValueHistory(input: ProjectServedValueHistoryInput): ServedValueHistoryResult {
-  void input;
-  return { ok: false, reason: "invalid-signature" };
+  try {
+    if (input === null || typeof input !== "object") return { ok: false, reason: "ownership-unknown" };
+    const { name, currentOwnership, records } = input;
+
+    if (currentOwnership === null || typeof currentOwnership !== "object") return { ok: false, reason: "ownership-unknown" };
+    if (!Array.isArray(records) || records.length === 0) return { ok: false, reason: "empty-history" };
+
+    const normalizedName = normalizeName(name);
+
+    for (let i = 0; i < records.length; i += 1) {
+      const record = records[i];
+      if (!verifyValueRecord(record)) return { ok: false, reason: "invalid-signature" };
+      if (record.name !== normalizedName) return { ok: false, reason: "name-mismatch" };
+      if (record.ownerPubkey !== currentOwnership.currentOwnerPubkey) return { ok: false, reason: "owner-mismatch" };
+      if (record.ownershipRef !== currentOwnership.ownershipRef) return { ok: false, reason: "ownership-ref-mismatch" };
+      if (record.sequence !== i + 1) return { ok: false, reason: "sequence-broken" };
+      const expectedPreviousRecordHash = i === 0 ? null : computeValueRecordHash(records[i - 1]);
+      if (record.previousRecordHash !== expectedPreviousRecordHash) return { ok: false, reason: "predecessor-mismatch" };
+    }
+
+    return {
+      ok: true,
+      name: normalizedName,
+      ownershipRef: currentOwnership.ownershipRef,
+      records,
+      head: records[records.length - 1],
+      provenance: "resolver-indexed-mirror",
+      authority: "not-ownership-authority",
+    };
+  } catch {
+    return { ok: false, reason: "invalid-signature" }; // fail-closed on any malformed input — never a false serve
+  }
 }
