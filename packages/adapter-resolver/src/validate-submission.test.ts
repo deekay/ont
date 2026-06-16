@@ -118,12 +118,19 @@ describe("validateValueRecordSubmission — reject (no false append)", () => {
 });
 
 describe("validateValueRecordSubmission — totality", () => {
-  it("malformed wrapper / ownership / head inputs → reject, never throws, never appends", () => {
-    expect(() => validateValueRecordSubmission(null as unknown as ValidateValueRecordSubmissionInput)).not.toThrow();
-    expect(() => validate({ record: null as unknown as SignedValueRecord })).not.toThrow();
-    expect(() => validate({ currentOwnership: {} as unknown as OwnershipInterval })).not.toThrow();
-    expect(() => validate({ record: record({ sequence: 2, previousRecordHash: computeValueRecordHash(HEAD) }), existingHead: {} as unknown as SignedValueRecord })).not.toThrow();
-    expect(validateValueRecordSubmission(null as unknown as ValidateValueRecordSubmissionInput).ok).toBe(false);
+  it("malformed wrapper / ownership / head inputs → reject (ok:false), never throws, never appends", () => {
+    const nextValid = record({ sequence: 2, previousRecordHash: computeValueRecordHash(HEAD) });
+    const cases: Array<() => ReturnType<typeof validateValueRecordSubmission>> = [
+      () => validateValueRecordSubmission(null as unknown as ValidateValueRecordSubmissionInput),
+      () => validate({ record: null as unknown as SignedValueRecord }),
+      () => validate({ currentOwnership: {} as unknown as OwnershipInterval }),
+      () => validate({ record: nextValid, existingHead: {} as unknown as SignedValueRecord }),
+    ];
+    for (const run of cases) {
+      let r: ReturnType<typeof validateValueRecordSubmission> | undefined;
+      expect(() => { r = run(); }).not.toThrow(); // never throws
+      expect(r?.ok).toBe(false); // fail-closed: never a false append on malformed input
+    }
   });
 
   it("is deterministic", () => {
