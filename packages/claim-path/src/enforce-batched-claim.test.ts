@@ -146,17 +146,20 @@ describe("I-HARNESS enforceBatchedClaim — end-to-end batched-claim enforcement
     expect(enforceBatchedClaim(claim(), sources())).toEqual(enforceBatchedClaim(claim(), sources()));
   });
 
-  it("rejects absent Bitcoin inclusion at the inclusion step (membership/SPV live here)", () => {
+  it("rejects absent Bitcoin inclusion at the inclusion step, preserving the failed audited check id", () => {
     const noInclusion = { ...(BUNDLE as Record<string, unknown>), bitcoinInclusion: undefined };
     const r = enforceBatchedClaim(claim({ proofBundle: noInclusion }), sources());
     expect(r.accepted).toBe(false);
     expect(stepOk(r, "inclusion")).toBe(false);
+    // the trace must carry the REAL failed proof-bundle check, not the first passing one.
+    expect(r.trace.find((e) => e.step === "inclusion")?.reason).toContain("btc.inclusion.present");
   });
 
-  it("rejects a stale / noncanonical header (headerSource returns null at the anchor height) at inclusion", () => {
+  it("rejects a stale / noncanonical header at inclusion, preserving the failed audited check id", () => {
     const r = enforceBatchedClaim(claim(), sources({ header: headerSource(() => null) }));
     expect(r.accepted).toBe(false);
     expect(stepOk(r, "inclusion")).toBe(false);
+    expect(r.trace.find((e) => e.step === "inclusion")?.reason).toContain("btc.0.chain");
   });
 
   it("precedence: inclusion failure stops BEFORE availability/completeness are evaluated", () => {

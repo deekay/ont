@@ -135,7 +135,9 @@ export function enforceBatchedClaim(
     return reject("inclusion", "inclusion-verifier-threw");
   }
   if (!report.valid) {
-    const failed = report.checks.find((c) => c.status !== "pass");
+    // The resident verifier marks checks "passed" / "failed" — select the FAILED one so the trace
+    // preserves the real audited reason (not the first passing check).
+    const failed = report.checks.find((c) => c.status === "failed");
     return reject("inclusion", failed ? `${failed.id}: ${failed.message}` : "bundle-not-bitcoin-verified");
   }
   // Extract the anchor/root facts from the ALREADY-VERIFIED bundle; fail closed if absent/ambiguous
