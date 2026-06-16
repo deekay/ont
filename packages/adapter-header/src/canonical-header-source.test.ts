@@ -56,6 +56,18 @@ function mineHeader(prevInternal: Uint8Array, merkleInternal: Uint8Array, nBits:
   throw new Error("mineHeader: no nonce");
 }
 
+// Re-nonce a mined header so it KEEPS valid version/prev/merkle/time/bits but no longer meets target —
+// isolates the spv-pow-insufficient surface (correct bits + linkage, failing PoW). Easy target → a
+// random nonce fails ~99.6% of the time, so the first non-meeting nonce is found immediately.
+function breakPow(headerHex: string): string {
+  const h = hexToBytes(headerHex);
+  for (let nonce = 1; nonce < 5_000_000; nonce++) {
+    h[76] = nonce & 0xff; h[77] = (nonce >>> 8) & 0xff; h[78] = (nonce >>> 16) & 0xff; h[79] = (nonce >>> 24) & 0xff;
+    if (!headerMeetsTarget(h)) return bytesToHex(h);
+  }
+  throw new Error("breakPow: every nonce met target");
+}
+
 const ANCHOR_MERKLE = reversed(hexToBytes(ANCHOR_TXID));
 const ANCHOR_HEADER = mineHeader(CP_PREV_INTERNAL, ANCHOR_MERKLE, EASY_BITS, 100_000);
 
@@ -151,6 +163,36 @@ describe("buildCanonicalHeaderSourceFromHeaders (pure core) — validation + exa
     if (!badParams.ok) expect(badParams.reason).toBe("spv-params-malformed");
   });
 
+  // round 2 (CL): malformed RANGE inputs fail closed BEFORE the count firewall — count=0/empty must not
+  // become a vacuous accepted source; non-int/negative startHeight and non-positive/non-int count reject.
+  it("malformed range inputs (non-int/negative startHeight, non-positive/non-int count) → header-range-malformed, no vacuous accept", () => {
+    const negStart = buildCanonicalHeaderSourceFromHeaders([ANCHOR_HEADER], -1, 1, CHECKPOINT, PARAMS);
+    const fracStart = buildCanonicalHeaderSourceFromHeaders([ANCHOR_HEADER], 1.5, 1, CHECKPOINT, PARAMS);
+    const zeroCount = buildCanonicalHeaderSourceFromHeaders([], ANCHOR_HEIGHT, 0, CHECKPOINT, PARAMS); // empty range, count 0
+    const negCount = buildCanonicalHeaderSourceFromHeaders([ANCHOR_HEADER], ANCHOR_HEIGHT, -1, CHECKPOINT, PARAMS);
+    const fracCount = buildCanonicalHeaderSourceFromHeaders([ANCHOR_HEADER], ANCHOR_HEIGHT, 1.5, CHECKPOINT, PARAMS);
+    for (const r of [negStart, fracStart, zeroCount, negCount, fracCount]) {
+      expect(r.ok).toBe(false);
+      if (!r.ok) expect(r.reason).toBe("header-range-malformed");
+    }
+  });
+
+  // round 2 (CL): two distinct hostile-header surfaces a partial green could skip while still checking
+  // bits+linkage — strict 80-byte parse and PoW-against-target.
+  it("a non-80-byte header → spv-header-malformed (strict parse, not skipped)", () => {
+    const truncated = ANCHOR_HEADER.slice(0, 158); // 79 bytes
+    const r = buildCanonicalHeaderSourceFromHeaders([truncated], ANCHOR_HEIGHT, 1, CHECKPOINT, PARAMS);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.reason).toBe("spv-header-malformed");
+  });
+
+  it("a well-formed header with correct bits+linkage but failing PoW → spv-pow-insufficient (PoW not skipped)", () => {
+    const noPow = breakPow(ANCHOR_HEADER);
+    const r = buildCanonicalHeaderSourceFromHeaders([noPow], ANCHOR_HEIGHT, 1, CHECKPOINT, PARAMS);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.reason).toBe("spv-pow-insufficient");
+  });
+
   it("is deterministic", () => {
     const a = buildCanonicalHeaderSourceFromHeaders([ANCHOR_HEADER], ANCHOR_HEIGHT, 1, CHECKPOINT, PARAMS);
     const b = buildCanonicalHeaderSourceFromHeaders([ANCHOR_HEADER], ANCHOR_HEIGHT, 1, CHECKPOINT, PARAMS);
@@ -193,8 +235,46 @@ describe("fetchCanonicalHeaderSource (async wrapper) — provider I/O firewall",
     if (r && !r.ok) expect(r.reason).toBe("header-provider-unavailable");
   });
 
-  it("provider returns the wrong count → header-range-count-mismatch", async () => {
+  it("provider returns the wrong count (overlong) → header-range-count-mismatch", async () => {
     const r = await fetchCanonicalHeaderSource({ provider: provider([ANCHOR_HEADER, ANCHOR_HEADER]), ...base });
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.reason).toBe("header-range-count-mismatch");
+  });
+
+  // round 2 (CL): the wrapper must forward the EXACT (startHeight, count) requested — else a green could
+  // fetch the wrong range and still pass. The provider serves only (ANCHOR_HEIGHT, 1) and records its args.
+  it("forwards the exact (startHeight, count) to the provider", async () => {
+    const calls: Array<readonly [number, number]> = [];
+    const exactOnly: HeaderRangeProvider = {
+      fetchHeaderHex: async (s, c) => {
+        calls.push([s, c]);
+        return s === ANCHOR_HEIGHT && c === 1 ? [ANCHOR_HEADER] : null;
+      },
+    };
+    const r = await fetchCanonicalHeaderSource({ provider: exactOnly, ...base });
+    expect(calls).toEqual([[ANCHOR_HEIGHT, 1]]);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(verifyProofBundleAgainstBitcoin(BUNDLE, { headerSource: r.headerSource }).valid).toBe(true);
+  });
+
+  // round 2 (CL): malformed async range input must reject WITHOUT consulting the provider (input validity
+  // cannot depend on provider behavior). The provider is a tripwire that fails if ever called.
+  it("malformed async range input → header-range-malformed, BEFORE the provider is consulted", async () => {
+    let called = false;
+    const tripwire: HeaderRangeProvider = {
+      fetchHeaderHex: async () => { called = true; throw new Error("provider must not be called for malformed input"); },
+    };
+    const r = await fetchCanonicalHeaderSource({ provider: tripwire, startHeight: -1, count: 1, checkpoint: CHECKPOINT, params: PARAMS });
+    expect(called).toBe(false);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.reason).toBe("header-range-malformed");
+  });
+
+  // round 2 (CL, optional): provider short range through the I/O path → header-range-count-mismatch.
+  it("provider returns a short (empty) range → header-range-count-mismatch (I/O short path closed)", async () => {
+    const r = await fetchCanonicalHeaderSource({ provider: provider([]), ...base });
     expect(r.ok).toBe(false);
     if (r.ok) return;
     expect(r.reason).toBe("header-range-count-mismatch");

@@ -22,7 +22,8 @@ export interface HeaderRangeProvider {
 export type CanonicalHeaderRejectReason =
   | HeaderChainRejectReason
   | "header-provider-unavailable"
-  | "header-range-count-mismatch";
+  | "header-range-count-mismatch"
+  | "header-range-malformed";
 
 export type CanonicalHeaderResult =
   | {
@@ -35,10 +36,14 @@ export type CanonicalHeaderResult =
   | { readonly ok: false; readonly reason: CanonicalHeaderRejectReason };
 
 /**
- * PURE (sync) core: the exact-count firewall + validation. `headersHex` must be exactly `expectedCount`
- * long (a withheld short tail / overlong response must NOT become a shorter accepted source) — else
- * `header-range-count-mismatch`, BEFORE validation. Then `validateHeaderChain` (#82) decides; its `spv-*`
- * reason is surfaced. Total + fail-closed; never throws.
+ * PURE (sync) core: range-input firewall → exact-count firewall → validation. ORDER MATTERS:
+ *   1. range inputs — `startHeight` int ≥ 0 and `expectedCount` int ≥ 1 (a `count=0`/empty range must
+ *      NOT become a vacuous accepted source) — else `header-range-malformed`.
+ *   2. exact-count — `headersHex.length === expectedCount` (a withheld short tail / overlong response
+ *      must NOT become a shorter accepted source) — else `header-range-count-mismatch`, BEFORE validation.
+ *   3. `validateHeaderChain` (#82) decides; its `spv-*` reason (incl. `spv-header-malformed` strict
+ *      80-byte parse and `spv-pow-insufficient`) is surfaced verbatim.
+ * Total + fail-closed; never throws.
  *
  * STUB (B4-HEADER, tests-first): returns a fixed reject so the `hdr.*` red battery fails for the right
  * reason until the adapter is implemented.
@@ -63,8 +68,11 @@ export interface FetchCanonicalHeaderSourceInput {
 }
 
 /**
- * ASYNC wrapper: the network I/O around the pure core. Awaits the provider (null / reject / throw all →
- * `header-provider-unavailable`), then runs the pure core. Total + fail-closed; never throws, never rejects.
+ * ASYNC wrapper: the network I/O around the pure core. Validates the range inputs (`startHeight`/`count`)
+ * FIRST — a malformed range → `header-range-malformed` WITHOUT consulting the provider (input validity
+ * must not depend on provider behavior). Then awaits the provider (null / reject / throw all →
+ * `header-provider-unavailable`), forwarding the EXACT `(startHeight, count)` requested, and runs the pure
+ * core. Total + fail-closed; never throws, never rejects.
  *
  * STUB (B4-HEADER, tests-first).
  */
