@@ -234,46 +234,84 @@ accumulator delta math — shape only), `@ont/db` `ont_documents` JSONB (schema 
 RecoverOwner DECODES come from `@ont/wire` (WIRE 0x0b / 0x09); `legacyTxidOf` + merkle from `@ont/bitcoin` /
 `@ont/evidence`. **Confirm** the wire decoders exist as importable (else a parser is a pure red→green helper).
 
-### 9.4 First sub-slice — B4-INDEX-ANCHOR design
+### 9.4 First sub-slice — B4-INDEX-ANCHOR design (CL-concurred, API tightened, event ca3e20aa)
+
+**Decomposition + ANCHOR-first + the 5 forks: CONCURRED.** CL confirmations folded: `@ont/wire`
+`decodeEvent` IS the importable RootAnchor (0x0b) / RecoverOwner (0x09) decoder; persistence deferred;
+unspec'd batch-material / rule-ish gaps PARKED for DK. Two API fixes + extra red pins (below) folded.
+
+**CL fix 1 — one structured tx, no facts-from-A / fee-from-B.** The input is a structured
+`anchorTx: LegacyTransaction` (NOT raw hex) — `legacyTxidOf` + `GateFeeWitness` already operate on
+`LegacyTransaction`. The RootAnchor payload is decoded from the SAME tx's OP_RETURN output(s); the txid
+used for inclusion is `legacyTxidOf(anchorTx)`; `feeTxParts.anchorTx` is that EXACT same object. So the
+included/decoded tx and the fee tx can never diverge.
+
+**CL fix 2 — `prevoutTxs` in the input (since ANCHOR emits `feeTxParts`).** Lean taken: include them here
+and red-pin `feeTxParts.anchorTx` is the exact tx used for `legacyTxidOf`/inclusion. Fee ADEQUACY is not
+re-checked here (that's the audited `gateFeeValidation`); ANCHOR passes `{anchorTx, prevoutTxs}` through and
+the firewall pipe proves a hostile/absent-prevout path yields no ADMITTED fee fact downstream.
+
+**Merkle recompute — a pure exported primitive (CL: do not depend on the hidden verifier helper).** The
+recompute lives privately in `proof-bundle.ts` (`merkleRootFromProof`: display→internal `reverse`, pos-bit
+sibling pairing, dsha256, root compared to `header.slice(36,68)`). This slice PROMOTES it to an exported
+`@ont/bitcoin` primitive `merkleRootFromProof(txidDisplayHex, siblingsDisplayHex, pos)` (+ a tiny
+`merkleRootHexFromHeaderHex` reading bytes 36..68), with a focused byte-order red battery, then REPOINTS
+`proof-bundle.ts` to the shared primitive (behavior-preserving; the full `@ont/consensus` suite is the
+regression gate). Single source of truth for consensus-critical merkle byte order — the legacyTxidOf /
+headerMeetsTarget relocation precedent. **Kernel-touch flagged** (proof-bundle repoint at green, suite-gated).
 
 ```
-// PURE core: bind a candidate RootAnchor tx to the chain.
-buildConfirmedBatchAnchor({ anchorTxHex, blockHeaderHex, minedHeight, merkleProof, headerSource })
-  -> { ok: true, confirmedAnchor, feeTxParts } | { ok: false, reason }
-  1. parse      decode RootAnchor (WIRE 0x0b) from anchorTxHex; not an anchor / malformed -> "anchor-malformed"
-  2. canonical  headerSource.headerHexAtHeight(minedHeight) === blockHeaderHex — else "anchor-noncanonical-header"
-  3. inclusion  merkleRootFromProof(legacyTxidOf(anchorTx), merkleProof) === blockHeader.merkleRoot — else
-                "anchor-not-included" (forged merkle / wrong position / wrong block)
-  4. mint       ConfirmedBatchAnchor { anchorTxid = legacyTxidOf(anchorTx), minedHeight, anchoredRoot, batchSize }
-                (anchoredRoot / batchSize read from the DECODED anchor, never a producer assertion)
-  // feeTxParts { anchorTx, prevoutTxs } assembled from the parsed tx + supplied prevout txs (txid-bound).
+// PURE core: bind a candidate RootAnchor tx to the chain (total + fail-closed; never throws).
+buildConfirmedBatchAnchor({
+  anchorTx: LegacyTransaction,                 // UNTRUSTED — structured tx (one tx for inclusion AND fees)
+  prevoutTxs: readonly LegacyTransaction[],    // UNTRUSTED — each input's prevout tx (for feeTxParts)
+  blockHeaderHex: string,                      // UNTRUSTED — the block's 80-byte header
+  minedHeight: number,                         // UNTRUSTED — claimed height
+  merkle: readonly string[],                   // UNTRUSTED — sibling path (display hex, esplora order)
+  pos: number,                                 // UNTRUSTED — tx index within the block
+  headerSource: BitcoinHeaderSource,           // TRUSTED — validated by B4-HEADER
+  anchorVout?: number,                         // optional explicit OP_RETURN selector (else exactly-one rule)
+}) -> { ok: true, confirmedAnchor, feeTxParts } | { ok: false, reason }
+  1. txid       txid = legacyTxidOf(anchorTx); null -> "anchor-malformed"
+  2. payload    scan anchorTx.outputs for OP_RETURN data that decodeEvent -> RootAnchor; if anchorVout given
+                use only that output; else EXACTLY ONE decodable RootAnchor (0 or >1 -> "anchor-malformed";
+                no silent first-match). wrong-type / non-anchor / malformed payload -> "anchor-malformed"
+                (decodeEvent throws -> caught). batchSize / newRoot taken from the DECODE only.
+  3. canonical  hdr = headerSource.headerHexAtHeight(minedHeight) (null/throw caught);
+                hdr !== blockHeaderHex -> "anchor-noncanonical-header"
+  4. inclusion  merkleRootFromProof(txid, merkle, pos) === merkleRootHexFromHeaderHex(blockHeaderHex)
+                — else "anchor-not-included" (forged merkle / wrong position / wrong block)
+  5. mint       confirmedAnchor = { anchorTxid: txid, minedHeight, anchoredRoot: decoded.newRoot,
+                                     batchSize: decoded.batchSize }
+                feeTxParts      = { anchorTx, prevoutTxs }   // SAME anchorTx object as inclusion
 ```
-Trusted inputs: `headerSource` (from B4-HEADER, already validated). Untrusted: `anchorTxHex`,
-`blockHeaderHex`, `merkleProof`, `prevout txs`. The firewall: a forged/withheld/non-canonical anchor mints
-NO fact, so the B3 gate-fee + harness predicates can't accept it.
+Reasons: `anchor-malformed` / `anchor-noncanonical-header` / `anchor-not-included`. The firewall: a
+forged / withheld / non-canonical / wrong-payload anchor mints NO fact, so the B3 gate-fee + harness
+predicates can't accept it.
 
-**Planned `idx-anchor.*` red battery (firewall pipe = the bar):**
-- valid block + anchor tx → `ConfirmedBatchAnchor` + `feeTxParts` that `enforceGateFee` (real B3) ADMITS
-  (firewall-positive; reuse the I-FEE-A synthetic-anchor fixture so the minted fact feeds the kernel).
-- anchor tx not in block (forged merkle / wrong position) → `anchor-not-included`, no fact.
-- block header not in validated `headerSource` at `minedHeight` → `anchor-noncanonical-header`.
-- malformed / wrong-type tx (a Transfer 0x03, not a RootAnchor) → `anchor-malformed`.
-- `anchoredRoot` / `batchSize` taken from the DECODE, NOT from any caller-supplied field (a lying
-  side-channel field must not override the decoded values) → pin no-trust-of-side-channel.
+**Planned `idx-anchor.*` red battery (CL pins; firewall pipe into the REAL `enforceGateFee` = the bar):**
+- **firewall-positive** — valid `anchorTx` + block + prevouts → `ConfirmedBatchAnchor` + `feeTxParts` that
+  `enforceGateFee` (real B3) ADMITS (reuse the I-FEE-A synthetic fee-adequate anchor fixture so the minted
+  fact feeds the kernel; assert `gate-fee-adequate`).
+- **payload selection** — exactly one decodable RootAnchor OP_RETURN unless `anchorVout` is given; multiple
+  RootAnchor OP_RETURNs / wrong-type (Transfer 0x03) / missing payload → `anchor-malformed` (no first-match).
+- **merkle byte-order primitive** — direct `merkleRootFromProof` pins: display→internal reverse, pos-bit
+  pairing, root === header bytes 36..68; a wrong-order / wrong-pos proof → no match.
+- **inclusion firewall** — anchor tx not in block (forged merkle / wrong `pos`) → `anchor-not-included`.
+- **header firewall** — `headerSource` returns null / throws, or `blockHeaderHex` ≠ the source's header at
+  `minedHeight` → `anchor-noncanonical-header`, never throws.
+- **no side-channel trust** — a lying caller-supplied `anchoredRoot`/`batchSize` field cannot override the
+  DECODED `newRoot`/`batchSize` (the API has no such field; pin that mint reads only the decode).
+- **facts-from-A / fee-from-B** — `feeTxParts.anchorTx` is the exact tx whose `legacyTxidOf` was included +
+  decoded (same object); a different fee tx is structurally impossible.
+- **firewall-negative pipe** — each hostile path (bad merkle / bad header / wrong payload / absent prevout)
+  yields no minted fact, OR a minted fact whose `feeTxParts` makes `enforceGateFee` REJECT (no admitted fee).
 - determinism; never throws.
 
-### 9.5 Design-concur — open calls (my leans)
+### 9.5 Design-concur — RESOLVED (ChatLunatique, event ca3e20aa)
 
-1. **Sub-slice decomposition + ANCHOR first (§9.2).** **Lean: yes** — ANCHOR is the inclusion firewall
-   everything builds on, smallest, and folds `feeTxForAnchor` (same parsed tx).
-2. **`feeTxForAnchor` folds into B4-INDEX-ANCHOR** (it's the same parsed anchor tx + prevouts). **Lean: yes.**
-3. **Wire decoders** — confirm `@ont/wire` exposes importable RootAnchor (0x0b) / RecoverOwner (0x09)
-   decoders; if not, the decode is a pure red→green helper inside the adapter (no new law). **Lean: reuse
-   if present, else helper.**
-4. **Persistence scope** — `@ont/db` rewrite as thin store behind the projections, deferrable to a final
-   sub-slice; the firewall-minting (this slice) does not depend on it. **Lean: defer persistence.**
-5. **No new law** — the committed-batch recompute, inclusion bind, and base-map→prevRoot check are all
-   recompute-don't-trust over ALREADY-ratified shapes (#52 committed set, merkle inclusion, accumulator
-   root). Any rule-ish gap (e.g. an unspec'd batch-material encoding) is PARKED for DK. Confirm the line.
-
-On concur (esp. #1 decomposition + #2 fee-tx fold) I open **B4-INDEX-ANCHOR red battery**.
+All five forks concurred (decomposition + ANCHOR-first; `feeTxForAnchor` fold; `@ont/wire decodeEvent`
+confirmed importable; persistence deferred; parking line for unspec'd batch-material / rule-ish gaps). Two
+API fixes (structured `anchorTx: LegacyTransaction`; `prevoutTxs` in the input) + the merkle-primitive
+promotion + the extra red pins are folded into §9.4. CL: "with those adjustments, the red path is clear" —
+proceeding to **B4-INDEX-ANCHOR red battery** (no further concur round needed).

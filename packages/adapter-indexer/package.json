@@ -1,0 +1,27 @@
+{
+  "name": "@ont/adapter-indexer",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "ONT B4 adapter — the indexer (firewall-minting heart). Ingests confirmed block data and mints the chain-bound facts the audited B3 enforcement consumes (ConfirmedBatchAnchor + the fee-tx parts; later: committed-batch projection, availability leaves, recover-owner invoke). Recompute-don't-trust: a forged / withheld / non-canonical source mints no fact, so a B3 predicate cannot falsely accept. Decides nothing.",
+  "exports": {
+    ".": {
+      "types": "./dist/adapter-indexer/src/index.d.ts",
+      "default": "./dist/adapter-indexer/src/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build -w @ont/protocol && npm run build -w @ont/bitcoin && npm run build -w @ont/wire && npm run build -w @ont/consensus && npm run build -w @ont/evidence && npm run build -w @ont/claim-path && vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@ont/bitcoin": "file:../bitcoin",
+    "@ont/wire": "file:../wire",
+    "@ont/claim-path": "file:../claim-path"
+  },
+  "devDependencies": {
+    "@ont/consensus": "file:../consensus",
+    "vitest": "^3.2.4"
+  }
+}
