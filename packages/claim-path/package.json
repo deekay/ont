@@ -21,6 +21,7 @@
   },
   "devDependencies": {
     "@noble/curves": "^1.9.7",
+    "@ont/bitcoin": "file:../bitcoin",
     "@ont/wire": "file:../wire",
     "vitest": "^3.2.4"
   }

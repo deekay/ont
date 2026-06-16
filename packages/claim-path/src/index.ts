@@ -24,3 +24,13 @@ export {
   type RecoveryInvokeVerdict,
   type RecoveryInvokeResult,
 } from "./enforce-recovery-invoke.js";
+
+export {
+  enforceGateFee,
+  type ConfirmedBatchAnchor,
+  type GateFeeInput,
+  type GateFeeStage,
+  type GateFeeTraceStep,
+  type GateFeeAdmissionVerdict,
+  type GateFeeEnforcementResult,
+} from "./enforce-gate-fee.js";

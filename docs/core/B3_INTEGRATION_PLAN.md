@@ -315,19 +315,25 @@ No name-state mutation (admission only). The anchor facts come ONLY from the con
 hostile fee witness (different tx) → `gf-anchor-txid-mismatch`, a hostile committed batch (different root)
 → `gf-batch-not-bound-to-anchor`, underpayment → `gf-underpaid`, all surfaced in the trace.
 
-**Design-concur — open calls (my leans):**
-1. **Standalone vs in-path.** **Lean: standalone `enforceGateFee` this slice + in-path wire-in to B4**
-   (the block-170 real-anchor fixture blocks an in-path fee witness without archaeology/mining; B4's real
-   adapter dissolves it). Alternative: force the in-path now by reworking the I-HARNESS anchor to a mined
-   synthetic block (heavy; re-touches the signed-off slice).
-2. **Confirmed-anchor seam** `{ anchorTxid, minedHeight, anchoredRoot, batchSize }` — chain-bound; the
-   fee-tx ⇔ anchor and batch ⇔ anchor binds are `gateFeeValidation`'s (no duplicate I-FEE check). Confirm.
-3. **committedBatch + feeWitness** consumed from seams (fixture in B3, indexer/adapter in B4); Σ g over the
-   full committed set. Confirm.
-4. **Output** = admission verdict (no mutation), like I-REC. Confirm.
+**Design-concur — RESOLVED (ChatLunatique, event 79f82499): SPLIT into two slices.** CL concurs the key
+finding + the seam, but a standalone `enforceGateFee` alone does NOT close "Σ g not enforced in the path,"
+so the path wire-in is mandatory before B3-integration is merge-ready (NOT deferred to B4).
+- **I-FEE-A (this slice):** build standalone `enforceGateFee({ confirmedAnchor, committedBatch, feeWitness })`
+  with the synthetic coherent fixture + the `fee.*` battery. Confirmed: confirmed-anchor seam shape is
+  right; `committedBatch` is the FULL committed set (#52), not the served delta; `committedBatch`/`feeWitness`
+  may come from seams but the orchestrator MUST call `gateFeeValidation` itself; output is admission-only
+  `{ adequate:true, kind:"gate-fee-adequate" }`, no mutation; fee-tx⇔anchor + batch⇔anchor binds stay
+  `gateFeeValidation`'s (no duplicate I-FEE check).
+- **I-FEE-PATH (follow-up, before merge-ready):** wire a MANDATORY gate-fee stage into `enforceBatchedClaim`
+  immediately after the inclusion anchor-bind and before availability/completeness — `enforceBatchedClaim`
+  cannot reach `verdict`/`nameStateDelta` unless gate-fee admission passes. NO producer boolean like
+  `feeAdequate`. If the real block-170 tx fee fixture is too expensive, use a small synthetic path fixture
+  or re-key just that path test (CL-approved). Pin: path gate-fee failure stops before any `nameStateDelta`.
 
-**Planned `fee.*` red battery (sketch, pending concur):** adequate anchor → `gate-fee-adequate` admission,
-no mutation; determinism; fee witness `anchorTx` ≠ confirmed txid → `gf-anchor-txid-mismatch`; committed
-batch root ≠ confirmed root → `gf-batch-not-bound-to-anchor`; underpaid (Σ g > paid) → `gf-underpaid`;
-Σ g over the FULL multi-leaf set (#52) pinned; negative paid fee / prevout mismatch / malformed schedule
-surfaced; malformed confirmed anchor → `gf-input-malformed`; never throws.
+**`fee.*` red battery (I-FEE-A; CL red pins):** adequate anchor → `gate-fee-adequate` admission + no
+mutation (verdict keys = exactly `{adequate, kind}`); determinism; hostile fee tx (`anchorTx` ≠ confirmed
+txid) → `gf-anchor-txid-mismatch`; hostile batch (root ≠ confirmed root) → `gf-batch-not-bound-to-anchor`;
+underpaid (Σ g > paid) → `gf-underpaid`; **multi-leaf full-set Σ g** (#52: a droppable 3rd leaf still
+counts → underpaid) pinned; malformed confirmed anchor → `gf-input-malformed`; never throws. Fixtures
+mirror the kernel `gate-fee.test.ts` recipe (synthetic prevout txs + anchor tx via `legacyTxidOf`, so
+`paidFee = Σ spent − Σ outputs`).
