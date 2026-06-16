@@ -1,18 +1,19 @@
 # recovery-descriptor-witness: what mints `witnessedByHeight` for the §3c descriptor evidence
 
-> **Status: PROPOSED — decision-ready design call. Writer: ClaudeleLunatique.
-> Reviewer: ChatLunatique (pending).** This is the concrete "demonstrably
+> **Status: PROPOSED — GATED on a DK ratification. Writer: ClaudeleLunatique.
+> Reviewer: ChatLunatique concurs the O1 direction + narrowed the builder seam
+> (event `81c3e8a0`).** This is the concrete "demonstrably
 > witnessed" format that [`RECOVERY_EVIDENCE_TIMING.md`](./RECOVERY_EVIDENCE_TIMING.md)
-> §5 sub-question 3 deferred to B3 — ratified as a B3 evidence-layer deliverable
-> under decision **#66** (DK event `43d30e67`, 2026-06-15). It is the recovery
-> analog of [`DA_AVAILABILITY_HEIGHT.md`](./DA_AVAILABILITY_HEIGHT.md) (#84): the
-> same "what confirmed-chain height does a fail-closed evidence gate mint" question,
-> for the recovery descriptor instead of the served batch bytes.
+> §5 sub-question 3 deferred to B3 — the *format* is a B3 deliverable under decision
+> **#66** (DK event `43d30e67`, 2026-06-15), but **deciding what mints the height is a
+> consensus amendment**, the exact recovery analog of
+> [`DA_AVAILABILITY_HEIGHT.md`](./DA_AVAILABILITY_HEIGHT.md) (#84) — which was a DK
+> consensus ruling, not just byte layout. So O1 below is **GATED on DK ratification**
+> before any red battery (CL's classification; I concur).
 >
-> Normativity: `analysis`-tier paper. The chosen outcome lands as the D-RC slice
-> (`packages/evidence/src/…` witness builder) + a `B3_EVIDENCE_HARDENING` row, and a
-> one-line confirmation that the §3c witness format is fixed. Authored under DK's
-> keep-going grant.
+> Normativity: `analysis`-tier paper. On DK's ratification the outcome lands as the
+> D-RC slice (`packages/evidence/src/…` witness builder) + a `B3_EVIDENCE_HARDENING`
+> row + a DECISIONS entry fixing the §3c mint rule. Authored under DK's keep-going grant.
 
 ## 1. The question
 
@@ -87,47 +88,60 @@ descriptor demonstrably presented" — which is the only fork-free, oracle-free 
 
 ## 5. Recommendation & the slice it implies
 
-**Recommend O1.** D-RC mirrors D-SB-avail (`verifyAvailabilityHeight`):
+**Recommend O1.** D-RC mirrors D-SB-avail (`verifyAvailabilityHeight`). **Narrowed seam
+(CL, event `81c3e8a0`): D-RC mints the descriptor witness HEIGHT only — it proves
+"this descriptor content matches the invoke commitment, therefore height `h_r`"; it
+does NOT re-authorize the invoke.** The authorization conjuncts (R2 owner arming sig,
+R3 current head-hash/sequence, R4 ownershipRef/current interval, R7 version, prevStateTxid,
+invoke sig) **stay in the kernel's `acceptRecoverOwner`**, each with its own reason. If
+the builder withheld the witness on a bad owner sig / old interval, it would silently
+move kernel authorization into B3 and collapse those distinct kernel reasons into "no
+witness" — so they are deliberately NOT mint preconditions.
 
 ```
 verifyRecoveryDescriptorWitness(input) -> VerifiedRecoveryDescriptorWitness | fail-closed
   input: { descriptor D, committedDescriptorHash (from the invoke, 0x09),
-           confirmedInvokeMinedHeight h_r (a D-BI fact),
-           currentOwnershipRef, currentOwnerPubkey }   // engine-resolved head/interval (E-RC1)
+           confirmedInvokeMinedHeight h_r (a D-BI fact; + invoke txid/provenance
+                                           as needed to bind that height) }
   gates (recompute-don't-trust, total/fail-closed, never throws):
     1. recoveryDescriptorDigest(D) === committedDescriptorHash        (else reject)
-    2. D is the invokable version (v2, R7)                            (else reject)
-    3. owner arming signature on D verifies vs currentOwnerPubkey (R2) (else reject)
-    4. D.ownershipRef === currentOwnershipRef (R4, old-interval replay) (else reject)
-    5. h_r is a well-formed confirmed height
+    2. h_r is a well-formed confirmed height bound to that invoke      (else reject)
+    3. closed-shape: no resolver servedAt / source / producer / endpoint / timestamp
+       channel admitted (extra field ⇒ reject; absent/malformed D ⇒ reject, never throw)
   mint: { kind: "b3-verified-recovery-descriptor-witness", witnessedByHeight: h_r }
 ```
 
 Scope guards (from the D-RC notes): D-RC does **not** resolve which head/interval is
-current (engine-supplied, E-RC1); the §8.3 BIP322 wallet proof is non-authorizing
-corroboration with no deadline (E-RC3); the R11 bond-spend / qualifying-successor
-surface is **excluded** (it is D-RB, PR-34, engine/B4-side). Planned `rc.*` red
-battery: hash-match accept; hash-mismatch reject; v1-descriptor reject (R7);
-bad/owner-key-mismatched arming sig reject (R2); old-interval `ownershipRef` reject
-(R4); malformed/`null` top-level + closed-shape totality; the §8.3-proof-absent still
-accepts (E-RC3); the branded-height mint is the sole height source the kernel sees.
+current (engine-supplied, E-RC1) and does **not** check R2/R3/R4/R7 (kernel's job); the
+§8.3 BIP322 wallet proof is non-authorizing corroboration with no deadline (E-RC3); the
+R11 bond-spend / qualifying-successor surface is **excluded** (it is D-RB, PR-34,
+engine/B4-side). *Optional:* an R2/R4 **prefilter** is allowed only if labelled
+non-authoritative, with the kernel checks still the decider. Planned `rc.*` red battery
+(CL's list): hash-match mints `{kind, witnessedByHeight: h_r}`; hash-mismatch / malformed
+`D` / malformed `h_r` / absent `D` reject (never throw); any `servedAt`/source/producer/
+endpoint/timestamp field rejected-or-ignored under closed-shape; a late resolver
+timestamp cannot produce `h_r + k` — the only minted height is `h_r`; the minted witness
+feeds `acceptRecoverOwner`'s happy path; the existing malicious-late-branded-witness test
+stays a KERNEL guard; v1-descriptor / bad-owner-sig / old-interval / current-head-mismatch
+stay KERNEL authority vectors (not builder preconditions).
 
-## 6. The open call for review
+## 6. The DK ratification ask (GATED)
 
-Under O1, **D-RC is FREE** — it is the #84 analog applied to the descriptor, deriving
-from already-ratified #66 (§3c) + #84 (mint-from-confirmed-height, challenge
-diagnostic) + the #82 firewall, with no new consensus law. **Two things for CL's
-adversarial design pass:**
-1. Does O1's reading — `witnessedByHeight = h_r`, `W_r`/challenge **diagnostic**, the
-   timing gate collapsing to presence — need a **DK ratification** like #84 did, or is
-   it **derivable** (FREE) from #66 + #84 + #82? My lean: derivable, with a one-line
-   DK courtesy-confirm; escalate to a DK ruling only if you read it as re-opening
-   §3c's timing *intent* (i.e. if "by `h_r + W_r`" was meant to forfeit a genuinely
-   late-surfacing descriptor, which the off-chain/hash-commitment model cannot
-   deterministically detect without an oracle).
-2. Is the witness-builder input surface (§5) the right seam — `D` + committed hash +
-   `h_r` + engine-resolved current head/interval — and is anything I have inside
-   D-RC actually the engine's job (head/interval resolution) leaking across E-RC1?
+CL's verdict (event `81c3e8a0`): O1 is the right deterministic construction, but it is
+**NOT FREE** — it is the recovery analog of #84, and #84 was a DK consensus ruling, not
+just byte layout. #66 already ratified a real timing interface (`witnessedByHeight >
+h_r + W_r` fails closed); O1 makes `W_r` **diagnostic** (any validly presented descriptor
+mints `h_r`, so a genuinely late-surfacing descriptor no longer forfeits). That may be
+the only oracle-free answer under the off-chain/hash-commitment model — but choosing it
+is a consensus call. **I concur: GATED pending DK.**
+
+**Narrow ruling requested of DK.** Ratify **O1** for recovery descriptor evidence: a
+presented descriptor `D` that reconstructs the invoke-committed `recoveryDescriptorHash`
+mints `witnessedByHeight = h_r` (the invoke's confirmed mined height); resolver
+timestamps / gossip / served-at heights are **not** consensus inputs; `W_r` is
+**diagnostic** once a valid D-RC witness exists. Alternatives: **O2** (a new on-chain
+arming law so `witnessedByHeight < h_r` is meaningful) or **O3** (an out-of-band oracle)
+— both rejected unless DK wants to reopen the design.
 
 ## 7. Ripples & reopen triggers
 
