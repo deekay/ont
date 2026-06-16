@@ -6,3 +6,8 @@ export {
   type ValueRecordSubmissionResult,
   type SubmissionRejectReason,
 } from "./validate-submission.js";
+export {
+  validateRecoveryDescriptorSubmission,
+  type ValidateRecoveryDescriptorSubmissionInput,
+  type RecoveryDescriptorSubmissionResult,
+} from "./validate-recovery-submission.js";
