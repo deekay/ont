@@ -1,0 +1,8 @@
+// @ont/adapter-resolver — B4 resolver (read API + submission store-guards). See docs/core/B4_ADAPTERS_PLAN.md §12.
+export {
+  validateValueRecordSubmission,
+  type OwnershipInterval,
+  type ValidateValueRecordSubmissionInput,
+  type ValueRecordSubmissionResult,
+  type SubmissionRejectReason,
+} from "./validate-submission.js";

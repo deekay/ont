@@ -1,0 +1,24 @@
+{
+  "name": "@ont/adapter-resolver",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "ONT B4 adapter — the resolver. A read API (chain-derived convenience, NOT ownership authority) plus append-only submission store-guards that validate untrusted value-record submissions before appending to the off-chain mirror. The store-guards decide nothing about consensus ownership; their bar is no false append to the mirror.",
+  "exports": {
+    ".": {
+      "types": "./dist/adapter-resolver/src/index.d.ts",
+      "default": "./dist/adapter-resolver/src/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build -w @ont/protocol && vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@ont/protocol": "file:../protocol"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.4"
+  }
+}
