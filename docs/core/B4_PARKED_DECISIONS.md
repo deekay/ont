@@ -5,6 +5,12 @@
 > adapter proceeds on the recommended assumption with a flagged reopen. Each packet below is gap → options →
 > recommendation → ripple, marker-fold style. Stable names are PROPOSED; DK assigns the DECISIONS.md number on
 > ratification. No code changes from this doc.
+>
+> **CL review OK @ `d44884ac`** — all three RECs concurred (recommend-and-proceed; none blocks B4); refinements
+> folded into the ripples below: (1) home the `event-carrier` clause in WIRE_FORMAT §4.x as a tight carrier
+> profile, operational caveats in the broadcast/operator note; (2) `da-served-transport` gets its own off-chain
+> appendix cross-linked from B4-DA, visibly distinct from on-chain wire; (3) `refund-accounting` copy-caveat —
+> surface copy must not imply a protocol-guaranteed refund (folds into the B5 not-authority discipline).
 
 ---
 
@@ -38,12 +44,14 @@ question is "how do we reliably get the tx mined," not "is it valid."
 relay concern is operational (use a relaxed-relay submission path / direct-to-miner), not a protocol defect.
 Pin it normatively so the carrier is part of canon, not an implicit assumption.
 
-**Ripple if ratified (A):** WIRE_FORMAT §4.x gains a normative **"on-chain carrier"** clause — an ONT event is
-carried in a single OP_RETURN output using minimal push (direct push ≤75 B, PUSHDATA1 for 76–255 B); exactly
-one ONT OP_RETURN per event; the read-side `opReturnData` exact-single-push rule already enforces it; the
-conformance suite adds a carrier vector. Operational note: broadcasting >80 B events requires a relay path
-that accepts them (documented in B4-PUB-BROADCAST / the operator runbook). Carriers (B)/(C)/(D) remain
-available as a future fork if standardness ever hardens against large OP_RETURNs.
+**Ripple if ratified (A):** WIRE_FORMAT §4.x gains a normative **Bitcoin carrier profile** clause (CL: home it
+in WIRE, not only a side note) — a tight wire rule: an ONT event is carried in **one OP_RETURN output, one
+minimal push** (direct push for ≤75 B, PUSHDATA1 for 76–255 B), **no multi-push, no trailing bytes**, and
+**exactly one carrier where the reader requires it**; the read-side `opReturnData` exact-single-push rule
+already enforces it; the conformance suite adds a carrier vector. **Relay/standardness + direct-miner
+operational caveats live in the B4-PUB-BROADCAST / operator note, NOT the wire rule** (broadcasting >80 B
+events needs a relay path that accepts them — operational, not protocol). Carriers (B)/(C)/(D) remain a future
+fork if standardness ever hardens against large OP_RETURNs.
 
 ---
 
@@ -75,9 +83,10 @@ ratifies the format.
 recompute-don't-trust posture (the transport carries bytes; the kernel/DATASOURCE decides). Version byte leaves
 room for (E) later.
 
-**Ripple if ratified (A):** a new **served-transport** spec section (its own doc or a WIRE_FORMAT appendix —
-note it is *off-chain transport*, distinct from the on-chain event wire); B4-DA's `parseServedTransport` is
-already the reference parser; erasure-coding (E) named as the future scaling fork behind the version byte.
+**Ripple if ratified (A):** its **own off-chain served-transport appendix/section** (CL: keep it visibly
+distinct from the on-chain event wire — it is *delivery*, not consensus), **cross-linked from B4-DA §10**;
+B4-DA's `parseServedTransport` is already the reference parser; erasure-coding (E) named as the future scaling
+fork behind the version byte.
 
 ---
 
@@ -114,7 +123,10 @@ clean-build slice or purely operator tooling).
 
 **Ripple if ratified (A):** B4-PUB-REFUND is struck as a consensus/wire slice — it becomes operator tooling
 (out of the B1–B5 gated surface); no WIRE/kernel change; the refund promise is documented as operator
-liveness, not protocol guarantee. (B)/(C) remain future economics forks.
+liveness, not protocol guarantee. **CL caveat (binds B5):** product/surface **copy must NOT imply a
+protocol-guaranteed refund** — this folds into the B5 not-authority discipline (a refund is an operator
+promise, like the resolver's convenience views, never a consensus guarantee). (B)/(C) remain future economics
+forks; if verifiable refunds are ever wanted, reopen as a signed-descriptor / operator-tooling decision.
 
 ---
 
