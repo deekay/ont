@@ -6,8 +6,8 @@
   "description": "ONT L3 evidence layer (B3) — non-deciding witness construction + verification. The conformance suite is the contract; a hostile evidence impl cannot move any @ont/consensus verdict.",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
+      "types": "./dist/evidence/src/index.d.ts",
+      "default": "./dist/evidence/src/index.js"
     }
   },
   "scripts": {

@@ -1,0 +1,28 @@
+{
+  "name": "@ont/claim-path",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "ONT B3 integration — the batched-claim enforcement orchestrator (I-HARNESS). Pure + fixture-backed: threads the audited @ont/consensus + @ont/evidence predicates/builders, fails closed in a fixed precedence, and returns an evidence trace + verdict (never a bare mutation). B4 substitutes real adapters for the typed seams.",
+  "exports": {
+    ".": {
+      "types": "./dist/claim-path/src/index.d.ts",
+      "default": "./dist/claim-path/src/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build -w @ont/protocol && npm run build -w @ont/bitcoin && npm run build -w @ont/wire && npm run build -w @ont/consensus && npm run build -w @ont/evidence && vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@ont/consensus": "file:../consensus",
+    "@ont/evidence": "file:../evidence"
+  },
+  "devDependencies": {
+    "@noble/curves": "^1.9.7",
+    "@ont/bitcoin": "file:../bitcoin",
+    "@ont/wire": "file:../wire",
+    "vitest": "^3.2.4"
+  }
+}

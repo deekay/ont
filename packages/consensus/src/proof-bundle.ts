@@ -9,6 +9,7 @@ import {
   verifyAccumulatorMembership,
   verifyValueRecord
 } from "@ont/protocol";
+import { headerMeetsTarget } from "@ont/bitcoin";
 
 // The two current acquisition paths. Ark/RGB explorations were removed from the
 // frozen verifier: they were never the launch path, and the sovereignty core
@@ -209,32 +210,12 @@ function bytesToHex(bytes: Uint8Array): string {
   return hex;
 }
 
-/** Compact nBits → 256-bit target. */
-function bitsToTarget(bits: number): bigint {
-  const exponent = bits >>> 24;
-  const mantissa = BigInt(bits & 0x007fffff);
-  if (exponent <= 3) {
-    return mantissa >> (8n * BigInt(3 - exponent));
-  }
-  return mantissa << (8n * BigInt(exponent - 3));
-}
-
-/** True if doubleSHA256(header) ≤ the target encoded in the header's nBits. */
-function headerMeetsTarget(header: Uint8Array): boolean {
-  if (header.length !== 80) {
-    return false;
-  }
-  const bits =
-    (header[72] as number) |
-    ((header[73] as number) << 8) |
-    ((header[74] as number) << 16) |
-    ((header[75] as number) << 24);
-  const target = bitsToTarget(bits >>> 0);
-  // Block hash is little-endian internally; its numeric value is the big-endian
-  // reading, i.e. the reversed bytes.
-  const hashValue = BigInt("0x" + bytesToHex(reversed(doubleSha256(header))));
-  return target > 0n && hashValue <= target;
-}
+// Per-header proof-of-work (bitsToTarget / headerMeetsTarget) now lives in the
+// @ont/bitcoin block-header primitive — a single source shared with the B3 light-client
+// header-chain validator, so the difficulty/byte-order logic cannot drift between the two
+// callers. The trust surface already admits @ont/bitcoin for proof-bundle.ts (it recomputes
+// chain facts from Bitcoin primitives); behavior here is unchanged (the block-170 pin in
+// @ont/bitcoin guards the byte order). Relocation per I-SPV §7 (B3_INTEGRATION_PLAN.md).
 
 /** Recompute the Merkle root (internal byte order) from a txid + sibling path. */
 function merkleRootFromProof(
