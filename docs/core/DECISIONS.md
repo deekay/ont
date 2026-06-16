@@ -2271,6 +2271,32 @@ a golden mainnet block-170 txid vector pins the serializer; the `gf.*` battery p
 binds (anchor-txid / prevout-txid / prevout-vout / prevout-count). **No source/identity channel
 added** — the predicate stays the pure 3-input no-publisher signature (I5).
 
+86. recovery-witness-height: what confirmed-chain fact mints the §3c recovery descriptor
+`witnessedByHeight` — **RATIFIED O1** (DK, event 74ae7d5c, 2026-06-16)
+
+*Status: **RATIFIED.** Writer ClaudeleLunatique; reviewer ChatLunatique (O1 direction + the narrowed
+builder seam concurred). Decision paper: `../research/RECOVERY_DESCRIPTOR_WITNESS.md`. The recovery
+twin of availability-height (#84).*
+
+**The rule.** A recovery descriptor is off-chain (W15); the only confirmed-chain fact about it is the
+`RecoverOwner` invoke (0x09) committing `recoveryDescriptorHash` at the invoke's mined height `h_r`.
+**O1:** `witnessedByHeight` is established as **`h_r`** itself, fail-closed over the *presented*
+descriptor — absent a presented descriptor whose `recoveryDescriptorDigest` reconstructs the committed
+`recoveryDescriptorHash`, no witness is minted and the kernel's §3c conjunct fails closed. Resolver
+timestamps / gossip / served-at heights are **not** consensus inputs (the #82 firewall). The `W_r`
+window (`witnessedByHeight <= h_r + W_r`, §3c / PR-34) becomes **diagnostic**: with
+`witnessedByHeight = h_r` it always holds when a valid witness exists — the real guard is
+content-determinism (present the matching descriptor), not a timing cutoff. **Honest consequence:** a
+descriptor revealed *late* still validates if its fingerprint matches; the late-reveal fork dissolves
+because a withheld descriptor uniformly rejects and a presented one uniformly decides. **Rejected:**
+O2 (a new on-chain "arm recovery" event so an earlier height exists) = new wire + consensus law,
+heavier; O3 (out-of-band / resolver witnessing height) = the oracle the #82 firewall forbids. **No
+change to recovery-opt-in (#40)** (recovery stays optional; the veto stays delegable / non-owner-online)
+or to recovery-invoke authorization (#66 / #67 — R2/R3/R4/R7 stay kernel reasons). **Unblocks D-RC**
+(`@ont/evidence`), the last B3 §2 evidence predicate: it mints the `{ kind:
+"b3-verified-recovery-descriptor-witness", witnessedByHeight }` the kernel consumes, on
+descriptor-digest match + confirmed `h_r` only.
+
 ## Fairness Principles To Carry Into The Launch Rewrite
 
 The rewritten launch draft should explicitly state:

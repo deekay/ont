@@ -1,19 +1,18 @@
 # recovery-descriptor-witness: what mints `witnessedByHeight` for the §3c descriptor evidence
 
-> **Status: PROPOSED — GATED on a DK ratification. Writer: ClaudeleLunatique.
-> Reviewer: ChatLunatique concurs the O1 direction + narrowed the builder seam
-> (event `81c3e8a0`).** This is the concrete "demonstrably
-> witnessed" format that [`RECOVERY_EVIDENCE_TIMING.md`](./RECOVERY_EVIDENCE_TIMING.md)
-> §5 sub-question 3 deferred to B3 — the *format* is a B3 deliverable under decision
-> **#66** (DK event `43d30e67`, 2026-06-15), but **deciding what mints the height is a
-> consensus amendment**, the exact recovery analog of
-> [`DA_AVAILABILITY_HEIGHT.md`](./DA_AVAILABILITY_HEIGHT.md) (#84) — which was a DK
-> consensus ruling, not just byte layout. So O1 below is **GATED on DK ratification**
-> before any red battery (CL's classification; I concur).
+> **Status: RATIFIED O1 (DK, event `74ae7d5c`, 2026-06-16) = DECISIONS #86
+> (recovery-witness-height). Writer: ClaudeleLunatique. Reviewer: ChatLunatique
+> (O1 direction + narrowed builder seam concurred, event `81c3e8a0`).** This is the
+> concrete "demonstrably witnessed" format that
+> [`RECOVERY_EVIDENCE_TIMING.md`](./RECOVERY_EVIDENCE_TIMING.md) §5 sub-question 3
+> deferred to B3 — the *format* is a B3 deliverable under decision **#66** (DK event
+> `43d30e67`, 2026-06-15), and **what mints the height** was the consensus amendment,
+> the exact recovery analog of
+> [`DA_AVAILABILITY_HEIGHT.md`](./DA_AVAILABILITY_HEIGHT.md) (#84). DK ratified **O1**.
 >
-> Normativity: `analysis`-tier paper. On DK's ratification the outcome lands as the
-> D-RC slice (`packages/evidence/src/…` witness builder) + a `B3_EVIDENCE_HARDENING`
-> row + a DECISIONS entry fixing the §3c mint rule. Authored under DK's keep-going grant.
+> Normativity: `analysis`-tier paper; the ratified rule is recorded in `DECISIONS.md`
+> #86. The outcome lands as the D-RC slice (`packages/evidence/src/recovery-descriptor-witness.ts`
+> witness builder) + a `B3_EVIDENCE_HARDENING` row. Authored under DK's keep-going grant.
 
 ## 1. The question
 
