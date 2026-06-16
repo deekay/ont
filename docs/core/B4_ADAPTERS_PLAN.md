@@ -134,30 +134,45 @@ returns null.
 valid fork must lose) is OUT — a later slice (or the indexer's chain selection). This slice consumes the
 single provider's presented active chain and validates it; it does NOT choose among competing chains.
 
-**Seam + API:**
+**Seam + API (CL fixes folded — async I/O; exact-count firewall; split pure / async).**
 ```
-HeaderRangeProvider { fetchHeaderHex(startHeight, count): readonly string[] | null }  // the network I/O seam
-buildCanonicalHeaderSource({ provider, startHeight, count, checkpoint, params })
+HeaderRangeProvider { fetchHeaderHex(startHeight, count): Promise<readonly string[] | null> }  // ASYNC I/O seam
+
+// PURE (sync, testable): the exact-count firewall + validation core.
+buildCanonicalHeaderSourceFromHeaders(headersHex, startHeight, expectedCount, checkpoint, params)
   -> { ok: true, headerSource, tipHeight, cumulativeWorkHex } | { ok: false, reason }
-  1. fetch     headers = provider.fetchHeaderHex(startHeight, count); null / throw -> "header-provider-unavailable"
-  2. validate  validateHeaderChain(headers, startHeight, checkpoint, params); !ok -> the spv-* reason surfaced
-  3. source    ok -> return its headerSource (+ tipHeight / cumulativeWorkHex)
-  total + fail-closed: never throws (provider throw is caught).
+  1. count     Array + headersHex.length === expectedCount (a positive int) — else "header-range-count-mismatch"
+               (BEFORE validate: a withheld short tail / overlong response must NOT become a shorter source)
+  2. validate  validateHeaderChain(headersHex, startHeight, checkpoint, params); !ok -> the spv-* reason surfaced
+  3. source    ok -> its headerSource (+ tipHeight / cumulativeWorkHex)
+
+// ASYNC wrapper: the network I/O around the pure core.
+async fetchCanonicalHeaderSource({ provider, startHeight, count, checkpoint, params })
+  -> Promise<same result>
+  1. fetch     headers = await provider.fetchHeaderHex(startHeight, count); null / reject / throw -> "header-provider-unavailable"
+  2. core      buildCanonicalHeaderSourceFromHeaders(headers, startHeight, count, checkpoint, params)
+  total + fail-closed: never throws / never rejects (provider reject + throw both caught).
 ```
+`checkpoint` + `params` are trusted launch config (caller). **Currentness caveat (CL): with only
+`fetchHeaderHex(start,count)` the adapter cannot prove the range is still active-chain AFTER fetch — this
+slice does NOT claim stale/reorg detection** (it consumes one trusted active-chain provider). A
+`fetchTip` / `isCurrent(height,hash)` seam is a later addition if reorg-currentness is wanted.
 
 **The firewall (the point of the slice):** the returned `headerSource` is the ONLY thing B3's inclusion
 verifier (`verifyProofBundleAgainstBitcoin`) trusts. A hostile provider (forged child / withheld / broken
-linkage / insufficient PoW) yields NO source (reject), or a source whose validated range excludes the
-hostile header — so B3 cannot falsely accept. The unit gate pipes the adapter output into the real
-predicate and asserts the accept/reject split.
+linkage / insufficient PoW / short or overlong range) yields NO source (reject), or a source whose
+validated range excludes the hostile header — so B3 cannot falsely accept. The unit gate pipes the adapter
+output into the real predicate and asserts the accept/reject split.
 
 **Planned `hdr.*` red battery (CL pins):**
 - valid recorded range → source; the source feeds `verifyProofBundleAgainstBitcoin` and a bundle anchored
   in-range ACCEPTS (firewall-positive; reuse the I-HARNESS synthetic mined-anchor + bundle fixture).
-- provider returns null / throws → `header-provider-unavailable`, no source.
+- **exact-count firewall:** provider returns `count-1` (withheld tail) or `count+1` (overlong) →
+  `header-range-count-mismatch`, no source.
+- provider returns null / rejects (async) / throws → `header-provider-unavailable`, no source (never throws).
 - forged easy-`nBits` child → `validateHeaderChain` rejects → no source (firewall-negative: nothing reaches
   B3, so no accept).
 - broken linkage / insufficient PoW / malformed header → reject (spv-* surfaced).
 - out-of-range height → `headerHexAtHeight` returns null → B3's `btc.*.chain` canonical check fails.
 - malformed checkpoint / params → fail closed (`spv-checkpoint-malformed` / `spv-params-malformed`).
-- determinism; never throws. (Multi-source / lower-work-fork-loses noted OUT for this slice.)
+- determinism (pure core); never throws / never rejects. (Multi-source + reorg-currentness OUT for this slice.)
