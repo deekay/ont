@@ -50,15 +50,69 @@ export interface ContestedBatchResult {
   readonly verdict: ContestedBatchVerdict;
 }
 
+/** Stable, sortable key for an owner identity (kind + its hex), distinguishing distinct owners. */
+const ownerSortKey = (o: DcvOwnerIdentity): string =>
+  o.kind === "owner-key" ? `k:${o.ownerKeyHex}` : `c:${o.commitmentHex}`;
+
+/**
+ * The contending owners for one contested leaf, derived from the validated INPUT leaves (D-CV provenance
+ * exposes only `contributingBatchIds`, not owners). Restricted to that key's includable-priority members
+ * (#69), deduped to DISTINCT owner identities, canonically sorted. No winner — the L1 auction selects.
+ */
+function contendingOwnersFor(
+  leaves: DcvDerivationInput["leaves"],
+  leafKeyHex: string,
+): readonly DcvOwnerIdentity[] {
+  const distinct = new Map<string, DcvOwnerIdentity>();
+  for (const lw of leaves) {
+    const p = lw.projection;
+    if (p.leafKeyHex !== leafKeyHex) continue;
+    if (p.daVerdict.kind !== "includable" || !p.daVerdict.holdsPriority) continue; // exclude DA-excluded / non-priority
+    distinct.set(ownerSortKey(p.owner), p.owner);
+  }
+  return [...distinct.values()].sort((a, b) => {
+    const ka = ownerSortKey(a);
+    const kb = ownerSortKey(b);
+    return ka < kb ? -1 : ka > kb ? 1 : 0;
+  });
+}
+
 /**
  * Derive the canonical root for a presented delta set and route its distinct-owner contests to L1.
  * Total + fail-closed: never throws; a `derived:false` D-CV verdict (malformed / stale base / insert-only
- * violation / projection contradiction / batch-local duplicate / no-op) surfaces its `dcv-*` reason.
- *
- * STUB (I-CONTESTED, tests-first): returns a fixed reject so the `cnt.*` red battery fails for the right
- * reason until the orchestrator is implemented.
+ * violation / projection contradiction / batch-local duplicate / no-op) surfaces its `dcv-*` reason in
+ * both the `derive` trace step and the verdict. On success, partitions the provenance into inserted-owner
+ * leaves + the contested→L1 list (with `contendingOwners` derived from the validated input leaves).
  */
-export function enforceContestedBatch(_input: DcvDerivationInput): ContestedBatchResult {
-  void deriveCanonicalRoot;
-  return { trace: [], verdict: { accepted: false, reason: "cnt-stub-not-implemented" } };
+export function enforceContestedBatch(input: DcvDerivationInput): ContestedBatchResult {
+  let v;
+  try {
+    v = deriveCanonicalRoot(input);
+  } catch {
+    return { trace: [{ stage: "derive", ok: false, reason: "cnt-derive-threw" }], verdict: { accepted: false, reason: "cnt-derive-threw" } };
+  }
+  if (!v.derived || v.newRoot === null) {
+    return { trace: [{ stage: "derive", ok: false, reason: v.reason }], verdict: { accepted: false, reason: v.reason } };
+  }
+
+  const inserted: InsertedLeaf[] = [];
+  const contestedToL1: ContestedLeafRouting[] = [];
+  for (const leaf of v.leaves) {
+    if (leaf.disposition === "inserted" && leaf.ownerValueHex !== null) {
+      inserted.push({ leafKeyHex: leaf.leafKeyHex, name: leaf.name, ownerValueHex: leaf.ownerValueHex });
+    } else if (leaf.disposition === "contested-no-owner") {
+      // Only contests the PRESENTED set contains are routed — never infer "no competitor" from absence.
+      contestedToL1.push({
+        leafKeyHex: leaf.leafKeyHex,
+        name: leaf.name,
+        contendingOwners: contendingOwnersFor(input.leaves, leaf.leafKeyHex),
+      });
+    }
+    // skipped-excluded → no effect; rejected-batch-local cannot reach a derived verdict.
+  }
+
+  return {
+    trace: [{ stage: "derive", ok: true, reason: v.reason }],
+    verdict: { accepted: true, kind: "contested-batch-derived", canonicalRoot: v.newRoot, inserted, contestedToL1 },
+  };
 }
