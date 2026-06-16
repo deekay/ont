@@ -17,3 +17,9 @@ export {
   type ServedValueHistoryResult,
   type ServedValueHistoryRejectReason,
 } from "./serve-value-history.js";
+export {
+  projectServedRecoveryHistory,
+  type ProjectServedRecoveryHistoryInput,
+  type ServedRecoveryHistoryResult,
+  type ServedRecoveryHistoryRejectReason,
+} from "./serve-recovery-history.js";
