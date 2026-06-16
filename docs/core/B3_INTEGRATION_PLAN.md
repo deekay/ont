@@ -186,3 +186,65 @@ forged child** (self-target-valid but `nBits` easier than expected at its height
 rejects; checkpoint-mismatch at i==0 rejects; retarget-boundary header with stale (un-recomputed) `nBits`
 rejects; non-80-byte/malformed rejects; `headerHexAtHeight` returns null outside the validated range;
 total/fail-closed, never throws. Plus a bitcoin-level block-170 pin (relocation byte-order guard).
+
+## 8. I-REC design (recovery-invoke integration) — design-first
+
+The recovery-invoke enforcement orchestrator: an untrusted supply presents the confirmed invoke + the
+recovery descriptor `D` + current name-state; I-REC binds `h_r`, mints the §3c descriptor witness
+(recompute-not-trust), and feeds the kernel `acceptRecoverOwner`. Returns an **evidence trace + kernel
+verdict** (never a bare ownership mutation), mirroring I-HARNESS. Lives in `@ont/claim-path`.
+
+The kernel surface (already audited, B2/B3 §2):
+```
+acceptRecoverOwner(invokeFacts, descriptorEvidence, nameState, recoveryParams) -> { accepted, reason }
+  invokeFacts:       RecoverOwnerInvokeFacts { prevStateTxid, newOwnerPubkey, flags, successorBondVout,
+                       challengeWindowBlocks, recoveryDescriptorHash, signature, minedHeight=h_r }
+  descriptorEvidence: { descriptor, witness:{kind:"b3-verified-recovery-descriptor-witness", witnessedByHeight} }
+  nameState:         { ownerPubkey, headTxid, currentOwnershipRef, recoveryDescriptorHeadHash, …Sequence }
+  recoveryParams:    { recoveryEvidenceWindowBlocks W_r }
+```
+The witness is only mintable by `verifyRecoveryDescriptorWitness` (@ont/evidence, D-RC) — a producer-
+asserted `{witnessedByHeight}` is rejected by the kernel. So I-REC's whole job is to MINT that witness
+from chain-bound facts and wire it in; it never re-checks the descriptor authorization (R2/R3/R4/R7 stay
+kernel).
+
+**Recommended pipeline (mirrors I-HARNESS 4-stage; fail-closed each step):**
+```
+enforceRecoveryInvoke(input, sources) -> { trace, verdict }
+  1. inclusion   bind the invoke tx to the canonical chain at h_r (headerSource — the I-SPV seam),
+                 deriving the confirmed minedHeight h_r + the invoke's committed recoveryDescriptorHash
+  2. witness     verifyRecoveryDescriptorWitness({ descriptor, committedDescriptorHash = the bound
+                 invoke's hash, confirmedInvokeMinedHeight = h_r }) -> mints witness | rc-* reject
+  3. authority   acceptRecoverOwner(invokeFacts{…, minedHeight=h_r}, {descriptor, witness}, nameState,
+                 recoveryParams) -> verdict
+  4. verdict     accept + name-state delta (new owner key + descriptor head) | reject
+```
+
+**Cross-binding pin (the I-HARNESS lesson):** `recoveryDescriptorHash` + `minedHeight` fed to D-RC and
+the kernel MUST come from the SAME chain-bound invoke — no "facts from invoke A + inclusion of tx B"
+false accept. The orchestrator derives both from the one confirmed invoke; a mismatch fails closed.
+
+**Design-concur — open calls (my leans):**
+1. **h_r binding (the main fork).** (A) compose `verifyProofBundleAgainstBitcoin` over a direct-L1 invoke
+   bundle vs the I-SPV `headerSource` (reuses the audited against-Bitcoin verifier, firewall-honest,
+   exactly the I-HARNESS pattern — but the proof-bundle direct-L1 source is auction-shaped, may not fit a
+   RecoverOwner tx); (B) a thin single-tx Merkle-inclusion verify vs `headerSource`; (C) consume a
+   pre-verified D-BI confirmed-invoke fact from a typed seam (lightest; the h_r firewall lives in the
+   already-green D-BI builder, fixture-backed in B3). **Lean: A if the invoke fits the direct-L1 bundle,
+   else C** — h_r must be recompute-not-trust at the seam boundary either way.
+2. **invokeFacts provenance.** Parse the RecoverOwner 0x09 wire event (@ont/wire) → `RecoverOwnerInvokeFacts`
+   inside I-REC, vs consume structured `invokeFacts` from the seam (kernel still does the R7 signature /
+   authority check). **Lean: consume structured facts from the confirmed-invoke seam** (the wire parse is a
+   B4 adapter concern; I-REC binds + composes), with the cross-binding pin enforcing facts⇔included-tx.
+3. **nameState provenance.** Current consensus state (owner/head/ownershipRef/descriptor-head) is consumed
+   from a name-state seam (fixture in B3, indexer in B4), never derived. **Lean: seam, confirm boundary.**
+4. **Scope.** I-REC = the descriptor-witness path only. Bond-continuity (#79 `bondContinuityBreak`) and
+   successor-bond binding (PR-34) are NOT inputs to `acceptRecoverOwner` → out of I-REC (separate slice).
+   **Lean: confirm bond-continuity stays out.**
+
+**Planned `rec.*` red battery (sketch, pending concur):** happy invoke → accept + new-owner delta;
+determinism; producer-asserted witness ignored (kernel mints only via D-RC); descriptor-hash mismatch →
+`rc-descriptor-hash-mismatch` (no witness, reject); cross-binding (facts' hash ≠ bound invoke's hash) →
+reject; witnessed-too-late (h_r + W_r) → kernel reject; non-cancel flags / wrong ownershipRef / stale head
+→ kernel rejects surfaced in the trace; malformed invoke / descriptor / nameState → fail-closed; never
+throws.
