@@ -266,3 +266,68 @@ descriptor digest ≠ committed hash → `rc-descriptor-hash-mismatch` (via D-RC
 rejects surfaced in the trace (wrong ownershipRef R4 / stale head R3 / non-cancel flags); malformed
 confirmed-invoke / `invokeFields` (extra `minedHeight`) / descriptor / nameState / params → fail-closed;
 never throws.
+
+## 9. I-FEE design (gate-fee enforcement) — design-first
+
+The gate-fee enforcement orchestrator: bind a confirmed batch anchor, run the audited
+`gateFeeValidation` over the committed leaf set + the fee witness, and emit an **admission verdict +
+trace** (Σ g ≥ paid). Closes the STATUS gap "aggregate gate-fee Σ g not enforced in the path." Lives in
+`@ont/claim-path`.
+
+**Key finding — `gateFeeValidation` is self-contained.** It already recompute-don't-trusts everything:
+`paidFee = Σ(spent prevout values) − Σ(anchor outputs)` from the COMPLETE anchor tx + each prevout tx
+(`legacyTxidOf` binds the fee tx to `anchor.anchorTxid` and each prevout to its input — `gf-anchor-txid-
+mismatch` / `gf-prevout-txid-mismatch`), and `requiredFee = Σ g(canonicalNameByteLength)` over the FULL
+committed leaf set (#52: dropped/DA-excluded leaves still count); it also binds the committed batch to the
+anchor (`batch.anchoredRoot/batchSize === anchor.*` → `gf-batch-not-bound-to-anchor`). So I-FEE's
+integration value is NOT re-checking fees — it is feeding `gateFeeValidation` a **chain-bound** anchor
+(not a producer assertion) and returning an admission verdict + trace, mirroring I-REC.
+
+**Scope decision — standalone this slice; in-path wire-in → B4.** The literal "enforce in the
+enforceBatchedClaim path" needs the gate-fee stage to recompute `paidFee` from the inclusion-bound
+anchor's COMPLETE tx. The I-HARNESS happy fixture's anchor is the REAL block-170 payment txid
+(`PAYMENT_TXID`) with a real-PoW inclusion proof, so a fee witness there would require block-170's real
+payment tx as a `LegacyTransaction` (+ its block-9 prevout) — fixture archaeology — or a re-mined
+synthetic block. In production (B4) the indexer already parsed the real anchor tx, so the fee witness is
+free; the blocker is purely a B3-test artifact. So B3 builds the standalone `enforceGateFee` (synthetic
+coherent fixture, no inclusion/PoW needed — the confirmed-anchor seam IS the chain-bound boundary); B4
+wires it after enforceBatchedClaim's inclusion stage using the real anchor tx.
+
+**Seam shape (closed):**
+```
+ConfirmedBatchAnchor {                    // verified inclusion/adapter output (h firewall behind it)
+  anchorTxid, minedHeight, anchoredRoot, batchSize }
+enforceGateFee({ confirmedAnchor, committedBatch, feeWitness }) -> { trace, verdict }
+  committedBatch: CommittedBatchContents { anchoredRoot, batchSize, leaves[] }   // @ont/consensus
+  feeWitness:     GateFeeWitness { anchorTx, prevoutTxs[], schedule }            // @ont/consensus
+```
+
+**Pipeline (fail-closed each step):**
+```
+  1. validate     closed-shape the confirmedAnchor seam fact (anchorTxid/anchoredRoot hex, minedHeight +
+                  batchSize u32) — else gf-input-malformed
+  2. gate-fee     gateFeeValidation({ minedHeight, anchoredRoot, batchSize, anchorTxid } FROM the
+                  confirmed anchor, committedBatch, feeWitness) -> { accepted, reason }; gateFeeValidation
+                  binds fee-tx (legacyTxidOf) + committed batch (root/size) to that chain-bound anchor
+  3. verdict      accepted -> { adequate:true, kind:"gate-fee-adequate" }; else { adequate:false, reason }
+```
+No name-state mutation (admission only). The anchor facts come ONLY from the confirmed-anchor seam; a
+hostile fee witness (different tx) → `gf-anchor-txid-mismatch`, a hostile committed batch (different root)
+→ `gf-batch-not-bound-to-anchor`, underpayment → `gf-underpaid`, all surfaced in the trace.
+
+**Design-concur — open calls (my leans):**
+1. **Standalone vs in-path.** **Lean: standalone `enforceGateFee` this slice + in-path wire-in to B4**
+   (the block-170 real-anchor fixture blocks an in-path fee witness without archaeology/mining; B4's real
+   adapter dissolves it). Alternative: force the in-path now by reworking the I-HARNESS anchor to a mined
+   synthetic block (heavy; re-touches the signed-off slice).
+2. **Confirmed-anchor seam** `{ anchorTxid, minedHeight, anchoredRoot, batchSize }` — chain-bound; the
+   fee-tx ⇔ anchor and batch ⇔ anchor binds are `gateFeeValidation`'s (no duplicate I-FEE check). Confirm.
+3. **committedBatch + feeWitness** consumed from seams (fixture in B3, indexer/adapter in B4); Σ g over the
+   full committed set. Confirm.
+4. **Output** = admission verdict (no mutation), like I-REC. Confirm.
+
+**Planned `fee.*` red battery (sketch, pending concur):** adequate anchor → `gate-fee-adequate` admission,
+no mutation; determinism; fee witness `anchorTx` ≠ confirmed txid → `gf-anchor-txid-mismatch`; committed
+batch root ≠ confirmed root → `gf-batch-not-bound-to-anchor`; underpaid (Σ g > paid) → `gf-underpaid`;
+Σ g over the FULL multi-leaf set (#52) pinned; negative paid fee / prevout mismatch / malformed schedule
+surfaced; malformed confirmed anchor → `gf-input-malformed`; never throws.
