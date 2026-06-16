@@ -399,13 +399,25 @@ describe("I-FEE-PATH enforceBatchedClaim — mandatory gate-fee stage", () => {
     expect(reached(r, "availability")).toBe(false);
   });
 
-  it("a throwing fee/committed-batch seam fails closed at gate-fee (never an exception)", () => {
+  it("a throwing committedBatchForRoot seam fails closed at gate-fee (never an exception)", () => {
     const throwing = batchDataSource({ committedBatchForRoot: () => { throw new Error("committed-batch source down"); } });
     expect(() => run(claim(), sources({ batch: throwing }))).not.toThrow();
     const r = run(claim(), sources({ batch: throwing }));
     expect(r.accepted).toBe(false);
     expect(stepOk(r, "gate-fee")).toBe(false);
     expect(reached(r, "availability")).toBe(false);
+    expect(r.nameStateDelta).toBeUndefined();
+  });
+
+  it("a throwing feeTxForAnchor seam fails closed at gate-fee (never an exception)", () => {
+    const throwing = batchDataSource({ feeTxForAnchor: () => { throw new Error("fee-tx source down"); } });
+    expect(() => run(claim(), sources({ batch: throwing }))).not.toThrow();
+    const r = run(claim(), sources({ batch: throwing }));
+    expect(r.accepted).toBe(false);
+    expect(stepOk(r, "gate-fee")).toBe(false);
+    expect(reached(r, "availability")).toBe(false);
+    expect(reached(r, "completeness")).toBe(false);
+    expect(r.nameStateDelta).toBeUndefined();
   });
 
   it("a fake low schedule riding on the fee seam is IGNORED — the trusted policy schedule decides", () => {
