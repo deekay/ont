@@ -8,6 +8,13 @@
 >
 > **Branch:** `clean-build-b5` will stack on `main` once B4 merges (else on `clean-build-b4`). **No
 > implementation lands until B4 is merged.**
+>
+> **CL design-concur @ `543f6807`** (all 5 open calls, with refinements folded in §7): (2) claim-site signing
+> boundary must be explicit — a named mock-wallet fixture, never a hidden signer; (3) the walkthrough harness is
+> **hermetic synthetic-block FIRST** (reuse the B4 synthetic block/header machinery + fixture DA/resolver
+> stores), regtest/live smoke optional once a target exists; (4) a **low-cost scripted boundary lint ships in
+> the FIRST B5 slice** (B5-CLAIM), not later. **B5-CLAIM design-first is open** (this doc §7); B5 implementation
+> still held for the DK merge gate.
 
 ## 1. The gap
 
@@ -96,3 +103,72 @@ merged to `main` (DK gate).**
   UI copy (apps/claim requalification precedent, da-trust-model firewall doctrine).
 - DK-parked items unaffected by B5: B4-PUB-REFUND loss-accounting encoding; DA provisional served-transport
   format; `>80B` carrier.
+
+## 7. B5-CLAIM design-first (the claim site) — CL design-concur pending
+
+The first surface. Smallest, self-contained, exercises the full read+write loop. **Design only — no
+implementation until B4 merges to `main`.** Package: `apps/claim` (clean-build rewrite; old `apps/claim`
+quarantined, mined for the walkthrough + documenting tests only).
+
+### 7.1 Purpose
+
+The low-friction "claim a name" front door: serve one page + a self-contained browser client; **assemble** the
+unsigned claim/anchor transaction via `@ont/adapter-publisher`; **hand off** signing (never sign here);
+**read/render** chain-derived name state via `@ont/adapter-resolver` (+ `@ont/adapter-indexer` confirmation).
+Runs on its own origin (key-handling stays off this origin — see signing boundary). It decides nothing:
+ownership is on-chain + the audited kernel; the resolver view is convenience, stamped not-authority.
+
+### 7.2 Scope + the signing boundary (CL #2)
+
+- **Assembles + hands off + renders/reads.** The claim site calls the B4 assemblers (unsigned
+  `LegacyTransaction`) and the read adapters. It **MUST NOT sign** — no private keys, no PSBT finalization on
+  this surface. Any signing in a walkthrough crosses a **named mock-wallet fixture boundary** (a test double
+  standing in for B5-WALLET), or is deferred to B5-WALLET. A hidden signer here is a B5 bug.
+- **Spend-triggering endpoint stays server-side + rate-limited** (the old claim site's posture): the publisher
+  URL is not exposed to the browser; the claim/broadcast proxy is rate-limited (public, spend-adjacent).
+- **Resolver gap-scan is liveness, not authority** — the owner→names union for display carries the
+  `not-ownership-authority` / `resolver-indexed-mirror` stamps through to the rendered copy.
+
+### 7.3 Pure cores (red→green, when B4 merges)
+
+- **request/response shaping** — parse a claim request → call the assembler → return the unsigned tx + the
+  next-step handoff descriptor (deterministic; malformed request → structured reject; never throws).
+- **served-state projection for display** — fold resolver/indexer reads into the page view-model, preserving
+  the not-authority stamps; never presents unverified data as authoritative.
+- (key handling does NOT live here — it moves to B5-WALLET per the signing boundary.)
+
+### 7.4 The boundary lint (CL #4 — ships in THIS slice)
+
+A low-cost scripted check (e.g. `scripts/check-surface-boundaries.mjs`) run as a B5 gate:
+- `apps/*` may import **published `@ont/*` package entrypoints only** — NO package-internal `src/`/`dist/`
+  deep imports.
+- NO imports of quarantined old-app logic (`legacy/`).
+- NO direct crypto / bitcoin rule libraries (e.g. `@noble/*`, `bitcoinjs-lib`) from a surface — **except inside
+  B5-WALLET**, where signing is in scope.
+- Literal window/digest/predicate-reimplementation checks stay **CL review** for now (the lint learns more from
+  the first real violation rather than over-specifying up front).
+
+### 7.5 Tests / gate
+
+- The pure cores above, red→green.
+- **The claim walkthrough — hermetic synthetic-block harness (CL #3):** assemble claim tx → (mock-wallet
+  signing fixture) → drop into a synthetic 1-tx block (reuse the B4 synthetic block/header machinery) → the
+  B4-INDEX read firewall ACCEPTS → resolve + render the resulting state. Unit-gateable without signet;
+  regtest/live smoke optional once a target exists.
+- The boundary lint (§7.4) passes.
+- Copy obeys the GLOSSARY + the not-authority discipline.
+
+### 7.6 B5-CLAIM design-concur — open calls (my leans)
+
+1. **Signing boundary** = named mock-wallet fixture for walkthroughs; the claim site never holds keys / signs.
+   **Lean: this** (CL #2). Confirm the fixture shape (a minimal `signTx(unsignedTx) → signedTx` test double).
+2. **Hermetic harness** reusing B4's synthetic block/header machinery + fixture DA/resolver stores. **Lean:
+   this** (CL #3). Confirm whether the harness lives in `apps/claim` test scope or a shared B5 test util.
+3. **Boundary lint scope** as §7.4. **Lean: this** (CL #4). Confirm the exact allow/deny lists.
+4. **What "claim" assembles here** — the claim site's tx is the RootAnchor batch path (operator) vs a
+   per-name claim. My read: the claim site drives the **operator claim/anchor** flow (assemble RootAnchor via
+   `assembleRootAnchorTx` + the batch), since per-name Transfer/AuctionBid are B5-WALLET wallet-handoff (W17).
+   **Flag for your ruling** — this pins exactly which assembler the first walkthrough exercises.
+
+On concur I draft the B5-CLAIM red battery — but it stays uncommitted-as-implementation until B4 merges; only
+the design note + (if useful) reviewed interface-test stubs land now.
