@@ -47,14 +47,18 @@ const fail = (reason: string): RecoveryDescriptorWitnessResult => ({ ok: false, 
  *
  * GREEN CONTRACT (fail-closed order; total, never throws):
  *   1. top-level totality: `input` is an object with exactly `{ descriptor, committedDescriptorHash,
- *      confirmedInvokeMinedHeight }`; `committedDescriptorHash` is 32-byte hex; `confirmedInvokeMinedHeight`
- *      is u32 — else `rc-input-malformed` (no source/timestamp channel).
- *   2. `descriptor` is an object — else `rc-descriptor-malformed`.
- *   3. recompute `bytesToHex(recoveryDescriptorDigest(descriptor))` (guarded: `@ont/wire` throws on a
- *      malformed descriptor) — else `rc-descriptor-malformed`.
- *   4. it equals `committedDescriptorHash` — else `rc-descriptor-hash-mismatch`.
+ *      confirmedInvokeMinedHeight }` (every key present); `descriptor` is a non-null object;
+ *      `committedDescriptorHash` is 32-byte lowercase hex; `confirmedInvokeMinedHeight` is u32 — else
+ *      `rc-input-malformed` (a missing/extra key, a non-object descriptor, or a source/timestamp channel
+ *      all land here).
+ *   2. recompute `bytesToHex(recoveryDescriptorDigest(descriptor))` (guarded: `@ont/wire` throws on a
+ *      content-malformed descriptor) — else `rc-descriptor-malformed` (reserved for a present descriptor
+ *      OBJECT whose field values cannot be digested).
+ *   3. it equals `committedDescriptorHash` — else `rc-descriptor-hash-mismatch`.
  *   mint `{ kind: "b3-verified-recovery-descriptor-witness", witnessedByHeight: confirmedInvokeMinedHeight }`.
- *   AUTHORIZATION (R2/R3/R4/R7 + closed descriptor shape) is NOT checked here — kernel's, per the seam.
+ *   The descriptor's AUTHORIZATION (R2 arming sig, R3 head, R4 ownershipRef, R7 version) AND its
+ *   closed-envelope shape (an extra `descriptor`-internal field = the kernel's `descriptor-extra-field`)
+ *   are NOT checked here — D-RC mints on digest-match + h_r and never parses/authorizes (the seam).
  */
 export function verifyRecoveryDescriptorWitness(
   input: VerifyRecoveryDescriptorWitnessInput,

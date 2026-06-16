@@ -121,12 +121,40 @@ describe("D-RC recovery descriptor witness — verifyRecoveryDescriptorWitness (
     }).reason).toBe("rc-descriptor-malformed");
   });
 
-  it("rejects a non-object descriptor", () => {
+  it("treats a non-object descriptor as a top-level shape fault (rc-input-malformed, not descriptor-malformed)", () => {
     expect(verifyRecoveryDescriptorWitness({
       descriptor: null as never,
       committedDescriptorHash: hashOf(v2Descriptor()),
       confirmedInvokeMinedHeight: H_R,
-    }).reason).toBe("rc-descriptor-malformed");
+    }).reason).toBe("rc-input-malformed");
+  });
+
+  it("rejects missing required top-level keys (descriptor / committedDescriptorHash / confirmedInvokeMinedHeight)", () => {
+    const descriptor = v2Descriptor();
+    const hash = hashOf(descriptor);
+    expect(verifyRecoveryDescriptorWitness({ committedDescriptorHash: hash, confirmedInvokeMinedHeight: H_R } as never).reason).toBe("rc-input-malformed");
+    expect(verifyRecoveryDescriptorWitness({ descriptor, confirmedInvokeMinedHeight: H_R } as never).reason).toBe("rc-input-malformed");
+    expect(verifyRecoveryDescriptorWitness({ descriptor, committedDescriptorHash: hash } as never).reason).toBe("rc-input-malformed");
+  });
+
+  it("still mints when the descriptor carries an INTERNAL extra field (envelope closed-shape is the kernel's, not D-RC's)", () => {
+    // recoveryDescriptorDigest ignores unknown fields, so a `source`/`servedAt` inside the descriptor
+    // does NOT change the digest — D-RC mints on the match; the kernel rejects the extra (descriptor-extra-field).
+    const descriptor = v2Descriptor({ source: "resolver-x" });
+    expect(verifyRecoveryDescriptorWitness({
+      descriptor,
+      committedDescriptorHash: hashOf(descriptor),
+      confirmedInvokeMinedHeight: H_R,
+    })).toEqual({ ok: true, witness: { kind: "b3-verified-recovery-descriptor-witness", witnessedByHeight: H_R } });
+  });
+
+  it("still mints with a wrong/malformed owner arming signature (R2 stays the kernel's; the digest excludes the signature)", () => {
+    const descriptor = v2Descriptor({ signature: "ff".repeat(64) }); // valid hex, cryptographically wrong
+    expect(verifyRecoveryDescriptorWitness({
+      descriptor,
+      committedDescriptorHash: hashOf(descriptor),
+      confirmedInvokeMinedHeight: H_R,
+    })).toEqual({ ok: true, witness: { kind: "b3-verified-recovery-descriptor-witness", witnessedByHeight: H_R } });
   });
 
   it("is total on a malformed/null top-level input — never throws", () => {
