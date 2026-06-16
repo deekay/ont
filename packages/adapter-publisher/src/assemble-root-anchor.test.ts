@@ -33,7 +33,7 @@ function make80ByteHeader(merkleInternal: Uint8Array): string {
   return bytesToHex(h);
 }
 
-const PREV_ROOT = "00".repeat(32);
+const PREV_ROOT = "0a".repeat(32); // letter-containing so .toUpperCase() actually differs (uppercase-reject pin)
 const NEW_ROOT = "ab".repeat(32);
 const BATCH_SIZE = 2;
 const MINED_HEIGHT = 800_000;
