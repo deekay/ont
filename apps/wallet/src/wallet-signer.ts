@@ -5,6 +5,12 @@ import {
   type SignedRecoveryDescriptor,
 } from "@ont/protocol";
 import { deriveOwnerKey } from "./key-derivation.js";
+import {
+  buildAndSignTransferArtifact,
+  type WalletTransactionBuilder,
+  type TransferArtifactInput,
+  type BuildTransferResult,
+} from "./transfer-artifacts.js";
 
 // B5-WALLET (first slice) — the WalletSigner contract: the NARROW port the CLI / claim DELEGATE to. It exposes
 // the owner pubkey + signing over value-records / recovery-descriptors; the private key/seed are held inside
@@ -44,7 +50,7 @@ export interface WalletSigner {
 }
 
 export type CreateWalletSignerResult =
-  | { readonly ok: true; readonly signer: WalletSigner }
+  | { readonly ok: true; readonly signer: WalletSigner & WalletTransactionBuilder }
   | { readonly ok: false; readonly reason: "malformed-mnemonic" | "malformed-index" };
 
 /**
@@ -58,13 +64,16 @@ export function createWalletSigner(mnemonic: string, index = 0): CreateWalletSig
   // The private key is captured ONLY in this closure — never an enumerable property of the signer, so it
   // never appears by key name or in a serialized dump (the no-key-exposure pin).
   const { ownerPrivateKeyHex, ownerPubkey } = derived.key;
-  const signer: WalletSigner = {
+  const signer: WalletSigner & WalletTransactionBuilder = {
     ownerPubkey,
     signValueRecord(fields: ValueRecordSignFields): SignedValueRecord {
       return signValueRecord({ ...fields, ownerPrivateKeyHex });
     },
     signRecoveryDescriptor(fields: RecoveryDescriptorSignFields): SignedRecoveryDescriptor {
       return signRecoveryDescriptor({ ...fields, ownerPrivateKeyHex });
+    },
+    buildAndSignTransfer(input: TransferArtifactInput): BuildTransferResult {
+      return buildAndSignTransferArtifact(ownerPrivateKeyHex, input);
     },
   };
   return { ok: true, signer };

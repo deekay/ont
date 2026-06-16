@@ -13,3 +13,13 @@ export {
   type RecoveryDescriptorSignFields,
   type CreateWalletSignerResult,
 } from "./wallet-signer.js";
+export {
+  type WalletTransactionBuilder,
+  type TransferArtifactInput,
+  type TransferFundingInput,
+  type TransferNetwork,
+  type SignedTransferArtifact,
+  type SignedTransferArtifactOutput,
+  type BuildTransferResult,
+  type TransferBuildReason,
+} from "./transfer-artifacts.js";

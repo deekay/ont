@@ -11,8 +11,11 @@
   },
   "dependencies": {
     "@ont/protocol": "file:../../packages/protocol",
+    "@ont/wire": "file:../../packages/wire",
     "@scure/bip39": "^1.6.0",
-    "@scure/bip32": "^1.7.0"
+    "@scure/bip32": "^1.7.0",
+    "bitcoinjs-lib": "^7.0.1",
+    "tiny-secp256k1": "^2.2.4"
   },
   "devDependencies": {
     "@ont/adapter-resolver": "file:../../packages/adapter-resolver",
