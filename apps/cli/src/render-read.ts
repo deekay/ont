@@ -25,20 +25,41 @@ export interface TxView {
 export type RenderHistoryResult = { readonly ok: true; readonly view: HistoryView } | { readonly ok: false; readonly reason: "unavailable" };
 export type RenderTxResult = { readonly ok: true; readonly view: TxView } | { readonly ok: false; readonly reason: "unavailable" };
 
-/** RED stub. Green: served.ok → view {name, count: records.length, provenance, authority} (stamps verbatim); else unavailable. */
+/** served.ok → view carrying the resolver stamps verbatim; else unavailable (no fabricated state). Never throws. */
 export function renderValueHistory(served: ServedValueHistoryResult): RenderHistoryResult {
-  void served;
-  return { ok: false, reason: "unavailable" };
+  try {
+    if (served === null || typeof served !== "object" || served.ok !== true) return { ok: false, reason: "unavailable" };
+    return {
+      ok: true,
+      view: { name: served.name, count: served.records.length, provenance: served.provenance, authority: served.authority },
+    };
+  } catch {
+    return { ok: false, reason: "unavailable" };
+  }
 }
 
-/** RED stub. Green: served.ok → view {name, count: descriptors.length, provenance, authority} (stamps verbatim); else unavailable. */
+/** served.ok → view carrying the resolver stamps verbatim; else unavailable. Never throws. */
 export function renderRecoveryHistory(served: ServedRecoveryHistoryResult): RenderHistoryResult {
-  void served;
-  return { ok: false, reason: "unavailable" };
+  try {
+    if (served === null || typeof served !== "object" || served.ok !== true) return { ok: false, reason: "unavailable" };
+    return {
+      ok: true,
+      view: { name: served.name, count: served.descriptors.length, provenance: served.provenance, authority: served.authority },
+    };
+  } catch {
+    return { ok: false, reason: "unavailable" };
+  }
 }
 
-/** RED stub. Green: tx is an object → view {txid, confirmations, blockHeight, provenance:"bitcoin-chain", authority:"not-ownership-authority"}; else unavailable. */
+/** Chain provenance/display only — never ownership authority. Object → view; else unavailable. Never throws. */
 export function renderTx(tx: CliTxRead): RenderTxResult {
-  void tx;
-  return { ok: false, reason: "unavailable" };
+  try {
+    if (tx === null || typeof tx !== "object") return { ok: false, reason: "unavailable" };
+    return {
+      ok: true,
+      view: { txid: tx.txid, confirmations: tx.confirmations, blockHeight: tx.blockHeight, provenance: "bitcoin-chain", authority: "not-ownership-authority" },
+    };
+  } catch {
+    return { ok: false, reason: "unavailable" };
+  }
 }
