@@ -36,6 +36,15 @@ export type CanonicalHeaderResult =
   | { readonly ok: false; readonly reason: CanonicalHeaderRejectReason };
 
 /**
+ * The shared range-input guard for BOTH the pure core and the async wrapper (CL green-watch): an adapter
+ * range is well-formed iff `startHeight` is an int ≥ 0 and `count` is an int ≥ 1. A `count=0`/empty range
+ * must never become a vacuous accepted source, so it is rejected here before any fetch or validation.
+ */
+function isWellFormedRange(startHeight: number, count: number): boolean {
+  return Number.isInteger(startHeight) && startHeight >= 0 && Number.isInteger(count) && count >= 1;
+}
+
+/**
  * PURE (sync) core: range-input firewall → exact-count firewall → validation. ORDER MATTERS:
  *   1. range inputs — `startHeight` int ≥ 0 and `expectedCount` int ≥ 1 (a `count=0`/empty range must
  *      NOT become a vacuous accepted source) — else `header-range-malformed`.
@@ -44,19 +53,29 @@ export type CanonicalHeaderResult =
  *   3. `validateHeaderChain` (#82) decides; its `spv-*` reason (incl. `spv-header-malformed` strict
  *      80-byte parse and `spv-pow-insufficient`) is surfaced verbatim.
  * Total + fail-closed; never throws.
- *
- * STUB (B4-HEADER, tests-first): returns a fixed reject so the `hdr.*` red battery fails for the right
- * reason until the adapter is implemented.
  */
 export function buildCanonicalHeaderSourceFromHeaders(
-  _headersHex: readonly string[],
-  _startHeight: number,
-  _expectedCount: number,
-  _checkpoint: BitcoinDifficultyCheckpoint,
-  _params: BitcoinNetworkParams,
+  headersHex: readonly string[],
+  startHeight: number,
+  expectedCount: number,
+  checkpoint: BitcoinDifficultyCheckpoint,
+  params: BitcoinNetworkParams,
 ): CanonicalHeaderResult {
-  void validateHeaderChain;
-  return { ok: false, reason: "header-provider-unavailable" };
+  if (!isWellFormedRange(startHeight, expectedCount)) {
+    return { ok: false, reason: "header-range-malformed" };
+  }
+  if (!Array.isArray(headersHex) || headersHex.length !== expectedCount) {
+    return { ok: false, reason: "header-range-count-mismatch" };
+  }
+  const result = validateHeaderChain(headersHex, startHeight, checkpoint, params);
+  if (!result.ok) return { ok: false, reason: result.reason };
+  return {
+    ok: true,
+    headerSource: result.headerSource,
+    tipHeight: result.tipHeight,
+    tipHashHex: result.tipHashHex,
+    cumulativeWorkHex: result.cumulativeWorkHex,
+  };
 }
 
 export interface FetchCanonicalHeaderSourceInput {
@@ -73,11 +92,24 @@ export interface FetchCanonicalHeaderSourceInput {
  * must not depend on provider behavior). Then awaits the provider (null / reject / throw all →
  * `header-provider-unavailable`), forwarding the EXACT `(startHeight, count)` requested, and runs the pure
  * core. Total + fail-closed; never throws, never rejects.
- *
- * STUB (B4-HEADER, tests-first).
  */
 export async function fetchCanonicalHeaderSource(
-  _input: FetchCanonicalHeaderSourceInput,
+  input: FetchCanonicalHeaderSourceInput,
 ): Promise<CanonicalHeaderResult> {
-  return { ok: false, reason: "header-provider-unavailable" };
+  const { provider, startHeight, count, checkpoint, params } = input;
+  // Range validity must not depend on provider behavior — guard BEFORE any fetch (same shared guard as
+  // the pure core, literal startHeight + count, so count=0/non-int count rejects without a network call).
+  if (!isWellFormedRange(startHeight, count)) {
+    return { ok: false, reason: "header-range-malformed" };
+  }
+  let headersHex: readonly string[] | null;
+  try {
+    headersHex = await provider.fetchHeaderHex(startHeight, count);
+  } catch {
+    return { ok: false, reason: "header-provider-unavailable" };
+  }
+  if (headersHex === null || headersHex === undefined) {
+    return { ok: false, reason: "header-provider-unavailable" };
+  }
+  return buildCanonicalHeaderSourceFromHeaders(headersHex, startHeight, count, checkpoint, params);
 }
