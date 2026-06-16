@@ -7,8 +7,15 @@
 // REASON PRECEDENCE (CL, event 1265ad74): inclusion/header fails BEFORE availability/completeness;
 // missing served bytes fails BEFORE any canonical-root accept; completeness fails BEFORE any
 // name-state delta. The trace preserves each underlying audited reason; the top-level reason wraps it.
-import type { BitcoinHeaderSource } from "@ont/consensus";
-import type { ServedLeaf } from "@ont/evidence";
+import {
+  evaluateBatchCompleteness,
+  verifyProofBundleAgainstBitcoin,
+  type BatchCompletenessPredicateInput,
+  type BitcoinHeaderSource,
+  type DcvAnchorCoordinates,
+  type DcvDaVerdict,
+} from "@ont/consensus";
+import { verifyAvailabilityHeight, type ServedLeaf } from "@ont/evidence";
 
 export type { BitcoinHeaderSource };
 
@@ -113,9 +120,159 @@ export function enforceBatchedClaim(
   input: BatchedClaimInput,
   sources: BatchedClaimSources,
 ): BatchedClaimResult {
-  // RED PHASE (I-HARNESS green pending CL red-battery review): the threaded §2 pipeline is not yet
-  // implemented. The stub fails closed with a sentinel so the hrns.* battery is red until green lands.
-  void input;
-  void sources;
-  return { accepted: false, reason: "hrns-pending-green-impl", trace: [] };
+  const trace: ClaimTraceEntry[] = [];
+  const reject = (step: ClaimStep, reason: string): BatchedClaimResult => {
+    trace.push({ step, ok: false, reason });
+    return { accepted: false, reason: `hrns-rejected-at-${step}: ${reason}`, trace };
+  };
+  const { anchor, window } = input;
+
+  // ---- Stage 1: inclusion — verify the bundle against Bitcoin, then BIND input.anchor to it ----
+  let report: { readonly valid: boolean; readonly checks: readonly { id: string; status: string; message: string }[] };
+  try {
+    report = verifyProofBundleAgainstBitcoin(input.proofBundle, { headerSource: sources.headerSource });
+  } catch {
+    return reject("inclusion", "inclusion-verifier-threw");
+  }
+  if (!report.valid) {
+    const failed = report.checks.find((c) => c.status !== "pass");
+    return reject("inclusion", failed ? `${failed.id}: ${failed.message}` : "bundle-not-bitcoin-verified");
+  }
+  // Extract the anchor/root facts from the ALREADY-VERIFIED bundle; fail closed if absent/ambiguous
+  // (no producer-attested shortcut field — the facts come from the verified bundle shape only).
+  const bound = extractBundleAnchorFacts(input.proofBundle);
+  if (bound === null) return reject("inclusion", "bundle-anchor-facts-absent-or-ambiguous");
+  if (anchor.txid !== bound.txid || anchor.anchorHeight !== bound.height) {
+    return reject("inclusion", "anchor-bind-txid-or-height-mismatch");
+  }
+  if (anchor.anchoredRoot !== bound.root) return reject("inclusion", "anchor-bind-anchored-root-mismatch");
+  trace.push({
+    step: "inclusion",
+    ok: true,
+    reason: "bundle-bitcoin-verified-and-anchor-bound",
+    evidence: { anchorTxid: bound.txid, anchorHeight: bound.height, anchoredRoot: bound.root },
+  });
+
+  // ---- Stage 2: availability — the served bytes reconstruct the anchored root over a real base ----
+  let servedDelta: readonly ServedLeaf[] | null;
+  let baseLeaves: ReadonlyMap<string, string> | null;
+  try {
+    servedDelta = sources.batchDataSource.servedLeavesForRoot(anchor.anchoredRoot);
+    baseLeaves = sources.batchDataSource.baseLeavesForPrevRoot(anchor.prevRoot);
+  } catch {
+    return reject("availability", "batch-data-source-threw");
+  }
+  if (servedDelta === null) return reject("availability", "served-bytes-withheld");
+  if (baseLeaves === null) return reject("availability", "base-leaves-absent"); // never an empty-base default
+  let firstServableHeight: number;
+  let availBatchSize: number;
+  try {
+    const availability = verifyAvailabilityHeight({
+      baseLeaves,
+      servedDelta,
+      binding: { anchorHeight: anchor.anchorHeight, prevRoot: anchor.prevRoot, anchoredRoot: anchor.anchoredRoot },
+      confirmedAnchorMinedHeight: anchor.anchorHeight,
+    });
+    firstServableHeight = availability.firstServableHeight;
+    availBatchSize = availability.bound.batchSize;
+  } catch (e) {
+    return reject("availability", `availability-unverified: ${e instanceof Error ? e.message : String(e)}`);
+  }
+  trace.push({ step: "availability", ok: true, reason: "served-bytes-available", evidence: { firstServableHeight, servedCount: availBatchSize } });
+
+  // ---- Stage 3: completeness — build the per-leaf projections (no fake-verdict channel: the daVerdict
+  // is derived from the availability result here) and run the ratified #83 predicate ----
+  const completeness = evaluateBatchCompleteness(
+    buildCompletenessInput(anchor, window, baseLeaves, servedDelta, firstServableHeight, bound.txIndex),
+  );
+  if (!completeness.accepts) return reject("completeness", completeness.reason);
+  trace.push({ step: "completeness", ok: true, reason: completeness.reason });
+
+  // ---- Stage 4: verdict — accept + the name-state delta B4 applies (never a bare mutation here) ----
+  trace.push({ step: "verdict", ok: true, reason: "batched-claim-accepted" });
+  return {
+    accepted: true,
+    reason: "batched-claim-accepted",
+    trace,
+    nameStateDelta: { anchoredRoot: anchor.anchoredRoot, firstServableHeight },
+  };
+}
+
+const isObject = (x: unknown): x is Record<string, unknown> =>
+  typeof x === "object" && x !== null && !Array.isArray(x);
+
+interface BundleAnchorFacts {
+  readonly txid: string;
+  readonly height: number;
+  readonly txIndex: number;
+  readonly root: string;
+}
+
+/**
+ * Extract the cited Bitcoin anchor (txid/height/txIndex) + the accumulator membership root from the
+ * already-verified bundle SHAPE. Fail closed (null) if absent or ambiguous (≠ exactly one anchor) — the
+ * orchestrator never trusts a producer-attested shortcut field for the anchor identity or root (CL).
+ */
+function extractBundleAnchorFacts(bundle: unknown): BundleAnchorFacts | null {
+  if (!isObject(bundle)) return null;
+  const inclusion = bundle.bitcoinInclusion;
+  if (!isObject(inclusion) || !Array.isArray(inclusion.anchors) || inclusion.anchors.length !== 1) return null;
+  const a = inclusion.anchors[0];
+  if (!isObject(a) || typeof a.txid !== "string" || typeof a.height !== "number" || typeof a.pos !== "number") return null;
+  const proof = bundle.accumulatorProof;
+  if (!isObject(proof) || typeof proof.root !== "string") return null;
+  return { txid: a.txid, height: a.height, txIndex: a.pos, root: proof.root };
+}
+
+/**
+ * Build the #83 completeness input from the served leaves + the bound anchor + window + the
+ * availability-derived served height. Each leaf's projection is made coherent with its batch + the
+ * top-level base/daVerdict (the coherence the predicate requires); the daVerdict is derived here from
+ * the availability result, so a data source cannot inject a fake verdict.
+ */
+function buildCompletenessInput(
+  anchor: BatchedClaimAnchor,
+  window: BatchedClaimWindow,
+  baseLeaves: ReadonlyMap<string, string>,
+  servedDelta: readonly ServedLeaf[],
+  firstServableHeight: number,
+  txIndex: number,
+): BatchCompletenessPredicateInput {
+  const minedHeight = anchor.anchorHeight;
+  const availabilityDeadlineHeight = minedHeight + window.W;
+  const challengeDeadlineHeight = minedHeight + window.W + window.C;
+  const base = { prevRoot: anchor.prevRoot, baseRootHeight: minedHeight - window.K };
+  const anchorCoords: DcvAnchorCoordinates = { txid: anchor.txid, minedHeight, txIndex, vout: 0, anchorInstance: 0 };
+  // #84/O1: all served at h; the batch is complete at the last leaf served (= h here).
+  const daVerdict: DcvDaVerdict = {
+    kind: "includable",
+    firstCompleteServedHeight: firstServableHeight,
+    holdsPriority: firstServableHeight <= availabilityDeadlineHeight,
+  };
+  const batchId = `claim-batch:${anchor.anchoredRoot}`;
+  const leaves = servedDelta.map((leaf, index) => ({
+    projection: {
+      name: `b3-batched-leaf-${index}`,
+      leafKeyHex: leaf.keyHex,
+      owner: { kind: "owner-key" as const, ownerKeyHex: leaf.valueHex },
+      ownerValueBindingHex: leaf.valueHex,
+      anchor: anchorCoords,
+      batchId,
+      batchLocalIndex: index,
+      duplicateHandling: "unique" as const,
+      daVerdict,
+      base,
+    },
+    valueHex: leaf.valueHex,
+    servedHeight: firstServableHeight,
+  }));
+  return {
+    commitment: { prevRoot: anchor.prevRoot, newRoot: anchor.anchoredRoot, batchSize: anchor.batchSize },
+    base,
+    baseLeaves: Array.from(baseLeaves, ([keyHex, valueHex]) => ({ keyHex, valueHex })),
+    window: { K: window.K, W: window.W, C: window.C, availabilityDeadlineHeight, challengeDeadlineHeight },
+    daVerdict,
+    priorSettledVerdict: null,
+    batches: [{ batchId, anchor: anchorCoords, leaves }],
+  };
 }
