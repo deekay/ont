@@ -1,8 +1,8 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { renderLanding, route } from "./render-explorer-landing.js";
 import { renderNameView } from "./render-name-view.js";
-import { renderTxView } from "./render-tx-view.js";
-import type { WebReadPort } from "./web-read-port.js";
+import { renderTxView, renderServedTx, shapeTxid } from "./render-tx-view.js";
+import type { WebReadPort, ServedTx } from "./web-read-port.js";
 import type { ResolverTxSource } from "./live/resolver-tx-source.js";
 
 export interface WebServiceOptions {
@@ -47,7 +47,24 @@ export async function handleWebRequest(request: Request, options: WebServiceOpti
     }
 
     if (segments.length === 2 && segments[0] === "tx") {
-      return html(renderTxView({ txid: segments[1], port: options.port }));
+      const rawTxid = segments[1];
+      // No live source configured → the documented pure sync path (renderTxView wraps the sync port).
+      if (options.txSource === undefined) {
+        return html(renderTxView({ txid: rawTxid, port: options.port }));
+      }
+      // Live resolver read (G2 slice 5b-2) — DIRECT /tx/:txid only; /?q= and /search?q= stay on the pure sync
+      // route(q, port) path with no live coverage (CL scope boundary, event a322f29e). Validate before fetch:
+      // a bad txid renders the error view and NEVER calls the source.
+      const shaped = shapeTxid(rawTxid);
+      if (!shaped.ok) return html(renderServedTx(rawTxid, null)); // error view, no fetch
+      let served: ServedTx | null;
+      try {
+        served = await options.txSource(shaped.txid);
+      } catch {
+        // A broken live read is NOT "absent": 502 before rendering, generic body (no resolver-exception leak).
+        return html(LIVE_READ_ERROR, 502);
+      }
+      return html(renderServedTx(rawTxid, served)); // ServedTx → tx page; null → unavailable page (200)
     }
 
     return json({ ok: false, reason: "not-found" }, 404);
@@ -75,6 +92,15 @@ function json(body: unknown, status = 200): Response {
     headers: { "content-type": "application/json; charset=utf-8" },
   });
 }
+
+// The 502 body for a broken live resolver read (G2 slice 5b-2). GENERIC by design: it carries the operator
+// signal in the 502 status, never the resolver exception text (no internal leak into HTML), and is distinct
+// from the "not currently served" unavailable page (a broken read is not "absent").
+const LIVE_READ_ERROR =
+  `<!doctype html><html><head><title>Resolver unavailable</title></head><body>` +
+  `<h1>Resolver unavailable</h1>` +
+  `<p>The resolver could not be reached to read this transaction. Please try again later.</p>` +
+  `</body></html>`;
 
 function pathSegments(url: URL): string[] {
   return url.pathname
