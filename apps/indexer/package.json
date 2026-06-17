@@ -7,14 +7,15 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "npm run build -w @ont/protocol && npm run build -w @ont/wire && npm run build -w @ont/bitcoin && npm run build -w @ont/consensus && npm run build -w @ont/evidence && npm run build -w @ont/claim-path && npm run build -w @ont/adapter-indexer && vitest run",
+    "test": "npm run build -w @ont/protocol && npm run build -w @ont/wire && npm run build -w @ont/bitcoin && npm run build -w @ont/consensus && npm run build -w @ont/evidence && npm run build -w @ont/claim-path && npm run build -w @ont/adapter-indexer && npm run build -w @ont/node-live && vitest run",
     "dev": "tsx src/main.ts",
     "start": "node dist/apps/indexer/src/main.js"
   },
   "dependencies": {
     "@ont/adapter-indexer": "file:../../packages/adapter-indexer",
     "@ont/claim-path": "file:../../packages/claim-path",
-    "@ont/bitcoin": "file:../../packages/bitcoin"
+    "@ont/bitcoin": "file:../../packages/bitcoin",
+    "@ont/node-live": "file:../../packages/node-live"
   },
   "devDependencies": {
     "vitest": "^3.2.4"
