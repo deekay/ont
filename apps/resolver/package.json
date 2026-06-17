@@ -4,6 +4,12 @@
   "private": true,
   "type": "module",
   "description": "ONT clean runnable resolver service. Thin HTTP shell over @ont/adapter-resolver with an injected store port; no consensus or indexer rule reimplementation.",
+  "exports": {
+    ".": {
+      "types": "./dist/apps/resolver/src/index.d.ts",
+      "default": "./dist/apps/resolver/src/index.js"
+    }
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
