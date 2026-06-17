@@ -16,26 +16,13 @@
 //    a crashed rename is never read as store state on restart (hydrate reads only `filePath`).
 //
 // fs is an injectable seam so the write-failure path is testable; production uses nodeFileStoreFs.
-import { readFile, writeFile, rename, mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
 import type { ConfirmedAnchorRecord, ConfirmedAnchorStore } from "../ingest-anchors.js";
 import { encodeConfirmedAnchorRecord, decodeConfirmedAnchorRecord } from "./confirmed-anchor-codec.js";
+import { type FileStoreFs, nodeFileStoreFs } from "./file-store-fs.js";
 
-/** The filesystem operations the store needs — injectable so write failures are testable. */
-export interface FileStoreFs {
-  readFile(path: string): Promise<string>;
-  writeFile(path: string, data: string): Promise<void>;
-  rename(from: string, to: string): Promise<void>;
-  mkdir(path: string): Promise<void>;
-}
-
-/** The production fs seam over node:fs/promises (utf8 text, recursive mkdir). */
-export const nodeFileStoreFs: FileStoreFs = {
-  readFile: (p) => readFile(p, "utf8"),
-  writeFile: (p, d) => writeFile(p, d, "utf8"),
-  rename: (a, b) => rename(a, b),
-  mkdir: (p) => mkdir(p, { recursive: true }).then(() => undefined),
-};
+// The fs seam is shared with the cursor store; re-export so existing consumers/tests keep importing it here.
+export { type FileStoreFs, nodeFileStoreFs };
 
 interface StoreState {
   byRoot: Map<string, ConfirmedAnchorRecord>;

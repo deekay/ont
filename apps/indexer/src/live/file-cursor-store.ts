@@ -7,9 +7,9 @@
 // anchors, so a malformed / non-integer / negative height — or any non-ENOENT read error — throws rather
 // than guessing. No firewall logic — the cursor is just the height the runner advances (the audited core +
 // B4 adapters are untouched).
-import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
 import type { IndexerCursor, IndexerCursorStore } from "../runner.js";
+import { type FileStoreFs, nodeFileStoreFs } from "./file-store-fs.js";
 
 /** A confirmed Bitcoin height that is a safe cursor value: a non-negative integer (no NaN/float/coercion). */
 function isValidHeight(value: unknown): value is number {
@@ -36,12 +36,13 @@ function isFileNotFound(error: unknown): boolean {
 export function createFileIndexerCursorStore(
   filePath: string,
   genesisHeight = 0,
+  fs: FileStoreFs = nodeFileStoreFs,
 ): IndexerCursorStore {
   return {
     async load(): Promise<IndexerCursor> {
       let raw: string;
       try {
-        raw = await readFile(filePath, "utf8");
+        raw = await fs.readFile(filePath);
       } catch (error) {
         if (isFileNotFound(error)) return { height: genesisHeight }; // clean start
         throw error; // any other read error fails closed — never silently reset the cursor
@@ -66,8 +67,10 @@ export function createFileIndexerCursorStore(
         // Defend against a poison runtime cursor even though the type says number.
         throw new Error(`invalid cursor: height must be a non-negative integer (got ${String(cursor.height)})`);
       }
-      await mkdir(dirname(filePath), { recursive: true });
-      await writeFile(filePath, JSON.stringify({ height: cursor.height }), "utf8");
+      // RED baseline: direct write to the final file (no temp+rename yet) — the failed-write durability test
+      // is red until the atomic write lands in green.
+      await fs.mkdir(dirname(filePath));
+      await fs.writeFile(filePath, JSON.stringify({ height: cursor.height }));
     },
   };
 }
