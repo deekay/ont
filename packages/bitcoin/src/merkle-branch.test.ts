@@ -17,13 +17,15 @@ const rootHex = (leaf: string, branch: readonly string[], pos: number): string |
 
 describe("merkleBranchForIndex (G1 3b)", () => {
   it("2-leaf tree: each leaf's only sibling is the other leaf (structural)", () => {
-    const [a, b] = txids(2);
+    const all = txids(2);
+    const a = all[0]!;
+    const b = all[1]!;
     expect(merkleBranchForIndex([a, b], 0)).toEqual([b]);
     expect(merkleBranchForIndex([a, b], 1)).toEqual([a]);
   });
 
   it("single-tx block: empty path that reconstructs to the txid itself", () => {
-    const [only] = txids(1);
+    const only = txids(1)[0]!;
     const branch = merkleBranchForIndex([only], 0);
     expect(branch).toEqual([]);
     // merkleRootFromProof with an empty path returns the leaf in internal order.
