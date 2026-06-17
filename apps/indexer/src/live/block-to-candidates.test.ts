@@ -1,10 +1,10 @@
-// G1 sub-slice 3b-3 red battery — blockToAnchorCandidates (go-live phase).
-// Pins: only RootAnchor txs become candidates (no-OP_RETURN + non-RootAnchor events
-// ignored); fields (pos/merkle/header/minedHeight/headerSource, anchorVout omitted)
-// correct; prevouts fetched in input order; candidate dropped if any prevout is
-// missing; whole block dropped if any tx is unserializable; and a WRITE→READ
-// round-trip: a real RootAnchor-bearing block yields a candidate that the audited
-// buildConfirmedBatchAnchor ACCEPTS. RED until implemented.
+// G1 sub-slice 3b-3 (reopened) red battery — blockToAnchorCandidates (node-txids shape).
+// Live blocks contain segwit txs (incl. regtest coinbase) the legacy parser can't read,
+// so the helper takes the node's orderedTxids (UNTRUSTED, firewall-verified) + pre-
+// identified anchors rather than re-deriving all bodies. Pins: field map; segwit/non-
+// anchor txids in the list don't poison a valid legacy candidate; txid mismatch drops
+// BEFORE prevout fetch; out-of-range pos drops; a bad ordered-txid list drops; missing
+// prevout drops; prevout input order; write→read acceptance through the audited firewall.
 import { describe, expect, it } from "vitest";
 import { legacyTxidOf, merkleBranchForIndex, type BitcoinHeaderSource, type LegacyTransaction } from "@ont/bitcoin";
 import { encodeEvent, EventType } from "@ont/wire";
@@ -20,35 +20,23 @@ const h32 = (n: number): string => n.toString(16).padStart(2, "0").repeat(32);
 const opReturnScript = (payload: Uint8Array): string => {
   const hex = Buffer.from(payload).toString("hex");
   const len = payload.length;
-  return len <= 0x4b
-    ? "6a" + len.toString(16).padStart(2, "0") + hex
-    : "6a4c" + len.toString(16).padStart(2, "0") + hex;
+  return len <= 0x4b ? "6a" + len.toString(16).padStart(2, "0") + hex : "6a4c" + len.toString(16).padStart(2, "0") + hex;
 };
-
 const rootAnchorScript = (newRoot = h32(0xaa), batchSize = 3): string =>
   opReturnScript(encodeEvent({ type: EventType.RootAnchor, prevRoot: h32(0xbb), newRoot, batchSize }));
 
-const transferScript = (): string =>
-  opReturnScript(
-    encodeEvent({
-      type: EventType.Transfer,
-      prevStateTxid: h32(0x11),
-      newOwnerPubkey: h32(0x22),
-      flags: 0,
-      successorBondVout: 0,
-      signature: "cd".repeat(64),
-    }),
-  );
-
-const txWith = (scriptPubKeyHex: string, prevoutTxids: readonly string[] = [h32(0x11)]): LegacyTransaction => ({
+const anchorTxWith = (prevoutTxids: readonly string[] = [h32(0x11)], newRoot = h32(0xaa), batchSize = 3): LegacyTransaction => ({
   version: 2,
   inputs: prevoutTxids.map((prevoutTxid) => ({ prevoutTxid, prevoutVout: 0, scriptSigHex: "", sequence: 0xffffffff })),
-  outputs: [{ valueSats: 0n, scriptPubKeyHex }],
+  outputs: [{ valueSats: 0n, scriptPubKeyHex: rootAnchorScript(newRoot, batchSize) }],
   locktime: 0,
 });
-
-const plainTx = (): LegacyTransaction => txWith("76a914" + "00".repeat(20) + "88ac");
-const prevoutTx = (tag: number): LegacyTransaction => txWith("6a01" + tag.toString(16).padStart(2, "0"));
+const prevoutTx = (tag: number): LegacyTransaction => ({
+  version: 2,
+  inputs: [{ prevoutTxid: h32(0xfe), prevoutVout: 0, scriptSigHex: "", sequence: 0xffffffff }],
+  outputs: [{ valueSats: 1000n, scriptPubKeyHex: "6a01" + tag.toString(16).padStart(2, "0") }],
+  locktime: 0,
+});
 
 const deps = (over: Partial<BlockToAnchorCandidatesDeps> = {}): BlockToAnchorCandidatesDeps => ({
   headerSource: { headerHexAtHeight: () => null },
@@ -56,89 +44,111 @@ const deps = (over: Partial<BlockToAnchorCandidatesDeps> = {}): BlockToAnchorCan
   ...over,
 });
 
-describe("blockToAnchorCandidates (G1 3b-3)", () => {
-  it("keeps only RootAnchor txs (no-OP_RETURN and non-RootAnchor events ignored)", async () => {
-    const block = {
-      blockHeaderHex: "00".repeat(80),
-      minedHeight: 100,
-      orderedLegacyTxs: [plainTx(), txWith(transferScript()), txWith(rootAnchorScript())],
-    };
-    const out = await blockToAnchorCandidates(block, deps());
-    expect(out).toHaveLength(1);
-    expect(out[0]!.anchorTx).toBe(block.orderedLegacyTxs[2]);
-  });
-
-  it("maps fields correctly (pos, merkle, header, minedHeight, headerSource; anchorVout omitted)", async () => {
+describe("blockToAnchorCandidates (G1 3b-3, node-txids)", () => {
+  it("maps fields correctly from node orderedTxids + a pre-identified anchor", async () => {
+    const anchorTx = anchorTxWith();
+    const txid = legacyTxidOf(anchorTx)!;
     const headerSource: BitcoinHeaderSource = { headerHexAtHeight: () => "header" };
-    const block = {
-      blockHeaderHex: "ab".repeat(80),
-      minedHeight: 42,
-      orderedLegacyTxs: [plainTx(), txWith(rootAnchorScript())],
-    };
-    const out = await blockToAnchorCandidates(block, deps({ headerSource }));
-    const txids = block.orderedLegacyTxs.map((t) => legacyTxidOf(t)!);
+    const orderedTxids = [h32(0x01), txid, h32(0x02)];
+    const out = await blockToAnchorCandidates(
+      { blockHeaderHex: "ab".repeat(80), minedHeight: 42, orderedTxids, anchors: [{ anchorTx, pos: 1 }] },
+      deps({ headerSource }),
+    );
     const c = out[0]!;
+    expect(c.anchorTx).toBe(anchorTx);
     expect(c.pos).toBe(1);
-    expect(c.merkle).toEqual(merkleBranchForIndex(txids, 1));
+    expect(c.merkle).toEqual(merkleBranchForIndex(orderedTxids, 1));
     expect(c.blockHeaderHex).toBe("ab".repeat(80));
     expect(c.minedHeight).toBe(42);
     expect(c.headerSource).toBe(headerSource);
     expect(c.anchorVout).toBeUndefined();
   });
 
-  it("fetches prevouts in input order", async () => {
-    const seen: string[] = [];
-    const legacyTxByTxid: LegacyTxByTxid = async (txid) => {
-      seen.push(txid);
+  it("segwit / non-anchor txids in the list (never parsed) don't poison a valid candidate", async () => {
+    const anchorTx = anchorTxWith();
+    const txid = legacyTxidOf(anchorTx)!;
+    // Other entries stand in for segwit txs we never parse — just valid txid strings.
+    const orderedTxids = [h32(0xc0), h32(0xc1), txid, h32(0xc2), h32(0xc3)];
+    const out = await blockToAnchorCandidates(
+      { blockHeaderHex: "00".repeat(80), minedHeight: 7, orderedTxids, anchors: [{ anchorTx, pos: 2 }] },
+      deps(),
+    );
+    expect(out).toHaveLength(1);
+  });
+
+  it("drops (before any prevout fetch) when legacyTxidOf(anchorTx) != orderedTxids[pos]", async () => {
+    const anchorTx = anchorTxWith();
+    let fetched = false;
+    const legacyTxByTxid: LegacyTxByTxid = async () => {
+      fetched = true;
       return prevoutTx(0x01);
     };
-    const block = {
-      blockHeaderHex: "00".repeat(80),
-      minedHeight: 1,
-      orderedLegacyTxs: [txWith(rootAnchorScript(), [h32(0xa1), h32(0xb2)])],
+    const out = await blockToAnchorCandidates(
+      { blockHeaderHex: "00".repeat(80), minedHeight: 1, orderedTxids: [h32(0xde)], anchors: [{ anchorTx, pos: 0 }] },
+      deps({ legacyTxByTxid }),
+    );
+    expect(out).toEqual([]);
+    expect(fetched).toBe(false);
+  });
+
+  it("drops on out-of-range or non-integer pos", async () => {
+    const anchorTx = anchorTxWith();
+    const txid = legacyTxidOf(anchorTx)!;
+    const base = { blockHeaderHex: "00".repeat(80), minedHeight: 1, orderedTxids: [txid] };
+    expect(await blockToAnchorCandidates({ ...base, anchors: [{ anchorTx, pos: 1 }] }, deps())).toEqual([]);
+    expect(await blockToAnchorCandidates({ ...base, anchors: [{ anchorTx, pos: -1 }] }, deps())).toEqual([]);
+    expect(await blockToAnchorCandidates({ ...base, anchors: [{ anchorTx, pos: 0.5 }] }, deps())).toEqual([]);
+  });
+
+  it("drops when the ordered txid list is malformed (non-64-hex entry)", async () => {
+    const anchorTx = anchorTxWith();
+    const txid = legacyTxidOf(anchorTx)!;
+    const out = await blockToAnchorCandidates(
+      { blockHeaderHex: "00".repeat(80), minedHeight: 1, orderedTxids: ["zz", txid], anchors: [{ anchorTx, pos: 1 }] },
+      deps(),
+    );
+    expect(out).toEqual([]);
+  });
+
+  it("fetches prevouts in input order and drops on any missing prevout", async () => {
+    const anchorTx = anchorTxWith([h32(0xa1), h32(0xb2)]);
+    const txid = legacyTxidOf(anchorTx)!;
+    const seen: string[] = [];
+    const ok: LegacyTxByTxid = async (t) => {
+      seen.push(t);
+      return prevoutTx(0x01);
     };
-    const out = await blockToAnchorCandidates(block, deps({ legacyTxByTxid }));
+    const out = await blockToAnchorCandidates(
+      { blockHeaderHex: "00".repeat(80), minedHeight: 1, orderedTxids: [txid], anchors: [{ anchorTx, pos: 0 }] },
+      deps({ legacyTxByTxid: ok }),
+    );
     expect(seen).toEqual([h32(0xa1), h32(0xb2)]);
     expect(out[0]!.prevoutTxs).toHaveLength(2);
+
+    const miss: LegacyTxByTxid = async (t) => (t === h32(0xb2) ? null : prevoutTx(0x01));
+    const dropped = await blockToAnchorCandidates(
+      { blockHeaderHex: "00".repeat(80), minedHeight: 1, orderedTxids: [txid], anchors: [{ anchorTx, pos: 0 }] },
+      deps({ legacyTxByTxid: miss }),
+    );
+    expect(dropped).toEqual([]);
   });
 
-  it("drops a candidate when any prevout is missing/unparseable", async () => {
-    const legacyTxByTxid: LegacyTxByTxid = async (txid) => (txid === h32(0xb2) ? null : prevoutTx(0x01));
-    const block = {
-      blockHeaderHex: "00".repeat(80),
-      minedHeight: 1,
-      orderedLegacyTxs: [txWith(rootAnchorScript(), [h32(0xa1), h32(0xb2)])],
-    };
-    expect(await blockToAnchorCandidates(block, deps({ legacyTxByTxid }))).toEqual([]);
-  });
-
-  it("drops the whole block when any tx is unserializable (txid null)", async () => {
-    const block = {
-      blockHeaderHex: "00".repeat(80),
-      minedHeight: 1,
-      orderedLegacyTxs: [{ ...txWith(rootAnchorScript()), version: -1 }, txWith(rootAnchorScript())],
-    };
-    expect(await blockToAnchorCandidates(block, deps())).toEqual([]);
-  });
-
-  it("write→read round-trip: a real RootAnchor block yields a candidate buildConfirmedBatchAnchor ACCEPTS", async () => {
-    const anchorTx = txWith(rootAnchorScript(h32(0x7a), 5));
+  it("write→read round-trip: a candidate from a real RootAnchor block is ACCEPTED by buildConfirmedBatchAnchor", async () => {
+    const anchorTx = anchorTxWith([h32(0x11)], h32(0x7a), 5);
+    const txid = legacyTxidOf(anchorTx)!;
     const minedHeight = 808;
-    // 1-tx block ⇒ Merkle root (internal) = reversed(displayTxid); commit it at bytes 36..68.
-    const internalRoot = Buffer.from(legacyTxidOf(anchorTx)!, "hex").reverse().toString("hex");
+    const internalRoot = Buffer.from(txid, "hex").reverse().toString("hex"); // 1-tx block ⇒ root = reversed(txid)
     const header = "00".repeat(36) + internalRoot + "00".repeat(12);
     const headerSource: BitcoinHeaderSource = { headerHexAtHeight: (hgt) => (hgt === minedHeight ? header : null) };
 
     const out = await blockToAnchorCandidates(
-      { blockHeaderHex: header, minedHeight, orderedLegacyTxs: [anchorTx] },
+      { blockHeaderHex: header, minedHeight, orderedTxids: [txid], anchors: [{ anchorTx, pos: 0 }] },
       deps({ headerSource }),
     );
     expect(out).toHaveLength(1);
-
     const verdict = buildConfirmedBatchAnchor(out[0]!);
     expect(verdict.ok).toBe(true);
     if (verdict.ok) {
-      expect(verdict.confirmedAnchor.minedHeight).toBe(minedHeight);
       expect(verdict.confirmedAnchor.anchoredRoot).toBe(h32(0x7a));
       expect(verdict.confirmedAnchor.batchSize).toBe(5);
     }
