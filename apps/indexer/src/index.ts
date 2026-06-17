@@ -17,6 +17,13 @@ export {
   type IngestServedReport,
 } from "./ingest-served.js";
 export {
+  ingestRecoverInvokes,
+  type ConfirmRecoverInvoke,
+  type RecoverInvokeStore,
+  type RecoverInvokeRejectReason,
+  type IngestRecoverInvokesReport,
+} from "./ingest-recover-invoke.js";
+export {
   runIndexerTick,
   runIndexerLoop,
   createEmptyIndexerBlockSource,
