@@ -262,7 +262,7 @@ pieces are live on signet versus simulation-only):
 Apps and tools:
 
 - [../../apps/resolver/src/index.ts](../../apps/resolver/src/index.ts) - resolver/indexer API and runtime.
-- [../../apps/web/src/](../../apps/web/src/) - product UI, explorer, auction prep, recovery/value flows.
+- [../../legacy/apps/web/src/](../../legacy/apps/web/src/) - product UI, explorer, auction prep, recovery/value flows (quarantined; clean-build rewrite in B5 — see docs/core/B5_WEB_CLASSIFICATION.md).
 - [../../legacy/apps/cli/src/index.ts](../../legacy/apps/cli/src/index.ts) - operator and power-user workflows (quarantined; clean-build rewrite in B5 — see docs/core/B5_CLI_CLASSIFICATION.md).
 - [../../legacy/apps/wallet/src/](../../legacy/apps/wallet/src/) - local wallet/client prototype (quarantined; clean-build rewrite in B5 — see docs/core/B5_WALLET_CLASSIFICATION.md).
 - [../../packages/architect/src/](../../packages/architect/src/) - reusable transaction-prep helpers.
