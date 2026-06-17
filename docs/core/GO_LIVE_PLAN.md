@@ -1,7 +1,9 @@
 # Go-live plan — from hermetic clean-build to a live signet deployment
 
-**Status:** proposed (awaiting ChatLunatique review + DK ratification of the phase
-name and the G1 brief). Phase name proposed: **go-live**.
+**Status:** go-live phase active. **G1 shipped green** on regtest (`deacc94`,
+branch `go-live-g1`, local/unpushed) — writer+reviewer verified (CL independent
+green-OK). **The G2 brief below is proposed**, awaiting ChatLunatique review.
+Phase name: **go-live**.
 
 DK approved this direction and a clean-slate VPS rebuild on 2026-06-17
 (events d90aa476 → 982d87b2): "keep all layers/software carefully separate and
@@ -146,6 +148,125 @@ committed-batch facts as a request side effect** (B4 §"Indexer distinct").
 on regtest, deterministic, no extra Esplora service. Esplora (HTTP) is a later
 read-scaling source for signet/mainnet; `@ont/bitcoin` already carries both
 interface types.
+
+---
+
+## G2 — persistence + live wiring (detailed brief)
+
+*Proposed 2026-06-17, after G1 shipped green (`deacc94`). Awaiting ChatLunatique review.*
+
+### Goal
+Make the live services **restart-safe**. Today the indexer holds confirmed anchors
+and its ingest cursor in memory (`apps/indexer/src/main.ts` hardcodes
+`createInMemoryIndexerCursorStore(0)` + `createInMemoryConfirmedAnchorStore()`), and
+the web renders a confirmed tx only from a **harness-injected snapshot**
+(`createSnapshotWebReadPort`). Kill any process and the confirmed-anchor read path
+is gone. G2 gives the indexer durable cursor + confirmed-anchor stores and wires a
+durable read path the web serves from — so a restarted stack re-serves
+already-confirmed RootAnchor txs and the indexer resumes from its durable height
+without re-ingesting.
+
+### Scope — **RootAnchor confirmed-anchor read path only** (G1's scope, made durable)
+Same boundary as G1. Per-name value/recovery history (the resolver's `ResolverStore`
+value/recovery path) stays **B3-deferred** — deriving name→owner from a batch root is
+batched-claim-path work, not built. G2 persists exactly what G1 mints: the
+`ConfirmedAnchorRecord` set (`{confirmedAnchor, feeTxParts}`) + the `IndexerCursor`.
+No new consensus, no new firewall; the audited core and B4 adapters stay untouched
+(Principle 1).
+
+### The two halves
+**(a) Durable indexer stores (persistence).** Implement `IndexerCursorStore` and
+`ConfirmedAnchorStore` (the existing ports in `runner.ts` / `ingest-anchors.ts`) over
+durable backends, env-selected alongside the existing `ONT_SOURCE`. On restart: the
+cursor reloads, `has` / `getByTxid` answer from durable state.
+
+**(b) Read wiring (live ports into the shells).** The web's `tx(txid)` read comes from
+the durable confirmed-anchor store instead of a harness snapshot. Production topology
+(Principle 2, one-process-one-job): the **resolver** exposes a **read-only**
+confirmed-anchor endpoint over the durable store, and the **web reads the resolver over
+HTTP** — the shape the G1 brief already anticipated ("web reads resolver over HTTP").
+The resolver only **reads** indexer-produced facts; it never mints
+confirmed-inclusion / committed-batch facts on the request path (the standing G1
+boundary).
+
+### Hazard to respect (why a clean codec, not the legacy snapshot)
+`@ont/db` already ships pg + file JSONB plumbing, **but** its `PersistedIndexerSnapshot`
+schema is old-stack-shaped (names / transactionProvenance / accumulatorNames) and
+carries a loud CAUTION (`packages/db/src/index.ts:157`): its whitelist parser once
+**silently erased** persisted fields on restart and "lost the root chain + accumulator
+names once." G2 therefore persists the **clean** `ConfirmedAnchorRecord` shape through a
+**new, strict, round-trip-identity-tested codec** — not the legacy snapshot path.
+`ConfirmedAnchorRecord` contains `LegacyTransaction` bodies with `bigint` output values,
+so the codec must be bigint-safe (string-encode, like the web projection's `valueSats`)
+and **round-trip byte-identical** (a dropped field is a consensus-relevant data-loss bug,
+exactly the failure the CAUTION describes).
+
+### Design forks for review (option → rec → ripple)
+1. **Read topology.** (A) web reads the durable store directly; (B) resolver read-API +
+   web reads it over HTTP. **REC: B** — matches DK's one-process-one-job principle and
+   the G1 brief's stated end shape; keeps DB access out of the web tier. *Ripple:* a new
+   read-only resolver endpoint + a web HTTP read port (replaces the harness snapshot port).
+2. **Backends in G2.** (A) file store only (defer Postgres to G3); (B) file **and**
+   Postgres, env-selected. **REC: file first** (smallest change that meets the
+   restart-safe gate on a single box), **Postgres second in the same phase** since the
+   VPS (G3) needs it and `@ont/db` already carries the pg plumbing — but pg can slip to
+   early-G3 if scope tightens. *Ripple:* an `ONT_STORE=memory|file|postgres` selector
+   beside `ONT_SOURCE`.
+3. **Reuse `@ont/db` vs new store package.** (A) reuse `@ont/db`'s pg connection +
+   generic `ont_documents` table (extend `DatabaseDocumentKind` with clean kinds
+   `confirmed_anchor` / `indexer_cursor`) and the file-write helpers, persisting the
+   clean record via the new codec; (B) a brand-new clean `@ont/store` package. **REC: A**
+   — reuse the plumbing, add the clean kinds + codec, leave the legacy
+   `PersistedIndexerSnapshot` path untouched/unused. *Ripple:* `@ont/db` gains 2 kinds;
+   the durable store impls live in a small `live/` module (per-app or a thin shared
+   package, decided at implementation as in G1).
+4. **Projection home.** The `ConfirmedAnchorRecord → ServedTx` projection
+   (`confirmedAnchorTxToServedTx`) lives in **web** today (placed there for the G1
+   harness). With the resolver as the read API, either (A) the resolver serves the **raw**
+   confirmed-anchor record JSON and web keeps projecting to `ServedTx`, or (B) promote the
+   pure projection to a neutral B4 home (e.g. `@ont/adapter-resolver`) so the resolver
+   serves `ServedTx` directly and web is a thin HTML renderer. **REC: B** (the resolver is
+   the read API; web shouldn't own the projection the resolver serves), with (A)
+   acceptable if we want to keep the resolver payload minimal. *Ripple:* either move a
+   pure function across packages, or pin the resolver's confirmed-anchor JSON contract.
+
+### Ports to make durable / wire
+- `IndexerCursorStore` (load/save) — durable.
+- `ConfirmedAnchorStore` (has/put/getByTxid) — durable; `getByTxid` is the read accessor
+  the resolver serves.
+- Resolver: new **read-only** confirmed-anchor endpoint (e.g. `GET /tx/:txid`) over the
+  durable store.
+- Web: `WebReadPort.tx` backed by an HTTP read of the resolver (replaces
+  `createSnapshotWebReadPort`).
+
+### Slice plan (tests-first, CL-reviewed per slice — same loop as G1)
+1. **Durable cursor store** (file) — load/save + round-trip + restart test.
+2. **Durable confirmed-anchor store** (file) — `has` / `put` / `getByTxid` + the strict
+   round-trip codec (bigint-safe, identity-tested).
+3. **Env-selected store wiring** into the indexer entrypoint (`ONT_STORE`; memory default
+   preserved, hermetic suite unchanged).
+4. **Resolver read-only confirmed-anchor endpoint** over the durable store (reads only;
+   mints nothing — boundary-tested).
+5. **Web HTTP read port** → resolver `/tx/:txid`; wire into the web shell.
+6. **Postgres backend** for cursor + confirmed-anchor stores (same ports, `@ont/db`
+   plumbing) — if kept in G2 per fork 2.
+7. **Regtest e2e: restart-survival** — extend the harness: run the loop, **stop the
+   processes**, restart over the same durable store, assert the confirmed RootAnchor tx
+   still renders and the indexer resumes from the durable cursor without re-ingesting.
+
+### Acceptance bar (G2 gate = "stateful, restart-safe")
+The regtest e2e proves: ingest a confirmed RootAnchor → **restart the indexer + read
+path** → `/tx/:txid` still renders the confirmed facts from durable state, and a fresh
+ingest tick resumes from the durable cursor (no duplicate ingest, no re-derivation).
+Default `npm test` stays hermetic (memory store default); the durable / e2e paths are
+env-gated as in G1.
+
+### Non-goals for G2
+- No per-name value/recovery durability (B3-deferred; the resolver value/recovery path
+  stays the in-memory null-ownership path).
+- No VPS, no signet, no mainnet (G3/G4).
+- No new consensus / firewall; audited core + B4 adapters untouched.
+- No mobile / UI changes (G4).
 
 ---
 
