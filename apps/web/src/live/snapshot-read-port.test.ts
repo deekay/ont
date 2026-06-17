@@ -55,6 +55,14 @@ describe("createSnapshotWebReadPort (G1 slice 5)", () => {
     expect(port.tx(txid)).toBeNull();
   });
 
+  it("tx(requestedTxid) → null when the snapshot view projects to a different txid (bad snapshot key)", () => {
+    // a wrong key mapped to a valid view: projected served.txid won't equal the request → the port's own
+    // tx(txid) contract fails closed, not just the render layer (CL pin)
+    const wrongKey = h32(0x22);
+    const port = createSnapshotWebReadPort(snapshotOf({ [wrongKey]: validView }));
+    expect(port.tx(wrongKey)).toBeNull();
+  });
+
   it("reads are pure — the port only reads the snapshot, once per tx() call", () => {
     const spy = vi.fn((t: string) => (t === txid ? validView : null));
     const port = createSnapshotWebReadPort({ anchorTxByTxid: spy });

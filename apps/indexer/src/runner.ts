@@ -107,16 +107,19 @@ export function createInMemoryIndexerCursorStore(height = 0): IndexerCursorStore
   };
 }
 
-/** An in-memory confirmed-anchor store keyed by anchoredRoot — clean startup; real DB store injectable. */
+/** An in-memory confirmed-anchor store keyed by anchoredRoot (+ a parallel anchorTxid index for the slice-5
+ *  read accessor) — clean startup; real DB store injectable. */
 export function createInMemoryConfirmedAnchorStore(): ConfirmedAnchorStore {
   const records = new Map<string, ConfirmedAnchorRecord>();
+  const byTxid = new Map<string, ConfirmedAnchorRecord>();
   return {
     has: (anchoredRoot) => Promise.resolve(records.has(anchoredRoot)),
     put: (record) => {
       records.set(record.confirmedAnchor.anchoredRoot, record);
+      byTxid.set(record.confirmedAnchor.anchorTxid, record);
       return Promise.resolve();
     },
-    // RED stub — slice 5 green pending CL red-OK.
-    getByTxid: () => Promise.reject(new Error("getByTxid: not implemented (slice 5 green pending)")),
+    // Read-only accessor — returns the already-put record for a confirmed anchor txid, mints/mutates nothing.
+    getByTxid: (anchorTxid) => Promise.resolve(byTxid.get(anchorTxid) ?? null),
   };
 }

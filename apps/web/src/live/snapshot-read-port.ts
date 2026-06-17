@@ -18,8 +18,18 @@ export interface ConfirmedAnchorSnapshot {
   anchorTxByTxid(txid: string): ConfirmedAnchorTxView | null;
 }
 
-export function createSnapshotWebReadPort(_snapshot: ConfirmedAnchorSnapshot): WebReadPort {
-  // RED stub — slice 5 green pending CL red-OK.
-  void confirmedAnchorTxToServedTx;
-  throw new Error("createSnapshotWebReadPort: not implemented (slice 5 green pending)");
+export function createSnapshotWebReadPort(snapshot: ConfirmedAnchorSnapshot): WebReadPort {
+  return {
+    // Per-name ownership resolution is B3-deferred; the read port mints nothing here.
+    valueHistory: () => null,
+    recoveryHistory: () => null,
+    tx: (txid) => {
+      const view = snapshot.anchorTxByTxid(txid);
+      if (view === null) return null;
+      const served = confirmedAnchorTxToServedTx(view);
+      // Preserve the tx(txid) contract: a snapshot keyed to the wrong tx fails closed here, not just at render.
+      if (served === null || served.txid !== txid) return null;
+      return served;
+    },
+  };
 }

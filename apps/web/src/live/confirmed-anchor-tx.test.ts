@@ -86,6 +86,15 @@ describe("confirmedAnchorTxToServedTx (G1 slice 5)", () => {
     expect(confirmedAnchorTxToServedTx({ anchorTx: tx, minedHeight: 1, anchoredRoot: NEW_ROOT, batchSize: 5 })).toBeNull();
   });
 
+  it("fails closed (null) on a non-unique carrier — two decodable RootAnchor OP_RETURN outputs", () => {
+    // aligns with the inclusion firewall's exactly-one RootAnchor rule (CL pin)
+    const tx = txWith([
+      { valueSats: 0n, scriptPubKeyHex: anchorScript },
+      { valueSats: 0n, scriptPubKeyHex: anchorScript },
+    ]);
+    expect(confirmedAnchorTxToServedTx({ anchorTx: tx, minedHeight: 1, anchoredRoot: NEW_ROOT, batchSize: 5 })).toBeNull();
+  });
+
   it("fails closed (null) when the anchor tx is not serializable (txid undefined)", () => {
     const tx = txWith([{ valueSats: 0n, scriptPubKeyHex: anchorScript }], "zz"); // invalid scriptSig hex
     expect(confirmedAnchorTxToServedTx({ anchorTx: tx, minedHeight: 1, anchoredRoot: NEW_ROOT, batchSize: 5 })).toBeNull();
