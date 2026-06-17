@@ -46,6 +46,7 @@ function port(): WebReadPort {
   return {
     valueHistory: (name) => (name === "alice" ? { currentOwnership: ownership, records: [valueRecord()] } : null),
     recoveryHistory: (name) => (name === "alice" ? { currentOwnership: ownership, descriptors: [recoveryDescriptor()] } : null),
+    tx: () => null,
   };
 }
 
@@ -90,6 +91,7 @@ describe("renderNameView — fail-closed views", () => {
       recoveryHistory() {
         throw new Error("read failed");
       },
+      tx: () => null,
     };
     let out = "";
     expect(() => {
