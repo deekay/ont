@@ -37,9 +37,31 @@ export interface IngestRecoverInvokesReport {
  * tally reason; any unexpected throw ⇒ `ingest-error`, continue.
  */
 export async function ingestRecoverInvokes(
-  _candidates: readonly BuildConfirmedRecoverOwnerInvokeInput[],
-  _store: RecoverInvokeStore,
-  _confirm: ConfirmRecoverInvoke = buildConfirmedRecoverOwnerInvoke
+  candidates: readonly BuildConfirmedRecoverOwnerInvokeInput[],
+  store: RecoverInvokeStore,
+  confirm: ConfirmRecoverInvoke = buildConfirmedRecoverOwnerInvoke
 ): Promise<IngestRecoverInvokesReport> {
-  return { accepted: [], skipped: [], rejected: [] };
+  const accepted: string[] = [];
+  const skipped: string[] = [];
+  const rejected: { reason: RecoverInvokeRejectReason }[] = [];
+  for (const candidate of candidates) {
+    try {
+      const result = confirm(candidate);
+      if (!result.ok) {
+        rejected.push({ reason: result.reason });
+        continue;
+      }
+      const txid = result.confirmedInvoke.txid;
+      if (await store.has(txid)) {
+        skipped.push(txid);
+        continue;
+      }
+      // Persist exactly the firewall fact — no service-added fields.
+      await store.put(result.confirmedInvoke);
+      accepted.push(txid);
+    } catch {
+      rejected.push({ reason: "ingest-error" });
+    }
+  }
+  return { accepted, skipped, rejected };
 }
