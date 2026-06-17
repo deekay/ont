@@ -1,5 +1,5 @@
-// Runs the offline crypto cross-checks for the mobile app against the engine.
-// Each check imports the real app modules + the engine source and asserts
+// Runs the offline crypto cross-checks for the mobile app against the clean stack.
+// Each check imports the real app modules + clean published @ont packages and asserts
 // byte-exact agreement / correct verification. Usage: npm run check:crypto
 //
 // The *.live.mts checks are NOT run here — they hit a live resolver and need the

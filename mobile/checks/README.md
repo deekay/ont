@@ -2,8 +2,9 @@
 
 Runnable proofs that the app's ported crypto matches the ONT engine byte-for-byte
 and that the demo stubs fake the *service*, not the *crypto*. They import the real
-app modules (`../src/...`) and the engine source (`../../packages/...`) and assert
-agreement, so a regression in either side fails loudly.
+app modules (`../src/...`) plus the clean published ONT packages (`@ont/protocol`,
+`@ont/wire`, `@ont/bitcoin`) and assert agreement, so a regression in either side
+fails loudly.
 
 ```sh
 npm run check:crypto

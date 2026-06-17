@@ -4,11 +4,11 @@
 //   - tampering (recipient key / flags / bond vout) breaks verification
 import {
   computeTransferAuthorizationHash as engineHash,
+  deriveOwnerPubkey as engineDerive,
   signTransferAuthorization as engineSign,
   verifyTransferAuthorization as engineVerify,
-} from "../../packages/protocol/src/events.ts";
-import { encodeTransferPayload as engineEncode } from "../../packages/protocol/src/wire.ts";
-import { deriveOwnerPubkey as engineDerive } from "../../packages/protocol/src/value-record.ts";
+} from "@ont/protocol";
+import { bytesToHex, encodeEvent, EventType } from "@ont/wire";
 
 const mod = await import("../../mobile/src/wallet/transfer.ts");
 const t = (mod as any).default ?? mod;
@@ -64,7 +64,7 @@ ok("newOwnerPubkey changes the digest", computeTransferAuthorizationHash({ ...fi
 
 // 5. On-chain OP_RETURN payload encoding is byte-identical to the engine wire codec.
 const mobilePayload = encodeTransferPayloadHex({ ...fields, signature: engineSig });
-const enginePayload = Buffer.from(engineEncode({ ...fields, signature: engineSig })).toString("hex");
+const enginePayload = bytesToHex(encodeEvent({ type: EventType.Transfer, ...fields, signature: engineSig }));
 ok("transfer OP_RETURN payload matches engine wire codec", mobilePayload === enginePayload);
 ok("framed payload is 135 bytes", mobilePayload.length === 135 * 2);
 ok("payload starts with the ONT magic + version + transfer type", mobilePayload.slice(0, 10) === "4f4e540103");
