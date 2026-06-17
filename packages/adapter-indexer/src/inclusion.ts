@@ -2,9 +2,12 @@ import {
   legacyTxidOf,
   merkleRootFromProof,
   merkleRootHexFromHeaderHex,
+  opReturnData,
   type BitcoinHeaderSource,
   type LegacyTransaction,
 } from "@ont/bitcoin";
+
+export { opReturnData };
 
 // Shared inclusion firewall (B4_ADAPTERS_PLAN §9.11 call 1) — the generic chain-binding reused by
 // B4-INDEX-ANCHOR + B4-INDEX-INVOKE. DECODER-SPECIFIC payload selection (RootAnchor 0x0b vs RecoverOwner
@@ -12,46 +15,15 @@ import {
 // height / txid / header-canonicality / merkle-inclusion bind, with GENERIC reasons each adapter maps to
 // its prefixed reason. Total + fail-closed; never throws.
 
-const HEX = /^[0-9a-fA-F]*$/;
-
-function hexToBytesOrNull(hex: unknown): Uint8Array | null {
-  if (typeof hex !== "string" || hex.length % 2 !== 0 || !HEX.test(hex)) return null;
-  const out = new Uint8Array(hex.length / 2);
-  for (let i = 0; i < out.length; i += 1) out[i] = Number.parseInt(hex.slice(i * 2, i * 2 + 2), 16);
-  return out;
-}
-
 function bytesToHex(bytes: Uint8Array): string {
   let hex = "";
   for (const b of bytes) hex += b.toString(16).padStart(2, "0");
   return hex;
 }
 
-/**
- * The data bytes of a script that is EXACTLY `OP_RETURN <push> <data>` and NOTHING ELSE — or null. The
- * script must be consumed exactly: a single direct push (0x01..0x4b) or OP_PUSHDATA1 (0x4c len, ≤255 — the
- * 171-byte RecoverOwner carrier, §9.11 call 2), with `data` ending the script (no trailing bytes, not a
- * loose "first push wins" parse; OP_0 / OP_PUSHDATA2/4 / opcode forms rejected).
- */
-export function opReturnData(scriptPubKeyHex: unknown): Uint8Array | null {
-  const script = hexToBytesOrNull(scriptPubKeyHex);
-  if (script === null || script.length < 2 || script[0] !== 0x6a) return null;
-  const op = script[1]!;
-  let dataStart: number;
-  let len: number;
-  if (op >= 0x01 && op <= 0x4b) {
-    len = op;
-    dataStart = 2;
-  } else if (op === 0x4c) {
-    if (script.length < 3) return null;
-    len = script[2]!;
-    dataStart = 3;
-  } else {
-    return null;
-  }
-  if (dataStart + len !== script.length) return null; // must consume the script EXACTLY
-  return script.slice(dataStart, dataStart + len);
-}
+// opReturnData was promoted to @ont/bitcoin (single-source OP_RETURN byte extraction, go-live G1 3b-2.5)
+// and is re-exported above so intra-package callers (confirmed-batch-anchor / confirmed-recover-invoke)
+// keep importing it from ./inclusion.js. RootAnchor/RecoverOwner decode semantics stay in each adapter.
 
 export type InclusionRejectReason = "tx-malformed" | "noncanonical-header" | "not-included";
 

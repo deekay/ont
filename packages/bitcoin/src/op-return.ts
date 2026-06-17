@@ -16,7 +16,31 @@
  * with `data` ending the script (no trailing bytes, not a "first push wins" parse; OP_0 / OP_PUSHDATA2/4 /
  * opcode forms rejected). Fail-closed on malformed hex. Never throws.
  */
-export function opReturnData(_scriptPubKeyHex: unknown): Uint8Array | null {
-  // RED stub — sub-slice 3b-2.5 green pending CL red-OK.
-  throw new Error("opReturnData: not implemented (3b-2.5 green pending)");
+const HEX = /^[0-9a-fA-F]*$/;
+
+function hexToBytesOrNull(hex: unknown): Uint8Array | null {
+  if (typeof hex !== "string" || hex.length % 2 !== 0 || !HEX.test(hex)) return null;
+  const out = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < out.length; i += 1) out[i] = Number.parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+  return out;
+}
+
+export function opReturnData(scriptPubKeyHex: unknown): Uint8Array | null {
+  const script = hexToBytesOrNull(scriptPubKeyHex);
+  if (script === null || script.length < 2 || script[0] !== 0x6a) return null;
+  const op = script[1]!;
+  let dataStart: number;
+  let len: number;
+  if (op >= 0x01 && op <= 0x4b) {
+    len = op;
+    dataStart = 2;
+  } else if (op === 0x4c) {
+    if (script.length < 3) return null;
+    len = script[2]!;
+    dataStart = 3;
+  } else {
+    return null;
+  }
+  if (dataStart + len !== script.length) return null; // must consume the script EXACTLY
+  return script.slice(dataStart, dataStart + len);
 }
