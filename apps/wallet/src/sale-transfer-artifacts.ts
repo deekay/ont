@@ -7,7 +7,18 @@
 // auth signature would not, since transferAuthDigest binds only prevStateTxid/newOwnerPubkey/flags/vout).
 // Mature-sale is parked behind a separate design (CL afa43fd1). Bond = P2TR(owner x-only) key-path. The wallet
 // is the one crypto-exempt surface; CLI/claim consume the base64 PSBT artifact + a narrow port, never bitcoinjs.
-import type { TransferNetwork, TransferFundingInput } from "./transfer-artifacts.js";
+import { Psbt, payments, address as bjsAddress } from "bitcoinjs-lib";
+import { encodeEvent, transferAuthDigest, bytesToHex, hexToBytes, EventType } from "@ont/wire";
+import {
+  networkOf,
+  parseSats,
+  ownerXOnly,
+  ownerP2trScript,
+  signOwnerSchnorr,
+  keyPathSigner,
+  type TransferNetwork,
+} from "./tx-common.js";
+import type { TransferFundingInput } from "./transfer-artifacts.js";
 
 /** The seller's current bond + buyer's funding UTXOs each carry value + scriptPubKey (real BIP-341 sighash). */
 export type SaleFundingInput = TransferFundingInput;
@@ -88,9 +99,114 @@ export function buildImmatureSaleTransferArtifact(
   ownerPrivateKeyHex: string,
   input: ImmatureSaleTransferInput
 ): BuildSaleResult {
-  void ownerPrivateKeyHex;
-  void input;
-  return { ok: false, reason: "not-implemented" };
+  try {
+    if (
+      !Number.isInteger(input.successorBondVout) ||
+      (input.successorBondVout !== 0 && input.successorBondVout !== 1)
+    ) {
+      return { ok: false, reason: "invalid-successor-bond-vout" };
+    }
+    if (input.buyerInputs.length === 0) return { ok: false, reason: "no-buyer-inputs" };
+
+    const sellerInputs = [input.currentBondInput, ...(input.additionalSellerInputs ?? [])];
+    const successorBondSats = parseSats(input.successorBondSats);
+    const salePriceSats = parseSats(input.salePriceSats);
+    const feeSats = parseSats(input.feeSats);
+    if (successorBondSats === null || salePriceSats === null || feeSats === null) {
+      return { ok: false, reason: "invalid-input" };
+    }
+    if (successorBondSats < 0n || salePriceSats < 0n || feeSats < 0n) return { ok: false, reason: "negative-amount" };
+
+    const sellerValues = sellerInputs.map((i) => parseSats(i.valueSats));
+    const buyerValues = input.buyerInputs.map((i) => parseSats(i.valueSats));
+    if ([...sellerValues, ...buyerValues].some((v) => v === null)) return { ok: false, reason: "invalid-input" };
+    const totalSeller = sellerValues.reduce<bigint>((a, v) => a + (v ?? 0n), 0n);
+    const totalBuyer = buyerValues.reduce<bigint>((a, v) => a + (v ?? 0n), 0n);
+    if (totalSeller < 0n || totalBuyer < 0n) return { ok: false, reason: "negative-amount" };
+
+    const buyerChange = totalBuyer - successorBondSats - salePriceSats - feeSats;
+    if (buyerChange < 0n) return { ok: false, reason: "insufficient-buyer-funds" };
+    const buyerChangeAddress = input.buyerChangeAddress ?? null;
+    if (buyerChange > 0n && buyerChangeAddress === null) return { ok: false, reason: "change-without-address" };
+    const sellerPayout = totalSeller + salePriceSats;
+
+    const network = networkOf(input.network);
+    const sellerXOnly = ownerXOnly(ownerPrivateKeyHex);
+
+    // ONT-layer authorization: the seller (current owner) signs the transfer auth digest (deterministic).
+    const authDigest = transferAuthDigest({
+      prevStateTxid: input.prevStateTxid,
+      newOwnerPubkey: input.newOwnerPubkey,
+      flags: input.flags,
+      successorBondVout: input.successorBondVout,
+    });
+    const ontSignature = bytesToHex(signOwnerSchnorr(authDigest, ownerPrivateKeyHex));
+    const transferPayload = encodeEvent({
+      type: EventType.Transfer,
+      prevStateTxid: input.prevStateTxid,
+      newOwnerPubkey: input.newOwnerPubkey,
+      flags: input.flags,
+      successorBondVout: input.successorBondVout,
+      signature: ontSignature,
+    });
+
+    const carrier = payments.embed({ data: [transferPayload] }).output;
+    if (!carrier) throw new Error("could not build OP_RETURN carrier");
+    const successorBondScript = bjsAddress.toOutputScript(input.successorBondAddress, network);
+    const sellerPayoutScript = bjsAddress.toOutputScript(input.sellerPayoutAddress, network);
+
+    type PlannedOutput = { role: SaleOutput["role"]; value: bigint; script: Uint8Array };
+    const bondOut: PlannedOutput = { role: "successor_bond", value: successorBondSats, script: successorBondScript };
+    const carrierOut: PlannedOutput = { role: "ont_transfer", value: 0n, script: carrier };
+    const outputs: PlannedOutput[] = input.successorBondVout === 0 ? [bondOut, carrierOut] : [carrierOut, bondOut];
+    outputs.push({ role: "seller_payment", value: sellerPayout, script: sellerPayoutScript });
+    if (buyerChange > 0n && buyerChangeAddress !== null) {
+      outputs.push({ role: "buyer_change", value: buyerChange, script: bjsAddress.toOutputScript(buyerChangeAddress, network) });
+    }
+
+    const psbt = new Psbt({ network });
+    psbt.setVersion(2); // transaction nVersion = 2 (NOT a BIP-370 PSBTv2 contract)
+    // seller inputs carry tapInternalKey (seller's) → signable here; buyer inputs carry witnessUtxo only → the
+    // buyer sets its own tapInternalKey + signs in coSignSaleTransfer (the seller never has the buyer's key).
+    for (const inp of sellerInputs) {
+      psbt.addInput({
+        hash: inp.txid,
+        index: inp.vout,
+        witnessUtxo: { script: hexToBytes(inp.scriptPubKeyHex), value: parseSats(inp.valueSats) ?? 0n },
+        tapInternalKey: sellerXOnly,
+      });
+    }
+    for (const inp of input.buyerInputs) {
+      psbt.addInput({
+        hash: inp.txid,
+        index: inp.vout,
+        witnessUtxo: { script: hexToBytes(inp.scriptPubKeyHex), value: parseSats(inp.valueSats) ?? 0n },
+      });
+    }
+    for (const out of outputs) psbt.addOutput({ script: out.script, value: out.value });
+
+    // Sign ONLY the seller-owned inputs (indices 0..sellerInputs.length-1) at SIGHASH_DEFAULT (binds all outputs).
+    const sellerSigner = keyPathSigner(ownerPrivateKeyHex);
+    for (let i = 0; i < sellerInputs.length; i += 1) psbt.signInput(i, sellerSigner);
+
+    return {
+      ok: true,
+      artifact: {
+        partialPsbtBase64: psbt.toBase64(),
+        transferEventHex: bytesToHex(transferPayload),
+        signedInputCount: sellerInputs.length,
+        feeSats: feeSats.toString(),
+        outputs: outputs.map((out, vout) => ({
+          vout,
+          role: out.role,
+          valueSats: out.value.toString(),
+          scriptHex: bytesToHex(out.script),
+        })),
+      },
+    };
+  } catch {
+    return { ok: false, reason: "invalid-input" };
+  }
 }
 
 /**
@@ -102,7 +218,47 @@ export function coSignSaleTransferArtifact(
   ownerPrivateKeyHex: string,
   partialPsbtBase64: string
 ): CoSignSaleResult {
-  void ownerPrivateKeyHex;
-  void partialPsbtBase64;
-  return { ok: false, reason: "not-implemented" };
+  let psbt;
+  try {
+    psbt = Psbt.fromBase64(partialPsbtBase64);
+  } catch {
+    return { ok: false, reason: "malformed-psbt" };
+  }
+  try {
+    const myScriptHex = bytesToHex(ownerP2trScript(ownerPrivateKeyHex));
+    const myXOnly = ownerXOnly(ownerPrivateKeyHex);
+    const signer = keyPathSigner(ownerPrivateKeyHex);
+    let signedThisPass = 0;
+    for (let i = 0; i < psbt.inputCount; i += 1) {
+      const inp = psbt.data.inputs[i];
+      const script = inp?.witnessUtxo?.script;
+      if (!script || bytesToHex(script) !== myScriptHex) continue; // not this wallet's input
+      if (inp?.tapKeySig) continue; // already signed
+      if (!inp?.tapInternalKey) psbt.updateInput(i, { tapInternalKey: myXOnly });
+      psbt.signInput(i, signer);
+      signedThisPass += 1;
+    }
+    if (signedThisPass === 0) return { ok: false, reason: "no-signable-inputs" };
+
+    const allSigned = psbt.data.inputs.every((d) => Boolean(d.tapKeySig) || Boolean(d.finalScriptWitness));
+    if (!allSigned) {
+      return {
+        ok: true,
+        artifact: { finalized: false, signedInputCount: signedThisPass, partialPsbtBase64: psbt.toBase64() },
+      };
+    }
+    psbt.finalizeAllInputs();
+    const tx = psbt.extractTransaction();
+    return {
+      ok: true,
+      artifact: {
+        finalized: true,
+        signedInputCount: signedThisPass,
+        signedTransactionHex: tx.toHex(),
+        signedTransactionId: tx.getId(),
+      },
+    };
+  } catch {
+    return { ok: false, reason: "invalid-input" };
+  }
 }
