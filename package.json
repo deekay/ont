@@ -15,6 +15,7 @@
     "bootstrap:ont-domain:vps": "bash ./scripts/bootstrap-ont-domain.sh",
     "bootstrap:private-signet:vps": "bash ./scripts/bootstrap-private-signet-vps.sh",
     "dev:cli": "npm run dev -w @ont/cli --",
+    "dev:publisher": "npm run dev -w @ont/publisher --",
     "dev:resolver": "npm run dev -w @ont/resolver --",
     "deploy:vps": "bash ./scripts/deploy-vps.sh",
     "deploy:private-signet:vps": "bash ./scripts/deploy-private-signet-vps.sh",

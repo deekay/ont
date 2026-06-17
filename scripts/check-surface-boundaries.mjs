@@ -20,7 +20,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 
 // EXPLICIT allowlist of clean-build surfaces under the boundary gate. Extend as each B5 surface is rebuilt.
-const ALLOWLIST = ["apps/claim", "apps/cli", "apps/wallet", "apps/web", "apps/resolver", "apps/indexer"];
+const ALLOWLIST = ["apps/claim", "apps/cli", "apps/wallet", "apps/web", "apps/resolver", "apps/indexer", "apps/publisher"];
 // apps/wallet is the ONE surface that owns key material + signing (B5_WALLET_CLASSIFICATION.md) — it alone is
 // exempt from CRYPTO_DENY. Every other surface stays denied (signing is delegated to the wallet's WalletSigner).
 const CRYPTO_EXEMPT = new Set(["apps/wallet"]);

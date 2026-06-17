@@ -1,0 +1,21 @@
+{
+  "name": "@ont/publisher",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "ONT clean runnable publisher service. HTTP assemble+broadcast shell over @ont/adapter-publisher with an injected broadcast port; no signing, private accumulator, or live network in tests.",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run build -w @ont/protocol && npm run build -w @ont/wire && npm run build -w @ont/bitcoin && npm run build -w @ont/adapter-publisher && vitest run",
+    "dev": "tsx src/index.ts",
+    "start": "node dist/apps/publisher/src/index.js"
+  },
+  "dependencies": {
+    "@ont/adapter-publisher": "file:../../packages/adapter-publisher",
+    "@ont/bitcoin": "file:../../packages/bitcoin"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.4"
+  }
+}

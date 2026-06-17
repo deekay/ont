@@ -30,6 +30,7 @@ run_step "1/5 local package tests" npm test -w @ont/wallet
 run_step "1/5 local package tests" npm test -w @ont/web
 run_step "1/5 local package tests" npm test -w @ont/resolver
 run_step "1/5 local package tests" npm test -w @ont/indexer
+run_step "1/5 local package tests" npm test -w @ont/publisher
 
 run_step "2/5 fixture browser e2e" npm run test:e2e:fixture-web
 
