@@ -65,8 +65,8 @@ describe("renderNameView — served name", () => {
     expect(out).toContain("not-ownership-authority");
     expect(out).toContain(OWNER0_PUBKEY); // the served value record is actually rendered
     expect(out).toContain(RECOVERY_ADDRESS); // the served recovery descriptor is rendered
-    // MR1: the web never adjudicates canonicality / ranks chains
-    expect(out).not.toMatch(/canonical|longest|winning/i);
+    // MR1: the web never adjudicates canonicality / ranks chains / claims ownership authority
+    expect(out).not.toMatch(/canonical|longest|winning|owner[- ]authority/i);
   });
 });
 
