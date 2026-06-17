@@ -45,11 +45,46 @@ export interface BlockToAnchorCandidatesDeps {
 }
 
 export async function blockToAnchorCandidates(
-  _block: BlockSnapshot,
-  _deps: BlockToAnchorCandidatesDeps,
+  block: BlockSnapshot,
+  deps: BlockToAnchorCandidatesDeps,
 ): Promise<readonly BuildConfirmedBatchAnchorInput[]> {
-  // RED stub — reopened 3b-3 green pending CL red-OK.
-  void legacyTxidOf;
-  void merkleBranchForIndex;
-  throw new Error("blockToAnchorCandidates: not implemented (3b-3 reopen green pending)");
+  const { blockHeaderHex, minedHeight, orderedTxids, anchors } = block;
+  const candidates: BuildConfirmedBatchAnchorInput[] = [];
+
+  for (const { anchorTx, pos } of anchors) {
+    // Self-bind the tx we mint from to the node's claimed txid at `pos` — all before any I/O.
+    const txid = legacyTxidOf(anchorTx);
+    if (txid === null) continue;
+    if (!Number.isInteger(pos) || pos < 0 || pos >= orderedTxids.length) continue;
+    if (txid !== orderedTxids[pos]!.toLowerCase()) continue;
+
+    // Merkle path from the (untrusted) node txid list — validated BEFORE any prevout fetch, so a bad
+    // list never triggers I/O. The audited buildConfirmedBatchAnchor still recomputes vs the header root.
+    const merkle = merkleBranchForIndex(orderedTxids, pos);
+    if (merkle === null) continue;
+
+    // Prevouts in input order; any missing/unparseable drops the candidate (fail closed).
+    const prevoutTxs: LegacyTransaction[] = [];
+    let dropped = false;
+    for (const input of anchorTx.inputs) {
+      const prevout = await deps.legacyTxByTxid(input.prevoutTxid);
+      if (prevout === null) {
+        dropped = true;
+        break;
+      }
+      prevoutTxs.push(prevout);
+    }
+    if (dropped) continue;
+
+    candidates.push({
+      anchorTx,
+      prevoutTxs,
+      blockHeaderHex,
+      minedHeight,
+      merkle,
+      pos,
+      headerSource: deps.headerSource,
+    });
+  }
+  return candidates;
 }
