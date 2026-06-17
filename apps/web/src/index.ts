@@ -2,6 +2,8 @@
 // ONLY: consumes the B4 adapters through a narrow read-port and renders served state as HTML with
 // resolver-indexed-mirror / not-ownership-authority copy. No keys, no signing, no crypto libs, no wallet
 // internals. AuctionBid tx display renders decoded W16 fields; auction bidding/signing stays wallet-only.
+import { createEmptyWebReadPort, createWebHttpServer } from "./server.js";
+
 export {
   renderNameView,
   shapeName,
@@ -23,3 +25,17 @@ export {
   type ServedTx,
   type ServedTxOutput,
 } from "./web-read-port.js";
+export {
+  createEmptyWebReadPort,
+  createWebHttpServer,
+  handleWebRequest,
+  type WebServiceOptions,
+} from "./server.js";
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  const port = Number.parseInt(process.env.PORT ?? "4175", 10);
+  const server = createWebHttpServer({ port: createEmptyWebReadPort() });
+  server.listen(port, () => {
+    console.log(`@ont/web listening on http://127.0.0.1:${port}`);
+  });
+}
