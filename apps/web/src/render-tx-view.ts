@@ -33,15 +33,13 @@ export function shapeTxid(txid: unknown): ShapeTxidResult {
 export function renderTxView(input: { readonly txid: unknown; readonly port: WebReadPort }): string {
   const shaped = shapeTxid(input.txid);
   if (!shaped.ok) return errorView(input.txid); // invalid txid → escaped error view, never touches the port
-  const txid = shaped.txid;
   try {
-    const served = input.port.tx(txid);
-    if (served === null) return unavailableView(txid);
-    // a served tx whose txid is malformed or differs from the request is malformed → unavailable
-    if (!isHex32Rendering(served.txid) || served.txid !== txid) return unavailableView(txid);
-    return txPage(txid, txFieldsSection(served) + carrierSection(served.carrierPayloadHex));
+    // The sync port path wraps BOTH the port read and the render, so a throwing/malformed legacy port still
+    // degrades to unavailable (the live resolver path in 5b-2 feeds a shape-validated ServedTx and maps a
+    // broken source to 502 in the handler — it does not rely on this wrapper).
+    return renderServedTx(input.txid, input.port.tx(shaped.txid));
   } catch {
-    return unavailableView(txid); // null/throwing/malformed → unavailable, never a thrown render
+    return unavailableView(shaped.txid); // null/throwing/malformed → unavailable, never a thrown render
   }
 }
 
@@ -54,9 +52,13 @@ export function renderTxView(input: { readonly txid: unknown; readonly port: Web
  * by the parity tests).
  */
 export function renderServedTx(rawTxid: unknown, served: ServedTx | null): string {
-  void rawTxid;
-  void served;
-  return ""; // not implemented — parity vs renderTxView is red until the extraction lands
+  const shaped = shapeTxid(rawTxid);
+  if (!shaped.ok) return errorView(rawTxid); // invalid txid → escaped error view
+  const txid = shaped.txid;
+  if (served === null) return unavailableView(txid);
+  // a served tx whose txid is malformed or differs from the request is malformed → unavailable
+  if (!isHex32Rendering(served.txid) || served.txid !== txid) return unavailableView(txid);
+  return txPage(txid, txFieldsSection(served) + carrierSection(served.carrierPayloadHex));
 }
 
 /** label/value row — every value HTML-escaped. */
