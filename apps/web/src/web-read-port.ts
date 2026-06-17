@@ -16,7 +16,23 @@ export interface ServedRecoveryState {
   readonly descriptors: readonly SignedRecoveryDescriptor[];
 }
 
+/** A minimal web-local view of a served Bitcoin transaction (display subset). carrierPayloadHex is the OP_RETURN
+ *  ONT-event payload already extracted by the indexer — the web decodes it via @ont/wire, never scanning scripts. */
+export interface ServedTxOutput {
+  readonly valueSats: string;
+  readonly scriptHex: string;
+  readonly address: string | null;
+}
+export interface ServedTx {
+  readonly txid: string;
+  readonly blockHash: string | null;
+  readonly blockHeight: number | null;
+  readonly outputs: readonly ServedTxOutput[];
+  readonly carrierPayloadHex: string | null;
+}
+
 export interface WebReadPort {
   valueHistory(name: string): ServedValueState | null;
   recoveryHistory(name: string): ServedRecoveryState | null;
+  tx(txid: string): ServedTx | null;
 }

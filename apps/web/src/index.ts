@@ -10,7 +10,15 @@ export {
   type ShapeNameResult,
 } from "./render-name-view.js";
 export {
+  renderTxView,
+  shapeTxid,
+  TX_CHAIN_NOTICE,
+  type ShapeTxidResult,
+} from "./render-tx-view.js";
+export {
   type WebReadPort,
   type ServedValueState,
   type ServedRecoveryState,
+  type ServedTx,
+  type ServedTxOutput,
 } from "./web-read-port.js";
