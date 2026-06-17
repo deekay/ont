@@ -28,16 +28,21 @@ describe("runRestartSurvivalE2e (G2 slice 6c — durable read survives restart o
       expect(html).toContain(String(r.batchSize));
     }
 
-    // P1 — the cursor resumed from durable state (not genesis).
-    expect(r.resumedCursorHeight).toBeGreaterThan(0);
+    // P1 — the durable cursor resumed at the COMMITTED height (asserted separately from idempotence, so cursor
+    // monotonicity and dedupe do not blur — CL pin).
+    expect(r.persistedCursorHeight).toBeGreaterThan(0);
+    expect(r.resumedCursorHeight).toBe(r.persistedCursorHeight);
 
     // P3 — re-presenting the already-persisted anchor on a resumed tick is idempotent: skipped, never re-accepted.
     expect(r.resumeSkipped).toContain(r.anchoredRoot);
     expect(r.resumeAccepted).not.toContain(r.anchoredRoot);
     expect(r.resumeAccepted).toHaveLength(0);
 
-    // P5 — a memory/unset resolver selector must NOT serve the durable anchors (absence): the /tx page renders
-    // unavailable, carrying neither the anchored root nor the carrier facts even though the file exists on disk.
+    // P5 — a memory/unset resolver selector must NOT serve durable anchors. The request still goes through web
+    // txSource → resolver HTTP (the real 6b path), so the /tx page renders for the right txid but as UNAVAILABLE —
+    // carrying neither the anchored root nor the carrier facts, proving selector-absence becomes web-unavailable
+    // rather than a snapshot/local-port fallback (CL pin), even though the file exists on disk.
+    expect(r.memorySelectorTxHtml).toContain(r.anchorTxid);
     expect(r.memorySelectorTxHtml).not.toContain(r.anchoredRoot);
     expect(r.memorySelectorTxHtml).toContain("not currently served");
   });

@@ -25,9 +25,13 @@ export interface RestartSurvivalResult {
   readonly directTxHtml: string; // GET /tx/:txid
   readonly queryTxHtml: string; // GET /?q=<txid>
   readonly searchTxHtml: string; // GET /search?q=<txid>
-  /** The cursor height loaded from the durable store after restart (resumed, not genesis). */
+  /** The cursor height committed by the first ingest tick (the durable height the restart must resume at). */
+  readonly persistedCursorHeight: number;
+  /** The cursor height loaded from the durable store after restart — must equal persistedCursorHeight (not genesis). */
   readonly resumedCursorHeight: number;
-  /** A resumed ingest tick re-presenting the persisted anchor: accepted must be empty, skipped must include it. */
+  /** A resumed tick that DELIBERATELY re-presents the already-persisted anchor (stale candidate despite the
+   *  cursor): accepted must be empty, skipped must include it. Idempotence is asserted SEPARATELY from the cursor
+   *  resume so monotonicity and dedupe do not blur (CL pin). */
   readonly resumeAccepted: readonly string[];
   readonly resumeSkipped: readonly string[];
   /** /tx rendered through a memory/unset resolver selector — must NOT carry the durable confirmed facts. */
