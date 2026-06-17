@@ -1,0 +1,18 @@
+{
+  "name": "@ont/regtest-e2e",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "ONT go-live regtest end-to-end harness (G1). NOT a shipped surface: spins a throwaway bitcoind -regtest node and drives the live publisher/indexer/web read path against it. Env-gated (ONT_E2E_REGTEST=1) so the hermetic suite needs no node.",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run build -w @ont/bitcoin && vitest run"
+  },
+  "dependencies": {
+    "@ont/bitcoin": "file:../bitcoin"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.4"
+  }
+}
