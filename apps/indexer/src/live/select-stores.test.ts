@@ -65,8 +65,9 @@ describe("selectIndexerStores", () => {
     await expect(b.anchorStore.getByTxid(ANCHOR_TXID)).resolves.toEqual(record);
   });
 
-  it("ONT_STORE=file without ONT_STORE_DIR fails closed", () => {
+  it("ONT_STORE=file with a missing OR empty ONT_STORE_DIR fails closed (no relative cwd files)", () => {
     expect(() => selectIndexerStores({ ONT_STORE: "file" })).toThrow(/ONT_STORE_DIR/);
+    expect(() => selectIndexerStores({ ONT_STORE: "file", ONT_STORE_DIR: "" })).toThrow(/ONT_STORE_DIR/);
   });
 
   it("unknown ONT_STORE fails closed (empty string, case variants, other)", () => {

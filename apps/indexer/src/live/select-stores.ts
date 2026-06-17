@@ -21,11 +21,23 @@ export interface IndexerStores {
 }
 
 export function selectIndexerStores(env: Record<string, string | undefined>): IndexerStores {
-  void env;
-  void join;
-  void createInMemoryIndexerCursorStore;
-  void createInMemoryConfirmedAnchorStore;
-  void createFileIndexerCursorStore;
-  void createFileConfirmedAnchorStore;
-  throw new Error("selectIndexerStores not implemented");
+  // Exact match only: undefined defaults to memory; "" / case variants / anything else fail closed.
+  const source = env.ONT_STORE ?? "memory";
+  if (source === "memory") {
+    // Memory mode NEVER consults ONT_STORE_DIR — a stale file-mode env can't perturb a hermetic run.
+    return {
+      cursorStore: createInMemoryIndexerCursorStore(0),
+      anchorStore: createInMemoryConfirmedAnchorStore(),
+    };
+  }
+  if (source === "file") {
+    const dir = env.ONT_STORE_DIR;
+    // Missing OR empty dir fails closed — never let join("", ...) create relative files under the process cwd.
+    if (!dir) throw new Error("ONT_STORE=file requires ONT_STORE_DIR");
+    return {
+      cursorStore: createFileIndexerCursorStore(join(dir, "cursor.json")),
+      anchorStore: createFileConfirmedAnchorStore(join(dir, "confirmed-anchors.json")),
+    };
+  }
+  throw new Error(`ONT_STORE must be memory|file (got ${JSON.stringify(source)})`);
 }
