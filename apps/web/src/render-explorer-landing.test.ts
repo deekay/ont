@@ -54,6 +54,21 @@ describe("route — dispatch by shaper", () => {
     const out = route("  alice  ", nullPort);
     expect(out).toContain("Name:");
   });
+  it("empty / whitespace-only query → plain landing, never touches the port", () => {
+    let out = "";
+    expect(() => {
+      out = route("   ", throwingPort);
+    }).not.toThrow();
+    expect(out).toMatch(/<form|<input|search/i);
+    expect(out).not.toContain("Transaction:");
+    expect(out).not.toContain("Name:");
+    expect(out).not.toMatch(/could not|not recognized/i); // plain landing, not an error
+  });
+  it("does not lowercase / normalize — an uppercase name → landing-with-error", () => {
+    const out = route("Alice", throwingPort);
+    expect(out).not.toContain("Name:");
+    expect(out).toMatch(/could not|invalid|not recognized/i);
+  });
 });
 
 describe("route — invalid query", () => {

@@ -16,10 +16,28 @@ export const LANDING_NOTICE =
  * RED stub. Green: a pure search page — heading + `<form>`/`<input>` search affordance + the LANDING_NOTICE
  * provenance copy, shown before any result. No port, no ownership/canonicality language.
  */
+const SEARCH_FORM = '<form class="search"><input name="q" placeholder="name or transaction id" /><button>Search</button></form>';
+
 export function renderLanding(): string {
-  void LANDING_NOTICE;
-  void htmlEscape;
-  return "<!-- not-implemented -->";
+  return (
+    `<!doctype html><html><head><title>Open Name Tags Explorer</title></head><body>` +
+    `<h1>Open Name Tags Explorer</h1>` +
+    `<p class="provenance">${htmlEscape(LANDING_NOTICE)}</p>` +
+    SEARCH_FORM +
+    `</body></html>`
+  );
+}
+
+/** The landing page plus an escaped note that the query matched neither a name nor a transaction id. */
+function landingWithError(rawQuery: unknown): string {
+  return (
+    `<!doctype html><html><head><title>Open Name Tags Explorer</title></head><body>` +
+    `<h1>Open Name Tags Explorer</h1>` +
+    `<p class="provenance">${htmlEscape(LANDING_NOTICE)}</p>` +
+    SEARCH_FORM +
+    `<p class="error">Query not recognized as a name or transaction id: <code>${htmlEscape(String(rawQuery))}</code></p>` +
+    `</body></html>`
+  );
 }
 
 /**
@@ -29,11 +47,12 @@ export function renderLanding(): string {
  * hex; names are ≤32, so no current overlap — the order is fixed for the future-overlap case).
  */
 export function route(query: unknown, port: WebReadPort): string {
-  void query;
-  void port;
-  void renderTxView;
-  void renderNameView;
-  void shapeTxid;
-  void shapeName;
-  return "<!-- not-implemented -->";
+  // Trim ONLY transport whitespace — no lowercasing / no name normalization (reject-don't-normalize).
+  const q = typeof query === "string" ? query.trim() : "";
+  if (q === "") return renderLanding(); // empty / whitespace-only → plain landing, never touches the port
+  const txid = shapeTxid(q);
+  if (txid.ok) return renderTxView({ txid: q, port }); // dispatch order: txid first (intentional)
+  const name = shapeName(q);
+  if (name.ok) return renderNameView({ name: q, port });
+  return landingWithError(query); // malformed non-empty → escaped landing-with-error, never touches the port
 }
