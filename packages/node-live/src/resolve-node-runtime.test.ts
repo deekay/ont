@@ -24,8 +24,15 @@ describe("resolveNodeRuntime (G1 slice 4b)", () => {
     expect(out.rpc.url).toBe("");
   });
 
-  it("node mode requires ONT_RPC_URL (fails closed before selection can reach live)", () => {
+  it("node mode requires ONT_RPC_URL — missing OR empty (the deployment footgun) fails closed", () => {
     expect(() => resolveNodeRuntime({ ONT_SOURCE: "node", ONT_CHAIN: "regtest" })).toThrow(/ONT_RPC_URL/);
+    expect(() => resolveNodeRuntime({ ONT_SOURCE: "node", ONT_CHAIN: "regtest", ONT_RPC_URL: "" })).toThrow(/ONT_RPC_URL/);
+  });
+
+  it("node mode rejects ONT_RPC_PASSWORD without ONT_RPC_USER (else auth is silently dropped)", () => {
+    expect(() =>
+      resolveNodeRuntime({ ONT_SOURCE: "node", ONT_CHAIN: "regtest", ONT_RPC_URL: "http://127.0.0.1:18443", ONT_RPC_PASSWORD: "p" }),
+    ).toThrow(/password requires.*username|username/);
   });
 
   it("node mode reads chain + rpc url/user/password", () => {
