@@ -7,3 +7,5 @@ export {
 } from "./chain-gate.js";
 
 export { selectLivePort, type SelectLivePortOptions } from "./select-live-port.js";
+
+export { resolveNodeRuntime, type NodeRuntimeEnv } from "./resolve-node-runtime.js";
