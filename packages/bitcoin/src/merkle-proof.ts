@@ -71,6 +71,42 @@ export function merkleRootFromProof(
 }
 
 /**
+ * Build the display-hex Merkle sibling path for the tx at `index` from the block's ORDERED display-hex
+ * txids (coinbase first). The inverse of `merkleRootFromProof`: feeding this path back as `siblings`
+ * with the same `index` reconstructs the block's Merkle root. Standard Bitcoin construction — display →
+ * internal reverse, double-SHA256 per level, last node duplicated on odd levels (so the lone tx pairs
+ * with itself). Returns null on any malformed input — bad-hex / wrong-length txid, empty list, or an
+ * `index` that is not an integer in [0, txids.length). Never throws. (go-live G1 sub-slice 3b.)
+ */
+export function merkleBranchForIndex(
+  orderedTxidsDisplayHex: readonly string[],
+  index: number,
+): readonly string[] | null {
+  if (!Number.isInteger(index) || index < 0 || index >= orderedTxidsDisplayHex.length) return null;
+  // Parse every txid display → internal order; fail closed on any malformed leaf.
+  let level: Uint8Array[] = [];
+  for (const hex of orderedTxidsDisplayHex) {
+    const bytes = hexToBytesOrNull(hex);
+    if (bytes === null || bytes.length !== 32) return null;
+    level.push(reversed(bytes));
+  }
+  // Walk up the tree, collecting the sibling on the path to `index`. All hashing is
+  // internal-order double-SHA256, the same convention merkleRootFromProof verifies.
+  const siblings: Uint8Array[] = [];
+  let idx = index;
+  while (level.length > 1) {
+    if (level.length % 2 === 1) level.push(level[level.length - 1]!); // odd level: duplicate the last node
+    const siblingIdx = (idx & 1) === 1 ? idx - 1 : idx + 1;
+    siblings.push(level[siblingIdx]!);
+    const next: Uint8Array[] = [];
+    for (let i = 0; i < level.length; i += 2) next.push(doubleSha256(concatBytes(level[i]!, level[i + 1]!)));
+    level = next;
+    idx >>= 1;
+  }
+  return siblings.map((sibling) => bytesToHex(reversed(sibling))); // internal → display hex
+}
+
+/**
  * The block header's committed Merkle root as INTERNAL-order hex (bytes 36..68 of the 80-byte header),
  * for comparison against `bytesToHex(merkleRootFromProof(...))`. Null on a malformed header.
  */

@@ -37,3 +37,5 @@ export {
   type IndexerTickReport,
   type RunLoopOptions,
 } from "./runner.js";
+// Env-selected live block source (go-live slice 4b) — published so the regtest e2e composes it.
+export { selectIndexerBlockSource } from "./live/select-block-source.js";

@@ -36,6 +36,10 @@ function memStore() {
       records.set(record.confirmedAnchor.anchoredRoot, record);
       return Promise.resolve();
     },
+    getByTxid: (txid) => {
+      for (const r of records.values()) if (r.confirmedAnchor.anchorTxid === txid) return Promise.resolve(r);
+      return Promise.resolve(null);
+    },
   };
   return { store, records };
 }
@@ -80,6 +84,7 @@ describe("ingestConfirmedAnchors — orchestration (faked firewall)", () => {
         putCount++;
         return store.put(r);
       },
+      getByTxid: store.getByTxid,
     };
     const report = await ingestConfirmedAnchors([candidate], counting, okConfirm(ROOT_A));
     expect(report.skipped).toEqual([ROOT_A]);

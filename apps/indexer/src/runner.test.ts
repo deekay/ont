@@ -36,6 +36,10 @@ function memAnchorStore() {
       records.set(record.confirmedAnchor.anchoredRoot, record);
       return Promise.resolve();
     },
+    getByTxid: (txid) => {
+      for (const r of records.values()) if (r.confirmedAnchor.anchorTxid === txid) return Promise.resolve(r);
+      return Promise.resolve(null);
+    },
   };
   return { store, records };
 }

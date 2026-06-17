@@ -31,6 +31,15 @@ export {
   handleWebRequest,
   type WebServiceOptions,
 } from "./server.js";
+// Confirmed-anchor read path (go-live slice 5) — published so the regtest e2e composes the projection + snapshot port.
+export {
+  confirmedAnchorTxToServedTx,
+  type ConfirmedAnchorTxView,
+} from "./live/confirmed-anchor-tx.js";
+export {
+  createSnapshotWebReadPort,
+  type ConfirmedAnchorSnapshot,
+} from "./live/snapshot-read-port.js";
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   const port = Number.parseInt(process.env.PORT ?? "4175", 10);
