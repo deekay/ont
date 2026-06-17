@@ -36,15 +36,64 @@ export interface BlockToAnchorCandidatesDeps {
   readonly legacyTxByTxid: LegacyTxByTxid;
 }
 
+/** Prefilter: does any output carry an OP_RETURN that decodes to a RootAnchor? (Authority re-decides.) */
+function txHasRootAnchor(tx: LegacyTransaction): boolean {
+  for (const output of tx.outputs) {
+    const data = opReturnData(output.scriptPubKeyHex);
+    if (data === null) continue;
+    try {
+      if (decodeEvent(data).type === EventType.RootAnchor) return true;
+    } catch {
+      // not a decodable event — ignore (the authority would reject it anyway)
+    }
+  }
+  return false;
+}
+
 export async function blockToAnchorCandidates(
-  _block: BlockSnapshot,
-  _deps: BlockToAnchorCandidatesDeps,
+  block: BlockSnapshot,
+  deps: BlockToAnchorCandidatesDeps,
 ): Promise<readonly BuildConfirmedBatchAnchorInput[]> {
-  // RED stub — sub-slice 3b-3 green pending CL red-OK.
-  void legacyTxidOf;
-  void merkleBranchForIndex;
-  void opReturnData;
-  void decodeEvent;
-  void EventType;
-  throw new Error("blockToAnchorCandidates: not implemented (3b-3 green pending)");
+  const { blockHeaderHex, minedHeight, orderedLegacyTxs } = block;
+
+  // Cheap block-wide txid derivation FIRST — any unserializable tx ⇒ drop the whole block
+  // (no Merkle path is sound), before touching the prevout I/O.
+  const txids: string[] = [];
+  for (const tx of orderedLegacyTxs) {
+    const txid = legacyTxidOf(tx);
+    if (txid === null) return [];
+    txids.push(txid);
+  }
+
+  const candidates: BuildConfirmedBatchAnchorInput[] = [];
+  for (let pos = 0; pos < orderedLegacyTxs.length; pos += 1) {
+    const anchorTx = orderedLegacyTxs[pos]!;
+    if (!txHasRootAnchor(anchorTx)) continue; // prefilter BEFORE any prevout fetch
+    const merkle = merkleBranchForIndex(txids, pos);
+    if (merkle === null) continue; // fail closed (unreachable given valid txids, but never mint without a path)
+
+    // Fetch prevouts in input order; drop the candidate if any is missing/unparseable.
+    const prevoutTxs: LegacyTransaction[] = [];
+    let dropped = false;
+    for (const input of anchorTx.inputs) {
+      const prevout = await deps.legacyTxByTxid(input.prevoutTxid);
+      if (prevout === null) {
+        dropped = true;
+        break;
+      }
+      prevoutTxs.push(prevout);
+    }
+    if (dropped) continue;
+
+    candidates.push({
+      anchorTx,
+      prevoutTxs,
+      blockHeaderHex,
+      minedHeight,
+      merkle,
+      pos,
+      headerSource: deps.headerSource,
+    });
+  }
+  return candidates;
 }
