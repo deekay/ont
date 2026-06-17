@@ -73,13 +73,6 @@ export type BuildTransferResult =
   | { readonly ok: true; readonly artifact: SignedTransferArtifact }
   | { readonly ok: false; readonly reason: TransferBuildReason };
 
-/** The tx-construction/signing capability the CLI DELEGATE submit commands consume. Distinct from the narrow
- *  WalletSigner (value-record/recovery) so claim stays on its minimal contract; createWalletSigner returns a
- *  signer that satisfies both. The key stays closed over — never an input or an output here. */
-export interface WalletTransactionBuilder {
-  buildAndSignTransfer(input: TransferArtifactInput): BuildTransferResult;
-}
-
 const AUX_RAND_ZERO = new Uint8Array(32); // BIP-340 deterministic signing (auxRand = 0)
 
 function networkOf(net: TransferNetwork): Network {

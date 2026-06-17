@@ -13,8 +13,8 @@ export {
   type RecoveryDescriptorSignFields,
   type CreateWalletSignerResult,
 } from "./wallet-signer.js";
+export { type WalletTransactionBuilder } from "./wallet-transaction-builder.js";
 export {
-  type WalletTransactionBuilder,
   type TransferArtifactInput,
   type TransferFundingInput,
   type TransferNetwork,
@@ -23,3 +23,14 @@ export {
   type BuildTransferResult,
   type TransferBuildReason,
 } from "./transfer-artifacts.js";
+export {
+  type ImmatureSaleTransferInput,
+  type SaleFundingInput,
+  type SaleOutput,
+  type SalePsbtArtifact,
+  type BuildSaleResult,
+  type SaleBuildReason,
+  type CoSignedSaleArtifact,
+  type CoSignSaleResult,
+  type CoSignSaleReason,
+} from "./sale-transfer-artifacts.js";
