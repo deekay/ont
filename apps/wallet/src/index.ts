@@ -24,6 +24,13 @@ export {
   type TransferBuildReason,
 } from "./transfer-artifacts.js";
 export {
+  recoveryWalletProofMessage,
+  assembleRecoveryWalletProof,
+  type RecoveryProofExportInput,
+  type RecoveryProofMessageResult,
+  type AssembleRecoveryProofResult,
+} from "./recovery-proof-export.js";
+export {
   type ImmatureSaleTransferInput,
   type MatureSaleTransferInput,
   type SaleFundingInput,

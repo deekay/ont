@@ -26,7 +26,7 @@ const ALLOWLIST = ["apps/claim", "apps/cli", "apps/wallet"];
 const CRYPTO_EXEMPT = new Set(["apps/wallet"]);
 
 const SCAN_EXT = ["ts", "tsx", "mts", "cts", "js", "mjs", "cjs"];
-const CRYPTO_DENY = [/^@noble\//, /^@scure\//, /^bitcoinjs-lib$/, /^ecpair$/, /^tiny-secp256k1$/, /^secp256k1$/];
+const CRYPTO_DENY = [/^@noble\//, /^@scure\//, /^bitcoinjs-lib$/, /^ecpair$/, /^tiny-secp256k1$/, /^secp256k1$/, /^bip322-js$/];
 
 /** Extract every module specifier referenced by a file (static import/export-from, bare import, dynamic import(), require()). */
 function specifiersOf(source) {
