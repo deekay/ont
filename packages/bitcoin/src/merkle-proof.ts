@@ -79,11 +79,31 @@ export function merkleRootFromProof(
  * `index` that is not an integer in [0, txids.length). Never throws. (go-live G1 sub-slice 3b.)
  */
 export function merkleBranchForIndex(
-  _orderedTxidsDisplayHex: readonly string[],
-  _index: number,
+  orderedTxidsDisplayHex: readonly string[],
+  index: number,
 ): readonly string[] | null {
-  // RED stub — sub-slice 3b green pending CL red-OK.
-  throw new Error("merkleBranchForIndex: not implemented (3b green pending)");
+  if (!Number.isInteger(index) || index < 0 || index >= orderedTxidsDisplayHex.length) return null;
+  // Parse every txid display → internal order; fail closed on any malformed leaf.
+  let level: Uint8Array[] = [];
+  for (const hex of orderedTxidsDisplayHex) {
+    const bytes = hexToBytesOrNull(hex);
+    if (bytes === null || bytes.length !== 32) return null;
+    level.push(reversed(bytes));
+  }
+  // Walk up the tree, collecting the sibling on the path to `index`. All hashing is
+  // internal-order double-SHA256, the same convention merkleRootFromProof verifies.
+  const siblings: Uint8Array[] = [];
+  let idx = index;
+  while (level.length > 1) {
+    if (level.length % 2 === 1) level.push(level[level.length - 1]!); // odd level: duplicate the last node
+    const siblingIdx = (idx & 1) === 1 ? idx - 1 : idx + 1;
+    siblings.push(level[siblingIdx]!);
+    const next: Uint8Array[] = [];
+    for (let i = 0; i < level.length; i += 2) next.push(doubleSha256(concatBytes(level[i]!, level[i + 1]!)));
+    level = next;
+    idx >>= 1;
+  }
+  return siblings.map((sibling) => bytesToHex(reversed(sibling))); // internal → display hex
 }
 
 /**
