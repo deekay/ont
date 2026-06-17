@@ -85,7 +85,11 @@ describe("buildAndSignAuctionBid — auction-bid artifact", () => {
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     const tx = Transaction.fromHex(r.artifact.signedTransactionHex);
-    expect(tx.outs.filter((o) => o.script[0] === 0x6a).length).toBe(1);
+    const opReturns = tx.outs.filter((o) => o.script[0] === 0x6a);
+    expect(opReturns.length).toBe(1);
+    // the OP_RETURN payload in the signed tx IS the artifact's reported carrier hex (no drift)
+    const embedded = payments.embed({ output: opReturns[0]?.script }).data?.[0];
+    expect(embedded ? bytesToHex(embedded) : null).toBe(r.artifact.auctionBidEventHex);
     const ev = decodeEvent(hexToBytes(r.artifact.auctionBidEventHex));
     expect(ev.type).toBe(EventType.AuctionBid);
     if (ev.type !== EventType.AuctionBid) return;
@@ -185,6 +189,15 @@ describe("buildAndSignAuctionBid — fail-closed", () => {
     expect(r.ok).toBe(false);
     if (r.ok) return;
     expect(r.reason).toBe("missing-name-flag");
+  });
+
+  it("bond output below the committed bid amount → under-bonded (over-bonding stays allowed)", () => {
+    const s = signer();
+    const { input } = buildInput(s.ownerPubkey); // fixture is over-bond: bidAmount 50000, bond 99000
+    const r = s.buildAndSignAuctionBid({ ...input, bondSats: "40000" }); // 40000 < bidAmount 50000
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.reason).toBe("under-bonded");
   });
 
   it("change owed but no change address → change-without-address", () => {
