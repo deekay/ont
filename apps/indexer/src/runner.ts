@@ -4,7 +4,9 @@
 // cursor. The loop is resilient (a tick error is reported, never crashes the daemon) and total. No HTTP. All I/O
 // (block-source, cursor store, anchor store) is behind mockable ports — the loop decides no firewall rule.
 import {
+  ingestConfirmedAnchors,
   type ConfirmAnchor,
+  type ConfirmedAnchorRecord,
   type ConfirmedAnchorStore,
   type IngestAnchorsReport,
 } from "./ingest-anchors.js";
@@ -50,8 +52,13 @@ export interface IndexerTickReport {
  * persist the advanced cursor → report. The firewall + persistence semantics live in slice 1 / the stores; the
  * tick is pure orchestration.
  */
-export async function runIndexerTick(_deps: IndexerRunnerDeps): Promise<IndexerTickReport> {
-  throw new Error("not-implemented");
+export async function runIndexerTick(deps: IndexerRunnerDeps): Promise<IndexerTickReport> {
+  const cursor = await deps.cursorStore.load();
+  const batch = await deps.blockSource.nextConfirmedAnchors(cursor);
+  // deps.confirm undefined ⇒ ingestConfirmedAnchors applies its real-adapter default (default-param on undefined).
+  const anchors = await ingestConfirmedAnchors(batch.candidates, deps.anchorStore, deps.confirm);
+  await deps.cursorStore.save(batch.cursor);
+  return { cursor: batch.cursor, anchors };
 }
 
 export interface RunLoopOptions {
@@ -69,8 +76,18 @@ export interface RunLoopOptions {
  * Run ingest ticks until `shouldStop()`. Resilient + total: a thrown tick is routed to `onError` and the loop
  * keeps going; it never throws out. `waitForNext` paces the poll in production.
  */
-export async function runIndexerLoop(_deps: IndexerRunnerDeps, _options: RunLoopOptions): Promise<void> {
-  throw new Error("not-implemented");
+export async function runIndexerLoop(deps: IndexerRunnerDeps, options: RunLoopOptions): Promise<void> {
+  while (!options.shouldStop()) {
+    try {
+      const report = await runIndexerTick(deps);
+      options.onTick?.(report);
+    } catch (error) {
+      options.onError?.(error);
+    }
+    // Re-check after the tick/error: a stop must exit WITHOUT a final poll wait (fast SIGTERM, no shutdown delay).
+    if (options.shouldStop()) break;
+    if (options.waitForNext) await options.waitForNext();
+  }
 }
 
 /** A block-source that yields no candidates and never advances — lets the daemon start cleanly without real I/O. */
@@ -85,6 +102,18 @@ export function createInMemoryIndexerCursorStore(height = 0): IndexerCursorStore
     load: () => Promise.resolve(current),
     save: (cursor) => {
       current = cursor;
+      return Promise.resolve();
+    },
+  };
+}
+
+/** An in-memory confirmed-anchor store keyed by anchoredRoot — clean startup; real DB store injectable. */
+export function createInMemoryConfirmedAnchorStore(): ConfirmedAnchorStore {
+  const records = new Map<string, ConfirmedAnchorRecord>();
+  return {
+    has: (anchoredRoot) => Promise.resolve(records.has(anchoredRoot)),
+    put: (record) => {
+      records.set(record.confirmedAnchor.anchoredRoot, record);
       return Promise.resolve();
     },
   };

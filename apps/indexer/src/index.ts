@@ -21,6 +21,7 @@ export {
   runIndexerLoop,
   createEmptyIndexerBlockSource,
   createInMemoryIndexerCursorStore,
+  createInMemoryConfirmedAnchorStore,
   type IndexerCursor,
   type ConfirmedAnchorBatch,
   type IndexerBlockSource,
