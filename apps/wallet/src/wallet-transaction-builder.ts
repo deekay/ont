@@ -8,10 +8,13 @@ import type {
   BuildSaleResult,
   CoSignSaleResult,
 } from "./sale-transfer-artifacts.js";
+import type { AuctionBidArtifactInput, BuildAuctionBidResult } from "./auction-bid-artifacts.js";
 
 export interface WalletTransactionBuilder {
   /** Single-signer gift transfer → fully signed tx artifact. */
   buildAndSignTransfer(input: TransferArtifactInput): BuildTransferResult;
+  /** Single-signer auction bid: AuctionBid carrier (0x07, 32-byte commitments) + bidder bond → fully signed tx. */
+  buildAndSignAuctionBid(input: AuctionBidArtifactInput): BuildAuctionBidResult;
   /** Cooperative immature-sale, SELLER role: carrier + ONT auth + sign seller-owned inputs → partial PSBT. */
   buildImmatureSaleTransfer(input: ImmatureSaleTransferInput): BuildSaleResult;
   /** Cooperative mature-sale, SELLER role: ≥1 seller binding input, no successor bond → partial PSBT. */

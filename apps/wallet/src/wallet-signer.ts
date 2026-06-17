@@ -20,6 +20,11 @@ import {
   type BuildSaleResult,
   type CoSignSaleResult,
 } from "./sale-transfer-artifacts.js";
+import {
+  buildAndSignAuctionBidArtifact,
+  type AuctionBidArtifactInput,
+  type BuildAuctionBidResult,
+} from "./auction-bid-artifacts.js";
 
 // B5-WALLET (first slice) — the WalletSigner contract: the NARROW port the CLI / claim DELEGATE to. It exposes
 // the owner pubkey + signing over value-records / recovery-descriptors; the private key/seed are held inside
@@ -83,6 +88,9 @@ export function createWalletSigner(mnemonic: string, index = 0): CreateWalletSig
     },
     buildAndSignTransfer(input: TransferArtifactInput): BuildTransferResult {
       return buildAndSignTransferArtifact(ownerPrivateKeyHex, input);
+    },
+    buildAndSignAuctionBid(input: AuctionBidArtifactInput): BuildAuctionBidResult {
+      return buildAndSignAuctionBidArtifact(ownerPrivateKeyHex, input);
     },
     buildImmatureSaleTransfer(input: ImmatureSaleTransferInput): BuildSaleResult {
       return buildImmatureSaleTransferArtifact(ownerPrivateKeyHex, input);
