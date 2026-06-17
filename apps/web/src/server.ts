@@ -2,15 +2,16 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { renderLanding, route } from "./render-explorer-landing.js";
 import { renderNameView } from "./render-name-view.js";
 import { renderTxView, renderServedTx, shapeTxid } from "./render-tx-view.js";
-import type { WebReadPort, ServedTx } from "./web-read-port.js";
+import type { WebReadPort } from "./web-read-port.js";
 import type { ResolverTxSource } from "./live/resolver-tx-source.js";
 
 export interface WebServiceOptions {
   readonly port: WebReadPort;
-  // Optional live resolver tx read source (G2 slice 5b-2). When configured, the /tx/:txid handler reads the
-  // live resolver (async) instead of the sync `port`: bad txid -> error view (no fetch); source ServedTx ->
-  // rendered tx page; source null -> unavailable page; source throw -> 502 before rendering. When absent, the
-  // existing sync renderTxView({ txid, port }) path is unchanged. `| undefined` is explicit so the env selector's
+  // Optional live resolver tx read source (G2 slice 5b-2/5c). When configured, txid reads go to the live
+  // resolver (async): the direct /tx/:txid handler AND txid queries via /?q=<txid> and /search?q=<txid>. In
+  // every case — source ServedTx -> tx page; source null -> unavailable page; source throw -> generic 502
+  // before rendering. Non-txid queries (names, empty, malformed) and the no-txSource case stay on the pure sync
+  // renderTxView / route(q, port) path, byte-stable. `| undefined` is explicit so the env selector's
   // ResolverTxSource | undefined result is assignable under exactOptionalPropertyTypes.
   readonly txSource?: ResolverTxSource | undefined;
 }
@@ -35,11 +36,12 @@ export async function handleWebRequest(request: Request, options: WebServiceOpti
 
     if (segments.length === 0) {
       const q = url.searchParams.get("q");
-      return html(q === null ? renderLanding() : route(q, options.port));
+      if (q === null) return html(renderLanding());
+      return await routeResponse(q, options);
     }
 
     if (segments.length === 1 && segments[0] === "search") {
-      return html(route(url.searchParams.get("q") ?? "", options.port));
+      return await routeResponse(url.searchParams.get("q") ?? "", options);
     }
 
     if (segments.length === 2 && segments[0] === "names") {
@@ -52,19 +54,11 @@ export async function handleWebRequest(request: Request, options: WebServiceOpti
       if (options.txSource === undefined) {
         return html(renderTxView({ txid: rawTxid, port: options.port }));
       }
-      // Live resolver read (G2 slice 5b-2) — DIRECT /tx/:txid only; /?q= and /search?q= stay on the pure sync
-      // route(q, port) path with no live coverage (CL scope boundary, event a322f29e). Validate before fetch:
-      // a bad txid renders the error view and NEVER calls the source.
+      // Live resolver read (G2 slice 5b-2) — validate before fetch: a bad txid renders the error view and NEVER
+      // calls the source; a good txid goes through the shared live tx path.
       const shaped = shapeTxid(rawTxid);
       if (!shaped.ok) return html(renderServedTx(rawTxid, null)); // error view, no fetch
-      let served: ServedTx | null;
-      try {
-        served = await options.txSource(shaped.txid);
-      } catch {
-        // A broken live read is NOT "absent": 502 before rendering, generic body (no resolver-exception leak).
-        return html(LIVE_READ_ERROR, 502);
-      }
-      return html(renderServedTx(rawTxid, served)); // ServedTx → tx page; null → unavailable page (200)
+      return await liveTxResponse(shaped.txid, options.txSource);
     }
 
     return json({ ok: false, reason: "not-found" }, 404);
@@ -101,6 +95,35 @@ const LIVE_READ_ERROR =
   `<h1>Resolver unavailable</h1>` +
   `<p>The resolver could not be reached to read this transaction. Please try again later.</p>` +
   `</body></html>`;
+
+/**
+ * The shared live tx path (G2 slice 5b-2/5c). The txid is already validated. Owns the async + HTTP status so
+ * the pure `route` / `renderServedTx` stay status-free: source ServedTx → tx page (200); source null →
+ * unavailable page (200); source throw → the fixed generic 502 (no resolver-exception leak), returned BEFORE
+ * rendering so a broken read is never confused with "absent". Both the direct /tx/:txid handler and the txid
+ * search queries render through this one path and share the one 502 body.
+ */
+async function liveTxResponse(txid: string, txSource: ResolverTxSource): Promise<Response> {
+  try {
+    return html(renderServedTx(txid, await txSource(txid)));
+  } catch {
+    return html(LIVE_READ_ERROR, 502);
+  }
+}
+
+/**
+ * Async companion to the pure `route` (G2 slice 5c). When a live `txSource` is configured AND the trimmed
+ * query shapes to a txid, the landing/search query goes through the SAME live tx path as direct /tx/:txid;
+ * every other query (names, empty, malformed) and the no-txSource case falls to the byte-stable sync
+ * route(q, port). Keeps `route` pure (string-returning) — no name live work and no B3 value/recovery path here.
+ */
+async function routeResponse(rawQuery: string, options: WebServiceOptions): Promise<Response> {
+  if (options.txSource !== undefined) {
+    const shaped = shapeTxid(rawQuery.trim()); // trim mirrors route(); only a txid query goes live
+    if (shaped.ok) return liveTxResponse(shaped.txid, options.txSource);
+  }
+  return html(route(rawQuery, options.port)); // names / empty / malformed → pure sync, byte-stable
+}
 
 function pathSegments(url: URL): string[] {
   return url.pathname
