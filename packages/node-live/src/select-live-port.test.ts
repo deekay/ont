@@ -62,13 +62,15 @@ describe("selectLivePort (G1 slice 4)", () => {
     expect(live).not.toHaveBeenCalled();
   });
 
-  it("rejects an unknown ONT_SOURCE with an ONT_SOURCE reason, building nothing", async () => {
-    const memory = vi.fn(() => "MEM");
-    const live = vi.fn(() => "LIVE");
-    await expect(
-      selectLivePort({ source: "esplora", chain: "regtest", rpc: RPC, memory, live, assertChain: okAssert() }),
-    ).rejects.toThrow(/ONT_SOURCE/);
-    expect(memory).not.toHaveBeenCalled();
-    expect(live).not.toHaveBeenCalled();
+  it("rejects unknown / empty / case-variant ONT_SOURCE — never silently memory or live", async () => {
+    for (const source of ["esplora", "", "Memory", "NODE", "node "]) {
+      const memory = vi.fn(() => "MEM");
+      const live = vi.fn(() => "LIVE");
+      await expect(
+        selectLivePort({ source, chain: "regtest", rpc: RPC, memory, live, assertChain: okAssert() }),
+      ).rejects.toThrow(/ONT_SOURCE/);
+      expect(memory).not.toHaveBeenCalled();
+      expect(live).not.toHaveBeenCalled();
+    }
   });
 });

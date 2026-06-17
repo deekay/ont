@@ -23,7 +23,16 @@ export interface SelectLivePortOptions<T> {
   readonly assertChain?: ChainAssert;
 }
 
-export async function selectLivePort<T>(_opts: SelectLivePortOptions<T>): Promise<T> {
-  // RED stub — slice 4 green pending CL red-OK.
-  throw new Error("selectLivePort: not implemented (slice 4 green pending)");
+export async function selectLivePort<T>(opts: SelectLivePortOptions<T>): Promise<T> {
+  const source = opts.source ?? "memory"; // unset → hermetic default; "" and case variants are NOT memory
+  if (source === "memory") {
+    return opts.memory();
+  }
+  if (source === "node") {
+    // Parse-first chain gate: ONT_CHAIN must be regtest|signet (else throws before any RPC), then the
+    // node must actually be that chain. Only after this awaited gate succeeds do we build the live port.
+    await assertExpectedChain(opts.rpc, opts.chain, opts.assertChain);
+    return opts.live();
+  }
+  throw new Error(`ONT_SOURCE must be memory|node, got ${JSON.stringify(opts.source)}`);
 }
