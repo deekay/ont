@@ -55,9 +55,11 @@ describe("ingestConfirmedAnchors — orchestration (faked firewall)", () => {
   it("persists exactly the adapter ok facts (no service-added fields)", async () => {
     const { store, records } = memStore();
     await ingestConfirmedAnchors([candidate], store, okConfirm(ROOT_A));
-    const rec = records.get(ROOT_A);
-    expect(rec?.confirmedAnchor).toEqual(anchorFact(ROOT_A));
-    expect(rec?.feeTxParts).toEqual({ anchorTx: minimalTx, prevoutTxs: [] });
+    // Whole-record equality (per CL): a stray service-added field (e.g. indexedAt) must fail this pin.
+    expect(records.get(ROOT_A)).toEqual({
+      confirmedAnchor: anchorFact(ROOT_A),
+      feeTxParts: { anchorTx: minimalTx, prevoutTxs: [] },
+    });
   });
 
   it("fails closed on reject — nothing stored, reason reported", async () => {
