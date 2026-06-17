@@ -120,9 +120,11 @@ export function buildImmatureSaleTransferArtifact(
     const sellerValues = sellerInputs.map((i) => parseSats(i.valueSats));
     const buyerValues = input.buyerInputs.map((i) => parseSats(i.valueSats));
     if ([...sellerValues, ...buyerValues].some((v) => v === null)) return { ok: false, reason: "invalid-input" };
+    // Per-field negativity: reject any negative input value individually — an aggregate-only check lets a
+    // negative UTXO value be masked by a larger positive one.
+    if ([...sellerValues, ...buyerValues].some((v) => (v ?? 0n) < 0n)) return { ok: false, reason: "negative-amount" };
     const totalSeller = sellerValues.reduce<bigint>((a, v) => a + (v ?? 0n), 0n);
     const totalBuyer = buyerValues.reduce<bigint>((a, v) => a + (v ?? 0n), 0n);
-    if (totalSeller < 0n || totalBuyer < 0n) return { ok: false, reason: "negative-amount" };
 
     const buyerChange = totalBuyer - successorBondSats - salePriceSats - feeSats;
     if (buyerChange < 0n) return { ok: false, reason: "insufficient-buyer-funds" };
@@ -132,6 +134,12 @@ export function buildImmatureSaleTransferArtifact(
 
     const network = networkOf(input.network);
     const sellerXOnly = ownerXOnly(ownerPrivateKeyHex);
+    // Script-based ownership: every declared seller input must pay to THIS wallet's P2TR (the seller can only
+    // sign its own inputs). Declaration alone is not trusted — fail closed on any non-seller-owned seller input.
+    const sellerScriptHex = bytesToHex(ownerP2trScript(ownerPrivateKeyHex));
+    if (sellerInputs.some((i) => i.scriptPubKeyHex.toLowerCase() !== sellerScriptHex)) {
+      return { ok: false, reason: "invalid-input" };
+    }
 
     // ONT-layer authorization: the seller (current owner) signs the transfer auth digest (deterministic).
     const authDigest = transferAuthDigest({

@@ -196,3 +196,29 @@ describe("immature-sale — fail-closed", () => {
     if (!r.ok) expect(r.reason).toBe("malformed-psbt");
   });
 });
+
+describe("immature-sale — ownership + per-field negativity hardening", () => {
+  it("rejects a declared seller input whose script is not the seller's P2TR (script-based ownership)", () => {
+    const { input } = saleInput();
+    const notSeller = p2tr(OWNER1_PUBKEY); // buyer's P2TR, not the seller's — the seller cannot own/sign it
+    const r = seller().buildImmatureSaleTransfer({
+      ...input,
+      currentBondInput: { ...input.currentBondInput, scriptPubKeyHex: bytesToHex(notSeller.script) },
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.reason).toBe("invalid-input");
+  });
+  it("rejects a mixed-sign input set even when the aggregate stays positive (per-field negativity)", () => {
+    const { input } = saleInput();
+    const buyerUtxo = p2tr(OWNER1_PUBKEY);
+    const r = seller().buildImmatureSaleTransfer({
+      ...input,
+      buyerInputs: [
+        { txid: "44".repeat(32), vout: 0, valueSats: "300000", scriptPubKeyHex: bytesToHex(buyerUtxo.script) },
+        { txid: "55".repeat(32), vout: 1, valueSats: "-100000", scriptPubKeyHex: bytesToHex(buyerUtxo.script) },
+      ],
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.reason).toBe("negative-amount");
+  });
+});
