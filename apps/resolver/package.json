@@ -1,0 +1,21 @@
+{
+  "name": "@ont/resolver",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "ONT clean runnable resolver service. Thin HTTP shell over @ont/adapter-resolver with an injected store port; no consensus or indexer rule reimplementation.",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run build -w @ont/protocol && npm run build -w @ont/adapter-resolver && vitest run",
+    "dev": "tsx src/index.ts",
+    "start": "node dist/apps/resolver/src/index.js"
+  },
+  "dependencies": {
+    "@ont/adapter-resolver": "file:../../packages/adapter-resolver",
+    "@ont/protocol": "file:../../packages/protocol"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.4"
+  }
+}
