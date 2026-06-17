@@ -45,9 +45,32 @@ export interface IngestAnchorsReport {
  * throw ⇒ `ingest-error`, continue.
  */
 export async function ingestConfirmedAnchors(
-  _candidates: readonly BuildConfirmedBatchAnchorInput[],
-  _store: ConfirmedAnchorStore,
-  _confirm: ConfirmAnchor = buildConfirmedBatchAnchor
+  candidates: readonly BuildConfirmedBatchAnchorInput[],
+  store: ConfirmedAnchorStore,
+  confirm: ConfirmAnchor = buildConfirmedBatchAnchor
 ): Promise<IngestAnchorsReport> {
-  return { accepted: [], skipped: [], rejected: [] };
+  const accepted: string[] = [];
+  const skipped: string[] = [];
+  const rejected: { reason: IngestRejectReason }[] = [];
+  for (const candidate of candidates) {
+    try {
+      const result = confirm(candidate);
+      if (!result.ok) {
+        rejected.push({ reason: result.reason });
+        continue;
+      }
+      const root = result.confirmedAnchor.anchoredRoot;
+      if (await store.has(root)) {
+        skipped.push(root);
+        continue;
+      }
+      // Persist exactly the firewall ok facts — no service-added fields.
+      await store.put({ confirmedAnchor: result.confirmedAnchor, feeTxParts: result.feeTxParts });
+      accepted.push(root);
+    } catch {
+      // Total: an unexpected throw never aborts the batch (fail-closed for this candidate).
+      rejected.push({ reason: "ingest-error" });
+    }
+  }
+  return { accepted, skipped, rejected };
 }
