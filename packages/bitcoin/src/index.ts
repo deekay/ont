@@ -528,6 +528,18 @@ export async function getBitcoinRpcBlockCount(rpc: BitcoinRpcConfig): Promise<nu
   return callBitcoinRpc<number>(rpc, "getblockcount", []);
 }
 
+/**
+ * Validate a Bitcoin block header serialized as display hex: exactly 80 bytes = 160 lowercase hex
+ * chars. Returns it unchanged, or throws. (go-live G1 sub-slice 3b-4b — the candidate's blockHeaderHex
+ * the audited buildConfirmedBatchAnchor reads bytes 36..68 from; a wrong-length header must fail closed
+ * here, not silently feed a bad Merkle root.) Lowercase is required, not normalized — bitcoind returns
+ * lowercase and the consensus comparison is byte-exact.
+ */
+export function assertBlockHeaderHex(_hex: unknown): string {
+  // RED stub — sub-slice 3b-4b green pending CL red-OK.
+  throw new Error("assertBlockHeaderHex: not implemented (3b-4b green pending)");
+}
+
 export async function getBitcoinEsploraTipHeight(esplora: BitcoinEsploraConfig): Promise<number> {
   const raw = await fetchBitcoinEsploraText(esplora, "/blocks/tip/height");
   const parsed = Number.parseInt(raw, 10);
