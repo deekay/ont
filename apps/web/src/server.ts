@@ -3,9 +3,16 @@ import { renderLanding, route } from "./render-explorer-landing.js";
 import { renderNameView } from "./render-name-view.js";
 import { renderTxView } from "./render-tx-view.js";
 import type { WebReadPort } from "./web-read-port.js";
+import type { ResolverTxSource } from "./live/resolver-tx-source.js";
 
 export interface WebServiceOptions {
   readonly port: WebReadPort;
+  // Optional live resolver tx read source (G2 slice 5b-2). When configured, the /tx/:txid handler reads the
+  // live resolver (async) instead of the sync `port`: bad txid -> error view (no fetch); source ServedTx ->
+  // rendered tx page; source null -> unavailable page; source throw -> 502 before rendering. When absent, the
+  // existing sync renderTxView({ txid, port }) path is unchanged. `| undefined` is explicit so the env selector's
+  // ResolverTxSource | undefined result is assignable under exactOptionalPropertyTypes.
+  readonly txSource?: ResolverTxSource | undefined;
 }
 
 export function createEmptyWebReadPort(): WebReadPort {
