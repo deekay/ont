@@ -14,14 +14,19 @@ import {
 const PREV = "00".repeat(32);
 const ROOT_A = "11".repeat(32);
 const ROOT_B = "22".repeat(32);
-const LEAF = { keyHex: "33".repeat(32), valueHex: "44".repeat(32) };
+const LEAF_A = { keyHex: "33".repeat(32), valueHex: "44".repeat(32) };
+const LEAF_B = { keyHex: "55".repeat(32), valueHex: "66".repeat(32) };
+// The caller-presented array (unsorted, caller-owned) is DISTINCT from what the firewall returns (fresh,
+// canonical, sorted) — so the battery can prove the driver persists the VERIFIER output, not the caller input.
+const CALLER_SERVED = [LEAF_B, LEAF_A];
+const VERIFIED_SERVED = [LEAF_A, LEAF_B];
 
 /** A candidate; faked verify ignores its content (the orchestration pins). */
 function candidate(anchoredRoot: string): VerifyServedDeltaInput {
-  return { prevRoot: PREV, anchoredRoot, baseLeaves: new Map(), presentedServed: [LEAF] };
+  return { prevRoot: PREV, anchoredRoot, baseLeaves: new Map(), presentedServed: CALLER_SERVED };
 }
 
-const okVerify: VerifyServedDelta = () => [LEAF];
+const okVerify: VerifyServedDelta = () => VERIFIED_SERVED;
 const rejectVerify: VerifyServedDelta = () => null;
 
 /** In-memory async store capturing puts — mirrors the future DB/filesystem port shape. */
@@ -46,17 +51,19 @@ describe("ingestServedBatches — orchestration (faked firewall)", () => {
     expect(records.has(ROOT_A)).toBe(true);
   });
 
-  it("persists exactly the IndexedBatchRecord (no service-added fields)", async () => {
+  it("persists exactly the IndexedBatchRecord using the VERIFIER's returned leaves, not the caller's array", async () => {
     const { store, records } = memStore();
     const c = candidate(ROOT_A);
     await ingestServedBatches([c], store, okVerify);
-    // Whole-record equality so a stray service-added field would fail this pin.
+    // Whole-record equality: presentedServed must be the verifier output (canonical, sorted), NOT the
+    // caller-presented array — so a stray service-added field OR persisting c.presentedServed both fail this pin.
     expect(records.get(ROOT_A)).toEqual({
       prevRoot: PREV,
       anchoredRoot: ROOT_A,
       baseLeaves: c.baseLeaves,
-      presentedServed: [LEAF],
+      presentedServed: VERIFIED_SERVED,
     });
+    expect(records.get(ROOT_A)?.presentedServed).not.toBe(CALLER_SERVED);
   });
 
   it("fails closed on an unverifiable batch — nothing stored, reason reported", async () => {
@@ -88,7 +95,7 @@ describe("ingestServedBatches — orchestration (faked firewall)", () => {
   it("drives a mixed batch independently — only the verified record is stored", async () => {
     const { store, records } = memStore();
     let n = 0;
-    const mixed: VerifyServedDelta = () => (n++ === 0 ? [LEAF] : null);
+    const mixed: VerifyServedDelta = () => (n++ === 0 ? VERIFIED_SERVED : null);
     const report = await ingestServedBatches([candidate(ROOT_B), candidate(ROOT_A)], store, mixed);
     expect(report.accepted).toEqual([ROOT_B]);
     expect(report.rejected).toEqual([{ reason: "unverifiable" }]);
@@ -100,7 +107,7 @@ describe("ingestServedBatches — orchestration (faked firewall)", () => {
     let n = 0;
     const throwThenOk: VerifyServedDelta = () => {
       if (n++ === 0) throw new Error("boom");
-      return [LEAF];
+      return VERIFIED_SERVED;
     };
     const report = await ingestServedBatches([candidate(ROOT_A), candidate(ROOT_B)], store, throwThenOk);
     expect(report.rejected).toEqual([{ reason: "ingest-error" }]);
