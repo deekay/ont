@@ -124,19 +124,21 @@ describe("runIndexerLoop", () => {
     expect(calls).toBeGreaterThan(0);
   });
 
-  it("awaits waitForNext between ticks (the poll pacing seam)", async () => {
+  it("awaits waitForNext only BETWEEN ticks — no final poll wait (fast shutdown)", async () => {
+    let ticks = 0;
     let waits = 0;
-    let n = 0;
     await runIndexerLoop(loopDeps(), {
-      shouldStop: () => n >= 2,
+      shouldStop: () => ticks >= 2,
       onTick: () => {
-        n++;
+        ticks++;
       },
       waitForNext: () => {
         waits++;
         return Promise.resolve();
       },
     });
-    expect(waits).toBeGreaterThanOrEqual(2);
+    // 2 ticks ⇒ exactly 1 wait: stop becomes true after tick 2, so the loop exits without a final poll sleep.
+    expect(ticks).toBe(2);
+    expect(waits).toBe(1);
   });
 });
