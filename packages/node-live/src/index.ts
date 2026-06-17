@@ -5,3 +5,5 @@ export {
   type AllowedChain,
   type ChainAssert,
 } from "./chain-gate.js";
+
+export { selectLivePort, type SelectLivePortOptions } from "./select-live-port.js";
