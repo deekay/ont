@@ -31,14 +31,110 @@ export function shapeTxid(txid: unknown): ShapeTxidResult {
  * not-ownership-authority copy on each section; no ownership/canonicality upgrade language.
  */
 export function renderTxView(input: { readonly txid: unknown; readonly port: WebReadPort }): string {
-  void input;
-  void decodeEvent;
-  void hexToBytes;
-  void EventType;
-  void htmlEscape;
-  void TX_CHAIN_NOTICE;
-  void shapeTxid;
-  const _served: ServedTx | null = null;
-  void _served;
-  return "<!-- not-implemented -->";
+  const shaped = shapeTxid(input.txid);
+  if (!shaped.ok) return errorView(input.txid); // invalid txid → escaped error view, never touches the port
+  const txid = shaped.txid;
+  try {
+    const served = input.port.tx(txid);
+    if (served === null) return unavailableView(txid);
+    // a served tx whose txid is malformed or differs from the request is malformed → unavailable
+    if (!isHex32Rendering(served.txid) || served.txid !== txid) return unavailableView(txid);
+    return txPage(txid, txFieldsSection(served) + carrierSection(served.carrierPayloadHex));
+  } catch {
+    return unavailableView(txid); // null/throwing/malformed → unavailable, never a thrown render
+  }
+}
+
+/** label/value row — every value HTML-escaped. */
+function field(label: string, value: unknown): string {
+  return `<div class="field"><span class="k">${htmlEscape(label)}</span>: <code>${htmlEscape(String(value))}</code></div>`;
+}
+
+/** A tx/carrier section carries the bitcoin-chain / not-ownership-authority notice itself. */
+function txSection(title: string, body: string): string {
+  return `<section class="tx"><h2>${htmlEscape(title)}</h2><p class="provenance">${htmlEscape(TX_CHAIN_NOTICE)}</p>${body}</section>`;
+}
+
+function txFieldsSection(served: ServedTx): string {
+  const outputs = served.outputs
+    .map(
+      (o, i) =>
+        `<li>${field("vout", i)}${field("value (sats)", o.valueSats)}${field("script", o.scriptHex)}${field(
+          "address",
+          o.address ?? "none"
+        )}</li>`
+    )
+    .join("");
+  return txSection(
+    "Transaction",
+    `${field("txid", served.txid)}${field("block hash", served.blockHash ?? "unconfirmed")}${field(
+      "block height",
+      served.blockHeight ?? "unconfirmed"
+    )}<ol class="outputs">${outputs}</ol>`
+  );
+}
+
+function carrierSection(payloadHex: string | null): string {
+  if (payloadHex === null) return txSection("Carrier", "<p>No ONT carrier in this transaction.</p>");
+  let ev;
+  try {
+    ev = decodeEvent(hexToBytes(payloadHex));
+  } catch {
+    return txSection("Carrier", "<p>Carrier present but could not be decoded.</p>");
+  }
+  switch (ev.type) {
+    case EventType.AuctionBid:
+      return txSection(
+        "Carrier — AuctionBid",
+        "<p>PARKED — auction display pending wire-codec-consolidation; commitment fields not shown.</p>"
+      );
+    case EventType.Transfer:
+      return txSection(
+        "Carrier — Transfer",
+        `${field("prevStateTxid", ev.prevStateTxid)}${field("newOwnerPubkey", ev.newOwnerPubkey)}${field(
+          "flags",
+          ev.flags
+        )}${field("successorBondVout", ev.successorBondVout)}${field("signature", ev.signature)}`
+      );
+    case EventType.RecoverOwner:
+      return txSection(
+        "Carrier — RecoverOwner",
+        `${field("prevStateTxid", ev.prevStateTxid)}${field("newOwnerPubkey", ev.newOwnerPubkey)}${field(
+          "flags",
+          ev.flags
+        )}${field("successorBondVout", ev.successorBondVout)}${field(
+          "challengeWindowBlocks",
+          ev.challengeWindowBlocks
+        )}${field("recoveryDescriptorHash", ev.recoveryDescriptorHash)}${field("signature", ev.signature)}`
+      );
+    case EventType.RootAnchor:
+      return txSection(
+        "Carrier — RootAnchor",
+        `${field("prevRoot", ev.prevRoot)}${field("newRoot", ev.newRoot)}${field("batchSize", ev.batchSize)}`
+      );
+    default:
+      return txSection("Carrier", "<p>Unrecognized carrier event.</p>");
+  }
+}
+
+function txPage(txid: string, body: string): string {
+  return `<!doctype html><html><head><title>${htmlEscape(txid)}</title></head><body><h1>Transaction: ${htmlEscape(
+    txid
+  )}</h1>${body}</body></html>`;
+}
+
+function unavailableView(txid: string): string {
+  return `<!doctype html><html><head><title>${htmlEscape(
+    txid
+  )}</title></head><body><h1>Transaction: ${htmlEscape(
+    txid
+  )}</h1><section class="unavailable"><p>This transaction is not currently served by this resolver.</p><p class="provenance">${htmlEscape(
+    TX_CHAIN_NOTICE
+  )}</p></section></body></html>`;
+}
+
+function errorView(rawTxid: unknown): string {
+  return `<!doctype html><html><head><title>Invalid transaction id</title></head><body><h1>Invalid transaction id</h1><p>Invalid txid: <code>${htmlEscape(
+    String(rawTxid)
+  )}</code></p></body></html>`;
 }

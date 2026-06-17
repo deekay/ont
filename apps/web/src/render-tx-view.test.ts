@@ -105,6 +105,15 @@ describe("renderTxView — fail-closed", () => {
     const out = renderTxView({ txid: "99".repeat(32), port: port(transferCarrier) });
     expect(out).toContain("not currently served");
   });
+  it("served tx whose txid differs from the request → unavailable (malformed)", () => {
+    const mismatchPort: WebReadPort = {
+      valueHistory: () => null,
+      recoveryHistory: () => null,
+      tx: () => ({ ...servedTx(transferCarrier), txid: "00".repeat(32) }),
+    };
+    const out = renderTxView({ txid: TXID, port: mismatchPort });
+    expect(out).toContain("not currently served");
+  });
   it("throwing tx read → unavailable view, never throws", () => {
     const throwingPort: WebReadPort = {
       valueHistory: () => null,
