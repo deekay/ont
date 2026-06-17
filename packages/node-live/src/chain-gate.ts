@@ -26,16 +26,25 @@ export type ChainAssert = (
   expected: BitcoinRpcChain,
 ) => Promise<BitcoinRpcBlockchainInfo>;
 
-export function parseAllowedChain(_raw: string | undefined): AllowedChain {
-  // RED stub — slice 2 green pending CL red-OK.
-  throw new Error("parseAllowedChain: not implemented (slice 2 green pending)");
+export function parseAllowedChain(raw: string | undefined): AllowedChain {
+  // Exact value only — no trim, no case-fold, no default. Anything but the two
+  // live chains (including unset/empty/main/mainnet/test and whitespace-padded
+  // variants) is rejected so a stray ONT_CHAIN can never resolve toward mainnet.
+  if (raw === "regtest" || raw === "signet") return raw;
+  throw new Error(
+    `ONT_CHAIN must be exactly "regtest" or "signet" (no mainnet-reachable default); got ${
+      raw === undefined ? "(unset)" : JSON.stringify(raw)
+    }`,
+  );
 }
 
 export async function assertExpectedChain(
-  _rpc: BitcoinRpcConfig,
-  _raw: string | undefined,
-  _assertChain: ChainAssert = assertBitcoinRpcChain,
+  rpc: BitcoinRpcConfig,
+  raw: string | undefined,
+  assertChain: ChainAssert = assertBitcoinRpcChain,
 ): Promise<BitcoinRpcBlockchainInfo> {
-  // RED stub — slice 2 green pending CL red-OK.
-  throw new Error("assertExpectedChain: not implemented (slice 2 green pending)");
+  // Parse FIRST — throws before any RPC if ONT_CHAIN is rejected, so a mispointed
+  // URL never gets contacted. Only then assert the node actually is that chain.
+  const expected = parseAllowedChain(raw);
+  return assertChain(rpc, expected);
 }

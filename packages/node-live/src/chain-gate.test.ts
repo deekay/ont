@@ -23,6 +23,12 @@ describe("parseAllowedChain (G1)", () => {
       expect(() => parseAllowedChain(bad as string | undefined)).toThrow(/ONT_CHAIN/);
     }
   });
+
+  it("rejects whitespace-padded values — exact env value only (CL hardening)", () => {
+    for (const bad of [" regtest", "regtest ", " regtest ", "regtest\n", "\tsignet", "signet\r\n"]) {
+      expect(() => parseAllowedChain(bad)).toThrow(/ONT_CHAIN/);
+    }
+  });
 });
 
 describe("assertExpectedChain (G1)", () => {
