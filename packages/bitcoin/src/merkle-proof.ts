@@ -71,6 +71,22 @@ export function merkleRootFromProof(
 }
 
 /**
+ * Build the display-hex Merkle sibling path for the tx at `index` from the block's ORDERED display-hex
+ * txids (coinbase first). The inverse of `merkleRootFromProof`: feeding this path back as `siblings`
+ * with the same `index` reconstructs the block's Merkle root. Standard Bitcoin construction — display →
+ * internal reverse, double-SHA256 per level, last node duplicated on odd levels (so the lone tx pairs
+ * with itself). Returns null on any malformed input — bad-hex / wrong-length txid, empty list, or an
+ * `index` that is not an integer in [0, txids.length). Never throws. (go-live G1 sub-slice 3b.)
+ */
+export function merkleBranchForIndex(
+  _orderedTxidsDisplayHex: readonly string[],
+  _index: number,
+): readonly string[] | null {
+  // RED stub — sub-slice 3b green pending CL red-OK.
+  throw new Error("merkleBranchForIndex: not implemented (3b green pending)");
+}
+
+/**
  * The block header's committed Merkle root as INTERNAL-order hex (bytes 36..68 of the 80-byte header),
  * for comparison against `bytesToHex(merkleRootFromProof(...))`. Null on a malformed header.
  */
