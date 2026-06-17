@@ -137,9 +137,92 @@ export function serializeLegacyTransaction(tx: LegacyTransaction): Uint8Array | 
  * (0x00 where the input count belongs — this parser is legacy-only). prevoutTxid is returned as
  * DISPLAY hex (wire bytes reversed); output values as bigint. Never throws. (go-live G1 sub-slice 3b.)
  */
-export function parseLegacyTransaction(_hex: string): LegacyTransaction | null {
-  // RED stub — sub-slice 3b-2 green pending CL red-OK.
-  throw new Error("parseLegacyTransaction: not implemented (3b-2 green pending)");
+export function parseLegacyTransaction(hex: string): LegacyTransaction | null {
+  const bytes = hexToBytes(hex);
+  if (bytes === null) return null;
+  const len = bytes.length;
+  let off = 0;
+
+  const readBytes = (n: number): Uint8Array | null => {
+    if (n < 0 || off + n > len) return null;
+    const slice = bytes.slice(off, off + n);
+    off += n;
+    return slice;
+  };
+  // u32/u64 little-endian via multiplication (avoids the sign bit that `<< 24` would set).
+  const readU32 = (): number | null => {
+    const b = readBytes(4);
+    return b === null ? null : b[0]! + b[1]! * 0x100 + b[2]! * 0x1_0000 + b[3]! * 0x100_0000;
+  };
+  const readU64 = (): bigint | null => {
+    const b = readBytes(8);
+    if (b === null) return null;
+    let v = 0n;
+    for (let i = 7; i >= 0; i -= 1) v = (v << 8n) | BigInt(b[i]!);
+    return v;
+  };
+  // Canonical CompactSize: 0xfd must encode >= 0xfd, 0xfe must encode > 0xffff, 0xff is rejected
+  // (oversized — no real count/length needs u64). Non-minimal encodings fail closed.
+  const readCompactSize = (): number | null => {
+    const first = readBytes(1);
+    if (first === null) return null;
+    const tag = first[0]!;
+    if (tag < 0xfd) return tag;
+    if (tag === 0xfd) {
+      const b = readBytes(2);
+      if (b === null) return null;
+      const v = b[0]! + b[1]! * 0x100;
+      return v < 0xfd ? null : v;
+    }
+    if (tag === 0xfe) {
+      const v = readU32();
+      return v === null || v <= 0xffff ? null : v;
+    }
+    return null; // 0xff
+  };
+
+  const version = readU32();
+  if (version === null) return null;
+
+  const inputCount = readCompactSize();
+  if (inputCount === null || inputCount === 0) return null; // 0 ⇒ segwit marker / invalid: legacy-only
+  const inputs: LegacyTransactionInput[] = [];
+  for (let i = 0; i < inputCount; i += 1) {
+    const prevoutWire = readBytes(32);
+    if (prevoutWire === null) return null;
+    const prevoutVout = readU32();
+    if (prevoutVout === null) return null;
+    const scriptLen = readCompactSize();
+    if (scriptLen === null) return null;
+    const scriptSig = readBytes(scriptLen);
+    if (scriptSig === null) return null;
+    const sequence = readU32();
+    if (sequence === null) return null;
+    inputs.push({
+      prevoutTxid: bytesToHex(reversed(prevoutWire)), // wire → display order
+      prevoutVout,
+      scriptSigHex: bytesToHex(scriptSig),
+      sequence,
+    });
+  }
+
+  const outputCount = readCompactSize();
+  if (outputCount === null) return null;
+  const outputs: LegacyTransactionOutput[] = [];
+  for (let i = 0; i < outputCount; i += 1) {
+    const valueSats = readU64();
+    if (valueSats === null) return null;
+    const scriptLen = readCompactSize();
+    if (scriptLen === null) return null;
+    const scriptPubKey = readBytes(scriptLen);
+    if (scriptPubKey === null) return null;
+    outputs.push({ valueSats, scriptPubKeyHex: bytesToHex(scriptPubKey) });
+  }
+
+  const locktime = readU32();
+  if (locktime === null) return null;
+  if (off !== len) return null; // full consumption — no trailing bytes
+  return { version, inputs, outputs, locktime };
 }
 
 /**

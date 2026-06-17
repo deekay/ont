@@ -87,4 +87,13 @@ describe("parseLegacyTransaction (G1 3b-2)", () => {
     expect(parseLegacyTransaction("0100000")).toBeNull();
     expect(parseLegacyTransaction("zz000000")).toBeNull();
   });
+
+  it("fails closed on oversized (0xff) and non-canonical CompactSize (CL watch)", () => {
+    const h = hexOf(FIXTURES.oneInOneOut!);
+    // Input count is the 1-byte CompactSize at hex offset 8..10 ("01").
+    expect(h.slice(8, 10)).toBe("01");
+    expect(parseLegacyTransaction("01000000ff")).toBeNull(); // 0xff oversized count
+    expect(parseLegacyTransaction(h.slice(0, 8) + "fd0100" + h.slice(10))).toBeNull(); // non-minimal 0xfd for 1
+    expect(parseLegacyTransaction(h.slice(0, 8) + "fe01000000" + h.slice(10))).toBeNull(); // non-minimal 0xfe for 1
+  });
 });
