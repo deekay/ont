@@ -36,9 +36,37 @@ export interface IngestServedReport {
  * baseLeaves, presentedServed}, no service-added fields) + accept, else skip; unexpected throw ⇒ `ingest-error`.
  */
 export async function ingestServedBatches(
-  _candidates: readonly VerifyServedDeltaInput[],
-  _store: IndexedBatchStore,
-  _verify: VerifyServedDelta = verifyServedDelta
+  candidates: readonly VerifyServedDeltaInput[],
+  store: IndexedBatchStore,
+  verify: VerifyServedDelta = verifyServedDelta
 ): Promise<IngestServedReport> {
-  return { accepted: [], skipped: [], rejected: [] };
+  const accepted: string[] = [];
+  const skipped: string[] = [];
+  const rejected: { reason: ServedIngestRejectReason }[] = [];
+  for (const candidate of candidates) {
+    try {
+      const served = verify(candidate);
+      if (served === null) {
+        rejected.push({ reason: "unverifiable" });
+        continue;
+      }
+      const root = candidate.anchoredRoot;
+      if (await store.has(root)) {
+        skipped.push(root);
+        continue;
+      }
+      // Persist the firewall's VERIFIED, canonical served array (fresh/sorted/non-caller-owned) — not the
+      // caller-presented input — with no service-added fields. createAvailabilitySource re-verifies on read.
+      await store.put({
+        prevRoot: candidate.prevRoot,
+        anchoredRoot: candidate.anchoredRoot,
+        baseLeaves: candidate.baseLeaves,
+        presentedServed: served,
+      });
+      accepted.push(root);
+    } catch {
+      rejected.push({ reason: "ingest-error" });
+    }
+  }
+  return { accepted, skipped, rejected };
 }
