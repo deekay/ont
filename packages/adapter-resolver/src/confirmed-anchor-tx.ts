@@ -79,3 +79,22 @@ export function confirmedAnchorTxToServedTx(view: ConfirmedAnchorTxView): Served
     carrierPayloadHex: bytesToHex(payload),
   };
 }
+
+/**
+ * Map a persisted confirmed-anchor record to this view (G2 slice 6a). PURE + STRUCTURAL: it takes only the
+ * fields the view needs (the original anchor tx + the indexer's confirmed fact), so @ont/adapter-resolver keeps
+ * NO runtime or package dependency on the node-targeted @ont/anchor-store — a real `ConfirmedAnchorRecord` is
+ * assignable here by structural width. The resolver's durable read source (selectResolverAnchorTxView, slice 6b)
+ * composes anchor-store.getByTxid → this map → ConfirmedAnchorTxView; web/resolver never import the indexer.
+ */
+export function confirmedAnchorRecordToTxView(record: {
+  readonly confirmedAnchor: { readonly minedHeight: number; readonly anchoredRoot: string; readonly batchSize: number };
+  readonly feeTxParts: { readonly anchorTx: LegacyTransaction };
+}): ConfirmedAnchorTxView {
+  return {
+    anchorTx: record.feeTxParts.anchorTx,
+    minedHeight: record.confirmedAnchor.minedHeight,
+    anchoredRoot: record.confirmedAnchor.anchoredRoot,
+    batchSize: record.confirmedAnchor.batchSize,
+  };
+}

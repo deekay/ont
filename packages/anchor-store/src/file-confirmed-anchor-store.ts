@@ -17,7 +17,7 @@
 //
 // fs is an injectable seam so the write-failure path is testable; production uses nodeFileStoreFs.
 import { dirname } from "node:path";
-import type { ConfirmedAnchorRecord, ConfirmedAnchorStore } from "../ingest-anchors.js";
+import type { ConfirmedAnchorRecord, ConfirmedAnchorStore } from "./record.js";
 import { encodeConfirmedAnchorRecord, decodeConfirmedAnchorRecord } from "./confirmed-anchor-codec.js";
 import { type FileStoreFs, nodeFileStoreFs } from "./file-store-fs.js";
 

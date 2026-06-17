@@ -1,0 +1,25 @@
+{
+  "name": "@ont/anchor-store",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "ONT shared durable confirmed-anchor store — node-targeted file store + slice-2a codec + the record/store types. SHARED infrastructure: the indexer writes (has/put), the resolver reads (getByTxid). No consensus/firewall logic; persistence only. Extracted from @ont/indexer (G2 slice 6a) so the read path has no app->app edge.",
+  "exports": {
+    ".": {
+      "types": "./dist/anchor-store/src/index.d.ts",
+      "default": "./dist/anchor-store/src/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run build -w @ont/bitcoin && vitest run"
+  },
+  "dependencies": {
+    "@ont/bitcoin": "file:../bitcoin",
+    "@ont/claim-path": "file:../claim-path"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.4"
+  }
+}

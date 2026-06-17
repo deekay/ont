@@ -25,6 +25,7 @@ export {
 } from "./serve-recovery-history.js";
 export {
   confirmedAnchorTxToServedTx,
+  confirmedAnchorRecordToTxView,
   type ServedTx,
   type ServedTxOutput,
   type ConfirmedAnchorTxView,

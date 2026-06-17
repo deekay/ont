@@ -9,7 +9,7 @@
 // generic not-implemented stub stays red for the right reason.
 import { describe, it, expect } from "vitest";
 import { serializeLegacyTransaction, legacyTxidOf, type LegacyTransaction } from "@ont/bitcoin";
-import type { ConfirmedAnchorRecord } from "../ingest-anchors.js";
+import type { ConfirmedAnchorRecord } from "./record.js";
 import {
   encodeConfirmedAnchorRecord,
   decodeConfirmedAnchorRecord,

@@ -9,7 +9,7 @@
 // B4 adapters are untouched).
 import { dirname } from "node:path";
 import type { IndexerCursor, IndexerCursorStore } from "../runner.js";
-import { type FileStoreFs, nodeFileStoreFs } from "./file-store-fs.js";
+import { type FileStoreFs, nodeFileStoreFs } from "@ont/anchor-store";
 
 /** A confirmed Bitcoin height that is a safe cursor value: a non-negative integer (no NaN/float/coercion). */
 function isValidHeight(value: unknown): value is number {

@@ -11,9 +11,8 @@ import {
   createInMemoryConfirmedAnchorStore,
   type IndexerCursorStore,
 } from "../runner.js";
-import type { ConfirmedAnchorStore } from "../ingest-anchors.js";
+import { createFileConfirmedAnchorStore, type ConfirmedAnchorStore } from "@ont/anchor-store";
 import { createFileIndexerCursorStore } from "./file-cursor-store.js";
-import { createFileConfirmedAnchorStore } from "./file-confirmed-anchor-store.js";
 
 export interface IndexerStores {
   readonly cursorStore: IndexerCursorStore;

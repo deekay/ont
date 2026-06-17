@@ -13,7 +13,7 @@ import { mkdtemp, rm, writeFile, readdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { serializeLegacyTransaction, legacyTxidOf, type LegacyTransaction } from "@ont/bitcoin";
-import type { ConfirmedAnchorRecord } from "../ingest-anchors.js";
+import type { ConfirmedAnchorRecord } from "./record.js";
 import { encodeConfirmedAnchorRecord } from "./confirmed-anchor-codec.js";
 import {
   createFileConfirmedAnchorStore,

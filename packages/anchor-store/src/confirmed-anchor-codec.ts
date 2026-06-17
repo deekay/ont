@@ -18,7 +18,7 @@ import {
   legacyTxidOf,
   type LegacyTransaction,
 } from "@ont/bitcoin";
-import type { ConfirmedAnchorRecord } from "../ingest-anchors.js";
+import type { ConfirmedAnchorRecord } from "./record.js";
 
 /** The JSON-safe on-disk form of a ConfirmedAnchorRecord (tx bodies as consensus raw-tx hex). */
 export interface EncodedConfirmedAnchorRecord {

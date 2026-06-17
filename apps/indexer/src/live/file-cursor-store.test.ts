@@ -10,7 +10,7 @@ import { mkdtemp, rm, writeFile, readFile, readdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createFileIndexerCursorStore } from "./file-cursor-store.js";
-import { nodeFileStoreFs, type FileStoreFs } from "./file-store-fs.js";
+import { nodeFileStoreFs, type FileStoreFs } from "@ont/anchor-store";
 
 describe("createFileIndexerCursorStore", () => {
   let dir: string;
