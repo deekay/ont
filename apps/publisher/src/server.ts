@@ -1,116 +1,149 @@
-// HTTP wiring around the Publisher core. Mirrors apps/resolver's plain
-// node:http style — no framework dependency.
+import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
+import {
+  assembleRecoverOwnerInvokeTx,
+  assembleRootAnchorTx,
+  type AssembleRecoverOwnerInvokeInput,
+  type AssembleRootAnchorInput,
+} from "@ont/adapter-publisher";
+import { legacyTxidOf, type LegacyTransaction } from "@ont/bitcoin";
 
-import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+export type PublisherBroadcastResult =
+  | { readonly ok: true; readonly txid: string }
+  | { readonly ok: false; readonly reason: string };
 
-import { Publisher, PublisherError } from "./publisher.js";
-import type { ClaimSubmission, QuoteRequest } from "./types.js";
-
-export interface PublisherServer {
-  readonly publisher: Publisher;
-  readonly url: string;
-  close(): Promise<void>;
+export interface PublisherBroadcastPort {
+  broadcast(tx: LegacyTransaction): Promise<PublisherBroadcastResult>;
 }
 
-export interface StartServerOptions {
-  readonly publisher: Publisher;
-  readonly port?: number;
-  readonly host?: string;
+export interface PublisherServiceOptions {
+  readonly broadcast: PublisherBroadcastPort;
 }
 
-export async function startPublisherServer(options: StartServerOptions): Promise<PublisherServer> {
-  const server = createServer((req, res) => {
-    handle(options.publisher, req, res).catch((error) => {
-      writeError(res, error);
-    });
-  });
-
-  await new Promise<void>((resolve) => server.listen(options.port ?? 0, options.host ?? "127.0.0.1", resolve));
-  const address = server.address();
-  const port = typeof address === "object" && address !== null ? address.port : options.port ?? 0;
-  const host = options.host ?? "127.0.0.1";
-  const url = `http://${host}:${port}`;
-
+export function createInMemoryPublisherBroadcastPort(): PublisherBroadcastPort {
+  const seen = new Map<string, LegacyTransaction>();
   return {
-    publisher: options.publisher,
-    url,
-    close: () =>
-      new Promise<void>((resolve, reject) =>
-        server.close((error) => (error ? reject(error) : resolve()))
-      )
+    async broadcast(tx) {
+      const txid = legacyTxidOf(tx);
+      if (txid === null) return { ok: false, reason: "tx-not-serializable" };
+      seen.set(txid, tx);
+      return { ok: true, txid };
+    },
   };
 }
 
-async function handle(publisher: Publisher, req: IncomingMessage, res: ServerResponse): Promise<void> {
-  const url = new URL(req.url ?? "/", "http://localhost");
-  const method = req.method ?? "GET";
-
-  if (method === "GET" && url.pathname === "/info") {
-    return writeJson(res, 200, publisher.info());
-  }
-  if (method === "GET" && url.pathname === "/health") {
-    return writeJson(res, 200, publisher.health());
-  }
-  if (method === "POST" && url.pathname === "/claim/quote") {
-    const body = await readJsonBody<QuoteRequest>(req);
-    return writeJson(res, 200, await publisher.quote(body));
-  }
-  if (method === "POST" && url.pathname === "/claim/submit") {
-    const body = await readJsonBody<ClaimSubmission>(req);
-    const receipt = await publisher.submit(body);
-    return writeJson(res, 200, receipt);
-  }
-  const claimMatch = url.pathname.match(/^\/claim\/([0-9a-fA-F]+)$/);
-  if (method === "GET" && claimMatch && claimMatch[1] !== undefined) {
-    return writeJson(res, 200, publisher.status(claimMatch[1]));
-  }
-  const batchMatch = url.pathname.match(/^\/batch\/([0-9a-fA-F]+)$/);
-  if (method === "GET" && batchMatch && batchMatch[1] !== undefined) {
-    return writeJson(res, 200, publisher.batch(batchMatch[1]));
-  }
-  // Data-availability: the batch leaves + membership proofs for an anchored root,
-  // for an indexer to fetch and re-verify (the cheap-rail DA transport).
-  const daMatch = url.pathname.match(/^\/da\/([0-9a-fA-F]{64})$/);
-  if (method === "GET" && daMatch && daMatch[1] !== undefined) {
-    return writeJson(res, 200, publisher.daBundle(daMatch[1]));
-  }
-  // Reverse lookup: names this publisher anchored to a given owner pubkey. Lets a
-  // wallet rediscover its HD indices from the seed alone (gap-scan).
-  const ownerMatch = url.pathname.match(/^\/owner\/([0-9a-fA-F]{64})$/);
-  if (method === "GET" && ownerMatch && ownerMatch[1] !== undefined) {
-    return writeJson(res, 200, {
-      kind: "ont-publisher-owner-names",
-      ownerPubkey: ownerMatch[1].toLowerCase(),
-      names: publisher.namesOwnedBy(ownerMatch[1])
-    });
-  }
-  writeError(res, new PublisherError(`no route for ${method} ${url.pathname}`, 404));
-}
-
-async function readJsonBody<T>(req: IncomingMessage): Promise<T> {
-  const chunks: Buffer[] = [];
-  for await (const chunk of req) {
-    chunks.push(chunk as Buffer);
-  }
-  const text = Buffer.concat(chunks).toString("utf8");
-  if (text.trim() === "") {
-    throw new PublisherError("request body is empty", 400);
-  }
+export async function handlePublisherRequest(request: Request, options: PublisherServiceOptions): Promise<Response> {
   try {
-    return JSON.parse(text) as T;
+    const url = new URL(request.url);
+    const segments = pathSegments(url);
+
+    if (segments.length === 1 && segments[0] === "health") {
+      if (request.method !== "GET") return json({ ok: false, reason: "method-not-allowed" }, 405);
+      return json({ ok: true, service: "@ont/publisher" });
+    }
+
+    if (segments.length === 1 && segments[0] === "root-anchor") {
+      if (request.method !== "POST") return json({ ok: false, reason: "method-not-allowed" }, 405);
+      return publishRootAnchor(request, options.broadcast);
+    }
+    if (segments.length === 1 && segments[0] === "recover-owner-invoke") {
+      if (request.method !== "POST") return json({ ok: false, reason: "method-not-allowed" }, 405);
+      return publishRecoverOwnerInvoke(request, options.broadcast);
+    }
+
+    return json({ ok: false, reason: "not-found" }, 404);
   } catch {
-    throw new PublisherError("request body is not JSON", 400);
+    return json({ ok: false, reason: "bad-request" }, 400);
   }
 }
 
-function writeJson(res: ServerResponse, status: number, body: unknown): void {
-  res.writeHead(status, { "content-type": "application/json" });
-  res.end(JSON.stringify(body));
+export function createPublisherHttpServer(options: PublisherServiceOptions): Server {
+  return createServer((req, res) => {
+    void handleNodeRequest(req, res, options);
+  });
 }
 
-function writeError(res: ServerResponse, error: unknown): void {
-  const status = error instanceof PublisherError ? error.status : 500;
-  const message = error instanceof Error ? error.message : "internal error";
-  res.writeHead(status, { "content-type": "application/json" });
-  res.end(JSON.stringify({ error: message }));
+async function publishRootAnchor(request: Request, broadcast: PublisherBroadcastPort): Promise<Response> {
+  const body = await readJson(request);
+  if (!body.ok) return json({ ok: false, reason: body.reason }, 400);
+  const input = normalizeBigIntFields(body.value) as AssembleRootAnchorInput;
+  const tx = assembleRootAnchorTx(input);
+  if (tx === null) return json({ ok: false, reason: "invalid-root-anchor" }, 422);
+  return publishTx(tx, broadcast);
+}
+
+async function publishRecoverOwnerInvoke(request: Request, broadcast: PublisherBroadcastPort): Promise<Response> {
+  const body = await readJson(request);
+  if (!body.ok) return json({ ok: false, reason: body.reason }, 400);
+  const input = normalizeBigIntFields(body.value) as AssembleRecoverOwnerInvokeInput;
+  const tx = assembleRecoverOwnerInvokeTx(input);
+  if (tx === null) return json({ ok: false, reason: "invalid-recover-owner-invoke" }, 422);
+  return publishTx(tx, broadcast);
+}
+
+async function publishTx(tx: LegacyTransaction, broadcast: PublisherBroadcastPort): Promise<Response> {
+  try {
+    const result = await broadcast.broadcast(tx);
+    return json(result, result.ok ? 202 : 502);
+  } catch {
+    return json({ ok: false, reason: "broadcast-unavailable" }, 503);
+  }
+}
+
+function normalizeBigIntFields(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map((entry) => normalizeBigIntFields(entry));
+  if (value === null || typeof value !== "object") return value;
+  const out: Record<string, unknown> = {};
+  for (const [key, entry] of Object.entries(value)) {
+    out[key] = key === "valueSats" && typeof entry === "string" && /^[0-9]+$/.test(entry)
+      ? BigInt(entry)
+      : normalizeBigIntFields(entry);
+  }
+  return out;
+}
+
+function json(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "content-type": "application/json; charset=utf-8" },
+  });
+}
+
+function pathSegments(url: URL): string[] {
+  return url.pathname
+    .split("/")
+    .filter(Boolean)
+    .map((segment) => decodeURIComponent(segment));
+}
+
+async function readJson(request: Request): Promise<{ ok: true; value: unknown } | { ok: false; reason: "bad-json" }> {
+  try {
+    return { ok: true, value: await request.json() };
+  } catch {
+    return { ok: false, reason: "bad-json" };
+  }
+}
+
+async function handleNodeRequest(
+  req: IncomingMessage,
+  res: ServerResponse,
+  options: PublisherServiceOptions
+): Promise<void> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of req) chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
+  const host = req.headers.host ?? "127.0.0.1";
+  const headers = new Headers();
+  for (const [key, value] of Object.entries(req.headers)) {
+    if (typeof value === "string") headers.set(key, value);
+    else if (Array.isArray(value)) headers.set(key, value.join(", "));
+  }
+  const init: RequestInit = {
+    method: req.method ?? "GET",
+    headers,
+  };
+  if (chunks.length > 0) init.body = Buffer.concat(chunks);
+  const request = new Request(`http://${host}${req.url ?? "/"}`, init);
+  const response = await handlePublisherRequest(request, options);
+  res.statusCode = response.status;
+  response.headers.forEach((value, key) => res.setHeader(key, value));
+  res.end(Buffer.from(await response.arrayBuffer()));
 }

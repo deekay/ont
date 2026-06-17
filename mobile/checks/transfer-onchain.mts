@@ -2,7 +2,7 @@
 //   - the built+signed raw transaction carries the transfer authorization as a
 //     standard OP_RETURN that the indexer's own scanner (getOpReturnPayloads)
 //     finds, at any vout
-//   - the embedded payload decodes (decodeOntPayload) to a Transfer event whose
+//   - the embedded payload decodes (decodeEvent) to a Transfer event whose
 //     fields round-trip byte-for-byte through the engine wire codec
 //   - fee / change accounting is self-consistent and covers the target fee rate
 //   - multi-input coin selection kicks in when one UTXO can't cover the fee
@@ -14,10 +14,9 @@
 import * as bitcoin from "bitcoinjs-lib";
 import { Buffer } from "buffer";
 
-import { decodeOntPayload, encodeTransferPayload } from "../../packages/protocol/src/wire.ts";
-import { OntEventType } from "../../packages/protocol/src/constants.ts";
-import { getOpReturnPayloads } from "../../packages/bitcoin/src/index.ts";
-import { deriveOwnerPubkey as engineDerive } from "../../packages/protocol/src/value-record.ts";
+import { getOpReturnPayloads } from "@ont/bitcoin";
+import { deriveOwnerPubkey as engineDerive } from "@ont/protocol";
+import { bytesToHex, decodeEvent, encodeEvent, EventType } from "@ont/wire";
 
 const loadMobile = async (path: string) => {
   const mod = await import(path);
@@ -98,14 +97,14 @@ function toEngineOutputs(tx: bitcoin.Transaction) {
   const foundHex = Buffer.from(payloads[0].payload).toString("hex");
   ok("found payload equals mobile encodeTransferPayloadHex", foundHex === opReturnHex);
   ok(
-    "found payload equals engine encodeTransferPayload",
-    foundHex === Buffer.from(encodeTransferPayload({ ...fields, signature })).toString("hex"),
+    "found payload equals engine encodeEvent",
+    foundHex === bytesToHex(encodeEvent({ type: EventType.Transfer, ...fields, signature })),
   );
 
   // Decode back through the engine and confirm it is a Transfer with our fields.
-  const decoded = decodeOntPayload(payloads[0].payload);
-  ok("decoded event type is Transfer", decoded.type === OntEventType.Transfer);
-  const reencoded = Buffer.from(encodeTransferPayload(decoded.payload as never)).toString("hex");
+  const decoded = decodeEvent(payloads[0].payload);
+  ok("decoded event type is Transfer", decoded.type === EventType.Transfer);
+  const reencoded = bytesToHex(encodeEvent(decoded));
   ok("decoded transfer re-encodes to the same bytes", reencoded === opReturnHex);
 
   // Fee / change accounting.

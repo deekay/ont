@@ -4,7 +4,7 @@
 If the README, one-pager, design brief, or the website disagree with this file, **this file
 wins** — fix the others. (It exists because those numbers drifted apart once; don't let them again.)
 
-Last updated: 2026-06-15.
+Last updated: 2026-06-17.
 
 ## DECOMMISSION NOTICE — 2026-06-11
 
@@ -19,6 +19,17 @@ readable-not-running; mining it for vectors and documenting tests is the
 only sanctioned use. This is the announced decommission event that ruled
 call 5 requires; the DNS/hosting teardown is executed by DK with this entry
 as the record.
+
+## QUARANTINE NOTICE — 2026-06-17
+
+DK ratified `wire-codec-consolidation` option C with quarantine-now timing.
+The carried-over pre-W16 cluster is now outside the active npm workspace under
+`legacy/`: `apps/publisher`, `apps/indexer`, `apps/resolver`,
+`packages/core`, `packages/architect`, and the duplicate
+`@ont/protocol` wire codec/tests. The active event codec is `@ont/wire`;
+`@ont/consensus` decodes OP_RETURN events through that package. `@ont/protocol`
+remains active for clean off-chain/signature helpers and auction bid packages;
+its auction lot/bidder commitments now use W16 full-width 32-byte renderings.
 
 ## Status legend
 - **Decommissioned (2026-06-11)** — was live on signet; taken down at
@@ -53,7 +64,7 @@ as the record.
 | Short-name opening bond (≤4 chars, **mandatory bond-first** — no cheap-claim path) | **₿100,000,000** (≈1 BTC) at 1 char, halving per char; 5+ chars use gate + contention | working baseline (`@ont/protocol` bond curve, clamped to ≤4 chars) |
 | Bond maturity | ~52,560 blocks (~1 yr) | placeholder / test override |
 | Notice window | **6 blocks (test); target = weeks** | placeholder · fairness lever, **not frozen** |
-| OP_RETURN event size | **up to 171 bytes exactly** (recover-owner; most events smaller) | test-pinned (`packages/protocol/src/wire-size.test.ts`); above the 80-byte default policy; relies on modern node policy |
+| OP_RETURN event size | **up to 184 bytes exactly** (max-name AuctionBid; RecoverOwner is 171 bytes) | test-pinned in `@ont/wire`; above the 80-byte default policy; relies on modern node policy |
 | On-chain footprint (issuance) | **~0.015–0.019 vB/name** amortized @ ~10k/batch | measured |
 
 ## Launch parameters (auction + notice mechanics)

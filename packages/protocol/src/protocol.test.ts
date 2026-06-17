@@ -4,14 +4,10 @@ import * as secp256k1 from "tiny-secp256k1";
 
 import {
   ACCUMULATOR_DEFAULTS,
-  AUCTION_BID_FIXED_PAYLOAD_LENGTH,
   AUCTION_BOND_FLOOR_SATS,
   BOND_MATURITY_BLOCKS,
   accumulatorRootOf,
   bytesToHex,
-  computeAuctionBidderCommitment,
-  computeAuctionBidStateCommitment,
-  computeAuctionLotCommitment,
   computeRecoveryDescriptorHash,
   computeRecoveryWalletProofHash,
   computeRecoverOwnerAuthorizationHash,
@@ -20,18 +16,8 @@ import {
   createRecoveryWalletProofCommitment,
   createRecoveryWalletProofMessage,
   createTransferPackage,
-  decodeAuctionBidPayload,
-  decodeOntPayload,
-  decodeRecoverOwnerBody,
-  decodeTransferBody,
-  encodeAuctionBidPayload,
-  encodeRecoverOwnerBody,
-  encodeRecoverOwnerPayload,
-  encodeTransferBody,
-  encodeTransferPayload,
   getBondSats,
   normalizeName,
-  OntEventType,
   parseSignedRecoveryDescriptor,
   parseRecoveryWalletProof,
   parseSignedValueRecord,
@@ -100,79 +86,7 @@ describe("bond and maturity helpers", () => {
   });
 });
 
-describe("auction and transfer wire payloads", () => {
-  it("round-trips auction bid payloads", () => {
-    const payload = {
-      flags: 0,
-      bondVout: 0,
-      settlementLockBlocks: 262_800,
-      bidAmountSats: 200_000_000n,
-      ownerPubkey: "ab".repeat(32),
-      auctionLotCommitment: computeAuctionLotCommitment({
-        auctionId: "meadow-soft-close",
-        name: "meadow",
-        unlockBlock: 840_000
-      }),
-      auctionCommitment: computeAuctionBidStateCommitment({
-        auctionId: "meadow-soft-close",
-        name: "meadow",
-        currentBlockHeight: 844_360,
-        phase: "soft_close",
-        unlockBlock: 840_000,
-        auctionCloseBlockAfter: 844_497,
-        openingMinimumBidSats: 200_000_000n,
-        currentLeaderBidderCommitment: computeAuctionBidderCommitment("gamma"),
-        currentHighestBidSats: 210_000_000n,
-        currentRequiredMinimumBidSats: 231_000_000n,
-        settlementLockBlocks: 262_800
-      }),
-      bidderCommitment: computeAuctionBidderCommitment("operator_alpha"),
-      name: "Meadow",
-      unlockBlock: 840_000
-    };
-    const expectedPayload = {
-      ...payload,
-      flags: 1,
-      name: "meadow"
-    };
-
-    const encoded = encodeAuctionBidPayload(payload);
-
-    expect(encoded.length).toBeGreaterThan(AUCTION_BID_FIXED_PAYLOAD_LENGTH);
-    expect(decodeAuctionBidPayload(encoded)).toEqual(expectedPayload);
-    expect(decodeOntPayload(encoded)).toEqual({
-      type: OntEventType.AuctionBid,
-      payload: expectedPayload
-    });
-  });
-
-  it("rejects legacy commitment-only auction bid payloads", () => {
-    const legacyPayload = Uint8Array.from([
-      ...Buffer.from("ONT", "utf8"),
-      1,
-      OntEventType.AuctionBid,
-      ...new Uint8Array(AUCTION_BID_FIXED_PAYLOAD_LENGTH - 5)
-    ]);
-
-    expect(() => decodeAuctionBidPayload(legacyPayload)).toThrow(/name context/i);
-  });
-
-  it("round-trips transfer payloads", () => {
-    const payload = {
-      prevStateTxid: "44".repeat(32),
-      newOwnerPubkey: "55".repeat(32),
-      flags: 0x00,
-      successorBondVout: 0x02,
-      signature: "66".repeat(64)
-    };
-
-    expect(decodeTransferBody(encodeTransferBody(payload))).toEqual(payload);
-    expect(decodeOntPayload(encodeTransferPayload(payload))).toEqual({
-      type: OntEventType.Transfer,
-      payload
-    });
-  });
-
+describe("authorization and recovery proof helpers", () => {
   it("signs and verifies transfer authorizations against the owner key", () => {
     const ownerPrivateKeyHex = "07".repeat(32);
     const publicKeyBytes = secp256k1.xOnlyPointFromScalar(Buffer.from(ownerPrivateKeyHex, "hex"));
@@ -203,7 +117,7 @@ describe("auction and transfer wire payloads", () => {
     ).toBe(true);
   });
 
-  it("round-trips recover-owner payloads and verifies owner-key cancellation", () => {
+  it("verifies owner-key recovery cancellation authorizations", () => {
     const ownerPrivateKeyHex = "09".repeat(32);
     const publicKeyBytes = secp256k1.xOnlyPointFromScalar(Buffer.from(ownerPrivateKeyHex, "hex"));
 
@@ -224,17 +138,7 @@ describe("auction and transfer wire payloads", () => {
       ...fields,
       ownerPrivateKeyHex
     });
-    const payload = {
-      ...fields,
-      signature
-    };
-
     expect(computeRecoverOwnerAuthorizationHash(fields)).toHaveLength(64);
-    expect(decodeRecoverOwnerBody(encodeRecoverOwnerBody(payload))).toEqual(payload);
-    expect(decodeOntPayload(encodeRecoverOwnerPayload(payload))).toEqual({
-      type: OntEventType.RecoverOwner,
-      payload
-    });
     expect(
       verifyRecoverOwnerCancelAuthorization({
         ...fields,

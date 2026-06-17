@@ -1,7 +1,7 @@
 // Client-side verification for the ONT name accumulator.
 //
-// Faithful port of packages/core/src/accumulator.ts (the
-// verify/key-derivation half) and packages/protocol name + byte helpers, with
+// Faithful port of @ont/protocol accumulator membership verification and
+// name + byte helpers, with
 // no @ont/* dependency so it bundles cleanly under Hermes. Hashing is
 // domain-separated SHA-256 via @noble/hashes — identical to the engine, so the
 // roots/leaves this computes match the publisher and resolver exactly.

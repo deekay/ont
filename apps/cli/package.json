@@ -3,23 +3,19 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "bin": {
-    "ont": "dist/index.js"
-  },
+  "description": "ONT B5 surface — the `ont` CLI (clean-build). A thin operator orchestrator: consumes L1-L4 APIs and reimplements no rules; holds no keys and never signs (signing → B5-WALLET). First slice = read/query commands over an injected CliReadPort (mocked in tests; no live network). See docs/core/B5_CLI_CLASSIFICATION.md.",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "dev": "tsx src/index.ts",
-    "test": "npm run build -w @ont/protocol && npm run build -w @ont/core && npm run build -w @ont/architect && vitest run",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run build -w @ont/protocol && npm run build -w @ont/bitcoin && npm run build -w @ont/wire && npm run build -w @ont/consensus && npm run build -w @ont/adapter-resolver && vitest run"
   },
   "dependencies": {
-    "@ont/architect": "file:../../packages/architect",
-    "@ont/bitcoin": "file:../../packages/bitcoin",
-    "@ont/core": "file:../../packages/core",
+    "@ont/wire": "file:../../packages/wire",
     "@ont/protocol": "file:../../packages/protocol",
-    "bip32": "^5.0.1",
-    "bitcoinjs-lib": "^7.0.1",
-    "ecpair": "^3.0.1",
-    "tiny-secp256k1": "^2.2.4"
+    "@ont/consensus": "file:../../packages/consensus",
+    "@ont/adapter-resolver": "file:../../packages/adapter-resolver"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.4"
   }
 }

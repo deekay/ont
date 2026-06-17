@@ -38,6 +38,7 @@ describe("auction bid packages", () => {
     expect(pkg.wouldBecomeLeader).toBe(false);
     expect(pkg.previewSummary).toContain("not eligible to open yet");
     expect(pkg.bidderCommitment).toBe(computeAuctionBidderCommitment("operator_a"));
+    expect(pkg.bidderCommitment).toHaveLength(64);
     expect(pkg.currentLeaderBidderCommitment).toBeNull();
     expect(pkg.auctionLotCommitment).toBe(
       computeAuctionLotCommitment({
@@ -46,6 +47,7 @@ describe("auction bid packages", () => {
         unlockBlock: 95_144
       })
     );
+    expect(pkg.auctionLotCommitment).toHaveLength(64);
     expect(pkg.auctionStateCommitment).toHaveLength(64);
   });
 

@@ -1,21 +1,22 @@
 // Cross-check mobile auction-bid commitments + payload encoding against the
-// engine. Proves the three commitments (bidder/lot/state) and the OP_RETURN
-// payload are byte-for-byte identical to packages/protocol, and that the engine
-// decodes a mobile-built payload back to the same fields.
+// clean stack. Proves the three commitments (bidder/lot/state) and the OP_RETURN
+// payload are byte-for-byte identical to @ont/protocol/@ont/wire, and that the
+// clean wire codec decodes a mobile-built payload back to the same fields.
 import * as bitcoin from "bitcoinjs-lib";
 import {
   computeAuctionBidderCommitment as engineBidder,
   computeAuctionLotCommitment as engineLot,
   computeAuctionBidStateCommitment as engineState,
-} from "../../packages/protocol/src/auction-bid-package.ts";
+  deriveOwnerPubkey as engineDerive,
+} from "@ont/protocol";
 import {
-  encodeAuctionBidPayload,
-  decodeAuctionBidPayload,
-  decodeOntPayload,
-} from "../../packages/protocol/src/wire.ts";
-import { OntEventType } from "../../packages/protocol/src/constants.ts";
-import { getOpReturnPayloads } from "../../packages/bitcoin/src/index.ts";
-import { deriveOwnerPubkey as engineDerive } from "../../packages/protocol/src/value-record.ts";
+  AUCTION_BID_FLAG_INCLUDES_NAME,
+  bytesToHex,
+  decodeEvent,
+  encodeEvent,
+  EventType,
+} from "@ont/wire";
+import { getOpReturnPayloads } from "@ont/bitcoin";
 
 const loadMobile = async (path: string) => {
   const mod = await import(path);
@@ -53,7 +54,7 @@ const ctx = {
   unlockBlock: 4400,
   auctionCloseBlockAfter: 4600,
   openingMinimumBidSats: 50_000n,
-  currentLeaderBidderCommitment: "aa".repeat(16),
+  currentLeaderBidderCommitment: "aa".repeat(32),
   currentHighestBidSats: 60_000n,
   currentRequiredMinimumBidSats: 61_000n,
   settlementLockBlocks: 144,
@@ -74,7 +75,11 @@ ok(
   "state commitment matches engine",
   computeAuctionBidStateCommitment(ctx) === engineState(ctx),
 );
-ok("bidder/lot commitments are 16 bytes", computeAuctionBidderCommitment(bidderId).length === 32);
+ok("bidder/lot commitments are 32 bytes", computeAuctionBidderCommitment(bidderId).length === 64);
+ok(
+  "lot commitment is 32 bytes",
+  computeAuctionLotCommitment({ auctionId: ctx.auctionId, name: ctx.name, unlockBlock: ctx.unlockBlock }).length === 64,
+);
 ok("state commitment is 32 bytes", computeAuctionBidStateCommitment(ctx).length === 64);
 
 // 2. Assemble payload fields and confirm the OP_RETURN encodes identically.
@@ -83,32 +88,34 @@ const bondVout = 0;
 const fields = buildAuctionBidPayloadFields({ ctx, bidderId, ownerPubkey, bidAmountSats, bondVout });
 
 const mobileHex = encodeAuctionBidPayloadHex(fields);
-const engineHex = Buffer.from(
-  encodeAuctionBidPayload({
+const engineHex = bytesToHex(
+  encodeEvent({
+    type: EventType.AuctionBid,
+    flags: AUCTION_BID_FLAG_INCLUDES_NAME,
     bondVout,
     settlementLockBlocks: ctx.settlementLockBlocks,
     bidAmountSats,
     ownerPubkey,
     auctionLotCommitment: fields.auctionLotCommitment,
-    auctionCommitment: fields.auctionStateCommitment,
+    auctionStateCommitment: fields.auctionStateCommitment,
     bidderCommitment: fields.bidderCommitment,
     unlockBlock: ctx.unlockBlock,
     name: ctx.name,
   }),
-).toString("hex");
+);
 ok("auction-bid OP_RETURN payload matches engine wire codec", mobileHex === engineHex);
 ok("payload starts with ONT magic + version + auction-bid type", mobileHex.slice(0, 10) === "4f4e540107");
 ok("flags byte sets INCLUDES_NAME (0x01)", mobileHex.slice(10, 12) === "01");
 
 // 3. Engine decodes the mobile-built payload back to the same fields.
-const decoded = decodeAuctionBidPayload(Uint8Array.from(Buffer.from(mobileHex, "hex")));
-ok("engine decodes type AuctionBid", OntEventType.AuctionBid === 0x07);
-ok("decoded bidAmountSats round-trips", decoded.bidAmountSats === bidAmountSats);
-ok("decoded ownerPubkey round-trips", decoded.ownerPubkey === ownerPubkey);
-ok("decoded name round-trips", decoded.name === ctx.name);
-ok("decoded lot commitment round-trips", decoded.auctionLotCommitment === fields.auctionLotCommitment);
-ok("decoded state commitment round-trips", decoded.auctionCommitment === fields.auctionStateCommitment);
-ok("decoded bidder commitment round-trips", decoded.bidderCommitment === fields.bidderCommitment);
+const decoded = decodeEvent(Uint8Array.from(Buffer.from(mobileHex, "hex")));
+ok("engine decodes type AuctionBid", decoded.type === EventType.AuctionBid);
+ok("decoded bidAmountSats round-trips", decoded.type === EventType.AuctionBid && decoded.bidAmountSats === bidAmountSats);
+ok("decoded ownerPubkey round-trips", decoded.type === EventType.AuctionBid && decoded.ownerPubkey === ownerPubkey);
+ok("decoded name round-trips", decoded.type === EventType.AuctionBid && decoded.name === ctx.name);
+ok("decoded lot commitment round-trips", decoded.type === EventType.AuctionBid && decoded.auctionLotCommitment === fields.auctionLotCommitment);
+ok("decoded state commitment round-trips", decoded.type === EventType.AuctionBid && decoded.auctionStateCommitment === fields.auctionStateCommitment);
+ok("decoded bidder commitment round-trips", decoded.type === EventType.AuctionBid && decoded.bidderCommitment === fields.bidderCommitment);
 
 // 4. State commitment is sensitive to observed state (different height → different commitment).
 ok(
@@ -158,11 +165,11 @@ ok(
   );
   const payloads = getOpReturnPayloads({ outputs: engineOutputs } as never);
   ok("indexer finds the auction-bid OP_RETURN", payloads.length === 1 && payloads[0].vout === 1);
-  const decodedOnchain = decodeOntPayload(payloads[0].payload);
-  ok("on-chain payload decodes to AuctionBid", decodedOnchain.type === OntEventType.AuctionBid);
+  const decodedOnchain = decodeEvent(payloads[0].payload);
+  ok("on-chain payload decodes to AuctionBid", decodedOnchain.type === EventType.AuctionBid);
   ok(
     "on-chain bid amount matches the bond",
-    (decodedOnchain.payload as any).bidAmountSats === bidAmountSats,
+    decodedOnchain.type === EventType.AuctionBid && decodedOnchain.bidAmountSats === bidAmountSats,
   );
 }
 

@@ -22,9 +22,8 @@
 import * as bitcoin from "bitcoinjs-lib";
 import { Buffer } from "buffer";
 
-import { decodeOntPayload } from "../../packages/protocol/src/wire.ts";
-import { OntEventType } from "../../packages/protocol/src/constants.ts";
-import { getOpReturnPayloads } from "../../packages/bitcoin/src/index.ts";
+import { getOpReturnPayloads } from "@ont/bitcoin";
+import { decodeEvent, EventType } from "@ont/wire";
 
 const ROOT = new URL("../..", import.meta.url).pathname.replace(/\/+$/, "");
 async function load(path: string): Promise<any> {
@@ -144,10 +143,10 @@ if (hex) {
   );
   const payloads = getOpReturnPayloads({ outputs: engineOutputs } as never);
   ok("indexer finds the auction-bid OP_RETURN at vout 1", payloads.length === 1 && payloads[0].vout === 1);
-  const decoded = decodeOntPayload(payloads[0].payload);
-  ok("on-chain payload decodes to AuctionBid", decoded.type === OntEventType.AuctionBid);
-  ok("decoded bid amount matches", (decoded.payload as any).bidAmountSats === bidAmount);
-  ok("decoded name matches the auction", (decoded.payload as any).name === entry.normalizedName);
+  const decoded = decodeEvent(payloads[0].payload);
+  ok("on-chain payload decodes to AuctionBid", decoded.type === EventType.AuctionBid);
+  ok("decoded bid amount matches", decoded.type === EventType.AuctionBid && decoded.bidAmountSats === bidAmount);
+  ok("decoded name matches the auction", decoded.type === EventType.AuctionBid && decoded.name === entry.normalizedName);
 }
 
 console.log("");

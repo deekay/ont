@@ -77,7 +77,7 @@ export type PersistedTransactionProvenancePayload =
       readonly bidAmountSats: string;
       readonly ownerPubkey: string;
       readonly auctionLotCommitment: string;
-      readonly auctionCommitment: string;
+      readonly auctionStateCommitment: string;
       readonly bidderCommitment: string;
       readonly name: string;
       readonly unlockBlock: number;
@@ -629,7 +629,11 @@ function parseTransactionProvenanceEvent(
 function parseTransactionProvenancePayload(
   input: Record<string, unknown>
 ): PersistedTransactionProvenancePayload {
-  if ("auctionCommitment" in input) {
+  if ("auctionStateCommitment" in input || "auctionCommitment" in input) {
+    const auctionStateCommitment =
+      "auctionStateCommitment" in input
+        ? getRequiredString(input, "auctionStateCommitment")
+        : getRequiredString(input, "auctionCommitment");
     return {
       flags: getRequiredInteger(input, "flags"),
       bondVout: getRequiredInteger(input, "bondVout"),
@@ -637,7 +641,7 @@ function parseTransactionProvenancePayload(
       bidAmountSats: getRequiredString(input, "bidAmountSats"),
       ownerPubkey: getRequiredString(input, "ownerPubkey"),
       auctionLotCommitment: getRequiredString(input, "auctionLotCommitment"),
-      auctionCommitment: getRequiredString(input, "auctionCommitment"),
+      auctionStateCommitment,
       bidderCommitment: getRequiredString(input, "bidderCommitment"),
       name: getRequiredString(input, "name"),
       unlockBlock: getRequiredInteger(input, "unlockBlock")

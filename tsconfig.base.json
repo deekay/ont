@@ -20,7 +20,13 @@
     "paths": {
       "@ont/architect": ["packages/architect/src/index.ts"],
       "@ont/architect/browser": ["packages/architect/src/browser.ts"],
+      "@ont/adapter-da": ["packages/adapter-da/src/index.ts"],
+      "@ont/adapter-header": ["packages/adapter-header/src/index.ts"],
+      "@ont/adapter-indexer": ["packages/adapter-indexer/src/index.ts"],
+      "@ont/adapter-publisher": ["packages/adapter-publisher/src/index.ts"],
+      "@ont/adapter-resolver": ["packages/adapter-resolver/src/index.ts"],
       "@ont/bitcoin": ["packages/bitcoin/src/index.ts"],
+      "@ont/claim-path": ["packages/claim-path/src/index.ts"],
       "@ont/consensus": ["packages/consensus/src/index.ts"],
       "@ont/core": ["packages/core/src/index.ts"],
       "@ont/core/auction-policy": ["packages/core/src/auction-policy.ts"],

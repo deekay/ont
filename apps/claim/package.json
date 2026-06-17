@@ -3,21 +3,21 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "description": "ONT B5 surface — the claim site. Assembles the unsigned claim/anchor tx (@ont/adapter-publisher), hands signing off across a wallet boundary (never signs here), and reads/renders chain-derived state (@ont/adapter-resolver + @ont/adapter-indexer). Convenience, NOT ownership authority; consumes L1-L4 APIs and reimplements no rules.",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "dev": "tsx --no-cache src/index.ts",
-    "start": "node dist/index.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "check": "tsx checks/keys.mts",
-    "test": "vitest run"
+    "test": "npm run build -w @ont/protocol && npm run build -w @ont/bitcoin && npm run build -w @ont/wire && npm run build -w @ont/consensus && npm run build -w @ont/evidence && npm run build -w @ont/claim-path && npm run build -w @ont/adapter-indexer && npm run build -w @ont/adapter-publisher && npm run build -w @ont/adapter-resolver && vitest run"
   },
   "dependencies": {
-    "@noble/curves": "^1.9.7",
-    "@noble/hashes": "^1.8.0",
-    "@scure/bip32": "^1.7.0",
-    "@scure/bip39": "^1.6.0",
-    "esbuild": "^0.25.12",
-    "tsx": "^4.20.6",
-    "@scure/base": "^1.2.6"
+    "@ont/wire": "file:../../packages/wire",
+    "@ont/bitcoin": "file:../../packages/bitcoin",
+    "@ont/adapter-publisher": "file:../../packages/adapter-publisher",
+    "@ont/adapter-resolver": "file:../../packages/adapter-resolver"
+  },
+  "devDependencies": {
+    "@ont/protocol": "file:../../packages/protocol",
+    "@ont/adapter-indexer": "file:../../packages/adapter-indexer",
+    "vitest": "^3.2.4"
   }
 }

@@ -3,29 +3,22 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "bin": {
-    "ont-wallet": "dist/index.js"
-  },
+  "description": "ONT B5 surface — the wallet (clean-build). The ONE surface that owns key material + signing (the only boundary-lint crypto-exempt surface). Exposes a narrow WalletSigner contract the CLI/claim DELEGATE to; consumes the B4/B5 adapters for all rules (re-encodes no consensus/transfer/auction logic). See docs/core/B5_WALLET_CLASSIFICATION.md.",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "dev": "tsx src/index.ts",
-    "demo": "node scripts/demo.mjs",
-    "demo:full": "node scripts/demo-full.mjs",
-    "smoke:live": "bash scripts/live-resolver-smoke.sh",
-    "smoke:cheap-claim": "bash scripts/cheap-claim-smoke.sh",
-    "test": "npm run build -w @ont/protocol && npm run build -w @ont/consensus && npm run build -w @ont/architect && npm run build -w @ont/core && tsc -p tsconfig.json --noEmit && vitest run",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run build -w @ont/protocol && npm run build -w @ont/bitcoin && npm run build -w @ont/wire && npm run build -w @ont/adapter-resolver && vitest run"
   },
   "dependencies": {
-    "@ont/architect": "file:../../packages/architect",
-    "@ont/consensus": "file:../../packages/consensus",
-    "@ont/core": "file:../../packages/core",
     "@ont/protocol": "file:../../packages/protocol",
+    "@ont/wire": "file:../../packages/wire",
+    "@scure/bip39": "^1.6.0",
     "bitcoinjs-lib": "^7.0.1",
-    "ecpair": "^3.0.1",
     "tiny-secp256k1": "^2.2.4"
   },
   "devDependencies": {
+    "@ont/adapter-resolver": "file:../../packages/adapter-resolver",
+    "bip322-js": "^3.0.0",
     "vitest": "^3.2.4"
   }
 }

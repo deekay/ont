@@ -1,8 +1,10 @@
-// Verify mobile/src/wallet/claim.ts trust checks against the engine Accumulator.
+// Verify mobile/src/wallet/claim.ts trust checks against clean protocol roots.
 import {
-  Accumulator,
-  accumulatorKeyForName as engineKey,
-} from "../../packages/core/src/accumulator.ts";
+  accumulatorRootOf,
+  normalizeName as engineNormalizeName,
+  sha256Hex,
+  utf8ToBytes,
+} from "@ont/protocol";
 
 const claimMod = await import("../../mobile/src/wallet/claim.ts");
 const claim = (claimMod as any).default ?? claimMod;
@@ -17,14 +19,18 @@ const ok = (label: string, cond: boolean) => {
 const NAME = "satoshi";
 const OWNER = "ab".repeat(32); // x-only owner pubkey (the leaf value the publisher inserts)
 const OTHER = "cd".repeat(32);
+const engineKey = (name: string): string => sha256Hex(utf8ToBytes(engineNormalizeName(name)));
+const singleLeafRoot = (name: string, ownerPubkey: string): string =>
+  accumulatorRootOf(new Map([[engineKey(name), ownerPubkey.toLowerCase()]]));
+const singleLeafProof = (name: string, ownerPubkey: string) => ({
+  keyHex: engineKey(name),
+  value: ownerPubkey.toLowerCase(),
+  siblings: [],
+});
 
-// Build a real accumulator that commits the name -> owner.
-const acc = new Accumulator();
-acc.insert(engineKey("alice"), "11".repeat(32));
-acc.insert(engineKey(NAME), OWNER);
-acc.insert(engineKey("zzz"), "22".repeat(32));
-const root = acc.root();
-const membership = acc.proveMembership(engineKey(NAME));
+// Build a clean-protocol accumulator fixture that commits the name -> owner.
+const root = singleLeafRoot(NAME, OWNER);
+const membership = singleLeafProof(NAME, OWNER);
 
 const goodReceipt = {
   kind: "ont-publisher-claim-receipt",
@@ -52,20 +58,16 @@ ok("receipt: anchorTxid surfaced", good.anchorTxid === goodReceipt.anchorTxid);
 
 // Tamper: wrong committed owner value (proof is for a different owner pubkey).
 {
-  const accE = new Accumulator();
-  accE.insert(engineKey(NAME), OTHER);
-  const r = accE.root();
-  const m = accE.proveMembership(engineKey(NAME));
+  const r = singleLeafRoot(NAME, OTHER);
+  const m = singleLeafProof(NAME, OTHER);
   const rec = { ...goodReceipt, inclusionProof: { root: r, leaf: m.keyHex, value: m.value, siblings: m.siblings } };
   ok("receipt: foreign owner value rejected", verifyConfirmedReceipt(rec, { name: NAME, ownerPubkey: OWNER }).ok === false);
 }
 
 // Tamper: proof for a DIFFERENT name (leaf mismatch) but valid against its own root.
 {
-  const accE = new Accumulator();
-  accE.insert(engineKey("eve"), OWNER);
-  const r = accE.root();
-  const m = accE.proveMembership(engineKey("eve"));
+  const r = singleLeafRoot("eve", OWNER);
+  const m = singleLeafProof("eve", OWNER);
   const rec = { ...goodReceipt, inclusionProof: { root: r, leaf: m.keyHex, value: m.value, siblings: m.siblings } };
   ok("receipt: wrong-name leaf rejected", verifyConfirmedReceipt(rec, { name: NAME, ownerPubkey: OWNER }).ok === false);
 }
@@ -89,5 +91,5 @@ ok("receipt: missing anchorTxid rejected", verifyConfirmedReceipt({ ...goodRecei
 }
 
 console.log("");
-if (failures === 0) console.log("ALL CLAIM CHECKS PASSED — mobile trust checks match the engine.");
+if (failures === 0) console.log("ALL CLAIM CHECKS PASSED — mobile trust checks match clean @ont/protocol.");
 else { console.error(`${failures} CHECK(S) FAILED.`); process.exit(1); }

@@ -39,12 +39,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   type TransferAuthorizationFields,
-  type TransferEventPayload,
   bytesToHex,
   computeTransferAuthorizationHash,
-  createTransferPayload,
   deriveOwnerPubkey,
-  encodeTransferPayload,
   signRecoverOwnerCancelAuthorization,
   signTransferAuthorization,
 } from "@ont/protocol";
@@ -53,7 +50,7 @@ import type {
   BitcoinTransactionInput,
   BitcoinTransactionOutput,
 } from "@ont/bitcoin";
-import { transferAuthDigest } from "@ont/wire";
+import { EventType, encodeEvent, transferAuthDigest, type TransferEvent } from "@ont/wire";
 
 import {
   applyBlockTransactionsWithProvenance,
@@ -101,8 +98,8 @@ function seedOwnedName(state: OntState, overrides: Partial<NameRecord> & { name:
   return record;
 }
 
-function opReturn(payload: TransferEventPayload): BitcoinTransactionOutput {
-  return { valueSats: 0n, scriptType: "op_return", dataHex: bytesToHex(encodeTransferPayload(payload)) };
+function opReturn(payload: TransferEvent): BitcoinTransactionOutput {
+  return { valueSats: 0n, scriptType: "op_return", dataHex: bytesToHex(encodeEvent(payload)) };
 }
 
 function payment(valueSats: bigint): BitcoinTransactionOutput {
@@ -118,16 +115,16 @@ function bondInput(txid: string, vout: number): BitcoinTransactionInput {
 function signedTransfer(
   fields: TransferAuthorizationFields,
   signerPrivateKeyHex: string,
-): TransferEventPayload {
+): TransferEvent {
   const signature = signTransferAuthorization({ ...fields, ownerPrivateKeyHex: signerPrivateKeyHex });
-  return createTransferPayload({ ...fields, signature });
+  return { type: EventType.Transfer, ...fields, signature };
 }
 
 function block(input: {
   txid: string;
   blockHeight: number;
   txIndex?: number;
-  payload: TransferEventPayload;
+  payload: TransferEvent;
   inputs?: readonly BitcoinTransactionInput[];
   // outputs[0] is always the OP_RETURN; extra outputs follow at index 1, 2, ...
   extraOutputs?: readonly BitcoinTransactionOutput[];
@@ -222,7 +219,7 @@ describe("X2 — only the current owner key authorizes a transfer", () => {
     seedOwnedName(state, { name: "alice", maturityHeight: 1000 });
     // Sign over OWNER_PUB as the new owner, but carry NEW_OWNER_PUB.
     const signature = signTransferAuthorization({ ...fields, newOwnerPubkey: OWNER_PUB, ownerPrivateKeyHex: OWNER_PRIV });
-    const tampered = createTransferPayload({ ...fields, signature }); // carries NEW_OWNER_PUB
+    const tampered: TransferEvent = { type: EventType.Transfer, ...fields, signature }; // carries NEW_OWNER_PUB
     const { events } = apply(state, block({ txid: "13".repeat(32), blockHeight: 2000, payload: tampered }));
     expect(events[0]?.validationStatus).toBe("ignored");
     expect(state.names.get("alice")?.currentOwnerPubkey).toBe(OWNER_PUB);
@@ -241,7 +238,7 @@ describe("X2 — only the current owner key authorizes a transfer", () => {
       recoveryDescriptorHash: "ee".repeat(32),
       ownerPrivateKeyHex: OWNER_PRIV,
     });
-    const payload = createTransferPayload({ ...fields, signature: recoverSig });
+    const payload: TransferEvent = { type: EventType.Transfer, ...fields, signature: recoverSig };
     const { events } = apply(state, block({ txid: "14".repeat(32), blockHeight: 2000, payload }));
     expect(events[0]?.validationStatus).toBe("ignored");
     expect(events[0]?.reason).toBe("transfer_invalid_signature");
@@ -281,7 +278,7 @@ describe("X3 — failed conjuncts mutate nothing; adversarial signatures yield f
     // 64-byte all-zero signature — shape-valid (the parser would accept the bytes),
     // not a valid Schnorr signature. The local verifyTransferSignature wrapper (#61)
     // catches internally and returns false (never aborts; verifySchnorr does not catch).
-    const payload = createTransferPayload({ ...fields, signature: "00".repeat(64) });
+    const payload: TransferEvent = { type: EventType.Transfer, ...fields, signature: "00".repeat(64) };
     expect(() => apply(state, block({ txid: "30".repeat(32), blockHeight: 2000, payload }))).not.toThrow();
     expect(state.names.get("alice")).toEqual(before);
   });
@@ -289,7 +286,7 @@ describe("X3 — failed conjuncts mutate nothing; adversarial signatures yield f
   it("(−) all-FF signature (not a valid curve point/scalar): ignored, no throw", () => {
     const state = createEmptyState();
     const before = { ...seedOwnedName(state, { name: "alice", maturityHeight: 1000 }) };
-    const payload = createTransferPayload({ ...fields, signature: "ff".repeat(64) });
+    const payload: TransferEvent = { type: EventType.Transfer, ...fields, signature: "ff".repeat(64) };
     let events: ReturnType<typeof apply>["events"] = [];
     expect(() => { events = apply(state, block({ txid: "31".repeat(32), blockHeight: 2000, payload })).events; }).not.toThrow();
     expect(events[0]?.validationStatus).toBe("ignored");

@@ -10,4 +10,3 @@ export * from "./recovery-descriptor.js";
 export * from "./recovery-wallet-proof.js";
 export * from "./transfer-package.js";
 export * from "./value-record.js";
-export * from "./wire.js";

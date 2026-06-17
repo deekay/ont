@@ -89,11 +89,13 @@ unratified docs; needs the named spec PR listed in Gaps before promotion.
   prevStateTxid 32 + newOwnerPubkey 32 + flags 1 + successorBondVout 1 +
   signature 64); RecoverOwner **171** (frame + body 166 = transfer-style
   fields + challengeWindowBlocks u32 + recoveryDescriptorHash 32 +
-  signature 64); AuctionBid **152** at the 32-char name maximum (fixed 115
-  + unlockBlock u32 + nameLength 1 + name ≤32).
-  *Source:* STATUS key numbers (171 max, test-pinned); sizes pinned in
-  `packages/protocol/src/wire-size.test.ts` + `wire-rail.test.ts` (mining
-  source). **Cited for the 171 envelope; candidate-stays for the full
+  signature 64); AuctionBid **184** at the 32-char name maximum (fixed 147
+  + unlockBlock u32 + nameLength 1 + name ≤32) after W16 full-width commitments.
+  *Source:* STATUS key numbers (184 max, test-pinned); active sizes pinned in
+  `packages/wire/test/conformance.test.ts` + `implementation.test.ts`; the
+  pre-W16 mining source now lives at
+  `legacy/packages/protocol/src/wire-size.test.ts` + `wire-rail.test.ts`.
+  **Cited for the 184 envelope; candidate-stays for the full
   per-event table — needs G1.**
   *Tests:* byte-identical golden vectors mined from the old suite; the
   envelope property over all event types.
@@ -337,8 +339,8 @@ Per Item 1: gap ⇒ stop ⇒ named spec PR ⇒ then code.
 
 ## Mining manifest (Item 2 artifacts B1 consumes)
 
-- `packages/protocol/src/wire-size.test.ts` — size pins (W7, W8).
-- `packages/protocol/src/wire-rail.test.ts` — anchor/marker codec vectors.
+- `packages/wire/test/conformance.test.ts` and `packages/wire/test/implementation.test.ts` — active size pins (W7, W8).
+- `legacy/packages/protocol/src/wire-size.test.ts` and `legacy/packages/protocol/src/wire-rail.test.ts` — legacy mining vectors.
 - Root-anchor codec vectors pinned byte-identical against the BDK spike.
 - 12-word cross-surface conformance vectors, all four implementations
   (W12).

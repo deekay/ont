@@ -64,7 +64,7 @@ Protocol constants and formats:
 
 - [../../packages/protocol/src/constants.ts](../../../packages/protocol/src/constants.ts) - protocol name, name grammar, claim gate, auction minimums, bond maturity.
 - [../../packages/protocol/src/names.ts](../../../packages/protocol/src/names.ts) - name normalization and validity.
-- [../../packages/protocol/src/events.ts](../../../packages/protocol/src/events.ts) and [../../packages/protocol/src/wire.ts](../../../packages/protocol/src/wire.ts) - chain event encoding.
+- [../../packages/protocol/src/events.ts](../../../packages/protocol/src/events.ts) and [../../packages/wire/src/index.ts](../../../packages/wire/src/index.ts) - protocol event helpers and active chain event encoding.
 - [../../packages/protocol/src/auction-bid-package.ts](../../../packages/protocol/src/auction-bid-package.ts) - signable bid package and auction commitments.
 - [../../packages/protocol/src/transfer-package.ts](../../../packages/protocol/src/transfer-package.ts) - transfer package format.
 - [../../packages/protocol/src/value-record.ts](../../../packages/protocol/src/value-record.ts) - owner-signed mutable records.
@@ -78,27 +78,27 @@ Consensus and state:
 
 Auction and indexing:
 
-- [../../packages/core/src/auction-policy.ts](../../../packages/core/src/auction-policy.ts) - one contested-auction policy shape.
-- [../../packages/core/src/auction-sim.ts](../../../packages/core/src/auction-sim.ts) and [../../packages/core/src/auction-state.ts](../../../packages/core/src/auction-state.ts) - auction simulation/state surfaces.
-- [../../packages/core/src/experimental-auction.ts](../../../packages/core/src/experimental-auction.ts) - current live-auction derivation code. The file name is historical; the model is now the contested-auction path.
-- [../../packages/core/src/indexer.ts](../../../packages/core/src/indexer.ts) - chain replay, name state, auction observations, and resolver snapshots.
+- [../../packages/core/src/auction-policy.ts](../../../legacy/packages/core/src/auction-policy.ts) - legacy contested-auction policy shape.
+- [../../packages/core/src/auction-sim.ts](../../../legacy/packages/core/src/auction-sim.ts) and [../../packages/core/src/auction-state.ts](../../../legacy/packages/core/src/auction-state.ts) - legacy auction simulation/state surfaces.
+- [../../packages/core/src/experimental-auction.ts](../../../legacy/packages/core/src/experimental-auction.ts) - legacy live-auction derivation code.
+- [../../packages/core/src/indexer.ts](../../../legacy/packages/core/src/indexer.ts) - legacy chain replay, name state, auction observations, and resolver snapshots.
 
 Scaling prototypes:
 
-- [../../packages/core/src/accumulator.ts](../../../packages/core/src/accumulator.ts) - sparse Merkle accumulator.
-- [../../packages/core/src/research/delta-merge-sim.ts](../../../packages/core/src/research/delta-merge-sim.ts) - leaderless per-block merge simulation.
-- [../../packages/core/src/research/da-convergence-sim.ts](../../../packages/core/src/research/da-convergence-sim.ts) - data-availability convergence simulation.
-- [../../packages/core/src/root-anchor.ts](../../../packages/core/src/root-anchor.ts) - Bitcoin anchor transaction measurement.
-- [../../packages/core/src/research/batch-rail.ts](../../../packages/core/src/research/batch-rail.ts) - batch rail behavior.
-- [../../packages/core/src/research/recovery-sim.ts](../../../packages/core/src/research/recovery-sim.ts) - recovery state machine simulation.
+- [../../packages/core/src/accumulator.ts](../../../legacy/packages/core/src/accumulator.ts) - legacy sparse Merkle accumulator.
+- [../../packages/core/src/research/delta-merge-sim.ts](../../../legacy/packages/core/src/research/delta-merge-sim.ts) - legacy leaderless per-block merge simulation.
+- [../../packages/core/src/research/da-convergence-sim.ts](../../../legacy/packages/core/src/research/da-convergence-sim.ts) - legacy data-availability convergence simulation.
+- [../../packages/core/src/root-anchor.ts](../../../legacy/packages/core/src/root-anchor.ts) - legacy Bitcoin anchor transaction measurement.
+- [../../packages/core/src/research/batch-rail.ts](../../../legacy/packages/core/src/research/batch-rail.ts) - legacy batch rail behavior.
+- [../../packages/core/src/research/recovery-sim.ts](../../../legacy/packages/core/src/research/recovery-sim.ts) - legacy recovery state machine simulation.
 
 Apps and tools:
 
-- [../../apps/resolver/src/index.ts](../../../apps/resolver/src/index.ts) - resolver/indexer API and runtime.
-- [../../apps/web/src/](../../../apps/web/src/) - product UI, explorer, auction prep, recovery/value flows.
-- [../../apps/cli/src/index.ts](../../../apps/cli/src/index.ts) - operator and power-user workflows.
-- [../../apps/wallet/src/](../../../apps/wallet/src/) - local wallet/client prototype.
-- [../../packages/architect/src/](../../../packages/architect/src/) - reusable transaction-prep helpers.
+- [../../apps/resolver/src/index.ts](../../../legacy/apps/resolver/src/index.ts) - legacy resolver/indexer API and runtime.
+- [../../legacy/apps/web/src/](../../../legacy/apps/web/src/) - product UI, explorer, auction prep, recovery/value flows (quarantined; clean-build rewrite in B5).
+- [../../apps/cli/src/index.ts](../../../legacy/apps/cli/src/index.ts) - operator and power-user workflows (quarantined to legacy/ in B5).
+- [../../apps/wallet/src/](../../../legacy/apps/wallet/src/) - local wallet/client prototype (quarantined to legacy/ in B5).
+- [../../packages/architect/src/](../../../legacy/packages/architect/src/) - legacy transaction-prep helpers.
 
 ## Recently Retired Or Quarantined
 
