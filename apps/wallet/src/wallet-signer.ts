@@ -13,8 +13,10 @@ import {
 import type { WalletTransactionBuilder } from "./wallet-transaction-builder.js";
 import {
   buildImmatureSaleTransferArtifact,
+  buildMatureSaleTransferArtifact,
   coSignSaleTransferArtifact,
   type ImmatureSaleTransferInput,
+  type MatureSaleTransferInput,
   type BuildSaleResult,
   type CoSignSaleResult,
 } from "./sale-transfer-artifacts.js";
@@ -84,6 +86,9 @@ export function createWalletSigner(mnemonic: string, index = 0): CreateWalletSig
     },
     buildImmatureSaleTransfer(input: ImmatureSaleTransferInput): BuildSaleResult {
       return buildImmatureSaleTransferArtifact(ownerPrivateKeyHex, input);
+    },
+    buildMatureSaleTransfer(input: MatureSaleTransferInput): BuildSaleResult {
+      return buildMatureSaleTransferArtifact(ownerPrivateKeyHex, input);
     },
     coSignSaleTransfer(partialPsbtBase64: string): CoSignSaleResult {
       return coSignSaleTransferArtifact(ownerPrivateKeyHex, partialPsbtBase64);

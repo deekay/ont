@@ -63,9 +63,31 @@ export type SaleBuildReason =
   | "invalid-successor-bond-vout"
   | "negative-amount"
   | "no-buyer-inputs"
+  | "no-seller-binding-inputs"
   | "insufficient-buyer-funds"
   | "change-without-address"
   | "invalid-input";
+
+/** mature-sale (post-maturity): no bond continuity. successorBondVout is the canon-ignored "dead byte" (#4/#27,
+ *  X8) — the wallet forces it to this sentinel so the carrier explicitly signals "no successor bond". */
+export const MATURE_SUCCESSOR_BOND_VOUT = 0xff;
+
+/** A mature (post-maturity) cooperative sale: no bond continuity, no successor bond. The seller has no bond to
+ *  spend, so it must contribute ≥1 validated seller-owned P2TR binding input signed at SIGHASH_DEFAULT — that
+ *  signature (not the ONT auth, which doesn't bind payment/tx) is what binds the seller's consent to the exact
+ *  outputs (CL Q1 bearer-auth defense). The buyer funds the sale price + fee and co-signs/finalizes. */
+export interface MatureSaleTransferInput {
+  readonly prevStateTxid: string;
+  readonly newOwnerPubkey: string; // buyer x-only
+  readonly flags: number;
+  readonly sellerInputs: readonly SaleFundingInput[]; // ≥1 validated seller-owned binding inputs
+  readonly buyerInputs: readonly SaleFundingInput[];
+  readonly sellerPayoutAddress: string; // receives ΣsellerInputs + salePrice (combined; no separate seller_change)
+  readonly salePriceSats: string;
+  readonly buyerChangeAddress?: string;
+  readonly feeSats: string;
+  readonly network: TransferNetwork;
+}
 
 export type BuildSaleResult =
   | { readonly ok: true; readonly artifact: SalePsbtArtifact }
@@ -218,9 +240,27 @@ export function buildImmatureSaleTransferArtifact(
 }
 
 /**
- * RED stub (buyer/co-signer role; key-internal). Green: parse the BIP-174 PSBT; sign every input that pays to
- * THIS wallet's owner key (taproot key-path, SIGHASH_DEFAULT) and no others; if all inputs are then signed,
- * finalize + extract → signedTransactionHex; else return the updated partial PSBT. Never exposes the key. Total.
+ * RED stub (mature-sale, seller role; key-internal). Green: ≥1 sellerInputs else no-seller-binding-inputs;
+ * validate amounts (per-field negativity) + script-ownership of every seller input; buyerChange = Σbuyer −
+ * salePrice − fee (<0 → insufficient-buyer-funds; >0 w/o address → change-without-address). Seller signs
+ * transferAuthDigest with successorBondVout = 0xff (mature sentinel, canon-ignored) → carrier (0x03). Outputs:
+ * carrier + seller_payment (Σseller + salePrice) + buyer_change (if any) — NO successor bond. PSBT: seller
+ * inputs get tapInternalKey + are signed at SIGHASH_DEFAULT (binds all outputs); buyer inputs witnessUtxo only.
+ * Returns the partial BIP-174 PSBT; signs ONLY seller inputs. Never exposes the key. Total; never throws.
+ */
+export function buildMatureSaleTransferArtifact(
+  ownerPrivateKeyHex: string,
+  input: MatureSaleTransferInput
+): BuildSaleResult {
+  void ownerPrivateKeyHex;
+  void input;
+  return { ok: false, reason: "not-implemented" };
+}
+
+/**
+ * Buyer/co-signer role (key-internal). Parses the BIP-174 PSBT; signs every input that pays to THIS wallet's
+ * owner key (taproot key-path, SIGHASH_DEFAULT) and no others; if all inputs are then signed, finalize +
+ * extract → signedTransactionHex; else returns the updated partial PSBT. Never exposes the key. Total.
  */
 export function coSignSaleTransferArtifact(
   ownerPrivateKeyHex: string,

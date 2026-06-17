@@ -25,6 +25,7 @@ export {
 } from "./transfer-artifacts.js";
 export {
   type ImmatureSaleTransferInput,
+  type MatureSaleTransferInput,
   type SaleFundingInput,
   type SaleOutput,
   type SalePsbtArtifact,

@@ -4,6 +4,7 @@
 import type { TransferArtifactInput, BuildTransferResult } from "./transfer-artifacts.js";
 import type {
   ImmatureSaleTransferInput,
+  MatureSaleTransferInput,
   BuildSaleResult,
   CoSignSaleResult,
 } from "./sale-transfer-artifacts.js";
@@ -13,6 +14,8 @@ export interface WalletTransactionBuilder {
   buildAndSignTransfer(input: TransferArtifactInput): BuildTransferResult;
   /** Cooperative immature-sale, SELLER role: carrier + ONT auth + sign seller-owned inputs → partial PSBT. */
   buildImmatureSaleTransfer(input: ImmatureSaleTransferInput): BuildSaleResult;
+  /** Cooperative mature-sale, SELLER role: ≥1 seller binding input, no successor bond → partial PSBT. */
+  buildMatureSaleTransfer(input: MatureSaleTransferInput): BuildSaleResult;
   /** Cooperative sale, BUYER/co-signer role: sign this wallet's own inputs in the PSBT; finalize when complete. */
   coSignSaleTransfer(partialPsbtBase64: string): CoSignSaleResult;
 }
