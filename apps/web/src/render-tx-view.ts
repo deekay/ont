@@ -45,6 +45,20 @@ export function renderTxView(input: { readonly txid: unknown; readonly port: Web
   }
 }
 
+/**
+ * The render-from-served core (G2 slice 5b): shape the txid (bad → error view), then render a resolved
+ * ServedTx | null (null → unavailable view; txid mismatch/malformed → unavailable; else the tx page). Total for
+ * a well-formed ServedTx. Both the sync port path (renderTxView, which wraps the port call) and the live
+ * resolver path (slice 5b-2, which feeds a shape-validated ServedTx) render through this one implementation.
+ * RED stub — slice 5b-1 green extracts renderTxView's render-from-served body here (proven behavior-preserving
+ * by the parity tests).
+ */
+export function renderServedTx(rawTxid: unknown, served: ServedTx | null): string {
+  void rawTxid;
+  void served;
+  return ""; // not implemented — parity vs renderTxView is red until the extraction lands
+}
+
 /** label/value row — every value HTML-escaped. */
 function field(label: string, value: unknown): string {
   return `<div class="field"><span class="k">${htmlEscape(label)}</span>: <code>${htmlEscape(String(value))}</code></div>`;
