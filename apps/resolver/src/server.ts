@@ -118,11 +118,19 @@ export function createResolverHttpServer(options: ResolverServiceOptions): Serve
 }
 
 async function serveConfirmedTx(txid: string, anchorTxView?: AnchorTxViewSource): Promise<Response> {
-  // RED stub — slice 4b green implements: source miss → 404; projection null → 404; success → 200 ServedTx.
-  void txid;
-  void anchorTxView;
-  void confirmedAnchorTxToServedTx;
-  return json({ ok: false, reason: "not-implemented" }, 501);
+  // Read-only: a thin coordinator over the injected source + the adapter-resolver projection. Source miss and
+  // projection-fail both collapse to a clean 404; no store touch, no mint/put/repair, no per-name fallback.
+  if (!anchorTxView) return json({ ok: false, reason: "not-found" }, 404);
+  let view: ConfirmedAnchorTxView | null;
+  try {
+    view = await anchorTxView(txid);
+  } catch {
+    return json({ ok: false, reason: "store-unavailable" }, 503);
+  }
+  if (view === null) return json({ ok: false, reason: "not-found" }, 404);
+  const served = confirmedAnchorTxToServedTx(view);
+  if (served === null) return json({ ok: false, reason: "not-found" }, 404); // inconsistent anchor → clean 404
+  return json(served, 200);
 }
 
 async function serveValueHistory(name: string, store: ResolverStore): Promise<Response> {

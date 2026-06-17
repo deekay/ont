@@ -70,6 +70,14 @@ describe("GET /tx/:txid (G2 slice 4b)", () => {
     expect(res.status).toBe(405);
   });
 
+  it("does not serve /tx/<id>/<extra> — exact two-segment match only (CL watch)", async () => {
+    const res = await handleResolverRequest(
+      new Request(`http://res/tx/${TXID}/extra`),
+      opts(async () => validView),
+    );
+    expect(res.status).toBe(404);
+  });
+
   it("the resolver package never imports from apps/indexer (composition stays in the harness)", async () => {
     const srcDir = dirname(fileURLToPath(import.meta.url));
     const files = (await readdir(srcDir)).filter((f) => f.endsWith(".ts"));
