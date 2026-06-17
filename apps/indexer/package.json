@@ -4,6 +4,12 @@
   "private": true,
   "type": "module",
   "description": "ONT clean runnable indexer service. Batch block-ingestion (no HTTP) — an imperative shell that drives the @ont/adapter-indexer inclusion firewall over an injected store port; no consensus/firewall rule reimplementation.",
+  "exports": {
+    ".": {
+      "types": "./dist/apps/indexer/src/index.d.ts",
+      "default": "./dist/apps/indexer/src/index.js"
+    }
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",

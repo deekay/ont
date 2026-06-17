@@ -4,6 +4,12 @@
   "private": true,
   "type": "module",
   "description": "ONT B5 surface — the explorer/web (clean-build). READ/DISPLAY ONLY: no keys, no signing, no crypto libs. Consumes the B4 adapters through a narrow injected read-port and renders served state as HTML with resolver-indexed-mirror / not-ownership-authority copy; reimplements no resolver/indexer/consensus rules. See docs/core/B5_WEB_CLASSIFICATION.md.",
+  "exports": {
+    ".": {
+      "types": "./dist/apps/web/src/index.d.ts",
+      "default": "./dist/apps/web/src/index.js"
+    }
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",

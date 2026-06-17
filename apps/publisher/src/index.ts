@@ -12,6 +12,8 @@ export {
   type PublisherBroadcastResult,
   type PublisherServiceOptions,
 } from "./server.js";
+// Env-selected live broadcast port (go-live slice 4b) — published so the regtest e2e composes it.
+export { selectPublisherBroadcastPort } from "./live/select-broadcast.js";
 
 async function bootstrap(): Promise<void> {
   const port = Number.parseInt(process.env.PORT ?? "4176", 10);

@@ -4,6 +4,12 @@
   "private": true,
   "type": "module",
   "description": "ONT clean runnable publisher service. HTTP assemble+broadcast shell over @ont/adapter-publisher with an injected broadcast port; no signing, private accumulator, or live network in tests.",
+  "exports": {
+    ".": {
+      "types": "./dist/apps/publisher/src/index.d.ts",
+      "default": "./dist/apps/publisher/src/index.js"
+    }
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
