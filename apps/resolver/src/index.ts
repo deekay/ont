@@ -1,4 +1,5 @@
 import { createInMemoryResolverStore, createResolverHttpServer } from "./server.js";
+import { selectResolverAnchorTxView } from "./live/select-resolver-anchor-view.js";
 
 export {
   createInMemoryResolverStore,
@@ -7,10 +8,17 @@ export {
   type ResolverServiceOptions,
   type ResolverStore,
 } from "./server.js";
+export { selectResolverAnchorTxView } from "./live/select-resolver-anchor-view.js";
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   const port = Number.parseInt(process.env.PORT ?? "4174", 10);
-  const server = createResolverHttpServer({ store: createInMemoryResolverStore() });
+  // Env-selected durable confirmed-anchor read (G2 slice 6b): ONT_STORE=file + ONT_STORE_DIR serves /tx/:txid
+  // from the indexer's confirmed-anchors.json; memory/unset → no anchorTxView (/tx 404s, the hermetic default).
+  const anchorTxView = selectResolverAnchorTxView(process.env);
+  const server = createResolverHttpServer({
+    store: createInMemoryResolverStore(),
+    ...(anchorTxView ? { anchorTxView } : {}),
+  });
   server.listen(port, () => {
     // stdout is the process contract for the runnable shell; tests use handleResolverRequest directly.
     console.log(`@ont/resolver listening on http://127.0.0.1:${port}`);
