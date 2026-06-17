@@ -17,17 +17,22 @@ import { sendBitcoinRpcRawTransaction } from "@ont/bitcoin";
 import { createInMemoryPublisherBroadcastPort, type PublisherBroadcastPort } from "../server.js";
 import { createLivePublisherBroadcastPort } from "./broadcast.js";
 
-export function selectPublisherBroadcastPort(
+export async function selectPublisherBroadcastPort(
   env: Record<string, string | undefined>,
   assertChain?: ChainAssert,
 ): Promise<PublisherBroadcastPort> {
-  // RED stub — slice 4b green pending CL red-OK.
-  void env;
-  void assertChain;
-  void resolveNodeRuntime;
-  void selectLivePort;
-  void sendBitcoinRpcRawTransaction;
-  void createInMemoryPublisherBroadcastPort;
-  void createLivePublisherBroadcastPort;
-  return Promise.reject(new Error("selectPublisherBroadcastPort: not implemented (slice 4b green pending)"));
+  // async so a synchronous resolveNodeRuntime throw (e.g. missing ONT_RPC_URL) surfaces as a
+  // rejected promise, not a thrown call — callers always await a single failure channel.
+  const { source, chain, rpc } = resolveNodeRuntime(env);
+  return selectLivePort({
+    source,
+    chain,
+    rpc,
+    memory: () => createInMemoryPublisherBroadcastPort(),
+    // LAZY: the RPC submit closure is only constructed AFTER selectLivePort's chain gate
+    // passes (node mode). The publisher NEVER signs — the live port serializes the caller's
+    // signed tx and submits it via sendrawtransaction.
+    live: () => createLivePublisherBroadcastPort((hex) => sendBitcoinRpcRawTransaction(rpc, hex)),
+    ...(assertChain === undefined ? {} : { assertChain }),
+  });
 }

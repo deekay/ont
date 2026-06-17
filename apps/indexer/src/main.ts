@@ -1,13 +1,14 @@
-// @ont/indexer — runnable entry (the daemon process). Wires clean-startup ports (empty block-source + in-memory
-// cursor/anchor stores) and runs the ingest loop until SIGINT/SIGTERM, paced by INDEXER_POLL_MS. Real esplora/
-// Bitcoin block-source + durable stores are injected here in deployment; the loop logic is in runner.ts. Logs
-// JSON lines; never decides a firewall rule. Kept OUT of index.ts so importing the library has no side effects.
+// @ont/indexer — runnable entry (the daemon process). Selects the block source from the live env
+// (ONT_SOURCE=memory|node — memory is the hermetic default; node runs the chain gate before any poll) and
+// runs the ingest loop until SIGINT/SIGTERM, paced by INDEXER_POLL_MS. Cursor/anchor stores stay in-memory
+// for G1 (durable persistence = G2). The loop logic is in runner.ts; this never decides a firewall rule.
+// Kept OUT of index.ts so importing the library has no side effects.
 import {
   runIndexerLoop,
-  createEmptyIndexerBlockSource,
   createInMemoryIndexerCursorStore,
   createInMemoryConfirmedAnchorStore,
 } from "./runner.js";
+import { selectIndexerBlockSource } from "./live/select-block-source.js";
 
 async function main(): Promise<void> {
   const intervalMs = Number(process.env.INDEXER_POLL_MS ?? "1000");
@@ -18,10 +19,14 @@ async function main(): Promise<void> {
   process.on("SIGINT", stop);
   process.on("SIGTERM", stop);
 
+  // Env-selected block source. In node mode this awaits the chain gate (regtest|signet only) BEFORE
+  // any block poll — a mispointed/missing RPC fails closed here, before the loop starts.
+  const blockSource = await selectIndexerBlockSource(process.env);
+
   console.log(JSON.stringify({ service: "@ont/indexer", status: "starting", intervalMs }));
   await runIndexerLoop(
     {
-      blockSource: createEmptyIndexerBlockSource(),
+      blockSource,
       cursorStore: createInMemoryIndexerCursorStore(0),
       anchorStore: createInMemoryConfirmedAnchorStore(),
     },

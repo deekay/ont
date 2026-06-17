@@ -17,18 +17,21 @@ import { createLiveIndexerBlockSource } from "./block-source.js";
 import { createNodeBlockSourceDeps } from "./node-block-source.js";
 import { createNodeBlockReadPort } from "./node-block-read-port.js";
 
-export function selectIndexerBlockSource(
+export async function selectIndexerBlockSource(
   env: Record<string, string | undefined>,
   assertChain?: ChainAssert,
 ): Promise<IndexerBlockSource> {
-  // RED stub — slice 4b green pending CL red-OK.
-  void env;
-  void assertChain;
-  void resolveNodeRuntime;
-  void selectLivePort;
-  void createEmptyIndexerBlockSource;
-  void createLiveIndexerBlockSource;
-  void createNodeBlockSourceDeps;
-  void createNodeBlockReadPort;
-  return Promise.reject(new Error("selectIndexerBlockSource: not implemented (slice 4b green pending)"));
+  // async so a synchronous resolveNodeRuntime throw (e.g. missing ONT_RPC_URL) surfaces as a
+  // rejected promise, not a thrown call — callers always await a single failure channel.
+  const { source, chain, rpc } = resolveNodeRuntime(env);
+  return selectLivePort({
+    source,
+    chain,
+    rpc,
+    memory: () => createEmptyIndexerBlockSource(),
+    // LAZY: the node read port / RPC objects are only constructed AFTER selectLivePort's
+    // chain gate passes (node mode) — never in memory mode, never before the gate.
+    live: () => createLiveIndexerBlockSource(createNodeBlockSourceDeps(createNodeBlockReadPort(rpc))),
+    ...(assertChain === undefined ? {} : { assertChain }),
+  });
 }

@@ -1,7 +1,8 @@
 // @ont/publisher — clean runnable publisher service. HTTP assemble+broadcast shell over
 // @ont/adapter-publisher with injected broadcast I/O; no signing keys, no private accumulator, no live network
 // in the tested core.
-import { createInMemoryPublisherBroadcastPort, createPublisherHttpServer } from "./server.js";
+import { createPublisherHttpServer } from "./server.js";
+import { selectPublisherBroadcastPort } from "./live/select-broadcast.js";
 
 export {
   createInMemoryPublisherBroadcastPort,
@@ -12,10 +13,20 @@ export {
   type PublisherServiceOptions,
 } from "./server.js";
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+async function bootstrap(): Promise<void> {
   const port = Number.parseInt(process.env.PORT ?? "4176", 10);
-  const server = createPublisherHttpServer({ broadcast: createInMemoryPublisherBroadcastPort() });
+  // Env-selected broadcast port. In node mode this awaits the chain gate (regtest|signet only)
+  // BEFORE the server listens — a rejected chain/env prevents startup entirely (CL green watch).
+  const broadcast = await selectPublisherBroadcastPort(process.env);
+  const server = createPublisherHttpServer({ broadcast });
   server.listen(port, () => {
     console.log(`@ont/publisher listening on http://127.0.0.1:${port}`);
+  });
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  bootstrap().catch((error) => {
+    console.error(JSON.stringify({ service: "@ont/publisher", fatal: String(error) }));
+    process.exitCode = 1;
   });
 }
