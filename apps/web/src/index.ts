@@ -15,6 +15,7 @@ export {
   TX_CHAIN_NOTICE,
   type ShapeTxidResult,
 } from "./render-tx-view.js";
+export { renderLanding, route, LANDING_NOTICE } from "./render-explorer-landing.js";
 export {
   type WebReadPort,
   type ServedValueState,
