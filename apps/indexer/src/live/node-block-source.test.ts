@@ -91,6 +91,35 @@ describe("createNodeBlockSourceDeps (G1 3b-4)", () => {
     expect(fetched).not.toContain(h32(0x02));
   });
 
+  it("ignores malformed / non-ONT OP_RETURN payloads (decodeEvent throws) and keeps scanning", async () => {
+    const a = anchorTx();
+    const aTxid = legacyTxidOf(a)!;
+    const fetched: string[] = [];
+    const deps = createNodeBlockSourceDeps(
+      port({
+        getBlock: async (h) => ({
+          hash: "bh",
+          height: h,
+          transactions: [
+            summaryTx(h32(0x01)), // payment
+            summaryTx(h32(0x03), "deadbeef"), // arbitrary OP_RETURN → decodeEvent throws
+            summaryTx(h32(0x04), "00ff"), // truncated/garbage frame → decodeEvent throws
+            summaryTx(aTxid, payloadHex(rootAnchorPayload())), // valid RootAnchor
+          ],
+        }) as BitcoinBlock,
+        getRawTxHex: async (txid) => {
+          fetched.push(txid);
+          return txid === aTxid ? serHex(a) : serHex(prevoutTx);
+        },
+      }),
+    );
+    const out = await deps.anchorsAtHeight(5);
+    expect(out).toHaveLength(1); // the valid anchor survives the throwing payloads
+    expect(fetched).not.toContain(h32(0x03));
+    expect(fetched).not.toContain(h32(0x04));
+    expect(fetched).toContain(aTxid);
+  });
+
   it("drops an anchor whose raw body is unparseable (e.g. witness serialization)", async () => {
     const a = anchorTx();
     const aTxid = legacyTxidOf(a)!;
