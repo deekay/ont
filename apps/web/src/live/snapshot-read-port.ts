@@ -10,7 +10,7 @@
 // PURPOSE: injected confirmed-anchor snapshot → a read-only WebReadPort (tx view only for G1).
 // SCOPE: lookup + projection wiring; no minting, no name-ownership. TESTS: ./snapshot-read-port.test.ts.
 import type { WebReadPort } from "../web-read-port.js";
-import { confirmedAnchorTxToServedTx, type ConfirmedAnchorTxView } from "./confirmed-anchor-tx.js";
+import { confirmedAnchorTxToServedTx, type ConfirmedAnchorTxView } from "@ont/adapter-resolver";
 
 /** The harness-maintained read source: the original confirmed-anchor tx view for a txid, or null. SYNC so
  *  the web render path stays synchronous (CL slice-5 watch). */

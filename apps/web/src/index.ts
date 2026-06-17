@@ -31,11 +31,12 @@ export {
   handleWebRequest,
   type WebServiceOptions,
 } from "./server.js";
-// Confirmed-anchor read path (go-live slice 5) — published so the regtest e2e composes the projection + snapshot port.
+// Confirmed-anchor read path — the projection contract is owned by @ont/adapter-resolver (G2 slice 4a);
+// re-export it so the regtest e2e + web consumers keep their existing import paths.
 export {
   confirmedAnchorTxToServedTx,
   type ConfirmedAnchorTxView,
-} from "./live/confirmed-anchor-tx.js";
+} from "@ont/adapter-resolver";
 export {
   createSnapshotWebReadPort,
   type ConfirmedAnchorSnapshot,

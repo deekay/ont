@@ -37,11 +37,45 @@ export interface ConfirmedAnchorTxView {
 
 /** Total + fail-closed (null), never throws. */
 export function confirmedAnchorTxToServedTx(view: ConfirmedAnchorTxView): ServedTx | null {
-  void view;
-  void legacyTxidOf;
-  void opReturnData;
-  void bytesToHex;
-  void decodeEvent;
-  void EventType;
-  throw new Error("confirmed-anchor projection not implemented");
+  const { anchorTx, minedHeight, anchoredRoot, batchSize } = view;
+
+  // txid from the ORIGINAL bytes; an unserializable tx fails closed.
+  const txid = legacyTxidOf(anchorTx);
+  if (txid === null) return null;
+
+  // Collect every output whose OP_RETURN payload decodes to a RootAnchor — exactly one is required
+  // (non-unique carrier fails closed, mirroring the inclusion firewall's exactly-one rule).
+  const rootAnchors: Uint8Array[] = [];
+  for (const output of anchorTx.outputs) {
+    const payload = opReturnData(output.scriptPubKeyHex);
+    if (payload === null) continue;
+    let ev;
+    try {
+      ev = decodeEvent(payload);
+    } catch {
+      continue; // arbitrary OP_RETURN noise — not a carrier
+    }
+    if (ev.type === EventType.RootAnchor) rootAnchors.push(payload);
+  }
+  if (rootAnchors.length !== 1) return null;
+
+  // Cross-check the decoded carrier against the indexer's confirmed fact; bytes shown are the original payload.
+  const payload = rootAnchors[0]!;
+  const decoded = decodeEvent(payload);
+  if (decoded.type !== EventType.RootAnchor) return null; // unreachable (filtered above), kept fail-closed
+  if (decoded.newRoot !== anchoredRoot || decoded.batchSize !== batchSize) return null;
+
+  const outputs: ServedTxOutput[] = anchorTx.outputs.map((o) => ({
+    valueSats: o.valueSats.toString(),
+    scriptHex: o.scriptPubKeyHex,
+    address: null,
+  }));
+
+  return {
+    txid,
+    blockHash: null, // the indexer does not persist the block hash yet (G2)
+    blockHeight: minedHeight,
+    outputs,
+    carrierPayloadHex: bytesToHex(payload),
+  };
 }
