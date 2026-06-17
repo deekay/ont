@@ -20,9 +20,15 @@ import {
 import type { NodeBlockReadPort } from "./node-block-source.js";
 
 /** Require exactly one block at the requested height — else fail closed (no Merkle ordering is sound). */
-export function requireSingleBlockAtHeight(_blocks: readonly BitcoinBlock[], _height: number): BitcoinBlock {
-  // RED stub — sub-slice 3b-4c green pending CL red-OK.
-  throw new Error("requireSingleBlockAtHeight: not implemented (3b-4c green pending)");
+export function requireSingleBlockAtHeight(blocks: readonly BitcoinBlock[], height: number): BitcoinBlock {
+  if (blocks.length !== 1) {
+    throw new Error(`expected exactly one block at height ${height}, got ${blocks.length}`);
+  }
+  const block = blocks[0]!;
+  if (block.height !== height) {
+    throw new Error(`block height mismatch: expected ${height}, got ${block.height}`);
+  }
+  return block;
 }
 
 export function createNodeBlockReadPort(rpc: BitcoinRpcConfig): NodeBlockReadPort {
