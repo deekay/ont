@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 
 export {
   serializeLegacyTransaction,
+  parseLegacyTransaction,
   legacyTxidOf,
   type LegacyTransaction,
   type LegacyTransactionInput,

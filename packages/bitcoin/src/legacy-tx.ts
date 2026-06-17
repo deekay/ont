@@ -131,6 +131,18 @@ export function serializeLegacyTransaction(tx: LegacyTransaction): Uint8Array | 
 }
 
 /**
+ * Parse a legacy (non-witness) transaction from its consensus hex — the exact inverse of
+ * serializeLegacyTransaction. Fail-closed: returns null on bad hex, truncation, trailing bytes (the
+ * whole buffer must be consumed), a non-canonical/oversized CompactSize (0xff), or a segwit marker
+ * (0x00 where the input count belongs — this parser is legacy-only). prevoutTxid is returned as
+ * DISPLAY hex (wire bytes reversed); output values as bigint. Never throws. (go-live G1 sub-slice 3b.)
+ */
+export function parseLegacyTransaction(_hex: string): LegacyTransaction | null {
+  // RED stub — sub-slice 3b-2 green pending CL red-OK.
+  throw new Error("parseLegacyTransaction: not implemented (3b-2 green pending)");
+}
+
+/**
  * The transaction id (display/big-endian hex) of a legacy transaction:
  * `reverse(doubleSHA256(serialize(tx)))`. Returns null if the tx is malformed.
  */
