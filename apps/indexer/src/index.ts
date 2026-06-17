@@ -9,3 +9,10 @@ export {
   type IngestRejectReason,
   type IngestAnchorsReport,
 } from "./ingest-anchors.js";
+export {
+  ingestServedBatches,
+  type VerifyServedDelta,
+  type IndexedBatchStore,
+  type ServedIngestRejectReason,
+  type IngestServedReport,
+} from "./ingest-served.js";
