@@ -1,0 +1,24 @@
+{
+  "name": "@ont/node-live",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "ONT go-live shared live-runtime surface. App-runtime policy for live Bitcoin wiring that is NOT consensus and NOT a pure adapter: today, the chain-safety gate (parse ONT_CHAIN, allow only regtest|signet, reject unset/main/mainnet/test, and assert the node's chain before any poll/broadcast wiring is constructed). @ont/bitcoin keeps the low-level assertBitcoinRpcChain; this owns the runtime policy around it so indexer + publisher cannot drift.",
+  "exports": {
+    ".": {
+      "types": "./dist/node-live/src/index.d.ts",
+      "default": "./dist/node-live/src/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build -w @ont/bitcoin && vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@ont/bitcoin": "file:../bitcoin"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.4"
+  }
+}
