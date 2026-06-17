@@ -24,11 +24,21 @@ export interface LiveBlockSourceDeps {
   anchorsAtHeight(height: number): Promise<readonly BuildConfirmedBatchAnchorInput[]>;
 }
 
-export function createLiveIndexerBlockSource(_deps: LiveBlockSourceDeps): IndexerBlockSource {
+export function createLiveIndexerBlockSource(deps: LiveBlockSourceDeps): IndexerBlockSource {
   return {
-    async nextConfirmedAnchors(_cursor: IndexerCursor): Promise<ConfirmedAnchorBatch> {
-      // RED stub — slice 3 green pending CL red-OK.
-      throw new Error("createLiveIndexerBlockSource: not implemented (slice 3 green pending)");
+    async nextConfirmedAnchors(cursor: IndexerCursor): Promise<ConfirmedAnchorBatch> {
+      // Drive polling from the DURABLE cursor argument only — no long-lived poller
+      // whose internal nextHeight could compete with it (CL slice-3 watch).
+      const tip = await deps.getTipHeight();
+      // Never poll backwards; an empty/regressed tip leaves the durable cursor as-is.
+      if (tip <= cursor.height) {
+        return { candidates: [], cursor };
+      }
+      const candidates: BuildConfirmedBatchAnchorInput[] = [];
+      for (let height = cursor.height + 1; height <= tip; height += 1) {
+        candidates.push(...(await deps.anchorsAtHeight(height)));
+      }
+      return { candidates, cursor: { height: tip } };
     },
   };
 }
