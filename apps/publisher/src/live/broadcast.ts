@@ -17,12 +17,23 @@ import type { PublisherBroadcastPort, PublisherBroadcastResult } from "../server
 /** Raw-hex submit seam. Real wiring: (hex) => sendBitcoinRpcRawTransaction(rpc, hex). */
 export type RawTxSubmit = (transactionHex: string) => Promise<string>;
 
-export function createLivePublisherBroadcastPort(_submit: RawTxSubmit): PublisherBroadcastPort {
+export function createLivePublisherBroadcastPort(submit: RawTxSubmit): PublisherBroadcastPort {
   return {
-    async broadcast(_tx: LegacyTransaction): Promise<PublisherBroadcastResult> {
-      // RED stub — G1 green pending CL red-OK. Pins that the slice is not yet implemented.
-      void serializeLegacyTransaction;
-      throw new Error("createLivePublisherBroadcastPort: not implemented (G1 green pending)");
+    async broadcast(tx: LegacyTransaction): Promise<PublisherBroadcastResult> {
+      // Serialize the caller-provided (already-signed) tx verbatim. No signing, no
+      // mutation, and no "is it signed?" inspection — authenticity is the B5
+      // wallet's responsibility, not this seam's (CL green watch).
+      const bytes = serializeLegacyTransaction(tx);
+      if (bytes === null) {
+        return { ok: false, reason: "tx-not-serializable" };
+      }
+      const transactionHex = Buffer.from(bytes).toString("hex");
+      try {
+        const txid = await submit(transactionHex);
+        return { ok: true, txid };
+      } catch {
+        return { ok: false, reason: "broadcast-rejected" };
+      }
     },
   };
 }
