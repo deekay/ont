@@ -5,6 +5,7 @@
 // clean teardown that removes the datadir. RED until createRegtestNode is implemented (stub throws).
 import { afterEach, describe, expect, it } from "vitest";
 import { existsSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { createRegtestNode, type RegtestNode } from "./regtest-node.js";
 
 const RUN = process.env.ONT_E2E_REGTEST === "1";
@@ -38,10 +39,13 @@ d("createRegtestNode (G1 slice 6a — regtest lifecycle)", () => {
     expect(existsSync(datadir)).toBe(false); // ephemeral datadir removed on stop
   }, 60_000);
 
-  it("uses an ephemeral datadir (never the default dir) and is parallel-safe: distinct datadir + port", async () => {
+  it("uses an ephemeral datadir under os.tmpdir() (never the user's default Bitcoin dir) and is parallel-safe", async () => {
     node = await createRegtestNode();
     extra = await createRegtestNode();
+    // Exact isolation property: the datadir is under the OS temp root, not DK's default node state.
+    expect(node.datadir.startsWith(tmpdir())).toBe(true);
     expect(node.datadir).toMatch(/regtest/i);
+    // distinct datadir + port per node (parallel-safe)
     expect(extra.datadir).not.toBe(node.datadir);
     expect(extra.rpc.url).not.toBe(node.rpc.url);
   }, 90_000);
