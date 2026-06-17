@@ -16,3 +16,16 @@ export {
   type ServedIngestRejectReason,
   type IngestServedReport,
 } from "./ingest-served.js";
+export {
+  runIndexerTick,
+  runIndexerLoop,
+  createEmptyIndexerBlockSource,
+  createInMemoryIndexerCursorStore,
+  type IndexerCursor,
+  type ConfirmedAnchorBatch,
+  type IndexerBlockSource,
+  type IndexerCursorStore,
+  type IndexerRunnerDeps,
+  type IndexerTickReport,
+  type RunLoopOptions,
+} from "./runner.js";
