@@ -28,6 +28,9 @@ export interface ConfirmedAnchorRecord {
 export interface ConfirmedAnchorStore {
   has(anchoredRoot: string): Promise<boolean>;
   put(record: ConfirmedAnchorRecord): Promise<void>;
+  /** Read accessor (go-live slice 5): the already-minted record for a confirmed anchor txid, or null. READ-ONLY —
+   *  mints nothing, mutates nothing. The resolver/web read these indexer-produced facts; they never confirm. */
+  getByTxid(anchorTxid: string): Promise<ConfirmedAnchorRecord | null>;
 }
 
 export type IngestRejectReason = ConfirmedBatchAnchorRejectReason | "ingest-error";

@@ -14,7 +14,8 @@
   "dependencies": {
     "@ont/adapter-resolver": "file:../../packages/adapter-resolver",
     "@ont/protocol": "file:../../packages/protocol",
-    "@ont/wire": "file:../../packages/wire"
+    "@ont/wire": "file:../../packages/wire",
+    "@ont/bitcoin": "file:../../packages/bitcoin"
   },
   "devDependencies": {
     "vitest": "^3.2.4"

@@ -116,5 +116,7 @@ export function createInMemoryConfirmedAnchorStore(): ConfirmedAnchorStore {
       records.set(record.confirmedAnchor.anchoredRoot, record);
       return Promise.resolve();
     },
+    // RED stub — slice 5 green pending CL red-OK.
+    getByTxid: () => Promise.reject(new Error("getByTxid: not implemented (slice 5 green pending)")),
   };
 }
