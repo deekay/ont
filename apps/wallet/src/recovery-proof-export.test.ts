@@ -87,11 +87,14 @@ describe("recovery proof — no key material in the artifact", () => {
 });
 
 describe("recovery proof — fail-closed", () => {
-  it("malformed signatureBase64 → invalid-input (never throws)", () => {
+  it("empty/whitespace signatureBase64 → invalid-input (never throws)", () => {
+    // The protocol's normalizeBase64 rejects empty/whitespace; base64-char validity is a verify-time concern
+    // (a non-empty junk signature assembles but fails verifyRecoveryWalletProof), so the assemble fail-closed
+    // boundary is the empty signature.
     const d = descriptor();
     let r: ReturnType<typeof assembleRecoveryWalletProof> | undefined;
     expect(() => {
-      r = assembleRecoveryWalletProof({ ...baseInput(d), signatureBase64: "!!!not-base64!!!" });
+      r = assembleRecoveryWalletProof({ ...baseInput(d), signatureBase64: "   " });
     }).not.toThrow();
     expect(r?.ok).toBe(false);
     if (r && !r.ok) expect(r.reason).toBe("invalid-input");

@@ -52,9 +52,11 @@ function messageFields(input: RecoveryProofExportInput) {
  * BIP322-signs. Total; never throws (malformed → invalid-input).
  */
 export function recoveryWalletProofMessage(input: RecoveryProofExportInput): RecoveryProofMessageResult {
-  void input;
-  void messageFields;
-  return { ok: false, reason: "not-implemented" };
+  try {
+    return { ok: true, message: createRecoveryWalletProofMessage(messageFields(input)) };
+  } catch {
+    return { ok: false, reason: "invalid-input" };
+  }
 }
 
 /**
@@ -65,7 +67,16 @@ export function recoveryWalletProofMessage(input: RecoveryProofExportInput): Rec
 export function assembleRecoveryWalletProof(
   input: RecoveryProofExportInput & { readonly signatureBase64: string }
 ): AssembleRecoveryProofResult {
-  void input;
-  void createRecoveryWalletProof;
-  return { ok: false, reason: "not-implemented" };
+  try {
+    const proof = createRecoveryWalletProof({
+      ...messageFields(input),
+      // recoveryAddress + signingProfile come from the descriptor, never a caller override.
+      recoveryAddress: input.descriptor.recoveryAddress,
+      signingProfile: input.descriptor.signingProfile,
+      signatureBase64: input.signatureBase64,
+    });
+    return { ok: true, proof };
+  } catch {
+    return { ok: false, reason: "invalid-input" };
+  }
 }
