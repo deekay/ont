@@ -535,9 +535,25 @@ export async function getBitcoinRpcBlockCount(rpc: BitcoinRpcConfig): Promise<nu
  * here, not silently feed a bad Merkle root.) Lowercase is required, not normalized — bitcoind returns
  * lowercase and the consensus comparison is byte-exact.
  */
-export function assertBlockHeaderHex(_hex: unknown): string {
-  // RED stub — sub-slice 3b-4b green pending CL red-OK.
-  throw new Error("assertBlockHeaderHex: not implemented (3b-4b green pending)");
+export function assertBlockHeaderHex(hex: unknown): string {
+  if (typeof hex !== "string" || !/^[0-9a-f]{160}$/.test(hex)) {
+    throw new Error("bitcoin block header must be 160 lowercase hex chars (80 bytes)");
+  }
+  return hex;
+}
+
+/** getblockheader(hash, false) → the validated 80-byte header display hex. (go-live G1 3b-4b.) */
+export async function getBitcoinRpcBlockHeaderHex(rpc: BitcoinRpcConfig, blockHash: string): Promise<string> {
+  return assertBlockHeaderHex(await callBitcoinRpc<unknown>(rpc, "getblockheader", [blockHash, false]));
+}
+
+/** getrawtransaction(txid, false) → the raw tx hex. Non-string/empty fails closed (no silent coerce). */
+export async function getBitcoinRpcRawTransactionHex(rpc: BitcoinRpcConfig, txid: string): Promise<string> {
+  const raw = await callBitcoinRpc<unknown>(rpc, "getrawtransaction", [txid, false]);
+  if (typeof raw !== "string" || raw.length === 0) {
+    throw new Error(`getrawtransaction for ${txid} returned a non-string/empty result`);
+  }
+  return raw;
 }
 
 export async function getBitcoinEsploraTipHeight(esplora: BitcoinEsploraConfig): Promise<number> {
