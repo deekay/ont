@@ -2,8 +2,8 @@
 // Shapes the txid (reject-don't-normalize), reads a served tx from the injected WebReadPort, renders the tx
 // fields, and — if a carrier payload is present — decodes it via @ont/wire decodeEvent (the published parser; no
 // web-side carrier/consensus reimplementation) and renders the decoded ONT event. A Bitcoin tx proves on-chain
-// bytes only, NOT ONT ownership: bitcoin-chain + not-ownership-authority copy on every section. AuctionBid is
-// rendered PARKED (wire-codec-consolidation) only after the decoder identifies it. Total: never throws.
+// bytes only, NOT ONT ownership: bitcoin-chain + not-ownership-authority copy on every section. AuctionBid renders
+// the decoded W16 32-byte commitments only after the decoder identifies it. Total: never throws.
 import { isHex32Rendering, decodeEvent, hexToBytes, EventType } from "@ont/wire";
 import { htmlEscape } from "./render-name-view.js";
 import type { WebReadPort, ServedTx } from "./web-read-port.js";
@@ -26,7 +26,7 @@ export function shapeTxid(txid: unknown): ShapeTxidResult {
 /**
  * RED stub. Green: shapeTxid(txid) → else escaped error view (never touches the port). port.tx(txid) in a
  * whole-body try/catch → null/throw → unavailable view (never throws). Render the tx fields (escaped) + a carrier
- * section: decodeEvent(hexToBytes(carrierPayloadHex)) → AuctionBid → PARKED notice (no commitment fields);
+ * section: decodeEvent(hexToBytes(carrierPayloadHex)) → AuctionBid → decoded W16 bid fields;
  * Transfer/RecoverOwner/RootAnchor → decoded fields (escaped); decode failure → degraded line. bitcoin-chain +
  * not-ownership-authority copy on each section; no ownership/canonicality upgrade language.
  */
@@ -86,7 +86,16 @@ function carrierSection(payloadHex: string | null): string {
     case EventType.AuctionBid:
       return txSection(
         "Carrier — AuctionBid",
-        "<p>PARKED — auction display pending wire-codec-consolidation; commitment fields not shown.</p>"
+        `${field("flags", ev.flags)}${field("bondVout", ev.bondVout)}${field(
+          "settlementLockBlocks",
+          ev.settlementLockBlocks
+        )}${field("bidAmountSats", ev.bidAmountSats)}${field("ownerPubkey", ev.ownerPubkey)}${field(
+          "auctionLotCommitment",
+          ev.auctionLotCommitment
+        )}${field("auctionStateCommitment", ev.auctionStateCommitment)}${field(
+          "bidderCommitment",
+          ev.bidderCommitment
+        )}${field("unlockBlock", ev.unlockBlock)}${field("name", ev.name)}`
       );
     case EventType.Transfer:
       return txSection(

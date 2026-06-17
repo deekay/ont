@@ -5,12 +5,14 @@ import type { WebReadPort, ServedTx } from "./web-read-port.js";
 
 // B5-WEB tx-display red battery (CL design-concur event adc4cc64). SSR HTML, read/display only. Pins: reject-
 // don't-normalize txid (typeof before isHex32Rendering); bitcoin-chain / not-ownership-authority copy; carrier
-// decoded ONLY via @ont/wire decodeEvent; AuctionBid → PARKED notice (no commitments); HTML-escape; fail-closed
-// to unavailable on null/throwing tx read; never throws.
+// decoded ONLY via @ont/wire decodeEvent; AuctionBid renders decoded W16 commitments; HTML-escape; fail-closed to
+// unavailable on null/throwing tx read; never throws.
 
 const TXID = "33".repeat(32);
 const NEW_OWNER = "22".repeat(32);
 const LOT = "cd".repeat(32);
+const AUCTION_STATE = "ef".repeat(32);
+const BIDDER = "12".repeat(32);
 
 const transferCarrier = bytesToHex(
   encodeEvent({
@@ -31,8 +33,8 @@ const auctionCarrier = bytesToHex(
     bidAmountSats: 50000n,
     ownerPubkey: "22".repeat(32),
     auctionLotCommitment: LOT,
-    auctionStateCommitment: "ef".repeat(32),
-    bidderCommitment: "12".repeat(32),
+    auctionStateCommitment: AUCTION_STATE,
+    bidderCommitment: BIDDER,
     unlockBlock: 100,
     name: "alice",
   })
@@ -77,10 +79,15 @@ describe("renderTxView — served tx", () => {
 });
 
 describe("renderTxView — carrier handling", () => {
-  it("AuctionBid carrier → PARKED notice, no commitment fields", () => {
+  it("AuctionBid carrier → decoded W16 bid fields, including 32-byte commitments", () => {
     const out = renderTxView({ txid: TXID, port: port(auctionCarrier) });
-    expect(out).toMatch(/parked/i);
-    expect(out).not.toContain(LOT); // no commitment values shown — no 16-vs-32 bridge
+    expect(out).toContain("Carrier — AuctionBid");
+    expect(out).toContain("50000");
+    expect(out).toContain("alice");
+    expect(out).toContain(LOT);
+    expect(out).toContain(AUCTION_STATE);
+    expect(out).toContain(BIDDER);
+    expect(out).not.toMatch(/parked|wire-codec-consolidation/i);
   });
   it("malformed carrier → degraded decode line, tx still rendered, never throws", () => {
     let out = "";
