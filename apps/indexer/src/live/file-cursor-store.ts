@@ -31,7 +31,8 @@ function isFileNotFound(error: unknown): boolean {
  *   fails closed; a present file is parsed + validated, failing closed on malformed JSON / a non-object /
  *   a non-integer or negative height.
  * - `save(cursor)` — validates the height with the SAME rule (a bad runtime cursor must never persist poison
- *   state), then writes the canonical `{ height }` JSON (creating the parent directory if needed).
+ *   state), then writes the canonical `{ height }` JSON atomically (same-dir temp file + rename) so a failed
+ *   write never replaces the last durable cursor.
  */
 export function createFileIndexerCursorStore(
   filePath: string,
@@ -67,10 +68,14 @@ export function createFileIndexerCursorStore(
         // Defend against a poison runtime cursor even though the type says number.
         throw new Error(`invalid cursor: height must be a non-negative integer (got ${String(cursor.height)})`);
       }
-      // RED baseline: direct write to the final file (no temp+rename yet) — the failed-write durability test
-      // is red until the atomic write lands in green.
+      // Atomic write: stage a same-dir temp file then rename over the final file, so a failed write never
+      // replaces the last durable cursor (durability-before-visibility, matching the confirmed-anchor store).
+      // A failed rename may leave the temp behind, but load() reads only `filePath`, so the last durable cursor
+      // stays authoritative.
+      const tempPath = `${filePath}.tmp`;
       await fs.mkdir(dirname(filePath));
-      await fs.writeFile(filePath, JSON.stringify({ height: cursor.height }));
+      await fs.writeFile(tempPath, JSON.stringify({ height: cursor.height }));
+      await fs.rename(tempPath, filePath);
     },
   };
 }
