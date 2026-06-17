@@ -252,9 +252,109 @@ export function buildMatureSaleTransferArtifact(
   ownerPrivateKeyHex: string,
   input: MatureSaleTransferInput
 ): BuildSaleResult {
-  void ownerPrivateKeyHex;
-  void input;
-  return { ok: false, reason: "not-implemented" };
+  try {
+    const sellerInputs = input.sellerInputs;
+    if (sellerInputs.length === 0) return { ok: false, reason: "no-seller-binding-inputs" };
+    if (input.buyerInputs.length === 0) return { ok: false, reason: "no-buyer-inputs" };
+
+    const salePriceSats = parseSats(input.salePriceSats);
+    const feeSats = parseSats(input.feeSats);
+    if (salePriceSats === null || feeSats === null) return { ok: false, reason: "invalid-input" };
+    if (salePriceSats < 0n || feeSats < 0n) return { ok: false, reason: "negative-amount" };
+
+    const sellerValues = sellerInputs.map((i) => parseSats(i.valueSats));
+    const buyerValues = input.buyerInputs.map((i) => parseSats(i.valueSats));
+    if ([...sellerValues, ...buyerValues].some((v) => v === null)) return { ok: false, reason: "invalid-input" };
+    if ([...sellerValues, ...buyerValues].some((v) => (v ?? 0n) < 0n)) return { ok: false, reason: "negative-amount" };
+    const totalSeller = sellerValues.reduce<bigint>((a, v) => a + (v ?? 0n), 0n);
+    const totalBuyer = buyerValues.reduce<bigint>((a, v) => a + (v ?? 0n), 0n);
+
+    const buyerChange = totalBuyer - salePriceSats - feeSats;
+    if (buyerChange < 0n) return { ok: false, reason: "insufficient-buyer-funds" };
+    const buyerChangeAddress = input.buyerChangeAddress ?? null;
+    if (buyerChange > 0n && buyerChangeAddress === null) return { ok: false, reason: "change-without-address" };
+    const sellerPayout = totalSeller + salePriceSats;
+
+    const network = networkOf(input.network);
+    const sellerXOnly = ownerXOnly(ownerPrivateKeyHex);
+    // Script-based ownership: every seller binding input must pay to THIS wallet's P2TR before signing.
+    const sellerScriptHex = bytesToHex(ownerP2trScript(ownerPrivateKeyHex));
+    if (sellerInputs.some((i) => i.scriptPubKeyHex.toLowerCase() !== sellerScriptHex)) {
+      return { ok: false, reason: "invalid-input" };
+    }
+
+    // ONT-layer authorization with the mature sentinel (successorBondVout = 0xff, canon-ignored dead byte).
+    const authDigest = transferAuthDigest({
+      prevStateTxid: input.prevStateTxid,
+      newOwnerPubkey: input.newOwnerPubkey,
+      flags: input.flags,
+      successorBondVout: MATURE_SUCCESSOR_BOND_VOUT,
+    });
+    const ontSignature = bytesToHex(signOwnerSchnorr(authDigest, ownerPrivateKeyHex));
+    const transferPayload = encodeEvent({
+      type: EventType.Transfer,
+      prevStateTxid: input.prevStateTxid,
+      newOwnerPubkey: input.newOwnerPubkey,
+      flags: input.flags,
+      successorBondVout: MATURE_SUCCESSOR_BOND_VOUT,
+      signature: ontSignature,
+    });
+
+    const carrier = payments.embed({ data: [transferPayload] }).output;
+    if (!carrier) throw new Error("could not build OP_RETURN carrier");
+    const sellerPayoutScript = bjsAddress.toOutputScript(input.sellerPayoutAddress, network);
+
+    type PlannedOutput = { role: SaleOutput["role"]; value: bigint; script: Uint8Array };
+    // No successor bond on the mature path: carrier + combined seller_payment (+ buyer_change if any).
+    const outputs: PlannedOutput[] = [
+      { role: "ont_transfer", value: 0n, script: carrier },
+      { role: "seller_payment", value: sellerPayout, script: sellerPayoutScript },
+    ];
+    if (buyerChange > 0n && buyerChangeAddress !== null) {
+      outputs.push({ role: "buyer_change", value: buyerChange, script: bjsAddress.toOutputScript(buyerChangeAddress, network) });
+    }
+
+    const psbt = new Psbt({ network });
+    psbt.setVersion(2); // transaction nVersion = 2 (NOT a BIP-370 PSBTv2 contract)
+    for (const inp of sellerInputs) {
+      psbt.addInput({
+        hash: inp.txid,
+        index: inp.vout,
+        witnessUtxo: { script: hexToBytes(inp.scriptPubKeyHex), value: parseSats(inp.valueSats) ?? 0n },
+        tapInternalKey: sellerXOnly,
+      });
+    }
+    for (const inp of input.buyerInputs) {
+      psbt.addInput({
+        hash: inp.txid,
+        index: inp.vout,
+        witnessUtxo: { script: hexToBytes(inp.scriptPubKeyHex), value: parseSats(inp.valueSats) ?? 0n },
+      });
+    }
+    for (const out of outputs) psbt.addOutput({ script: out.script, value: out.value });
+
+    // Sign ONLY the seller binding inputs (indices 0..sellerInputs.length-1) at SIGHASH_DEFAULT (binds outputs).
+    const sellerSigner = keyPathSigner(ownerPrivateKeyHex);
+    for (let i = 0; i < sellerInputs.length; i += 1) psbt.signInput(i, sellerSigner);
+
+    return {
+      ok: true,
+      artifact: {
+        partialPsbtBase64: psbt.toBase64(),
+        transferEventHex: bytesToHex(transferPayload),
+        signedInputCount: sellerInputs.length,
+        feeSats: feeSats.toString(),
+        outputs: outputs.map((out, vout) => ({
+          vout,
+          role: out.role,
+          valueSats: out.value.toString(),
+          scriptHex: bytesToHex(out.script),
+        })),
+      },
+    };
+  } catch {
+    return { ok: false, reason: "invalid-input" };
+  }
 }
 
 /**
