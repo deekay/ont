@@ -17,7 +17,16 @@ wire decoder; it was migrated to `@ont/wire` before the protocol wire export
 was removed. `@ont/protocol` remains active for clean value/recovery/signing
 helpers and `auction-bid-package`; its auction lot/bidder commitments now
 render full W16 32-byte hex commitments, and auction bid package version moved
-from 3 to 4.
+from 3 to 4. **No 16-byte compatibility bridge remains anywhere in active code.**
+
+This is a quarantine **move**, not a deletion: the legacy code stays fully
+recoverable from `legacy/` plus git history (the moves are recorded as renames,
+so history is preserved). The reopen trigger below stays in force.
+
+Verification (independent re-run at commit): full active `npm test` →
+**1045 passed / 2 skipped**; `@ont/consensus` 466; `typecheck`, `check:surfaces`
+(claim/cli/wallet/web), `check-doc-links.sh`, and `git diff --check` all clean.
+Landed @ `676a545` on `clean-build-b5` (local/unpushed — DK's merge/push gate).
 
 ## TL;DR
 
