@@ -5,15 +5,15 @@ import {
   getOpReturnPayloads
 } from "@ont/bitcoin";
 import {
-  type AuctionBidEventPayload,
-  OntEventType,
-  RECOVER_OWNER_FLAG_CANCEL,
-  type RecoverOwnerEventPayload,
-  decodeOntPayload,
-  getEventTypeName,
-  type TransferEventPayload
-} from "@ont/protocol";
-import { recoverAuthDigest, transferAuthDigest, verifySchnorr } from "@ont/wire";
+  type AuctionBidEvent,
+  EventType,
+  type RecoverOwnerEvent,
+  type TransferEvent,
+  decodeEvent,
+  recoverAuthDigest,
+  transferAuthDigest,
+  verifySchnorr
+} from "@ont/wire";
 
 import { getClaimedNameStatus } from "./state.js";
 import {
@@ -21,6 +21,8 @@ import {
   type RecoveryDescriptorEvidence,
   type RecoveryParams,
 } from "./recovery-invoke-authority.js";
+
+const RECOVER_OWNER_FLAG_CANCEL = 0x01;
 
 export interface NameRecord {
   readonly name: string;
@@ -64,24 +66,24 @@ export interface ParsedOntEvent {
   readonly vout: number;
   readonly inputs: readonly BitcoinTransactionInput[];
   readonly outputs: readonly BitcoinTransactionOutput[];
-  readonly type: OntEventType;
+  readonly type: EventType.Transfer | EventType.AuctionBid | EventType.RecoverOwner;
   readonly payload:
-    | TransferEventPayload
-    | AuctionBidEventPayload
-    | RecoverOwnerEventPayload;
+    | TransferEvent
+    | AuctionBidEvent
+    | RecoverOwnerEvent;
 }
 
 export interface ProvenanceEventRecord {
   vout: number;
-  type: OntEventType;
+  type: EventType.Transfer | EventType.AuctionBid | EventType.RecoverOwner;
   typeName:
     | "TRANSFER"
     | "AUCTION_BID"
     | "RECOVER_OWNER";
   payload:
-    | TransferEventPayload
-    | AuctionBidEventPayload
-    | RecoverOwnerEventPayload;
+    | TransferEvent
+    | AuctionBidEvent
+    | RecoverOwnerEvent;
   validationStatus: "applied" | "ignored";
   reason: string;
   affectedName: string | null;
@@ -141,7 +143,11 @@ export function createEmptyState(): OntState {
 export function extractOntEvents(transaction: BitcoinTransactionInBlock): ParsedOntEvent[] {
   return getOpReturnPayloads(transaction.tx).flatMap(({ vout, payload }) => {
     try {
-      const decoded = decodeOntPayload(payload);
+      const decoded = decodeEvent(payload);
+
+      if (decoded.type === EventType.RootAnchor) {
+        return [];
+      }
 
       return [
         {
@@ -152,7 +158,7 @@ export function extractOntEvents(transaction: BitcoinTransactionInBlock): Parsed
           inputs: transaction.tx.inputs,
           outputs: transaction.tx.outputs,
           type: decoded.type,
-          payload: decoded.payload
+          payload: decoded
         }
       ];
     } catch {
@@ -244,28 +250,25 @@ function applyEvent(
   options: OntEventApplicationOptions
 ): EventApplicationResult {
   switch (event.type) {
-    case OntEventType.Transfer:
+    case EventType.Transfer:
       return applyTransfer(state, event);
-    case OntEventType.AuctionBid:
+    case EventType.AuctionBid:
       return applyAuctionBid(
         state,
         event as ParsedOntEvent & {
-          readonly type: OntEventType.AuctionBid;
-          readonly payload: AuctionBidEventPayload;
+          readonly type: EventType.AuctionBid;
+          readonly payload: AuctionBidEvent;
         }
       );
-    case OntEventType.RecoverOwner:
+    case EventType.RecoverOwner:
       return applyRecoverOwner(
         state,
         event as ParsedOntEvent & {
-          readonly type: OntEventType.RecoverOwner;
-          readonly payload: RecoverOwnerEventPayload;
+          readonly type: EventType.RecoverOwner;
+          readonly payload: RecoverOwnerEvent;
         },
         options
       );
-    default:
-      // Scaling-rail messages (RootAnchor / AvailabilityMarker) are not v1 events; ignore them here.
-      return { validationStatus: "ignored", reason: "unsupported_event_type", affectedName: null };
   }
 }
 
@@ -312,7 +315,7 @@ function applySingleBlockTransactions(
 
 function applyAuctionBid(
   _state: OntState,
-  event: ParsedOntEvent & { readonly type: OntEventType.AuctionBid; readonly payload: AuctionBidEventPayload }
+  event: ParsedOntEvent & { readonly type: EventType.AuctionBid; readonly payload: AuctionBidEvent }
 ): EventApplicationResult {
   const bondOutput = event.outputs[event.payload.bondVout] ?? null;
 
@@ -406,7 +409,7 @@ function verifyRecoverOwnerCancelSignature(input: {
 }
 
 function applyTransfer(state: OntState, event: ParsedOntEvent): EventApplicationResult {
-  const payload = event.payload as TransferEventPayload;
+  const payload = event.payload as TransferEvent;
   const record = findNameRecordByLastStateTxid(state, payload.prevStateTxid);
 
   if (record === null || record.status === "invalid") {
@@ -524,7 +527,7 @@ function applyTransfer(state: OntState, event: ParsedOntEvent): EventApplication
 
 function applyRecoverOwner(
   state: OntState,
-  event: ParsedOntEvent & { readonly type: OntEventType.RecoverOwner; readonly payload: RecoverOwnerEventPayload },
+  event: ParsedOntEvent & { readonly type: EventType.RecoverOwner; readonly payload: RecoverOwnerEvent },
   options: OntEventApplicationOptions
 ): EventApplicationResult {
   if ((event.payload.flags & RECOVER_OWNER_FLAG_CANCEL) !== 0) {
@@ -536,7 +539,7 @@ function applyRecoverOwner(
 
 function applyRecoverOwnerRequest(
   state: OntState,
-  event: ParsedOntEvent & { readonly type: OntEventType.RecoverOwner; readonly payload: RecoverOwnerEventPayload },
+  event: ParsedOntEvent & { readonly type: EventType.RecoverOwner; readonly payload: RecoverOwnerEvent },
   options: OntEventApplicationOptions
 ): EventApplicationResult {
   const payload = event.payload;
@@ -684,7 +687,7 @@ function applyRecoverOwnerRequest(
 
 function applyRecoverOwnerCancel(
   state: OntState,
-  event: ParsedOntEvent & { readonly type: OntEventType.RecoverOwner; readonly payload: RecoverOwnerEventPayload }
+  event: ParsedOntEvent & { readonly type: EventType.RecoverOwner; readonly payload: RecoverOwnerEvent }
 ): EventApplicationResult {
   const payload = event.payload;
   const record = findNameRecordByPendingRecoveryTxid(state, payload.prevStateTxid);
@@ -891,4 +894,17 @@ function createProvenanceEventRecord(
     reason: outcome.reason,
     affectedName: outcome.affectedName
   };
+}
+
+function getEventTypeName(
+  type: EventType.Transfer | EventType.AuctionBid | EventType.RecoverOwner
+): "TRANSFER" | "AUCTION_BID" | "RECOVER_OWNER" {
+  switch (type) {
+    case EventType.Transfer:
+      return "TRANSFER";
+    case EventType.AuctionBid:
+      return "AUCTION_BID";
+    case EventType.RecoverOwner:
+      return "RECOVER_OWNER";
+  }
 }

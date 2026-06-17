@@ -92,7 +92,7 @@ describe("§5 keys", () => {
     // Golden-vector mining per B0: the legacy deriveOwnerKey must produce the
     // same keys from the same 12 words, or the carried-forward derivation
     // (§5: 'byte-identical keys in every implementation') is misstated.
-    const legacy = await import("../../../apps/claim/src/keys");
+    const legacy = await import("../../../legacy/apps/claim/src/keys");
     for (const o of keys.owners) {
       const k = legacy.deriveOwnerKey(keys.mnemonic, o.index);
       expect(k.ownerPubkey, `owner ${o.index}`).toBe(o.xOnlyPubkey);

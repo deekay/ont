@@ -1,10 +1,23 @@
 # Decision packet — wire-codec-consolidation (DK call)
 
-**Status:** OPEN — DK decision required (clean-build composition boundary). Analysis/advisory tier.
+**Status:** RATIFIED + APPLIED — DK approved option C / quarantine-now on 2026-06-17; implemented on `clean-build-b5`. Analysis/advisory tier.
 **Proposed stable name:** `wire-codec-consolidation`
 **Raised by:** ClaudeleLunatique, surfaced while building the B5-WALLET auction-bid slice.
 **Reviewer:** ChatLunatique (concurs the framing + recommendation; see ONT-dev channel).
 **Parks:** the B5-WALLET **auction-bid** sub-slice (gift-transfer + the cooperative-sale design are unaffected and proceed).
+
+## Outcome — 2026-06-17
+
+DK approved option C with quarantine-now timing. The pre-W16 cluster is now
+outside active workspaces under `legacy/`: `apps/publisher`, `apps/indexer`,
+`apps/resolver`, `packages/core`, `packages/architect`, and
+`packages/protocol/src/wire.ts` plus its codec tests. During implementation,
+`@ont/consensus` was found to be the remaining active consumer of the protocol
+wire decoder; it was migrated to `@ont/wire` before the protocol wire export
+was removed. `@ont/protocol` remains active for clean value/recovery/signing
+helpers and `auction-bid-package`; its auction lot/bidder commitments now
+render full W16 32-byte hex commitments, and auction bid package version moved
+from 3 to 4.
 
 ## TL;DR
 
@@ -16,7 +29,7 @@ The clean build currently contains **two wire codecs**: the clean `@ont/wire` (B
 - `@ont/protocol/wire.ts` (carried-over): `encodeAuctionBidPayload`/`decodeAuctionBidPayload` are hardcoded **16-byte** — decode `slice(51,67)` (lot) + `slice(99,115)` (bidder); `wire-size.test.ts` pins the **152-byte** bid. This is a *duplicate, out-of-sync* codec.
 - `computeAuctionLotCommitment` / `computeAuctionBidderCommitment` (`auction-bid-package.ts:369,387`) end with `sha256Hex(...).slice(0,32)` — `.slice` on a **hex string** → 32 hex chars = **16 bytes** (the truncated 128-bit form). `createAuctionBidPackage` validates those package fields at 16 bytes (`:105,127`).
 - `compute*` is consumed by the pre-W16 codec, so it cannot move in isolation: `protocol.test.ts:139` feeds `compute*` into `encodeAuctionBidPayload`; `@ont/core` (`indexer.test.ts`, `experimental-auction`) and `@ont/architect` (`index.ts:284`, `browser.ts:179`) build AuctionBid payloads from `compute*`/package commitments — **47 `compute*` couplings** across those two packages.
-- **The cluster is cleanly separable.** The clean stack — `@ont/wire`, `@ont/consensus`, `@ont/adapter-*`, `@ont/claim-path`, `@ont/evidence`, and the clean surfaces `apps/wallet|cli|claim` — has **no** dependency on `@ont/core` or `@ont/architect`. Only the carried-over old apps depend on them: `apps/publisher`, `apps/indexer`, `apps/resolver` (→ `@ont/core`) and `apps/web` (→ `@ont/architect` + `@ont/core`).
+- **The cluster is cleanly separable after one active consumer cleanup.** The clean stack had no dependency on `@ont/core` or `@ont/architect`; the only remaining active dependency on the duplicate protocol codec was `@ont/consensus` event decoding, which migrated to `@ont/wire` during application. Only the carried-over old apps depended on `@ont/core` / `@ont/architect`: `apps/publisher`, `apps/indexer`, `apps/resolver` (→ `@ont/core`) and the pre-B5 `apps/web` (→ `@ont/architect` + `@ont/core`).
 - W16 is ratified (`DECISIONS.md` — "B2 may treat ... full-width commitments collision-resistant per the W16 ruling"). So this is **propagation of a ratified decision + a composition cleanup**, not new law.
 
 ## Why this is a DK call

@@ -4,7 +4,7 @@ import { concatBytes, sha256Hex, utf8ToBytes } from "./crypto.js";
 import { normalizeName } from "./names.js";
 
 export const AUCTION_BID_PACKAGE_FORMAT = "ont-auction-bid-package";
-export const AUCTION_BID_PACKAGE_VERSION = 3;
+export const AUCTION_BID_PACKAGE_VERSION = 4;
 
 export type AuctionBidPackagePhase =
   | "pending_unlock"
@@ -102,7 +102,7 @@ export function createAuctionBidPackage(input: CreateAuctionBidPackageInput): Au
   const ownerPubkey = assertHexBytes(input.ownerPubkey, 32, "ownerPubkey");
   const bidAmountSats = parseBigIntLike(input.bidAmountSats, "bidAmountSats");
   const auctionLotCommitment = input.auctionLotCommitment
-    ? assertHexBytes(input.auctionLotCommitment, 16, "auctionLotCommitment")
+    ? assertHexBytes(input.auctionLotCommitment, 32, "auctionLotCommitment")
     : computeAuctionLotCommitment({
         auctionId,
         name,
@@ -124,7 +124,7 @@ export function createAuctionBidPackage(input: CreateAuctionBidPackageInput): Au
         settlementLockBlocks
       });
   const bidderCommitment = input.bidderCommitment
-    ? assertHexBytes(input.bidderCommitment, 16, "bidderCommitment")
+    ? assertHexBytes(input.bidderCommitment, 32, "bidderCommitment")
     : computeAuctionBidderCommitment(bidderId);
 
   assertAuctionStateConsistency({
@@ -226,7 +226,7 @@ export function parseAuctionBidPackage(input: unknown): AuctionBidPackage {
   const bidAmountSats = parseBigIntLike(record.bidAmountSats, "bidAmountSats");
   const auctionLotCommitment = assertHexBytes(
     assertString(record.auctionLotCommitment, "auctionLotCommitment"),
-    16,
+    32,
     "auctionLotCommitment"
   );
   const auctionStateCommitment = assertHexBytes(
@@ -236,7 +236,7 @@ export function parseAuctionBidPackage(input: unknown): AuctionBidPackage {
   );
   const bidderCommitment = assertHexBytes(
     assertString(record.bidderCommitment, "bidderCommitment"),
-    16,
+    32,
     "bidderCommitment"
   );
   const previewStatus = parseAuctionBidPackagePreviewStatus(record.previewStatus, "previewStatus");
@@ -366,7 +366,7 @@ export function computeAuctionBidderCommitment(bidderId: string): string {
       utf8ToBytes("\u0000"),
       utf8ToBytes(normalizeRequiredText(bidderId, "bidderId"))
     )
-  ).slice(0, 32);
+  );
 }
 
 export function computeAuctionLotCommitment(input: {
@@ -384,7 +384,7 @@ export function computeAuctionLotCommitment(input: {
       utf8ToBytes("\u0000"),
       utf8ToBytes(String(parseNonNegativeSafeInteger(input.unlockBlock, "unlockBlock")))
     )
-  ).slice(0, 32);
+  );
 }
 
 export function computeAuctionBidStateCommitment(input: {
@@ -566,7 +566,7 @@ function parseOptionalAuctionBidCommitment(value: unknown, label: string): strin
     return null;
   }
 
-  return assertHexBytes(assertString(value, label), 16, label);
+  return assertHexBytes(assertString(value, label), 32, label);
 }
 
 function parseAuctionBidPackagePhase(value: unknown, label: string): AuctionBidPackagePhase {

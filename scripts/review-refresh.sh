@@ -21,9 +21,12 @@ has_regtest_target() {
   [[ -n "${ONT_REGTEST_SSH_TARGET:-${ONT_SSH_TARGET:-}}" ]]
 }
 
+run_step "1/5 local package tests" npm test -w @ont/wire
 run_step "1/5 local package tests" npm test -w @ont/protocol
-run_step "1/5 local package tests" npm test -w @ont/core
+run_step "1/5 local package tests" npm test -w @ont/consensus
+run_step "1/5 local package tests" npm test -w @ont/claim
 run_step "1/5 local package tests" npm test -w @ont/cli
+run_step "1/5 local package tests" npm test -w @ont/wallet
 run_step "1/5 local package tests" npm test -w @ont/web
 
 run_step "2/5 fixture browser e2e" npm run test:e2e:fixture-web

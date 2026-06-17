@@ -18,8 +18,6 @@ import { bech32, base58check } from "@scure/base";
 import bip322 from "bip322-js";
 
 import * as legacyEvents from "../../protocol/dist/events.js";
-import * as legacyWire from "../../protocol/dist/wire.js";
-import * as legacyBidPkg from "../../protocol/dist/auction-bid-package.js";
 
 const OUT_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "vectors");
 const SPEC = "docs/spec/WIRE_FORMAT.md";
@@ -71,6 +69,36 @@ const recoveryAddress = bech32.encode("tb", [0, ...bech32.toWords(recoveryH160)]
 
 // ---- §3 frame ---------------------------------------------------------------
 const FRAME = (type) => cat(utf8("ONT"), Uint8Array.of(0x01, type));
+const legacyText = (s) => {
+  const trimmed = String(s).trim();
+  if (trimmed.length === 0) throw new Error("legacy text commitment input must be non-empty");
+  return trimmed;
+};
+const legacyBidderCommitment = (bidderId) =>
+  hex(sha256(cat(utf8("ont-auction-bidder-v1"), utf8("\0"), utf8(legacyText(bidderId))))).slice(0, 32);
+const legacyLotCommitment = ({ auctionId, name, unlockBlock }) =>
+  hex(sha256(cat(
+    utf8("ont-auction-lot-v1"), utf8("\0"),
+    utf8(legacyText(auctionId)), utf8("\0"),
+    utf8(name), utf8("\0"),
+    utf8(String(unlockBlock))
+  ))).slice(0, 32);
+const legacyEncodeAuctionBidPayload = (event) => {
+  const nameBytes = utf8(event.name);
+  return cat(
+    FRAME(0x07),
+    Uint8Array.of(event.flags, event.bondVout),
+    u32(event.settlementLockBlocks),
+    u64(event.bidAmountSats),
+    fromHex(event.ownerPubkey),
+    fromHex(event.auctionLotCommitment),
+    fromHex(event.auctionCommitment),
+    fromHex(event.bidderCommitment),
+    u32(event.unlockBlock),
+    Uint8Array.of(nameBytes.length),
+    nameBytes
+  );
+};
 const LIVE_TYPES = { transfer: 0x03, auctionBid: 0x07, recoverOwner: 0x09, rootAnchor: 0x0b };
 const RETIRED_TYPES = [0x0d];
 // §3: exhaustive — every byte not in the live registry rejects (251 unassigned + 1 retired)
@@ -608,7 +636,7 @@ const walletProofFile = {
 };
 
 // legacy-evidence.json — mined from quarantine-bound legacy code; never conformance targets
-const legacyBid = legacyWire.encodeAuctionBidPayload({
+const legacyBid = legacyEncodeAuctionBidPayload({
   flags: 0x01, bondVout: 1, settlementLockBlocks: 288, bidAmountSats: 51000n,
   ownerPubkey: hex(owners[0].pub),
   auctionLotCommitment: hex(material32("legacy.lot")).slice(0, 32),
@@ -616,9 +644,7 @@ const legacyBid = legacyWire.encodeAuctionBidPayload({
   bidderCommitment: hex(material32("legacy.bidder")).slice(0, 32),
   unlockBlock: 1200, name: maxName, // 32-char name = the documented 152-byte legacy maximum
 });
-const legacyMarker = legacyWire.encodeAvailabilityMarkerPayload
-  ? legacyWire.encodeAvailabilityMarkerPayload({ dataDigest: hex(material32("legacy.marker")), batchSize: 7 })
-  : cat(FRAME(0x0d), material32("legacy.marker"), u32(7));
+const legacyMarker = cat(FRAME(0x0d), material32("legacy.marker"), u32(7));
 const legacyEvidenceFile = {
   spec: SPEC, section: "§3/§4.5/§6/§7 legacy rows",
   note: "Mined from packages/protocol (quarantine-bound). Evidence of the old codec only — every entry MUST be rejected by a v1 decoder or is dead by retired label.",
@@ -632,7 +658,8 @@ const legacyEvidenceFile = {
     { id: "legacy-commitment-labels", kind: "legacy-evidence",
       cite: "§7 'ont-auction-bidder-v1 / -lot-v1 / -state-v1: retired; never reused'",
       labels: ["ont-auction-bidder-v1", "ont-auction-lot-v1", "ont-auction-state-v1"],
-      legacyBidderCommitment: legacyBidPkg.computeAuctionBidderCommitment("bidder-beta"),
+      legacyBidderCommitment: legacyBidderCommitment("bidder-beta"),
+      legacyLotCommitment: legacyLotCommitment({ auctionId: "legacy-lot", name: "example", unlockBlock: 1200 }),
       note: "NUL-separated text convention, retired with the labels" },
     { id: "legacy-value-record-version-2", kind: "legacy-evidence",
       cite: "§8.1 legacy recordVersion 2 = GNS→ONT rebrand artifact; digests differ by version byte, never valid under v1",

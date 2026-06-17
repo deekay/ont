@@ -47,22 +47,22 @@ import {
   RECOVER_OWNER_FLAG_CANCEL,
   bytesToHex,
   computeRecoverOwnerAuthorizationHash,
-  createRecoverOwnerPayload,
-  createTransferPayload,
   deriveOwnerPubkey,
-  encodeRecoverOwnerPayload,
-  encodeTransferPayload,
   signRecoverOwnerCancelAuthorization,
   signTransferAuthorization,
 } from "@ont/protocol";
 import type { BitcoinTransactionInBlock } from "@ont/bitcoin";
 import { schnorr } from "@noble/curves/secp256k1.js";
 import {
+  EventType,
   RECOVERY_DESCRIPTOR_FORMAT,
   RECOVERY_DESCRIPTOR_VERSION_V2,
+  encodeEvent,
   hexToBytes,
   recoverAuthDigest,
   recoveryDescriptorDigest,
+  type RecoverOwnerEvent,
+  type TransferEvent,
 } from "@ont/wire";
 
 import {
@@ -154,8 +154,8 @@ function cancelTx(input: {
 }): BitcoinTransactionInBlock {
   const signOver = input.signFields ?? input.fields;
   const signature = signRecoverOwnerCancelAuthorization({ ...signOver, ownerPrivateKeyHex: input.signerPrivateKeyHex });
-  const payload = createRecoverOwnerPayload({ ...input.fields, signature });
-  const dataHex = bytesToHex(encodeRecoverOwnerPayload(payload));
+  const payload: RecoverOwnerEvent = { type: EventType.RecoverOwner, ...input.fields, signature };
+  const dataHex = bytesToHex(encodeEvent(payload));
   return {
     tx: { txid: input.txid, inputs: [], outputs: [{ valueSats: 0n, scriptType: "op_return", dataHex }] },
     blockHeight: input.blockHeight,
@@ -413,8 +413,8 @@ function invokeTx(opts: { txid: string; blockHeight: number; successorAddress?: 
   const descHash = bytesToHex(recoveryDescriptorDigest(armedDescriptor()));
   const fields = { prevStateTxid: INVOKE_HEAD, newOwnerPubkey: PROPOSED_PUB, flags: 0, successorBondVout: 0, challengeWindowBlocks: CHALLENGE_WINDOW, recoveryDescriptorHash: descHash };
   const signature = bytesToHex(schnorr.sign(recoverAuthDigest(fields), hexToBytes(opts.invokeSignerPriv ?? RECOVERY_PRIV), AUX));
-  const payload = createRecoverOwnerPayload({ ...fields, signature });
-  const dataHex = bytesToHex(encodeRecoverOwnerPayload(payload));
+  const payload: RecoverOwnerEvent = { type: EventType.RecoverOwner, ...fields, signature };
+  const dataHex = bytesToHex(encodeEvent(payload));
   return {
     tx: {
       txid: opts.txid,
@@ -491,8 +491,8 @@ describe("X13 — owner-key Transfer is blocked while a recovery is pending", ()
     seedNameWithPendingRecovery(state); // pendingRecovery open; head = PRE_INVOKE_HEAD, current owner = OWNER_PUB
     const transferFields = { prevStateTxid: PRE_INVOKE_HEAD, newOwnerPubkey: PROPOSED_PUB, flags: 0, successorBondVout: 0 };
     const signature = signTransferAuthorization({ ...transferFields, ownerPrivateKeyHex: OWNER_PRIV });
-    const payload = createTransferPayload({ ...transferFields, signature });
-    const dataHex = bytesToHex(encodeTransferPayload(payload));
+    const payload: TransferEvent = { type: EventType.Transfer, ...transferFields, signature };
+    const dataHex = bytesToHex(encodeEvent(payload));
     const tx: BitcoinTransactionInBlock = {
       tx: { txid: "f6".repeat(32), inputs: [], outputs: [{ valueSats: 0n, scriptType: "op_return", dataHex }] },
       blockHeight: 600,

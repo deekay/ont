@@ -197,9 +197,9 @@ export function createAuctionBidPayload(input: {
     settlementLockBlocks: input.settlementLockBlocks,
     bidAmountSats: input.bidAmountSats,
     ownerPubkey: assertHexBytes(input.ownerPubkey, 32, "ownerPubkey"),
-    auctionLotCommitment: assertHexBytes(input.auctionLotCommitment, 16, "auctionLotCommitment"),
+    auctionLotCommitment: assertHexBytes(input.auctionLotCommitment, 32, "auctionLotCommitment"),
     auctionCommitment: assertHexBytes(input.auctionCommitment, 32, "auctionCommitment"),
-    bidderCommitment: assertHexBytes(input.bidderCommitment, 16, "bidderCommitment"),
+    bidderCommitment: assertHexBytes(input.bidderCommitment, 32, "bidderCommitment"),
     name: normalizedName,
     unlockBlock: input.unlockBlock
   };

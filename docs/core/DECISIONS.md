@@ -2382,9 +2382,11 @@ Reviewer-facing trade-offs that should be stated plainly include:
   `research/OWNER_KEY_RECOVERY.md`.)*
 
 5. Concrete wire format — **[ANSWERED]** *the v1 event set is Decision #26,
-wire-format direction is Decision #28, the formats live in
-`@ont/protocol/src/wire.ts`, run on signet, and the size envelope is pinned by
-`wire-size.test.ts` (≤171 bytes, recover-owner).*
+wire-format direction is Decision #28, the active formats live in `@ont/wire`
+after `wire-codec-consolidation` (2026-06-17), and the size envelope is pinned
+by the `@ont/wire` conformance/implementation tests (≤184 bytes, max-name
+AuctionBid). The old `@ont/protocol/src/wire.ts` codec is quarantined legacy
+evidence.*
 
 Need to specify exact OP_RETURN payload formats for:
 - AUCTION_BID

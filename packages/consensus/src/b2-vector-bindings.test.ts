@@ -38,9 +38,12 @@ import {
   VALUE_RECORD_VERSION,
   bytesToHex,
   computeLotCommitment,
+  encodeEvent,
+  EventType,
   hexToBytes,
   recoverAuthDigest,
   recoveryDescriptorDigest,
+  type TransferEvent,
   valueRecordDigest,
 } from "@ont/wire";
 import {
@@ -93,13 +96,10 @@ import { bondContinuityBreak } from "./bond-continuity-break.js";
 import { transferAuthorityByState } from "./transfer-authority-state.js";
 import { feeFactEligibility } from "./fee-fact-eligibility.js";
 import {
-  createTransferPayload,
   deriveOwnerPubkey,
-  encodeTransferPayload,
   signRecoverOwnerCancelAuthorization,
   signTransferAuthorization,
   type TransferAuthorizationFields,
-  type TransferEventPayload,
 } from "@ont/protocol";
 import type {
   BitcoinTransactionInBlock,
@@ -942,19 +942,22 @@ function etSeed(state: OntState, overrides: Partial<NameRecord> & { name: string
   state.names.set(record.name, record);
   return record;
 }
-const etOpReturn = (payload: TransferEventPayload): BitcoinTransactionOutput => ({
+const etOpReturn = (payload: TransferEvent): BitcoinTransactionOutput => ({
   valueSats: 0n,
   scriptType: "op_return",
-  dataHex: bytesToHex(encodeTransferPayload(payload)),
+  dataHex: bytesToHex(encodeEvent(payload)),
 });
 const etPayment = (valueSats: bigint): BitcoinTransactionOutput => ({ valueSats, scriptType: "payment" });
 const etBondInput = (txid: string, vout: number): BitcoinTransactionInput => ({ txid, vout, coinbase: false });
-const etSignedTransfer = (fields: TransferAuthorizationFields, signerPriv: string): TransferEventPayload =>
-  createTransferPayload({ ...fields, signature: signTransferAuthorization({ ...fields, ownerPrivateKeyHex: signerPriv }) });
+const etSignedTransfer = (fields: TransferAuthorizationFields, signerPriv: string): TransferEvent => ({
+  type: EventType.Transfer,
+  ...fields,
+  signature: signTransferAuthorization({ ...fields, ownerPrivateKeyHex: signerPriv }),
+});
 function etBlock(input: {
   txid: string;
   blockHeight: number;
-  payload: TransferEventPayload;
+  payload: TransferEvent;
   inputs?: readonly BitcoinTransactionInput[];
   extraOutputs?: readonly BitcoinTransactionOutput[]; // outputs[0] is always the OP_RETURN
 }): BitcoinTransactionInBlock {
@@ -996,7 +999,7 @@ describe("B2 vector bindings — engine-transfer family (applyBlockTransactions)
     });
     const crossState = createEmptyState();
     etSeed(crossState, { name: "alice", maturityHeight: 1000 });
-    const crossPayload = createTransferPayload({ ...matureFields, signature: recoverSig });
+    const crossPayload: TransferEvent = { type: EventType.Transfer, ...matureFields, signature: recoverSig };
     expect(etApplyVerdict(crossState, etBlock({ txid: "e1".repeat(32), blockHeight: 2000, payload: crossPayload }))).toBe("ignored");
     // companion (caseB): the incoming/recipient owner self-signing authorizes nothing — it must
     // verify against the current owner key, not the key being transferred to.
@@ -1041,7 +1044,7 @@ describe("B2 vector bindings — engine-transfer family (applyBlockTransactions)
     assertBindable(vector);
     // primary -> expected.verdict: an out-of-range (>255) successorBondVout cannot be encoded.
     expectConstructionVerdict(vector, () =>
-      createTransferPayload({ ...baseFields, successorBondVout: 256, signature: "00".repeat(64) })
+      encodeEvent({ type: EventType.Transfer, ...baseFields, successorBondVout: 256, signature: "00".repeat(64) })
     );
     // companion: the same transfer with an in-range vout designating an adequate output applies.
     const ok = createEmptyState();

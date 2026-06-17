@@ -1,6 +1,6 @@
 # ONT Software Inventory — code fates and the spec normativity ledger
 
-> **Status: ACTIVE — reviewed 2026-06-11** (ChatLunatique adversarial
+> **Status: ACTIVE — reviewed 2026-06-11; quarantine update 2026-06-17** (ChatLunatique adversarial
 > review, two rounds). This is the B1-blocking ledger required by
 > clean-build (#46) Item 3, in two halves: every code unit classified with
 > its doc-rule mapping, and every spec file's normativity status. It is a
@@ -9,6 +9,14 @@
 > hardening before the phase that implements it. Snapshot basis:
 > `main` @ 60d4673 — ~57k lines TS in the workspace (`packages/*`, `apps/*`)
 > plus ~9.5k lines in the out-of-workspace `mobile/` app.
+
+**2026-06-17 quarantine update:** DK ratified `wire-codec-consolidation`
+option C / quarantine-now. The carried-over pre-W16 cluster is now physically
+under `legacy/` and outside the npm workspace: `apps/publisher`,
+`apps/indexer`, `apps/resolver`, `packages/core`, `packages/architect`, and
+the duplicate `packages/protocol/src/wire.ts` codec/tests. `@ont/wire` is the
+sole active event codec; `@ont/protocol` retains clean value/recovery/signing
+helpers and `auction-bid-package` with W16 full-width commitments.
 
 ## Half 1 — Code: classification and fates
 
@@ -24,20 +32,20 @@ the unit's *functionality* and *code* are for during the rebuild.
 
 | Unit | Lines | What it is (verified read) | Doc rules it maps to | Fate |
 | --- | --- | --- | --- | --- |
-| `packages/protocol` | ~3.8k | wire layer: name grammar, canonical encoding, event/payload formats, signatures, constants; vector-rich (`wire-size.test.ts` pins the 171-byte recover-owner bound) | `spec/` wire sections; STATUS key numbers (OP_RETURN size, bond curve) | **rewrite → `@ont/wire` (B1)**; prime vector-mining source |
+| `packages/protocol` | ~3.8k | active clean off-chain/signature helpers plus legacy-mined protocol helpers; duplicate event codec quarantined 2026-06-17 | `spec/` wire sections; STATUS key numbers (OP_RETURN size, bond curve) | **rewrite → `@ont/wire` (B1)** for event codec; active package keeps value-record / recovery / signing / auction-bid-package helpers |
 | `packages/consensus` | ~2.0k | audited core, 3 CI-locked files (boundary-manifest (#44)) | acquisition state machine, settlement-into-core (#42), bond-opens (#37) | **rewrite → `@ont/consensus` (B2)**; CI-locked files are keep-as-reference-grade mining |
-| `packages/core` | ~11.1k | machinery + research sims; experiment-infected; name collision ("core" retired) | state transitions (kernel rules currently outside the audited boundary); proof construction | **rewrite → split**: state transitions → `@ont/consensus` (B2), proofs → `@ont/evidence` (B3); research sims **retire** to quarantine |
+| `packages/core` | ~11.1k | machinery + research sims; experiment-infected; name collision ("core" retired); now `legacy/packages/core` | state transitions (kernel rules currently outside the audited boundary); proof construction | **rewrite → split**: state transitions → `@ont/consensus` (B2), proofs → `@ont/evidence` (B3); research sims **retire** to quarantine |
 | `packages/bitcoin` | ~2.2k | RPC/Esplora plumbing (block fetch, polling) | none (non-deciding I/O) | **rewrite** (B3/B4 support) |
-| `packages/architect` | ~1.4k | **resolved (was unknown):** Bitcoin PSBT builder for auction bids, transfers (gift/sale), recovery; `index.ts` (~1.0k) + `browser.ts` (~340, bids-only for web/mobile); consumed by wallet, cli, web; structural validation only, no rule-deciding logic | publisher protocol spec (bid/transfer artifact shapes); recovery invoke spec | **rewrite** — non-deciding client-side artifact construction, lands in `@ont/evidence` or a surfaces support lib (placement decided at B3 spec hardening); PSBT shapes are mining material |
+| `packages/architect` | ~1.4k | **resolved (was unknown):** Bitcoin PSBT builder for auction bids, transfers (gift/sale), recovery; now `legacy/packages/architect`; structural validation only, no rule-deciding logic | publisher protocol spec (bid/transfer artifact shapes); recovery invoke spec | **rewrite** — non-deciding client-side artifact construction lands in wallet/surface support through clean APIs; PSBT shapes are mining material only |
 | `packages/db` | ~1.1k | **resolved (was unknown):** Postgres/file persistence; single `ont_documents` JSONB table keyed (kind, document_key); snapshot serialization; no consensus logic | none (boundary rule: persistence is adapters-only) | **rewrite** (B4, inside adapters); schema is reference, not law |
 
 ### Apps
 
 | Unit | Lines | What it is (verified read) | Doc rules it maps to | Fate |
 | --- | --- | --- | --- | --- |
-| `apps/publisher` | ~2.3k | write-side adapter: pay-first, quotes, signet anchoring, data-availability serving (`/da/{root}`), per-leaf loss detection + refund | publisher protocol spec; data-availability agreement | **rewrite** (B4) |
-| `apps/indexer` | ~0.4k | **resolved (split was unclear):** batch block-ingestion orchestrator, no HTTP; delegates all rule application to `packages/core`'s engine; writes snapshots via `packages/db` | none directly (orchestration) | **rewrite** (B4) — likely absorbed into the new resolver's ingestion path rather than kept as a separate app (B4 spec decision) |
-| `apps/resolver` | ~3.0k | **resolved:** HTTP read API + signed-submission acceptance (value records, recovery descriptors/proofs); `validation.ts` guards append-only stores (signature, sequence, ownership-ref) — store guards, not consensus rules; carries `ONT_EXPERIMENTAL_AUCTION_*` runtime config (~50 lines) | publisher protocol spec (read side); recovery invoke spec (submission rules) | **rewrite** (B4). Flag for the hunting list: the experimental-auction config block is old-model-leakage bait; the submission-validation rules must be spec-cited or dropped |
+| `apps/publisher` | ~2.3k | write-side adapter: pay-first, quotes, signet anchoring, data-availability serving (`/da/{root}`), per-leaf loss detection + refund; now `legacy/apps/publisher` | publisher protocol spec; data-availability agreement | **rewrite** (B4) |
+| `apps/indexer` | ~0.4k | **resolved (split was unclear):** batch block-ingestion orchestrator, no HTTP; delegates all rule application to legacy `packages/core` engine; now `legacy/apps/indexer` | none directly (orchestration) | **rewrite** (B4) — likely absorbed into the new resolver's ingestion path rather than kept as a separate app (B4 spec decision) |
+| `apps/resolver` | ~3.0k | **resolved:** HTTP read API + signed-submission acceptance (value records, recovery descriptors/proofs); store guards, not consensus rules; now `legacy/apps/resolver` | publisher protocol spec (read side); recovery invoke spec (submission rules) | **rewrite** (B4). Flag for the hunting list: the experimental-auction config block is old-model-leakage bait; the submission-validation rules must be spec-cited or dropped |
 | `apps/web` | ~17.0k | largest unit; site/explorer/tools | glossary (user-facing copy law); operate/ walkthroughs | **rewrite** (B5) |
 | `apps/wallet` | ~4.7k | wallet CLI; 2/72 pre-existing test failures (proof-export) | recovery invoke spec; 12-word secret conformance | **rewrite** (B5); conformance vectors are mining material |
 | `apps/cli` | ~6.5k | operator/prototype CLI; demo residue suspected | operate/ | **rewrite** (B5) after a demo-residue pass; residue **retires** |
@@ -56,7 +64,8 @@ classified above as well.
 
 ### Named mining sources (Item 2's golden artifacts)
 
-- `packages/protocol/src/wire-size.test.ts` — wire-size pins.
+- `legacy/packages/protocol/src/wire-size.test.ts` — legacy wire-size pins.
+- `packages/wire/test/conformance.test.ts` + `packages/wire/test/implementation.test.ts` — active wire conformance and W16 size pins.
 - Root-anchor codec vectors pinned byte-identical against the BDK spike.
 - 12-word-secret cross-surface vectors (engine, web, mobile,
   `apps/claim/src/keys.conformance.test.ts`).

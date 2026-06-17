@@ -141,7 +141,7 @@ insertions into distinct leaves are commutative, so publishers broadcast indepen
 *deltas* proven against the last confirmed root, and the block is the aggregation
 boundary — no inter-publisher coordination, miner ordering irrelevant, a withheld delta
 is merely excluded rather than halting the chain. The prototype
-([`../packages/core/src/research/delta-merge-sim.ts`](../packages/core/src/research/delta-merge-sim.ts))
+([`../legacy/packages/core/src/research/delta-merge-sim.ts`](../legacy/packages/core/src/research/delta-merge-sim.ts))
 asserts commutativity, conflict determinism, the data-availability benefit, and
 permissionless checkpoint verification in code. What remains is **unvalidated numbers,
 not an unsolved mechanism**: absolute proof sizes and merge throughput at billions of

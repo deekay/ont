@@ -25,6 +25,7 @@ while IFS= read -r f; do
   done < <(grep -noE '\]\((\.\.?/[^)]*)\)' "$f" | sed -E 's/\]\((.*)\)/\1/')
 done < <(find docs -name '*.md')
 while IFS= read -r f; do
+  [ -e "$f" ] || continue
   while IFS=: read -r line target; do
     [ -z "$target" ] && continue
     if [ ! -e "$target" ]; then
@@ -34,6 +35,7 @@ while IFS= read -r f; do
   done < <(grep -noE 'docs/[A-Za-z0-9_./-]+\.(md|pdf)' "$f" || true)
 done < <(git ls-files 'apps/*.ts' 'apps/**/*.ts' 'apps/**/*.html' 'packages/**/*.ts' 'docs/**/*.html')
 while IFS= read -r f; do
+  [ -e "$f" ] || continue
   while IFS=: read -r line target; do
     [ -z "$target" ] && continue
     if [ ! -e "$target" ]; then
