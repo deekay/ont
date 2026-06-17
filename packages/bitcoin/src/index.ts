@@ -13,6 +13,8 @@ export { bitsToTarget, headerMeetsTarget } from "./block-header.js";
 
 export { merkleBranchForIndex, merkleRootFromProof, merkleRootHexFromHeaderHex } from "./merkle-proof.js";
 
+export { opReturnData } from "./op-return.js";
+
 export {
   validateHeaderChain,
   type BitcoinHeaderSource,
