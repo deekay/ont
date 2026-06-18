@@ -31,6 +31,24 @@ The carried-over pre-W16 cluster is now outside the active npm workspace under
 remains active for clean off-chain/signature helpers and auction bid packages;
 its auction lot/bidder commitments now use W16 full-width 32-byte renderings.
 
+## Clean-build go-live — G2 (restart-safe RootAnchor read path) — 2026-06-17
+
+The clean-build RootAnchor confirmed-anchor read path is now **restart-safe** (go-live G2, branch
+`go-live-g2`, local/unpushed; see [DECISIONS.md](./DECISIONS.md) #87 `g2-durable-anchor-read` and the G2
+outcome banner in [GO_LIVE_PLAN.md](./GO_LIVE_PLAN.md)). Durable state lives in a new node-targeted
+`@ont/anchor-store` — shared by the indexer-writer (`has`/`put`) and the resolver-reader (`getByTxid`), with
+**no resolver→indexer edge** and no codec duplication. The deployable resolver serves `GET /tx/:txid` from the
+indexer's durable `confirmed-anchors.json` via `selectResolverAnchorTxView` (`ONT_STORE=file` +
+`ONT_STORE_DIR`; a fresh store per read, so a long-lived resolver reflects newly-persisted anchors;
+`memory`/unset → no source, `/tx` 404). A **hermetic** restart-survival e2e (no bitcoind, no gate, default
+suite) locks it: persist → restart (fresh stores, same dir) → resolver HTTP → web `txSource` renders the
+confirmed facts after restart (direct `/tx`, `/?q=`, `/search?q=`), the durable cursor resumes at the committed
+height, and a re-presented anchor is skipped (no double-apply).
+
+**Not deployed; honest boundary.** RootAnchor confirmed-anchor read path ONLY — no B3 value/recovery, no
+Postgres durability (file store only), no signet/VPS, and no bitcoind acceptance implied (6c is hermetic, it
+proves durable-state survival, not chain validation). No new consensus/firewall; the audited core is untouched.
+
 ## Status legend
 - **Decommissioned (2026-06-11)** — was live on signet; taken down at
   clean-build (#46) B1 start. Capability statements in its Notes describe

@@ -2297,6 +2297,45 @@ or to recovery-invoke authorization (#66 / #67 — R2/R3/R4/R7 stay kernel reaso
 "b3-verified-recovery-descriptor-witness", witnessedByHeight }` the kernel consumes, on
 descriptor-digest match + confirmed `h_r` only.
 
+87. g2-durable-anchor-read: the deployable durable confirmed-anchor read path, named — **SHIPPED green**
+(go-live G2, branch `go-live-g2`, 2026-06-17).
+
+*Status: **SHIPPED.** Writer ClaudeleLunatique; reviewer ChatLunatique (Path B + every slice red→green
+green-OK'd). Slices on `go-live-g2`: `d0c085b` (extract `@ont/anchor-store`), `707fae3` (resolver durable read
+wired), `ac95063` (hermetic restart-survival e2e). The G1/G2 RootAnchor read path is now restart-safe.*
+
+**The shape.** The durable confirmed-anchor store is **shared infrastructure**, not app-private: a new
+node-targeted `@ont/anchor-store` owns the `ConfirmedAnchorRecord` / `ConfirmedAnchorStore` types, the
+bigint-safe slice-2a codec, and the slice-2b atomic file store. The **indexer writes** (`has`/`put`) and the
+**resolver reads** (`getByTxid`) through it — so the deployable resolver owns its durable read with **no
+resolver→`@ont/indexer` edge** and no codec duplication. The resolver's `selectResolverAnchorTxView(env)` mirrors
+the indexer's `selectIndexerStores`: `ONT_STORE=file` + nonempty `ONT_STORE_DIR` → a read-only
+`AnchorTxViewSource` over `confirmed-anchors.json`; `memory`/unset → no source (`/tx` 404, the hermetic
+default); empty / unknown / case-variant → fail closed. The record→view map (`confirmedAnchorRecordToTxView`) is
+a **pure structural** function in `@ont/adapter-resolver`, so that pure package — which the web depends on —
+gains no node-targeted edge.
+
+**Fresh-per-read.** The resolver source constructs a fresh file store per `/tx` read (O(file)/request), so a
+long-lived resolver reflects anchors the indexer persists after it booted — not a startup snapshot. (An
+mtime/size refresh cache is a later optimization if it becomes costly; correctness first.)
+
+**The acceptance lock.** A **hermetic** (no bitcoind, no `ONT_E2E_REGTEST` gate) restart-survival e2e in
+`@ont/regtest-e2e` drives the real path: real file stores persist a confirmed RootAnchor (fake block/confirm
+ports), the stores are dropped + rebuilt over the same dir (restart), the resolver is created via the real
+`selectResolverAnchorTxView({ file })` over real HTTP, and the web reads via `createResolverTxSource` — direct
+`/tx`, `/?q=`, and `/search?q=` all render the persisted facts after restart; the durable cursor resumes at the
+committed height; a deliberately re-presented anchor is skipped (no double-apply); a memory selector renders
+web-unavailable (no snapshot fallback).
+
+**Supersedes** [GO_LIVE_PLAN.md](./GO_LIVE_PLAN.md) G2 design-fork REC #3 (reuse `@ont/db`): ChatLunatique
+ruled a new clean `@ont/anchor-store` over `@ont/db` (which carries old-stack snapshot/Postgres gravity + the
+dropped-field CAUTION). REC #2's Postgres half is **deferred** out of G2.
+
+**Boundary (honest scope).** RootAnchor confirmed-anchor read path ONLY. NOT in scope / NOT implied: B3 per-name
+value/recovery history (the resolver `ResolverStore` value/recovery path stays B3-deferred); Postgres durability
+(file store only); signet/VPS deployment; and any bitcoind acceptance — 6c is hermetic and proves durable-state
+survival, not chain validation. No new consensus, no new firewall; the audited core + B4 adapters untouched.
+
 ## Fairness Principles To Carry Into The Launch Rewrite
 
 The rewritten launch draft should explicitly state:

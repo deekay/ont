@@ -2,7 +2,9 @@
 
 **Status:** go-live phase active. **G1 shipped green** on regtest (`deacc94`,
 branch `go-live-g1`, local/unpushed) — writer+reviewer verified (CL independent
-green-OK). **The G2 brief below is proposed**, awaiting ChatLunatique review.
+green-OK). **G2 shipped green** (branch `go-live-g2`, local/unpushed; slices
+6a/6b/6c `d0c085b` → `707fae3` → `ac95063`, hermetic restart-survival e2e green,
+CL green-OK per slice) — see the G2 outcome banner below.
 Phase name: **go-live**.
 
 DK approved this direction and a clean-slate VPS rebuild on 2026-06-17
@@ -153,7 +155,15 @@ interface types.
 
 ## G2 — persistence + live wiring (detailed brief)
 
-*Proposed 2026-06-17, after G1 shipped green (`deacc94`). Awaiting ChatLunatique review.*
+***SHIPPED green 2026-06-17*** (branch `go-live-g2`, local/unpushed). Outcome: the durable
+confirmed-anchor read path is restart-safe across indexer→resolver→web. Slices 6a `d0c085b` (extract
+the shared durable store), 6b `707fae3` (resolver durable read wired), 6c `ac95063` (hermetic
+restart-survival e2e). **Implementation diverged from the design-fork RECs below per ChatLunatique's
+ruling:** the shared store is a **new clean `@ont/anchor-store`**, NOT a reuse of `@ont/db` (REC #3 A) —
+`@ont/db` carries old-stack snapshot/Postgres gravity + the dropped-field CAUTION; and **Postgres is
+deferred** out of G2 (REC #2's second half) — file store only meets the restart-safe gate on a single box.
+The brief below is the design record; see [DECISIONS.md](./DECISIONS.md) #87 `g2-durable-anchor-read` and
+[STATUS.md](./STATUS.md) for the shipped state. The forks are kept for provenance.*
 
 ### Goal
 Make the live services **restart-safe**. Today the indexer holds confirmed anchors
