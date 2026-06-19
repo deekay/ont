@@ -1,6 +1,6 @@
-// @ont/publisher — clean runnable publisher service. HTTP assemble+broadcast shell over
-// @ont/adapter-publisher with injected broadcast I/O; no signing keys, no private accumulator, no live network
-// in the tested core.
+// @ont/publisher — clean runnable publisher service. Split HTTP shell over @ont/adapter-publisher:
+// /assemble/* return the unsigned tx and never broadcast; /broadcast is the only port-owning route (relays an
+// already-signed legacy raw). No signing keys, no private accumulator, no live network in the tested core.
 import { createPublisherHttpServer } from "./server.js";
 import { selectPublisherBroadcastPort } from "./live/select-broadcast.js";
 

@@ -5,7 +5,12 @@ import {
   type AssembleRecoverOwnerInvokeInput,
   type AssembleRootAnchorInput,
 } from "@ont/adapter-publisher";
-import { legacyTxidOf, type LegacyTransaction } from "@ont/bitcoin";
+import {
+  legacyTxidOf,
+  parseLegacyTransaction,
+  serializeLegacyTransaction,
+  type LegacyTransaction,
+} from "@ont/bitcoin";
 
 export type PublisherBroadcastResult =
   | { readonly ok: true; readonly txid: string }
@@ -31,6 +36,13 @@ export function createInMemoryPublisherBroadcastPort(): PublisherBroadcastPort {
   };
 }
 
+// The HTTP seam is split so the assemble path can NEVER reach the broadcast port:
+//   POST /assemble/root-anchor          -> assemble an UNSIGNED tx, return it; no broadcast.
+//   POST /assemble/recover-owner-invoke -> assemble an UNSIGNED tx, return it; no broadcast.
+//   POST /broadcast                     -> relay an already-signed legacy raw through the broadcast port.
+// Signing happens off this service (B5 wallet); the publisher never signs and never inspects signedness.
+// Only the broadcast handler is handed `options.broadcast` — the assemble handlers structurally cannot
+// submit a tx, so an unsigned assembled tx can never reach `sendrawtransaction`.
 export async function handlePublisherRequest(request: Request, options: PublisherServiceOptions): Promise<Response> {
   try {
     const url = new URL(request.url);
@@ -41,13 +53,17 @@ export async function handlePublisherRequest(request: Request, options: Publishe
       return json({ ok: true, service: "@ont/publisher" });
     }
 
-    if (segments.length === 1 && segments[0] === "root-anchor") {
+    if (segments.length === 2 && segments[0] === "assemble" && segments[1] === "root-anchor") {
       if (request.method !== "POST") return json({ ok: false, reason: "method-not-allowed" }, 405);
-      return publishRootAnchor(request, options.broadcast);
+      return assembleRootAnchorRoute(request);
     }
-    if (segments.length === 1 && segments[0] === "recover-owner-invoke") {
+    if (segments.length === 2 && segments[0] === "assemble" && segments[1] === "recover-owner-invoke") {
       if (request.method !== "POST") return json({ ok: false, reason: "method-not-allowed" }, 405);
-      return publishRecoverOwnerInvoke(request, options.broadcast);
+      return assembleRecoverOwnerInvokeRoute(request);
+    }
+    if (segments.length === 1 && segments[0] === "broadcast") {
+      if (request.method !== "POST") return json({ ok: false, reason: "method-not-allowed" }, 405);
+      return broadcastSignedRoute(request, options.broadcast);
     }
 
     return json({ ok: false, reason: "not-found" }, 404);
@@ -62,25 +78,48 @@ export function createPublisherHttpServer(options: PublisherServiceOptions): Ser
   });
 }
 
-async function publishRootAnchor(request: Request, broadcast: PublisherBroadcastPort): Promise<Response> {
+// Assemble-only: no broadcast port in scope. Returns the unsigned tx for off-service signing.
+async function assembleRootAnchorRoute(request: Request): Promise<Response> {
   const body = await readJson(request);
   if (!body.ok) return json({ ok: false, reason: body.reason }, 400);
   const input = normalizeBigIntFields(body.value) as AssembleRootAnchorInput;
   const tx = assembleRootAnchorTx(input);
   if (tx === null) return json({ ok: false, reason: "invalid-root-anchor" }, 422);
-  return publishTx(tx, broadcast);
+  return assembledResponse(tx);
 }
 
-async function publishRecoverOwnerInvoke(request: Request, broadcast: PublisherBroadcastPort): Promise<Response> {
+async function assembleRecoverOwnerInvokeRoute(request: Request): Promise<Response> {
   const body = await readJson(request);
   if (!body.ok) return json({ ok: false, reason: body.reason }, 400);
   const input = normalizeBigIntFields(body.value) as AssembleRecoverOwnerInvokeInput;
   const tx = assembleRecoverOwnerInvokeTx(input);
   if (tx === null) return json({ ok: false, reason: "invalid-recover-owner-invoke" }, 422);
-  return publishTx(tx, broadcast);
+  return assembledResponse(tx);
 }
 
-async function publishTx(tx: LegacyTransaction, broadcast: PublisherBroadcastPort): Promise<Response> {
+// `unsignedTxid` is the legacy txid over the UNSIGNED serialization (scriptSigs empty). Signing fills the
+// scriptSigs, which changes the serialization and therefore the txid — so this is a TEMPLATE id, NOT the
+// chain txid. The real chain txid comes from /broadcast (the node's response after the signed raw is submitted).
+function assembledResponse(tx: LegacyTransaction): Response {
+  const bytes = serializeLegacyTransaction(tx);
+  const unsignedTxid = legacyTxidOf(tx);
+  if (bytes === null || unsignedTxid === null) return json({ ok: false, reason: "tx-not-serializable" }, 422);
+  return json({ ok: true, unsignedTxid, unsignedTxHex: Buffer.from(bytes).toString("hex") }, 200);
+}
+
+// The ONLY route handed the broadcast port. Relays an already-signed legacy raw; fails closed on any
+// raw that is not legacy-serializable (witness/segwit) before the port is ever touched.
+async function broadcastSignedRoute(request: Request, broadcast: PublisherBroadcastPort): Promise<Response> {
+  const body = await readJson(request);
+  if (!body.ok) return json({ ok: false, reason: body.reason }, 400);
+  const value = body.value;
+  const signedTxHex =
+    typeof value === "object" && value !== null && "signedTxHex" in value
+      ? (value as { signedTxHex: unknown }).signedTxHex
+      : undefined;
+  if (typeof signedTxHex !== "string") return json({ ok: false, reason: "missing-signed-tx-hex" }, 400);
+  const tx = parseLegacyTransaction(signedTxHex);
+  if (tx === null) return json({ ok: false, reason: "tx-not-legacy" }, 422);
   try {
     const result = await broadcast.broadcast(tx);
     return json(result, result.ok ? 202 : 502);
