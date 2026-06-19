@@ -49,9 +49,8 @@ If you want to evaluate rather than browse:
    [The trust surface](#the-trust-surface-and-auditing-it-yourself) below.
 3. **Run the tests (~5 min):** the commands in the same section — including the CI lock that
    fails the build if the audited surface grows.
-4. **Watch the live loop (~5 min):** claim a throwaway name at
-   [claim.opennametags.org](https://claim.opennametags.org) and watch it appear in the
-   [explorer](https://opennametags.org/explore) once the anchor confirms on the signet.
+4. **Run it yourself (~5 min):** stand up the clean stack locally with `npm run selfhost:up`
+   (see [SELF_HOSTING.md](./docs/operate/SELF_HOSTING.md)) — the hosted signet demo is retired.
 
 ## Architecture: the two paths, end to end
 
@@ -60,7 +59,7 @@ Bitcoin, not from any server's say-so.
 
 ```mermaid
 flowchart TB
-  subgraph CHEAP["Batched claim path — every name starts here (live on signet)"]
+  subgraph CHEAP["Batched claim path — every name starts here"]
     W["Wallet / claim site<br/>pay-first claim"] --> PB["Publisher<br/>batches claims into a<br/>sparse-Merkle accumulator"]
     PB -->|"OP_RETURN anchor<br/>prevRoot → newRoot"| BTC[("Bitcoin")]
     BTC --> IX["Indexer decodes the anchor<br/>(RPC polling + replay)"]
@@ -77,7 +76,7 @@ flowchart TB
   W -. "2+ claims with no bond → nullified, reopens" .-> NX["No owner"]
 ```
 
-**The batched claim path** (live on signet end-to-end since 2026-06-09):
+**The batched claim path** (proven end-to-end on signet, 2026-06-09 → decommissioned 2026-06-11):
 
 1. **Claim, pay-first.** The claim site or wallet requests a quote, pays the publisher (Lightning
    on mainnet; stubbed on signet), and submits the name + intended owner key. A non-payer is
@@ -146,7 +145,7 @@ parameters are placeholders until they're frozen and published before launch (se
 
 ## The three roles, operationally
 
-### Publisher — write side (`apps/publisher`; live on signet, single-writer)
+### Publisher — write side (`apps/publisher`; single-writer; signet deploy decommissioned 2026-06-11)
 
 - **Pay-first.** Quote → payment → inclusion. A claim enters the pending set only after payment
   clears; the publisher's exposure is bounded structurally, the user's is ~₿1,000 (~$1).
@@ -164,7 +163,7 @@ parameters are placeholders until they're frozen and published before launch (se
   multi-publisher convergence is
   [simulated and tested](./docs/research/ONT_MULTI_PUBLISHER_CONVERGENCE.md), not deployed.
 
-### Resolver — read side (`apps/resolver` + `apps/indexer`; live on signet)
+### Resolver — read side (`apps/resolver` + `apps/indexer`; signet deploy decommissioned 2026-06-11)
 
 - **Source.** Fixture, Bitcoin RPC, or esplora (`ONT_SOURCE_MODE`), pinned to an expected chain.
   Polls for new blocks (default every 10s) and replays each block's ONT events through the indexer
@@ -250,7 +249,7 @@ negotiable. For each: what evidence would break it, and where we are still expos
 - **Censorship-resistant** — no operator can permanently prevent acquiring or resolving a name.
   *Broken by:* a chokepoint with no route around it. The backstops: direct L1 claiming is always
   available, any resolver is replaceable, and verification catches a lying one.
-  *Exposure:* the live publisher is single-writer; discovery is config-seeded; and the
+  *Exposure:* the publisher is single-writer; discovery is config-seeded; and the
   **fail-closed data-availability deadline is the sharpest open item** — until it's implemented, the
   withhold-then-reveal defense for contested names is not operational. On denial-by-collision: a
   spite griefer can nullify a targeted name for ₿1,000 per round, with no payoff; the
@@ -270,7 +269,7 @@ truth and wins over this summary.
 
 | Status | Summary |
 | --- | --- |
-| **Live (signet)** | Owner-key transfer / value records / recovery; bonded auction bid resolver-accepted; the **batched claim path end-to-end since 2026-06-09** (claim → anchor → data-availability fetch → re-verify → public explorer); single-writer publisher with restart-surviving data-availability bundles; claim site; unified 12-word secret across all surfaces |
+| **Proven on signet — decommissioned 2026-06-11** | Owner-key transfer / value records / recovery; bonded auction bid resolver-accepted; the **batched claim path end-to-end 2026-06-09 → 2026-06-11** (claim → anchor → data-availability fetch → re-verify → public explorer); single-writer publisher with restart-surviving data-availability bundles; claim site; unified 12-word secret across all surfaces. The live signet deployment came down 2026-06-11 (see [STATUS.md](./docs/core/STATUS.md)). |
 | **Prototype** | Bitcoin-inclusion verifier (tested vs a real mainnet block; producers don't emit proofs); mobile iOS app (walkable signet demo) |
 | **Designed** | Registry-free discovery; the watchtower; the fail-closed data-availability deadline; leaderless multi-publisher deployment |
 
@@ -323,11 +322,7 @@ npm run selfhost:up      # http://127.0.0.1:3000
 ```
 
 To point the stack at your own Bitcoin backend, see
-[SELF_HOSTING.md](./docs/operate/SELF_HOSTING.md). The hosted signet demo exercises the batched claim path
-live: claim a name at [claim.opennametags.org](https://claim.opennametags.org) (keys generated in
-your browser; the page runs offline for key generation) and watch it appear in the
-[explorer](https://opennametags.org/explore) once the anchor confirms. Walkthrough:
-[Flint demo](./docs/operate/demo/FLINT_DEMO.md).
+[SELF_HOSTING.md](./docs/operate/SELF_HOSTING.md).
 
 ## Repository map
 
@@ -341,7 +336,7 @@ proof-bundle — the audited core) + `packages/protocol` (names · wire · event
 - `apps/publisher` — the batched-path publisher: quotes, pay-first batching, anchor broadcast, `/da/{root}`
 - `apps/resolver` — read API: ownership, value/recovery records, provenance, the data-availability loop
 - `apps/indexer` — standalone chain-indexing entrypoint
-- `apps/claim` — the self-contained claim site (claim.opennametags.org)
+- `apps/claim` — the self-contained claim site
 - `apps/web` — hosted site: explorer, auctions, transfer prep
 - `apps/cli` — auction / transfer / record / operator tooling
 - `apps/wallet` — local desktop wallet/client prototype

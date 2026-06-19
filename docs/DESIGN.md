@@ -287,14 +287,14 @@ Billions of names cannot each be a Bitcoin transaction, so cheap uncontested cla
 - **The gate rule (designed; not yet enforced in code).** The rule is that a batch anchor
   counts only if its Bitcoin transaction fee is **≥ the sum of the per-name gates** — so the
   ₿1,000 cannot be batched away, and miners receive ₿1,000 × N. As of 2026-06-10 this
-  validation is **not yet implemented** in the replay/consensus path (the live signet
-  publisher pays a flat configured anchor fee); implementing it inside the audited boundary
+  validation is **not yet implemented** in the replay/consensus path (the proven signet
+  publisher paid a flat configured anchor fee before the 2026-06-11 decommission); implementing it inside the audited boundary
   is queued work. See
   [`spec/ONT_ISSUANCE_FEE_MECHANICS.md`](./spec/ONT_ISSUANCE_FEE_MECHANICS.md) and the
   Known-incomplete list in [`core/STATUS.md`](./core/STATUS.md).
 
-**Honest status.** The path is **live end-to-end on the private signet** (since
-2026-06-09): a claim is batched, anchored on-chain, and the indexer re-verifies every
+**Honest status.** The path was **proven end-to-end on the private signet** (2026-06-09 →
+decommissioned 2026-06-11; see [`core/STATUS.md`](./core/STATUS.md)): a claim is batched, anchored on-chain, and the indexer re-verifies every
 membership proof against the Bitcoin-anchored root before a name resolves —
 verify-don't-trust at every hop, with `runBatchRail` simulations additionally asserting
 delta commutativity and convergence against a data-withholding adversary. What is **not**
@@ -409,11 +409,11 @@ they're decided.
 
 | Area | State | Notes |
 | --- | --- | --- |
-| Owner-key model (transfer / value / recovery auth) | **Solved + live** | Enforced at replay; proven on signet; byte-identical across two implementations |
+| Owner-key model (transfer / value / recovery auth) | **Solved (signet decommissioned 2026-06-11)** | Enforced at replay; proven on signet; byte-identical across two implementations |
 | Minimal audited trust surface (frozen at launch) | **Boundary enforced; scope expanding** | 3 consensus files CI-manifested (Decision #44), covering owner-key authority + replay validation today; settlement and batched-path rules are moving inside (#42). The protocol rules they build on are audit surface, pinned by review |
-| Returnable-bond contested auction | **Solved + live** | Bid → resolver-accepted end-to-end on signet |
+| Returnable-bond contested auction | **Solved (signet decommissioned 2026-06-11)** | Bid → resolver-accepted end-to-end on signet (through decommission) |
 | Bitcoin-inclusion proof verification (Merkle + PoW) | **Solved (verifier)** | Tested vs real mainnet block; producers don't emit inclusion proofs yet |
-| Batched claim path (claim → anchor → verified resolve → explore) | **Live (signet)** | End-to-end since 2026-06-09, verify-don't-trust at every hop; **open: fail-closed data-availability deadline enforcement (sim-only today), content-addressed mirroring (§8b), leaderless multi-publisher** |
+| Batched claim path (claim → anchor → verified resolve → explore) | **Proven on signet — decommissioned 2026-06-11** | End-to-end 2026-06-09 → 2026-06-11, verify-don't-trust at every hop; **open: fail-closed data-availability deadline enforcement (sim-only today), content-addressed mirroring (§8b), leaderless multi-publisher** |
 | Publisher | **Prototype** | Single-writer; multi-publisher convergence simulated, not deployed |
 | Light-client (phone/browser) verification | **Open** | Verifier ready; emit-side + header sourcing unbuilt |
 | Launch parameters (window, maturity, data availability, bond floor) | **Open** | Placeholders; must freeze + publish |

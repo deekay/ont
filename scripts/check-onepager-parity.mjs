@@ -18,7 +18,6 @@ const SHARED_PHRASES = [
   "₿1,000",
   "₿50,000",
   "₿100,000,000",
-  "claim.opennametags.org",
   "who can screw you",
   "Where the money goes",
   "What touches Bitcoin",

@@ -229,8 +229,8 @@ Working today:
 - owner-key transfers
 - owner-signed value records
 - recovery prototype for immature bonded names
-- the batched claim path, live end-to-end on the private signet since
-  2026-06-09 (claim → anchor → indexer re-verifies membership against the
+- the batched claim path, proven end-to-end on the private signet 2026-06-09 →
+  decommissioned 2026-06-11 (claim → anchor → indexer re-verifies membership against the
   Bitcoin-anchored root → public resolution), including the notice-window
   lifecycle (provisional → final | nullified) and first-anchor-wins merge —
   see [`../core/STATUS.md`](../core/STATUS.md)

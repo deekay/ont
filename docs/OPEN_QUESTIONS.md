@@ -147,7 +147,7 @@ permissionless checkpoint verification in code. What remains is **unvalidated nu
 not an unsolved mechanism**: absolute proof sizes and merge throughput at billions of
 leaves need a signet-scale benchmark (risk register R11). Per
 [`core/STATUS.md`](./core/STATUS.md), leaderless multi-publisher is simulated, not
-deployed — the live signet publisher is single-writer.
+deployed — the proven signet publisher was single-writer before the 2026-06-11 decommission.
 
 ### 3.2 Checkpoint liveness incentive — [OPEN]
 
