@@ -47,4 +47,7 @@ await anchorStore.put({
   confirmedAnchor: { anchorTxid, minedHeight: MINED_HEIGHT, anchoredRoot: NEW_ROOT, batchSize: BATCH_SIZE },
   feeTxParts: { anchorTx, prevoutTxs: [] },
 });
+// Label on stderr so the output can't be mistaken for a real signet acceptance artifact; stdout stays the bare
+// txid so `TXID=$(node scripts/g3-seed-anchor.mjs)` capture keeps working.
+console.error(`g3-seed-anchor: wrote a SEEDED fixture confirmed-anchor record (non-signet, non-consensus — NOT a real acceptance artifact) under ${dir}`);
 console.log(anchorTxid);

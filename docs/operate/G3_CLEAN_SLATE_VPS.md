@@ -112,11 +112,16 @@ The G2 durable file read — store → resolver `/tx` → web render — is prov
   store and read it back. This proves the deployed resolver/web serve a present record; the record is a seed,
   **not** a real signet anchor or an ownership claim.
 
+  The seed runs **inside the resolver container** and writes `ONT_STORE_DIR=/app/.data` — the `ont_data` named
+  volume shared with the indexer and resolver — so there is **no host path to resolve**; the resolver serves it on
+  the published port. The script prints the bare txid on stdout and a `SEEDED fixture — NOT a real acceptance
+  artifact` notice on stderr.
+
   ```bash
-  # Writes a SEEDED (non-signet, non-consensus) confirmed-anchor record into the shared store, prints its txid:
-  TXID=$(docker compose exec -T resolver node /app/scripts/g3-seed-anchor.mjs)
-  curl -fsS "http://127.0.0.1:4174/tx/$TXID"        # resolver returns the confirmed view
-  curl -fsS "http://127.0.0.1:4175/?q=$TXID"        # web renders it
+  # Writes a SEEDED fixture (non-signet, non-consensus) confirmed-anchor record into the shared ont_data volume:
+  TXID=$(docker compose exec -T -e ONT_STORE_DIR=/app/.data resolver node /app/scripts/g3-seed-anchor.mjs)
+  curl -fsS "http://127.0.0.1:4174/tx/$TXID"        # resolver returns the confirmed view (seeded fixture)
+  curl -fsS "http://127.0.0.1:4175/?q=$TXID"        # web renders it (seeded fixture)
   ```
 
   The seed coexists on a quiet stack; a later real anchor supersedes it (see the script header). Use it as a
