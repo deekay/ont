@@ -141,8 +141,8 @@ confirmed anchors persist — the resolver still serves what was ingested before
   `install-private-signet-electrum.sh`) and [VPS_SETUP.md](./VPS_SETUP.md) predate the clean build and wire the
   dead `GNS_*`/`ONT_LAUNCH_HEIGHT` model. The scripts are now under [`legacy/scripts/`](../../legacy/scripts/README.md)
   (npm entries dropped); see [OLD_DEPLOY_QUARANTINE_SCOPE.md](./OLD_DEPLOY_QUARANTINE_SCOPE.md). The compose +
-  this runbook are the canonical clean-stack path. (Private-signet *local-dev* helpers are a separate DK
-  keep/retire call, not yet moved.)
+  this runbook are the canonical clean-stack path. (The private-signet *local-dev* helpers were retired —
+  deleted per DK on 2026-06-19; see [OLD_DEPLOY_QUARANTINE_SCOPE.md](./OLD_DEPLOY_QUARANTINE_SCOPE.md).)
 - **Publisher / claim path is out of scope here.** G3 slice-1 is the read path. The publisher
   (claim/anchor-serving) and a real claim→anchor→render smoke come in a later slice.
 - **bitcoind image is operator-pinned.** `BITCOIND_IMAGE` defaults to a placeholder; pin a signet-capable

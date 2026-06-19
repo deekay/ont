@@ -1,9 +1,10 @@
 # Old-deploy quarantine — scope (G3 cleanup slice)
 
 **Status:** cut settled — ChatLunatique reviewed `3f0ccf99` and his three findings are folded here (F1 move
-`install-private-signet-electrum.sh` A; F2 CI-coupling caveat on B; F3 soften the self-host note). Bucket A is
-executed on this branch in the following commit; Bucket B remains a DK ruling.
-**Branch:** `go-live-g3-cleanup` (off `main` @ `bd40e702`).
+`install-private-signet-electrum.sh` A; F2 CI-coupling caveat on B; F3 soften the self-host note).
+**Disposition (final):** Bucket A was **quarantined** to `legacy/scripts/` (merged to `main` @ `95eecfc9`); Bucket B
+was **retired (deleted)** per DK on 2026-06-19 (event a3aff620, branch `go-live-g3-cleanup-b`). See the Bucket B section.
+**Branch:** `go-live-g3-cleanup` (Bucket A) → `go-live-g3-cleanup-b` (Bucket B retire), off `main`.
 **Lane:** ClaudeleLunatique (hygiene). Reviewer: ChatLunatique. Merge: DK.
 **Trigger:** [`G3_CLEAN_SLATE_VPS.md` Notes](./G3_CLEAN_SLATE_VPS.md) names the old VPS deploy scripts as a separate
 cleanup slice. They predate the clean build, wire the dead `GNS_*` / `gns.env` / `ONT_LAUNCH_HEIGHT` snapshot
@@ -11,16 +12,18 @@ model, and are now inconsistent with the canonical compose + runbook clean-stack
 
 ## Principle
 
-**Mirror the `legacy/` pattern: move + de-list, never delete.** Quarantine the unambiguously-dead VPS *deploy*
-stack now. Do **not** unilaterally move DK's private-signet *local-dev* helpers — those are his tooling; flag
-them for a keep/retire ruling instead. The clean stack (compose / `.env.example` / `entrypoint.sh`) references
+**Mirror the `legacy/` pattern for the deploy stack: move + de-list, never delete.** Quarantine the
+unambiguously-dead VPS *deploy* stack (Bucket A). Do **not** unilaterally move DK's private-signet *local-dev*
+helpers (Bucket B) — those are his tooling; flag them for a keep/retire ruling instead. *(Outcome: DK ruled
+**retire/delete** for Bucket B on 2026-06-19, overriding the "never delete" default; Bucket A stayed quarantined.)*
+The clean stack (compose / `.env.example` / `entrypoint.sh`) references
 none of these scripts, and the 1314-green `npm test` sweep (`test` → `build && test:workspaces`) invokes none of
 them — **Bucket A is load-bearing for nothing.**
 
-> **Caveat (CL finding 2):** Bucket B is *not* fully test-free. CI runs `test:private-signet-auto-mine-script`
-> (`.github/workflows/ci.yml:35` → `scripts/private-signet-auto-mine.test.mjs` + `scripts/private-signet-auto-mine.sh`).
-> So Bucket B stays gated on DK and, **if it ever moves, CI + the `package.json` entries must change in the same
-> commit** — the dangling-entry checker below will fail any B-move that drops the script but leaves the entry.
+> **Caveat (CL finding 2) — RESOLVED by the Bucket B retire (historical):** Bucket B *was* CI-coupled — CI ran
+> `test:private-signet-auto-mine-script` (`.github/workflows/ci.yml`, now removed) → `private-signet-auto-mine.test.mjs`.
+> The Bucket B retire (2026-06-19) deleted those scripts and dropped the CI step + the `package.json` entries in
+> the same commit, so the coupling is gone. The dangling-entry checker below would catch any future regression.
 
 ## Bucket A — Quarantine now (dead VPS deploy/bootstrap stack)
 
@@ -47,12 +50,23 @@ matching `package.json` entry, add superseded banners to the two stale operate d
 - `docs/operate/VPS_SETUP.md`
 - `docs/operate/ONT_DOMAIN_DEPLOY.md`
 
-## Bucket B — Flag for DK, do NOT auto-quarantine (private-signet local-dev helpers)
+## Bucket B — RETIRED (deleted) per DK ruling 2026-06-19
 
-These are local dev/test tooling, not the dead remote-deploy stack. Some may still be useful to DK for
-private-signet experiments. **DK ruling requested: keep in `scripts/` / quarantine to `legacy/scripts/` /
-delete?** They are not in the clean deploy path and not in the main sweep, so leaving them in place costs
-nothing but registry clutter.
+> **DK ruled RETIRE (event a3aff620): "just retire bucket b… we are not using signet for anything other than
+> what we're trying to accomplish here so we could blow it away and rebuild everything from scratch."** All 16
+> private-signet local-dev scripts + the 9 npm entries were **deleted** (not quarantined — recoverable via git
+> history if ever needed), along with their live hooks: the CI auto-miner step (`.github/workflows/ci.yml`), the
+> private-signet steps in `scripts/review-refresh.sh` (renumbered to 1/3–3/3), the stale `vitest.config.ts`
+> exclusion comment, the two private-signet sections in `CONTRIBUTING.md`, the dead Sparrow walkthrough link in
+> `README.md`, and the orphaned demo doc `SPARROW_PRIVATE_SIGNET.md` (was under `docs/operate/demo/`). Flagged
+> separately for DK: the other `docs/operate/demo/` docs
+> (`RUN_SIGNET.md`, `COLD_USER_WALKTHROUGH.md`, `FLINT_DEMO.md`) and the dead `opennametags.org` URLs in
+> `review-refresh.sh` look like further stale signet-prototype material.
+
+The original Bucket B inventory (now deleted) is preserved below for the record.
+
+These were local dev/test tooling, not the dead remote-deploy stack — private-signet experiment helpers, not in
+the clean deploy path and not in the main sweep.
 
 - **Sparrow wallet helpers:** `configure-sparrow-private-signet.sh`, `print-private-signet-sparrow-config.sh`,
   `start-private-signet-sparrow-session.sh`, `open-private-signet-sparrow-tunnel.sh`,
@@ -93,7 +107,7 @@ clean-stack wiring.
 
 - The publisher slice (ChatLunatique's lane) — real claim → anchor → ingest → render.
 - Heavy compose changes — held until DK's VPS clean-slate boot feedback lands (it could reshape the infra).
-- Bucket B moves — gated on DK's keep/retire ruling.
+- ~~Bucket B moves — gated on DK's keep/retire ruling.~~ **RESOLVED:** DK ruled retire (deleted) 2026-06-19; see the Bucket B section.
 
 ## Execution order (Bucket A — executed on this branch)
 
@@ -105,4 +119,6 @@ clean-stack wiring.
 5. Add the `check:deploy` package.json script-target assertion; confirm it goes RED on a planted bad entry, then GREEN.
 6. Gates: `check:deploy`, `check:surfaces`, doc-links, full `npm test` sweep — all green.
 
-**Bucket B** stays out of this slice — gated on DK's keep/retire ruling (CI-coupling caveat above).
+**Bucket B** was **retired (deleted)** per DK on 2026-06-19 (branch `go-live-g3-cleanup-b`): the 16 scripts + 9 npm
+entries + every live hook (CI auto-miner step, `review-refresh.sh` private-signet steps, `vitest.config.ts` comment,
+`CONTRIBUTING.md` sections, the dead `README.md` Sparrow link, orphaned `SPARROW_PRIVATE_SIGNET.md`) were removed. See the Bucket B section.

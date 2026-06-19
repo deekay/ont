@@ -326,8 +326,7 @@ To point the stack at your own Bitcoin backend, see
 [SELF_HOSTING.md](./docs/operate/SELF_HOSTING.md). The hosted signet demo exercises the batched claim path
 live: claim a name at [claim.opennametags.org](https://claim.opennametags.org) (keys generated in
 your browser; the page runs offline for key generation) and watch it appear in the
-[explorer](https://opennametags.org/explore) once the anchor confirms. Walkthroughs:
-[Sparrow private-signet](./docs/operate/demo/SPARROW_PRIVATE_SIGNET.md) ·
+[explorer](https://opennametags.org/explore) once the anchor confirms. Walkthrough:
 [Flint demo](./docs/operate/demo/FLINT_DEMO.md).
 
 ## Repository map
