@@ -79,10 +79,12 @@ docker compose logs -f indexer               # chain gate passes, then `{"servic
 bitcoind does a (small) signet IBD on first boot; the indexer waits on `bitcoind` healthy before it starts,
 and its own chain gate blocks polling until the node reports signet.
 
-## 4. Read-smoke acceptance
+## 4. Acceptance — what this slice proves
 
-On a **fresh** signet there are no ONT anchors yet, so the read path proves it serves **absence cleanly**
-and **presence correctly once an anchor is mined**:
+This slice proves the deployed stack **boots clean on a fresh signet and the read path serves**. It does
+**not** prove a live claim→anchor→render — that needs the publisher/claim path, deferred to a later slice (4c).
+
+### 4a. Boot smoke (deployed stack, live signet)
 
 ```bash
 # Health
@@ -92,11 +94,37 @@ curl -fsS http://127.0.0.1:4175/health        # web: ok
 # Absence is clean (not a crash): an unknown txid 404s
 curl -isS http://127.0.0.1:4174/tx/0000000000000000000000000000000000000000000000000000000000000000 | head -1   # 404
 
-# Presence (once a RootAnchor is confirmed on this signet): the resolver returns the confirmed view and
-# the web landing renders it. Mine/confirm a RootAnchor via the claim path, then:
-#   curl -fsS http://127.0.0.1:4174/tx/<txid>
-#   curl -fsS "http://127.0.0.1:4175/?q=<txid>"
+# The indexer is past the signet chain gate and running (not the wrong chain, not silently idle):
+docker compose logs indexer | grep '"status":"starting"'
 ```
+
+On a fresh signet there are no ONT anchors yet, so the live read path proves health + clean absence + a
+chain-gated indexer. It cannot show a real *present* anchor until one is claimed (4c).
+
+### 4b. Durable read-presence (deterministic, no claim path)
+
+The G2 durable file read — store → resolver `/tx` → web render — is proven without the claim path:
+
+- **In-repo (authoritative):** the hermetic restart-survival e2e persists a confirmed RootAnchor to the real
+  file store and renders it through the real resolver + web after a restart. It runs in the default suite
+  (`npm test`, `@ont/regtest-e2e`) — no bitcoind, no signet, no claim path.
+- **On the deployed stack (optional, seeded):** seed one clearly-labeled **fixture** record into the shared
+  store and read it back. This proves the deployed resolver/web serve a present record; the record is a seed,
+  **not** a real signet anchor or an ownership claim.
+
+  ```bash
+  # Writes a SEEDED (non-signet, non-consensus) confirmed-anchor record into the shared store, prints its txid:
+  TXID=$(docker compose exec -T resolver node /app/scripts/g3-seed-anchor.mjs)
+  curl -fsS "http://127.0.0.1:4174/tx/$TXID"        # resolver returns the confirmed view
+  curl -fsS "http://127.0.0.1:4175/?q=$TXID"        # web renders it
+  ```
+
+  The seed coexists on a quiet stack; a later real anchor supersedes it (see the script header). Use it as a
+  one-shot read-presence check, then let real ingest take over.
+
+### 4c. Deferred to the publisher slice
+
+A real claim → publisher anchor → indexer ingest → render on live signet is the publisher/claim slice, not this one.
 
 Restart-survival (G2) carries over: `docker compose restart indexer resolver` and the durable cursor +
 confirmed anchors persist — the resolver still serves what was ingested before the restart.

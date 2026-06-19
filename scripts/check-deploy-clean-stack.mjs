@@ -4,8 +4,9 @@
 // The clean-build go-live stack is bitcoind(signet) -> indexer(node ingest -> durable file store) ->
 // resolver(read) -> web(display). This gate is a RATCHET that keeps the checked-in deploy infra
 // (docker-compose.yml, docker/entrypoint.sh, .env.example) wired to the CLEAN apps' real runtime env and
-// free of old-stack (pre-clean-build / pre-ONT-rebrand) leakage. It is a STATIC shape check only — it does
-// NOT boot the stack; the clean-slate signet boot/read smoke is the operator gate in the runbook (DK-owned).
+// free of old-stack (pre-clean-build / pre-ONT-rebrand) leakage, and keeps the operator runbook honest
+// (per-service coverage + repo-prep separated from DK-owned destructive steps). It is a STATIC shape check
+// only — it does NOT boot the stack; the clean-slate signet boot/read smoke is the operator gate in the runbook.
 //
 // The clean runtime contract (verified against the app entrypoints):
 //   resolver  apps/resolver/src/index.ts   PORT (4174), ONT_STORE, ONT_STORE_DIR; serves /health, /tx/:txid
@@ -22,6 +23,7 @@ const FILES = {
   compose: "docker-compose.yml",
   entrypoint: "docker/entrypoint.sh",
   env: ".env.example",
+  runbook: "docs/operate/G3_CLEAN_SLATE_VPS.md",
 };
 
 // Old-stack tokens that must NOT appear in any deploy-infra file. Each is an unambiguous env-var / path
@@ -44,21 +46,38 @@ const DENY = [
   { token: "apps/indexer/src/index.js", why: "indexer index.js is exports-only; the daemon is main.js" },
   { token: "dist/apps/indexer/src/index.js", why: "indexer daemon entry is main.js, not index.js" },
 ];
+// DENY is scoped to the wiring files; the checker's own deny-list literals here are not deploy infra.
+const DENY_FILES = ["compose", "entrypoint", "env"];
 
-// Clean-stack tokens that MUST appear in docker-compose.yml (the stack must wire the real clean env).
+// Clean-stack tokens that MUST appear in docker-compose.yml (plain substring).
 const REQUIRE_COMPOSE = [
   { token: "bitcoind:", why: "a fresh signet bitcoind service is part of the clean-slate stack" },
   { token: "ONT_SOURCE", why: "indexer live ingest needs ONT_SOURCE=node" },
   { token: "ONT_CHAIN", why: "indexer chain gate needs ONT_CHAIN=signet" },
   { token: "ONT_RPC_URL", why: "indexer node source needs the bitcoind RPC URL" },
-  { token: "ONT_STORE", why: "durable confirmed-anchor store selector (file)" },
-  { token: "ONT_STORE_DIR", why: "shared durable store dir (indexer writes, resolver reads)" },
   { token: "ONT_RESOLVER_URL", why: "web reads its tx source from the resolver URL" },
+];
+// Clean-stack requirements that need exact shape, not just token presence (CL bar: ONT_STORE=file + nonempty dir).
+const REQUIRE_COMPOSE_RE = [
+  { re: /ONT_STORE:\s*file\b/, why: "durable store must be ONT_STORE=file (not memory) for live read" },
+  { re: /ONT_STORE_DIR:\s*\S+/, why: "ONT_STORE_DIR must be set to a nonempty path (indexer writes, resolver reads)" },
 ];
 
 // Clean-stack requirements for the entrypoint dispatch.
 const REQUIRE_ENTRYPOINT = [
   { token: "apps/indexer/dist/apps/indexer/src/main.js", why: "indexer service must exec the daemon main.js" },
+];
+
+// Runbook must carry per-service coverage and separate repo-prep from DK-owned destructive steps (CL bar).
+// publisher is deliberately deferred to the publisher/claim slice, so it is NOT required here.
+const REQUIRE_RUNBOOK_RE = [
+  { re: /\|\s*\*\*bitcoind\*\*/, why: "runbook needs a per-service row for bitcoind (env/storage/health/smoke)" },
+  { re: /\|\s*\*\*indexer\*\*/, why: "runbook needs a per-service row for indexer" },
+  { re: /\|\s*\*\*resolver\*\*/, why: "runbook needs a per-service row for resolver" },
+  { re: /\|\s*\*\*web\*\*/, why: "runbook needs a per-service row for web" },
+  { re: /repo-prep/i, why: "runbook must label the non-destructive repo-prep steps" },
+  { re: /destructive/i, why: "runbook must call out the destructive teardown explicitly" },
+  { re: /DK-owned/i, why: "destructive VPS teardown must be marked DK-owned, separated from repo-prep" },
 ];
 
 const violations = [];
@@ -72,18 +91,23 @@ function read(path) {
 }
 
 const text = Object.fromEntries(Object.entries(FILES).map(([k, p]) => [k, read(p)]));
-const allText = Object.entries(text).map(([k, v]) => ({ file: FILES[k], v }));
 
 for (const { token, why } of DENY) {
-  for (const { file, v } of allText) {
-    if (v.includes(token)) violations.push(`OLD-STACK in ${file}: "${token}" — ${why}`);
+  for (const k of DENY_FILES) {
+    if (text[k].includes(token)) violations.push(`OLD-STACK in ${FILES[k]}: "${token}" — ${why}`);
   }
 }
 for (const { token, why } of REQUIRE_COMPOSE) {
   if (!text.compose.includes(token)) violations.push(`MISSING in ${FILES.compose}: "${token}" — ${why}`);
 }
+for (const { re, why } of REQUIRE_COMPOSE_RE) {
+  if (!re.test(text.compose)) violations.push(`MISSING in ${FILES.compose}: /${re.source}/ — ${why}`);
+}
 for (const { token, why } of REQUIRE_ENTRYPOINT) {
   if (!text.entrypoint.includes(token)) violations.push(`MISSING in ${FILES.entrypoint}: "${token}" — ${why}`);
+}
+for (const { re, why } of REQUIRE_RUNBOOK_RE) {
+  if (!re.test(text.runbook)) violations.push(`MISSING in ${FILES.runbook}: /${re.source}/ — ${why}`);
 }
 
 if (violations.length > 0) {
@@ -93,4 +117,4 @@ if (violations.length > 0) {
   process.exit(1);
 }
 
-console.log("check-deploy-clean-stack: clean (docker-compose.yml, docker/entrypoint.sh, .env.example)");
+console.log("check-deploy-clean-stack: clean (docker-compose.yml, docker/entrypoint.sh, .env.example, runbook)");
