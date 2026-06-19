@@ -12,26 +12,15 @@ import {
   type ConfirmedBatchAnchorResult,
   type ConfirmedBatchAnchorRejectReason,
 } from "@ont/adapter-indexer";
-import type { ConfirmedBatchAnchor, GateFeeTxWitnessParts } from "@ont/claim-path";
+// The durable confirmed-anchor record + store contract live in @ont/anchor-store (G2 slice 6a) — shared
+// infrastructure for the indexer (writer) and the resolver (reader). Imported for the signatures below and
+// re-exported so existing consumers (runner, select-stores, index) keep their import paths.
+import type { ConfirmedAnchorRecord, ConfirmedAnchorStore } from "@ont/anchor-store";
+export type { ConfirmedAnchorRecord, ConfirmedAnchorStore } from "@ont/anchor-store";
 
 /** The narrow, pure firewall seam: a confirmed-anchor candidate → the adapter's verdict. Default = the real
  *  `buildConfirmedBatchAnchor`. Async block-source work belongs BEFORE candidate construction, never here. */
 export type ConfirmAnchor = (candidate: BuildConfirmedBatchAnchorInput) => ConfirmedBatchAnchorResult;
-
-/** The exact firewall ok facts the service persists — no service-added fields. */
-export interface ConfirmedAnchorRecord {
-  readonly confirmedAnchor: ConfirmedBatchAnchor;
-  readonly feeTxParts: GateFeeTxWitnessParts;
-}
-
-/** Persistence port — Promise-shaped from the start (the service is a shell around future DB/filesystem state). */
-export interface ConfirmedAnchorStore {
-  has(anchoredRoot: string): Promise<boolean>;
-  put(record: ConfirmedAnchorRecord): Promise<void>;
-  /** Read accessor (go-live slice 5): the already-minted record for a confirmed anchor txid, or null. READ-ONLY —
-   *  mints nothing, mutates nothing. The resolver/web read these indexer-produced facts; they never confirm. */
-  getByTxid(anchorTxid: string): Promise<ConfirmedAnchorRecord | null>;
-}
 
 export type IngestRejectReason = ConfirmedBatchAnchorRejectReason | "ingest-error";
 

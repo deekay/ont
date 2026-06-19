@@ -23,3 +23,10 @@ export {
   type ServedRecoveryHistoryResult,
   type ServedRecoveryHistoryRejectReason,
 } from "./serve-recovery-history.js";
+export {
+  confirmedAnchorTxToServedTx,
+  confirmedAnchorRecordToTxView,
+  type ServedTx,
+  type ServedTxOutput,
+  type ConfirmedAnchorTxView,
+} from "./confirmed-anchor-tx.js";

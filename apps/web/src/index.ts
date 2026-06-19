@@ -3,6 +3,7 @@
 // resolver-indexed-mirror / not-ownership-authority copy. No keys, no signing, no crypto libs, no wallet
 // internals. AuctionBid tx display renders decoded W16 fields; auction bidding/signing stays wallet-only.
 import { createEmptyWebReadPort, createWebHttpServer } from "./server.js";
+import { selectResolverTxSource } from "./live/select-resolver-tx-source.js";
 
 export {
   renderNameView,
@@ -31,19 +32,31 @@ export {
   handleWebRequest,
   type WebServiceOptions,
 } from "./server.js";
-// Confirmed-anchor read path (go-live slice 5) — published so the regtest e2e composes the projection + snapshot port.
+// Confirmed-anchor read path — the projection contract is owned by @ont/adapter-resolver (G2 slice 4a);
+// re-export it so the regtest e2e + web consumers keep their existing import paths.
 export {
   confirmedAnchorTxToServedTx,
   type ConfirmedAnchorTxView,
-} from "./live/confirmed-anchor-tx.js";
+} from "@ont/adapter-resolver";
 export {
   createSnapshotWebReadPort,
   type ConfirmedAnchorSnapshot,
 } from "./live/snapshot-read-port.js";
+// Live resolver tx read source (G2 slice 5a/5b-2): the transport adapter + the env selector the web main uses.
+export {
+  createResolverTxSource,
+  type ResolverTxSource,
+} from "./live/resolver-tx-source.js";
+export { selectResolverTxSource } from "./live/select-resolver-tx-source.js";
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   const port = Number.parseInt(process.env.PORT ?? "4175", 10);
-  const server = createWebHttpServer({ port: createEmptyWebReadPort() });
+  // Live resolver tx source selected from the environment: ONT_RESOLVER_URL unset → undefined (hermetic
+  // default, sync port only); nonempty → the live source; empty/blank → fail closed (throws here at startup).
+  const server = createWebHttpServer({
+    port: createEmptyWebReadPort(),
+    txSource: selectResolverTxSource(process.env),
+  });
   server.listen(port, () => {
     console.log(`@ont/web listening on http://127.0.0.1:${port}`);
   });

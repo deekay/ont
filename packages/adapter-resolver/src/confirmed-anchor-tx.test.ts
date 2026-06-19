@@ -1,8 +1,8 @@
-// Slice 5 red battery — confirmedAnchorTxToServedTx projection (go-live confirmed-anchor read path).
-// Pins CL's correction: project from the ORIGINAL anchor tx, return its EXACT OP_RETURN payload bytes as
-// carrierPayloadHex (not synthesized), cross-check decoded newRoot/batchSize against the confirmed fact and
-// fail closed (null) on mismatch / missing / non-RootAnchor / unserializable. blockHash null; blockHeight =
-// minedHeight; outputs projected from the tx. RED until implemented (stub throws).
+// @ont/adapter-resolver — G2 slice 4a RED battery: confirmed-anchor tx → ServedTx projection.
+//
+// Ported verbatim from apps/web/src/live/confirmed-anchor-tx.test.ts (G1 slice 5) — the projection is moving
+// to the resolver (rec B), so its served-JSON shape must stay byte/field compatible (CL watch, event
+// a2062e08): the move only relocates ownership of the contract. RED until the impl lands here (stub throws).
 import { describe, expect, it } from "vitest";
 import { legacyTxidOf, type LegacyTransaction } from "@ont/bitcoin";
 import { decodeEvent, encodeEvent, EventType, hexToBytes } from "@ont/wire";
@@ -39,7 +39,7 @@ const anchorScript = opReturnScriptFor(anchorPayload);
 const validAnchorTx = txWith([{ valueSats: 0n, scriptPubKeyHex: anchorScript }]);
 const validView: ConfirmedAnchorTxView = { anchorTx: validAnchorTx, minedHeight: 101, anchoredRoot: NEW_ROOT, batchSize: 5 };
 
-describe("confirmedAnchorTxToServedTx (G1 slice 5)", () => {
+describe("confirmedAnchorTxToServedTx (promoted to @ont/adapter-resolver)", () => {
   it("projects a confirmed RootAnchor tx to a ServedTx with the ORIGINAL carrier bytes", () => {
     const served = confirmedAnchorTxToServedTx(validView);
     expect(served).not.toBeNull();
@@ -87,7 +87,6 @@ describe("confirmedAnchorTxToServedTx (G1 slice 5)", () => {
   });
 
   it("fails closed (null) on a non-unique carrier — two decodable RootAnchor OP_RETURN outputs", () => {
-    // aligns with the inclusion firewall's exactly-one RootAnchor rule (CL pin)
     const tx = txWith([
       { valueSats: 0n, scriptPubKeyHex: anchorScript },
       { valueSats: 0n, scriptPubKeyHex: anchorScript },

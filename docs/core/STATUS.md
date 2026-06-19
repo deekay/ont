@@ -4,7 +4,7 @@
 If the README, one-pager, design brief, or the website disagree with this file, **this file
 wins** — fix the others. (It exists because those numbers drifted apart once; don't let them again.)
 
-Last updated: 2026-06-17.
+Last updated: 2026-06-18.
 
 ## DECOMMISSION NOTICE — 2026-06-11
 
@@ -31,6 +31,38 @@ The carried-over pre-W16 cluster is now outside the active npm workspace under
 remains active for clean off-chain/signature helpers and auction bid packages;
 its auction lot/bidder commitments now use W16 full-width 32-byte renderings.
 
+## Clean-build go-live — G2 (restart-safe RootAnchor read path) — 2026-06-17
+
+The clean-build RootAnchor confirmed-anchor read path is now **restart-safe** (go-live G2, merged to
+`main` at `b873dff`; see [DECISIONS.md](./DECISIONS.md) #87 `g2-durable-anchor-read` and the G2
+outcome banner in [GO_LIVE_PLAN.md](./GO_LIVE_PLAN.md)). Durable state lives in a new node-targeted
+`@ont/anchor-store` — shared by the indexer-writer (`has`/`put`) and the resolver-reader (`getByTxid`), with
+**no resolver→indexer edge** and no codec duplication. The deployable resolver serves `GET /tx/:txid` from the
+indexer's durable `confirmed-anchors.json` via `selectResolverAnchorTxView` (`ONT_STORE=file` +
+`ONT_STORE_DIR`; a fresh store per read, so a long-lived resolver reflects newly-persisted anchors;
+`memory`/unset → no source, `/tx` 404). A **hermetic** restart-survival e2e (no bitcoind, no gate, default
+suite) locks it: persist → restart (fresh stores, same dir) → resolver HTTP → web `txSource` renders the
+confirmed facts after restart (direct `/tx`, `/?q=`, `/search?q=`), the durable cursor resumes at the committed
+height, and a re-presented anchor is skipped (no double-apply).
+
+**Not deployed; honest boundary.** RootAnchor confirmed-anchor read path ONLY — no B3 value/recovery, no
+Postgres durability (file store only), no signet/VPS, and no bitcoind acceptance implied (6c is hermetic, it
+proves durable-state survival, not chain validation). No new consensus/firewall; the audited core is untouched.
+
+## Publisher onboarding — provider-neutral operator path — 2026-06-18
+
+Publisher wallet/payment onboarding is **documented, not built**. Decision #88
+(`publisher-onboarding-neutrality`) fixes the project boundary: ONT ships the
+publisher stack, configuration, adapter contracts, and health checks; operators choose
+interchangeable payment, signing, and broadcast backends. Commercial or hosted services
+may appear as optional recipes, but none is a protocol dependency or canonical setup
+path. The operator target is a simple `ont publisher init` flow and, later, a web
+launcher that deploys/configures the same provider-neutral stack.
+
+See [PUBLISHER_ONBOARDING.md](../operate/PUBLISHER_ONBOARDING.md). Remaining work:
+payment-intake adapters, signing/broadcast adapters, provider-neutral health checks,
+and concrete dev/signet plus hosted/self-hosted/custom setup recipes.
+
 ## Status legend
 - **Decommissioned (2026-06-11)** — was live on signet; taken down at
   clean-build (#46) B1 start. Capability statements in its Notes describe
@@ -47,7 +79,7 @@ its auction lot/bidder commitments now use W16 full-width 32-byte renderings.
 | Contested-auction bonded bid | **Decommissioned (2026-06-11)** | Bid → resolver-accepted on signet. Proof bundle now enforces **highest-bid-wins** + **distinct-bid** well-formedness (was a gap). Set-*completeness* vs L1 still needs the light-client path — see Known-incomplete. |
 | Bitcoin-inclusion verifier (Merkle + PoW) | **Prototype** | The verifier exists and is tested vs a real mainnet block, but **producers don't emit the `bitcoinInclusion` section** and launch clients do not enforce `verifyProofBundleAgainstBitcoin` with an independent canonical header source yet, so the light-client path is **not closed end-to-end**. |
 | Batched claim path (batch claims) | **Decommissioned (2026-06-11)** | **End-to-end since 2026-06-09**: claim → publisher anchors on-chain → indexer decodes the anchor → fetches the batch leaves from the publisher (`/da/{root}`) → re-verifies every membership proof against the Bitcoin-anchored root → name resolves and shows in the public explorer. A lying data source can't mint ownership (verify-don't-trust), and a loop integration test pins the publisher-bytes→indexer-decode boundary. **Still open:** fail-closed availability-deadline enforcement (keyed off the anchor's mined height per marker-fold (#47) — the separate marker event is retired) is design+simulation only (see Known-incomplete); transport is publisher-served v1 (content-addressed mirroring is the design direction). |
-| Publisher (batched-path batch anchor) | **Decommissioned (2026-06-11)** | Pay-first; real signet anchor broadcast; data-availability bundles survive restart (rebuilt on snapshot replay). Lightning stubbed on signet (Lexe is mainnet-only); leaderless multi-publisher is simulated, not deployed. |
+| Publisher (batched-path batch anchor) | **Decommissioned (2026-06-11)** | Pay-first; real signet anchor broadcast; data-availability bundles survive restart (rebuilt on snapshot replay). Live publisher wallet/payment onboarding is not built; provider-neutral operator guidance is Decision #88 + [PUBLISHER_ONBOARDING.md](../operate/PUBLISHER_ONBOARDING.md). Leaderless multi-publisher is simulated, not deployed. |
 | Discovery (resolver/publisher) | **Designed** | Config-seeded today; registry-free on-chain scan designed, not built. |
 | Mobile iOS app | **Prototype (signet demo)** | Feature-complete walkable demo; demo-mode default-on; mainnet host placeholder. Not release-ready. |
 | Web explainer (opennametags.org) | **Live (static) — read tooling Decommissioned (2026-06-11)** | Marketing/docs pages may stay up (static, no old-stack dependency — DK's hosting call); the explorer/read tooling is down with the resolver. |

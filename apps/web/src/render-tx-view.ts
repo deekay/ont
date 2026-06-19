@@ -33,16 +33,32 @@ export function shapeTxid(txid: unknown): ShapeTxidResult {
 export function renderTxView(input: { readonly txid: unknown; readonly port: WebReadPort }): string {
   const shaped = shapeTxid(input.txid);
   if (!shaped.ok) return errorView(input.txid); // invalid txid → escaped error view, never touches the port
-  const txid = shaped.txid;
   try {
-    const served = input.port.tx(txid);
-    if (served === null) return unavailableView(txid);
-    // a served tx whose txid is malformed or differs from the request is malformed → unavailable
-    if (!isHex32Rendering(served.txid) || served.txid !== txid) return unavailableView(txid);
-    return txPage(txid, txFieldsSection(served) + carrierSection(served.carrierPayloadHex));
+    // The sync port path wraps BOTH the port read and the render, so a throwing/malformed legacy port still
+    // degrades to unavailable (the live resolver path in 5b-2 feeds a shape-validated ServedTx and maps a
+    // broken source to 502 in the handler — it does not rely on this wrapper).
+    return renderServedTx(input.txid, input.port.tx(shaped.txid));
   } catch {
-    return unavailableView(txid); // null/throwing/malformed → unavailable, never a thrown render
+    return unavailableView(shaped.txid); // null/throwing/malformed → unavailable, never a thrown render
   }
+}
+
+/**
+ * The render-from-served core (G2 slice 5b): shape the txid (bad → error view), then render a resolved
+ * ServedTx | null (null → unavailable view; txid mismatch/malformed → unavailable; else the tx page). Total for
+ * a well-formed ServedTx. Both the sync port path (renderTxView, which wraps the port call) and the live
+ * resolver path (slice 5b-2, which feeds a shape-validated ServedTx) render through this one implementation.
+ * RED stub — slice 5b-1 green extracts renderTxView's render-from-served body here (proven behavior-preserving
+ * by the parity tests).
+ */
+export function renderServedTx(rawTxid: unknown, served: ServedTx | null): string {
+  const shaped = shapeTxid(rawTxid);
+  if (!shaped.ok) return errorView(rawTxid); // invalid txid → escaped error view
+  const txid = shaped.txid;
+  if (served === null) return unavailableView(txid);
+  // a served tx whose txid is malformed or differs from the request is malformed → unavailable
+  if (!isHex32Rendering(served.txid) || served.txid !== txid) return unavailableView(txid);
+  return txPage(txid, txFieldsSection(served) + carrierSection(served.carrierPayloadHex));
 }
 
 /** label/value row — every value HTML-escaped. */

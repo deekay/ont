@@ -1,16 +1,23 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import {
+  confirmedAnchorTxToServedTx,
   projectServedRecoveryHistory,
   projectServedValueHistory,
   validateRecoveryDescriptorSubmission,
   validateValueRecordSubmission,
 } from "@ont/adapter-resolver";
 import type {
+  ConfirmedAnchorTxView,
   OwnershipInterval,
   ProjectServedRecoveryHistoryInput,
   ProjectServedValueHistoryInput,
 } from "@ont/adapter-resolver";
 import type { SignedRecoveryDescriptor, SignedValueRecord } from "@ont/protocol";
+
+/** Injected read-only confirmed-anchor view source (G2 slice 4b). The harness composes it over the durable
+ *  store (createFileConfirmedAnchorStore.getByTxid → bridge); the resolver server NEVER imports the indexer
+ *  or the file store. Absent ⇒ /tx/:txid is not served (404). */
+export type AnchorTxViewSource = (txid: string) => Promise<ConfirmedAnchorTxView | null>;
 
 export interface ResolverStore {
   valueState(name: string): Promise<ProjectServedValueHistoryInput | null>;
@@ -25,6 +32,8 @@ export interface ResolverStore {
 
 export interface ResolverServiceOptions {
   readonly store: ResolverStore;
+  /** Read-only confirmed-anchor tx source for GET /tx/:txid; absent ⇒ that route 404s. */
+  readonly anchorTxView?: AnchorTxViewSource;
 }
 
 export function createInMemoryResolverStore(): ResolverStore {
@@ -83,6 +92,13 @@ export async function handleResolverRequest(request: Request, options: ResolverS
       if (segments[2] === "recovery-history") return serveRecoveryHistory(name, options.store);
     }
 
+    if (segments.length === 2 && segments[0] === "tx") {
+      if (request.method !== "GET") return json({ ok: false, reason: "method-not-allowed" }, 405);
+      const txid = segments[1];
+      if (!txid) return json({ ok: false, reason: "bad-txid" }, 400);
+      return serveConfirmedTx(txid, options.anchorTxView);
+    }
+
     if (segments.length === 2 && segments[0] === "submissions") {
       if (request.method !== "POST") return json({ ok: false, reason: "method-not-allowed" }, 405);
       if (segments[1] === "value-record") return submitValueRecord(request, options.store);
@@ -99,6 +115,22 @@ export function createResolverHttpServer(options: ResolverServiceOptions): Serve
   return createServer((req, res) => {
     void handleNodeRequest(req, res, options);
   });
+}
+
+async function serveConfirmedTx(txid: string, anchorTxView?: AnchorTxViewSource): Promise<Response> {
+  // Read-only: a thin coordinator over the injected source + the adapter-resolver projection. Source miss and
+  // projection-fail both collapse to a clean 404; no store touch, no mint/put/repair, no per-name fallback.
+  if (!anchorTxView) return json({ ok: false, reason: "not-found" }, 404);
+  let view: ConfirmedAnchorTxView | null;
+  try {
+    view = await anchorTxView(txid);
+  } catch {
+    return json({ ok: false, reason: "store-unavailable" }, 503);
+  }
+  if (view === null) return json({ ok: false, reason: "not-found" }, 404);
+  const served = confirmedAnchorTxToServedTx(view);
+  if (served === null) return json({ ok: false, reason: "not-found" }, 404); // inconsistent anchor → clean 404
+  return json(served, 200);
 }
 
 async function serveValueHistory(name: string, store: ResolverStore): Promise<Response> {
