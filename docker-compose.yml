@@ -1,4 +1,64 @@
+# ONT clean-build go-live stack — G3 clean-slate signet READ path.
+# See docs/operate/G3_CLEAN_SLATE_VPS.md for the teardown -> rebuild -> boot/read-smoke runbook.
+#
+#   bitcoind(signet) --RPC--> indexer (node ingest, chain-gated) --file store--> resolver (read) --> web (display)
+#
+# The indexer writes confirmed anchors to a durable file store (ONT_STORE=file under ONT_STORE_DIR); the resolver
+# reads the SAME dir (shared volume), so a restart resumes without re-ingesting (go-live G2). Acceptance is a
+# clean-slate signet boot + read smoke — NOT mainnet, NOT a B3 claim/data-availability path. Secrets, host binds,
+# and the bitcoind image are operator config in .env (copy .env.example). `npm run check:deploy` gates this file.
 services:
+  # Fresh signet Bitcoin Core. The indexer's only chain source. Image is operator-pinned (BITCOIND_IMAGE) — use a
+  # Bitcoin Core >= 25 signet-capable build you trust; first boot does a signet IBD (small). RPC auth comes from .env.
+  bitcoind:
+    image: ${BITCOIND_IMAGE:-btcpayserver/bitcoin:28.0}
+    command:
+      - -signet
+      - -server
+      - -txindex
+      - -rpcbind=0.0.0.0
+      - -rpcallowip=0.0.0.0/0
+      - -rpcport=38332
+      - -rpcuser=${ONT_RPC_USER:-ontrpc}
+      - -rpcpassword=${ONT_RPC_PASSWORD:?set ONT_RPC_PASSWORD in .env}
+    volumes:
+      - bitcoind_data:/data/.bitcoin
+    restart: unless-stopped
+    healthcheck:
+      # Operator-validate the bitcoin-cli path for your chosen image; getblockchaininfo proves the RPC is live.
+      test: ["CMD-SHELL", "bitcoin-cli -signet -rpcuser=${ONT_RPC_USER:-ontrpc} -rpcpassword=${ONT_RPC_PASSWORD} getblockchaininfo >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 20
+      start_period: 30s
+
+  # Live ingest daemon (apps/indexer/src/main.ts). ONT_SOURCE=node runs the @ont/node-live chain gate against
+  # ONT_CHAIN before any poll — a mispointed/missing RPC fails closed here, before the loop starts.
+  indexer:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    command: ["indexer"]
+    env_file:
+      - .env
+    environment:
+      ONT_SOURCE: node
+      ONT_CHAIN: signet
+      ONT_RPC_URL: http://bitcoind:38332
+      ONT_RPC_USER: ${ONT_RPC_USER:-ontrpc}
+      ONT_RPC_PASSWORD: ${ONT_RPC_PASSWORD:?set ONT_RPC_PASSWORD in .env}
+      ONT_STORE: file
+      ONT_STORE_DIR: /app/.data
+      INDEXER_POLL_MS: "${INDEXER_POLL_MS:-10000}"
+    volumes:
+      - ont_data:/app/.data
+    depends_on:
+      bitcoind:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Read service (apps/resolver/src/index.ts). Reads the indexer's durable confirmed-anchors store (same ONT_STORE_DIR,
+  # shared volume) and serves GET /tx/:txid + /health on PORT. No resolver->indexer network edge.
   resolver:
     build:
       context: .
@@ -7,21 +67,26 @@ services:
     env_file:
       - .env
     environment:
-      ONT_RESOLVER_PORT: "8787"
-      ONT_SNAPSHOT_PATH: /app/.data/resolver-snapshot.json
-      ONT_VALUE_STORE_PATH: /app/.data/value-records.json
-    ports:
-      - "${ONT_RESOLVER_BIND:-127.0.0.1}:${ONT_RESOLVER_PORT:-8787}:8787"
+      PORT: "4174"
+      ONT_STORE: file
+      ONT_STORE_DIR: /app/.data
     volumes:
       - ont_data:/app/.data
+    depends_on:
+      indexer:
+        condition: service_started
+    ports:
+      - "${ONT_RESOLVER_BIND:-127.0.0.1}:4174:4174"
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8787/health >/dev/null || exit 1"]
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:4174/health >/dev/null || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 10
       start_period: 10s
 
+  # Display surface (apps/web/src/index.ts). Reads its tx source from the resolver over HTTP (ONT_RESOLVER_URL) and
+  # serves the explorer + /health on PORT. Read/display only — no keys, no signing.
   web:
     build:
       context: .
@@ -30,36 +95,21 @@ services:
     env_file:
       - .env
     environment:
-      ONT_WEB_PORT: "3000"
-      ONT_WEB_RESOLVER_URL: http://resolver:8787
-      ONT_RESOLVER_PORT: "8787"
-      ONT_WEB_PRIVATE_SIGNET_FUNDING_ENABLED: "${ONT_WEB_PRIVATE_SIGNET_FUNDING_ENABLED:-false}"
+      PORT: "4175"
+      ONT_RESOLVER_URL: http://resolver:4174
     depends_on:
       resolver:
         condition: service_healthy
     ports:
-      - "${ONT_WEB_BIND:-127.0.0.1}:${ONT_WEB_PORT:-3000}:3000"
+      - "${ONT_WEB_BIND:-127.0.0.1}:4175:4175"
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:3000/api/health >/dev/null || exit 1"]
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:4175/health >/dev/null || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 10
       start_period: 10s
 
-  indexer:
-    profiles: ["ops"]
-    build:
-      context: .
-      dockerfile: docker/Dockerfile
-    command: ["indexer"]
-    env_file:
-      - .env
-    environment:
-      ONT_SNAPSHOT_PATH: /app/.data/indexer-snapshot.json
-      ONT_SNAPSHOT_KEY: indexer
-    volumes:
-      - ont_data:/app/.data
-
 volumes:
   ont_data:
+  bitcoind_data:
