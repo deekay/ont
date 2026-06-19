@@ -97,11 +97,14 @@ async function assembleRecoverOwnerInvokeRoute(request: Request): Promise<Respon
   return assembledResponse(tx);
 }
 
+// `unsignedTxid` is the legacy txid over the UNSIGNED serialization (scriptSigs empty). Signing fills the
+// scriptSigs, which changes the serialization and therefore the txid — so this is a TEMPLATE id, NOT the
+// chain txid. The real chain txid comes from /broadcast (the node's response after the signed raw is submitted).
 function assembledResponse(tx: LegacyTransaction): Response {
   const bytes = serializeLegacyTransaction(tx);
-  const txid = legacyTxidOf(tx);
-  if (bytes === null || txid === null) return json({ ok: false, reason: "tx-not-serializable" }, 422);
-  return json({ ok: true, txid, unsignedTxHex: Buffer.from(bytes).toString("hex") }, 200);
+  const unsignedTxid = legacyTxidOf(tx);
+  if (bytes === null || unsignedTxid === null) return json({ ok: false, reason: "tx-not-serializable" }, 422);
+  return json({ ok: true, unsignedTxid, unsignedTxHex: Buffer.from(bytes).toString("hex") }, 200);
 }
 
 // The ONLY route handed the broadcast port. Relays an already-signed legacy raw; fails closed on any

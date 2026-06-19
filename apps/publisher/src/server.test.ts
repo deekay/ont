@@ -55,9 +55,10 @@ function broadcastFixture(result = { ok: true as const, txid: TXID_B }) {
   return { port, seen };
 }
 
-// A legacy-serializable raw tx hex, standing in for the externally-signed raw the operator POSTs to /broadcast.
-// The publisher never signs and never inspects signedness — it relays whatever legacy raw it is handed.
-function rawTxHex(): { hex: string; tx: LegacyTransaction; txid: string } {
+// A legacy-serializable raw tx hex for the /broadcast tests. The publisher never inspects signedness — it
+// relays whatever legacy raw it is handed — so this fixture being unsigned-shaped (empty scriptSigs) is fine;
+// it exercises the relay path, not a signedness check. An operator POSTs the externally-signed raw in practice.
+function legacyRawHex(): { hex: string; tx: LegacyTransaction; txid: string } {
   const tx = assembleRootAnchorTx({ ...rootAnchorInput(), changeOutput: { valueSats: 50000n, scriptPubKeyHex: "51" } });
   if (tx === null) throw new Error("fixture: assembleRootAnchorTx returned null");
   const bytes = serializeLegacyTransaction(tx);
@@ -83,7 +84,7 @@ describe("publisher service — HTTP shell (assemble / broadcast split)", () => 
     const assembled = assembleRootAnchorTx({ ...input, changeOutput: { valueSats: 50000n, scriptPubKeyHex: "51" } });
     expect(assembled).not.toBeNull();
     const expectedHex = Buffer.from(serializeLegacyTransaction(assembled!)!).toString("hex");
-    expect(await res.json()).toEqual({ ok: true, txid: legacyTxidOf(assembled!), unsignedTxHex: expectedHex });
+    expect(await res.json()).toEqual({ ok: true, unsignedTxid: legacyTxidOf(assembled!), unsignedTxHex: expectedHex });
     // STRUCTURAL SAFETY: the assemble path cannot reach the broadcast seam.
     expect(seen).toEqual([]);
   });
@@ -96,7 +97,7 @@ describe("publisher service — HTTP shell (assemble / broadcast split)", () => 
     const assembled = assembleRecoverOwnerInvokeTx({ ...input, changeOutput: { valueSats: 25000n, scriptPubKeyHex: "51" } });
     expect(assembled).not.toBeNull();
     const expectedHex = Buffer.from(serializeLegacyTransaction(assembled!)!).toString("hex");
-    expect(await res.json()).toEqual({ ok: true, txid: legacyTxidOf(assembled!), unsignedTxHex: expectedHex });
+    expect(await res.json()).toEqual({ ok: true, unsignedTxid: legacyTxidOf(assembled!), unsignedTxHex: expectedHex });
     expect(seen).toEqual([]);
   });
 
@@ -111,9 +112,9 @@ describe("publisher service — HTTP shell (assemble / broadcast split)", () => 
     expect(seen).toEqual([]);
   });
 
-  it("POST /broadcast relays a signed legacy raw through the port", async () => {
+  it("POST /broadcast relays a legacy raw verbatim through the port", async () => {
     const { port, seen } = broadcastFixture({ ok: true as const, txid: TXID_B });
-    const { hex, tx } = rawTxHex();
+    const { hex, tx } = legacyRawHex();
     const res = await handlePublisherRequest(request("/broadcast", { signedTxHex: hex }), { broadcast: port });
     expect(res.status).toBe(202);
     expect(await res.json()).toEqual({ ok: true, txid: TXID_B });
@@ -130,7 +131,7 @@ describe("publisher service — HTTP shell (assemble / broadcast split)", () => 
   });
 
   it("POST /broadcast surfaces port reject and throw without echoing tx bytes", async () => {
-    const { hex } = rawTxHex();
+    const { hex } = legacyRawHex();
     const reject = await handlePublisherRequest(request("/broadcast", { signedTxHex: hex }), {
       broadcast: broadcastFixture({ ok: false, reason: "mempool-reject" }).port,
     });
