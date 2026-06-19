@@ -1,99 +1,31 @@
 #!/usr/bin/env bash
+# ONT clean-build container entrypoint. Dispatches to one of the runnable clean apps by service name.
+# Each app self-configures from the environment (the indexer's chain gate lives in @ont/node-live's
+# selectIndexerBlockSource — ONT_SOURCE=node + ONT_CHAIN + ONT_RPC_URL fail closed there, before any poll),
+# so this entrypoint carries NO launch-height/source-mode/RPC machinery. See docker-compose.yml.
 
 set -euo pipefail
 
 APP_ROOT=/app
 SERVICE="${1:-web}"
 
-fetch_launch_height_from_rpc() {
-  node --input-type=module - "$ONT_BITCOIN_RPC_URL" "${ONT_BITCOIN_RPC_USERNAME:-}" "${ONT_BITCOIN_RPC_PASSWORD:-}" <<'NODE'
-const [url, username, password] = process.argv.slice(2);
-
-const headers = { "content-type": "application/json" };
-if (username) {
-  headers.authorization = `Basic ${Buffer.from(`${username}:${password}`).toString("base64")}`;
-}
-
-const response = await fetch(url, {
-  method: "POST",
-  headers,
-  body: JSON.stringify({
-    jsonrpc: "1.0",
-    id: "ont-container",
-    method: "getblockcount",
-    params: []
-  })
-});
-
-if (!response.ok) {
-  throw new Error(`RPC request failed with status ${response.status}`);
-}
-
-const payload = await response.json();
-if (payload.error) {
-  throw new Error(`RPC returned error: ${JSON.stringify(payload.error)}`);
-}
-
-process.stdout.write(String(payload.result));
-NODE
-}
-
-fetch_launch_height_from_esplora() {
-  node --input-type=module - "$ONT_ESPLORA_BASE_URL" <<'NODE'
-const [baseUrl] = process.argv.slice(2);
-const response = await fetch(`${baseUrl.replace(/\/$/, "")}/blocks/tip/height`);
-if (!response.ok) {
-  throw new Error(`Esplora request failed with status ${response.status}`);
-}
-
-process.stdout.write((await response.text()).trim());
-NODE
-}
-
-ensure_launch_height() {
-  local snapshot_path="$1"
-  local source_mode="${ONT_SOURCE_MODE:-fixture}"
-
-  mkdir -p "$(dirname "$snapshot_path")"
-
-  if [[ -n "${ONT_LAUNCH_HEIGHT:-}" || -f "$snapshot_path" || "$source_mode" == "fixture" ]]; then
-    return
-  fi
-
-  if [[ "$source_mode" == "rpc" ]]; then
-    if [[ -z "${ONT_BITCOIN_RPC_URL:-}" ]]; then
-      echo "ONT_BITCOIN_RPC_URL is required when ONT_SOURCE_MODE=rpc and ONT_LAUNCH_HEIGHT is unset." >&2
-      exit 1
-    fi
-    export ONT_LAUNCH_HEIGHT
-    ONT_LAUNCH_HEIGHT="$(fetch_launch_height_from_rpc)"
-    echo "Resolved ONT_LAUNCH_HEIGHT=${ONT_LAUNCH_HEIGHT} from Bitcoin RPC."
-    return
-  fi
-
-  if [[ "$source_mode" == "esplora" ]]; then
-    if [[ -z "${ONT_ESPLORA_BASE_URL:-}" ]]; then
-      echo "ONT_ESPLORA_BASE_URL is required when ONT_SOURCE_MODE=esplora and ONT_LAUNCH_HEIGHT is unset." >&2
-      exit 1
-    fi
-    export ONT_LAUNCH_HEIGHT
-    ONT_LAUNCH_HEIGHT="$(fetch_launch_height_from_esplora)"
-    echo "Resolved ONT_LAUNCH_HEIGHT=${ONT_LAUNCH_HEIGHT} from Esplora."
-    return
-  fi
-}
-
 case "$SERVICE" in
   resolver)
-    ensure_launch_height "${ONT_SNAPSHOT_PATH:-${APP_ROOT}/.data/resolver-snapshot.json}"
+    # PORT (default 4174), ONT_STORE=file + ONT_STORE_DIR -> durable confirmed-anchor read; serves /health, /tx/:txid.
     exec node "${APP_ROOT}/apps/resolver/dist/apps/resolver/src/index.js"
     ;;
   web)
+    # PORT (default 4175), ONT_RESOLVER_URL -> live tx source; serves /health + explorer.
     exec node "${APP_ROOT}/apps/web/dist/apps/web/src/index.js"
     ;;
   indexer)
-    ensure_launch_height "${ONT_SNAPSHOT_PATH:-${APP_ROOT}/.data/indexer-snapshot.json}"
-    exec node "${APP_ROOT}/apps/indexer/dist/apps/indexer/src/index.js"
+    # Daemon main (NOT index.js — that is exports-only). ONT_SOURCE=node + ONT_CHAIN + ONT_RPC_URL[/_USER/_PASSWORD]
+    # + ONT_STORE=file + ONT_STORE_DIR + INDEXER_POLL_MS. Chain-gated before the first poll.
+    exec node "${APP_ROOT}/apps/indexer/dist/apps/indexer/src/main.js"
+    ;;
+  publisher)
+    # Claim/anchor-serving side (out of the G3 slice-1 read-smoke scope; included for completeness).
+    exec node "${APP_ROOT}/apps/publisher/dist/apps/publisher/src/index.js"
     ;;
   bash|sh)
     exec "$SERVICE"
