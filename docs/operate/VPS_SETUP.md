@@ -1,5 +1,11 @@
 # VPS Setup
 
+> **⚠ SUPERSEDED (2026-06-19) — old-stack, historical reference only.** This doc and the scripts it references
+> (`deploy-vps.sh`, `bootstrap-vps.sh`, `bootstrap-private-signet-vps.sh`, `deploy-private-signet-vps.sh`,
+> `bootstrap-ont-domain.sh`) predate the clean build and wire the dead `GNS_*` / `ONT_LAUNCH_HEIGHT` snapshot
+> model. Those scripts are quarantined under [`legacy/scripts/`](../../legacy/scripts/README.md). The canonical
+> clean-stack deploy path is the docker compose + [`G3_CLEAN_SLATE_VPS.md`](./G3_CLEAN_SLATE_VPS.md) runbook.
+
 This is the repeatable path for running the current prototype on a VPS you control.
 
 Today the VPS layout is:

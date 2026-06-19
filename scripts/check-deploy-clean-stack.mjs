@@ -110,6 +110,31 @@ for (const { re, why } of REQUIRE_RUNBOOK_RE) {
   if (!re.test(text.runbook)) violations.push(`MISSING in ${FILES.runbook}: /${re.source}/ — ${why}`);
 }
 
+// Quarantine ratchet (old-deploy quarantine — docs/operate/OLD_DEPLOY_QUARANTINE_SCOPE.md): every ./scripts/<file>
+// a live root package.json entry invokes must exist, and no live entry may point into the quarantine dir
+// (legacy/scripts/). Catches a script dropped/moved while its npm entry is left behind, or a quarantined script
+// wired back to a live entry.
+{
+  const pkgPath = "package.json";
+  const raw = read(pkgPath);
+  let scripts = {};
+  try {
+    scripts = (JSON.parse(raw || "{}").scripts) ?? {};
+  } catch (err) {
+    violations.push(`UNREADABLE ${pkgPath}: ${err.message}`);
+  }
+  for (const [name, cmd] of Object.entries(scripts)) {
+    if (/\blegacy\/scripts\//.test(cmd)) {
+      violations.push(`QUARANTINED-REF in ${pkgPath}: script "${name}" invokes legacy/scripts/ — quarantined scripts must not be wired to a live npm entry`);
+    }
+    for (const m of cmd.matchAll(/\.\/scripts\/([A-Za-z0-9_.-]+)/g)) {
+      if (!existsSync(`scripts/${m[1]}`)) {
+        violations.push(`DANGLING in ${pkgPath}: script "${name}" invokes ./scripts/${m[1]} which does not exist (quarantined or deleted — drop or repoint the entry)`);
+      }
+    }
+  }
+}
+
 if (violations.length > 0) {
   console.error("check-deploy-clean-stack: FAIL");
   for (const v of violations) console.error(`  - ${v}`);
@@ -117,4 +142,4 @@ if (violations.length > 0) {
   process.exit(1);
 }
 
-console.log("check-deploy-clean-stack: clean (docker-compose.yml, docker/entrypoint.sh, .env.example, runbook)");
+console.log("check-deploy-clean-stack: clean (docker-compose.yml, docker/entrypoint.sh, .env.example, runbook, package.json script targets)");

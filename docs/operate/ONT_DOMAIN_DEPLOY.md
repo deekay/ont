@@ -1,5 +1,10 @@
 # Open Name Tags Domain Deployment
 
+> **⚠ SUPERSEDED (2026-06-19) — old-stack, historical reference only.** This runbook drives `bootstrap-ont-domain.sh`,
+> now quarantined under [`legacy/scripts/`](../../legacy/scripts/README.md) (it predates the clean build). The
+> canonical clean-stack deploy path is the docker compose + [`G3_CLEAN_SLATE_VPS.md`](./G3_CLEAN_SLATE_VPS.md)
+> runbook; domain/TLS fronting is an operator concern layered on top of that.
+
 This runbook moves the product-facing site onto [opennametags.org](https://opennametags.org) while keeping the underlying ONT protocol identifiers unchanged for compatibility.
 
 ## Goal

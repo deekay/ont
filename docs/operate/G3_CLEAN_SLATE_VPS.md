@@ -136,10 +136,13 @@ confirmed anchors persist — the resolver still serves what was ingested before
 
 ## Notes
 
-- **Old-stack deploy scripts are not the clean path.** `scripts/deploy-vps.sh`,
-  `scripts/deploy-private-signet-vps.sh`, the `bootstrap-*`/`sparrow-*` scripts, and
-  [VPS_SETUP.md](./VPS_SETUP.md) predate the clean build and are not gated by `check:deploy`. The compose +
-  this runbook are the canonical clean-stack path; the old scripts are a separate cleanup (next G3 slice).
+- **Old-stack deploy scripts are quarantined.** The old VPS deploy/bootstrap scripts (`deploy-vps.sh`,
+  `deploy-private-signet-vps.sh`, `bootstrap-vps.sh`, `bootstrap-private-signet-vps.sh`, `bootstrap-ont-domain.sh`,
+  `install-private-signet-electrum.sh`) and [VPS_SETUP.md](./VPS_SETUP.md) predate the clean build and wire the
+  dead `GNS_*`/`ONT_LAUNCH_HEIGHT` model. The scripts are now under [`legacy/scripts/`](../../legacy/scripts/README.md)
+  (npm entries dropped); see [OLD_DEPLOY_QUARANTINE_SCOPE.md](./OLD_DEPLOY_QUARANTINE_SCOPE.md). The compose +
+  this runbook are the canonical clean-stack path. (Private-signet *local-dev* helpers are a separate DK
+  keep/retire call, not yet moved.)
 - **Publisher / claim path is out of scope here.** G3 slice-1 is the read path. The publisher
   (claim/anchor-serving) and a real claim→anchor→render smoke come in a later slice.
 - **bitcoind image is operator-pinned.** `BITCOIND_IMAGE` defaults to a placeholder; pin a signet-capable
