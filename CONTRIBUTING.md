@@ -63,10 +63,10 @@ npm run check
 
 ### Scripts
 
-- `scripts/bootstrap-*.sh`: VPS bootstrap
-- `scripts/deploy-*.sh`: deploy flows
-- `scripts/*sparrow*`: local Sparrow setup helpers
-- `scripts/*demo*` and `scripts/*suite*`: testing flows
+- `scripts/check-*`: repo gates (deploy clean-stack, doc links, surface boundaries, one-pager parity)
+- `scripts/selfhost-*`: self-hosting init/doctor helpers
+- `scripts/render-*-pdf.mjs`: one-pager / parameter-review PDF rendering
+- `scripts/review-refresh.sh`, `scripts/e2e-fixture-web.mjs`, `scripts/g3-seed-anchor.mjs`: local review / browser-e2e / deploy read-smoke seed helpers
 
 ## Working Style
 
