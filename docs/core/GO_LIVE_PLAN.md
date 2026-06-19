@@ -94,13 +94,16 @@ untouched.
 - **Resolver `ResolverStore` / Web `WebReadPort`** — resolver serves what the
   indexer produced; durable persistence is G2; web reads resolver over HTTP.
 
-### Signed-tx handoff (finding #1 — make the seam explicit)
+### Signed-tx handoff (finding #1 — make the seam explicit; **resolved by the G3 publisher slice**)
 The B4 assemblers produce **unsigned** txs by design (`assemble-root-anchor.ts`
-header: "signing / PSBT / broadcast are the I/O edge"), and the current publisher
-HTTP path assembles-then-broadcasts immediately (`apps/publisher/src/server.ts:65`)
-— so a naive broadcast-port swap would submit **unsigned** txs or smuggle signing
-into the publisher. G1 names the seam: **assemble (B4) → sign (wallet, B5) →
-broadcast (publisher port receives a signed raw tx).** The **publisher never
+header: "signing / PSBT / broadcast are the I/O edge"). The publisher HTTP API
+*used to* assemble-then-broadcast in a single route, which a naive broadcast-port
+swap would have turned into submitting **unsigned** txs. The G3 publisher slice
+**split that seam structurally**: `POST /assemble/*` return the unsigned tx only
+(the assemble handlers do not receive the broadcast port) and `POST /broadcast` is
+the only route that owns the port (it relays an already-signed legacy raw, failing
+closed on any non-legacy raw). G1's boundary holds: **assemble (B4) → sign (wallet,
+B5) → broadcast (publisher port receives a signed raw tx).** The **publisher never
 signs.** In the regtest harness the test wallet signs the assembled tx between
 assemble and broadcast; the publisher's broadcast port takes signed bytes only.
 
