@@ -47,12 +47,23 @@ matching `package.json` entry, add superseded banners to the two stale operate d
 - `docs/operate/VPS_SETUP.md`
 - `docs/operate/ONT_DOMAIN_DEPLOY.md`
 
-## Bucket B — Flag for DK, do NOT auto-quarantine (private-signet local-dev helpers)
+## Bucket B — RETIRED (deleted) per DK ruling 2026-06-19
 
-These are local dev/test tooling, not the dead remote-deploy stack. Some may still be useful to DK for
-private-signet experiments. **DK ruling requested: keep in `scripts/` / quarantine to `legacy/scripts/` /
-delete?** They are not in the clean deploy path and not in the main sweep, so leaving them in place costs
-nothing but registry clutter.
+> **DK ruled RETIRE (event a3aff620): "just retire bucket b… we are not using signet for anything other than
+> what we're trying to accomplish here so we could blow it away and rebuild everything from scratch."** All 16
+> private-signet local-dev scripts + the 9 npm entries were **deleted** (not quarantined — recoverable via git
+> history if ever needed), along with their live hooks: the CI auto-miner step (`.github/workflows/ci.yml`), the
+> private-signet steps in `scripts/review-refresh.sh` (renumbered to 1/3–3/3), the stale `vitest.config.ts`
+> exclusion comment, the two private-signet sections in `CONTRIBUTING.md`, the dead Sparrow walkthrough link in
+> `README.md`, and the orphaned demo doc `SPARROW_PRIVATE_SIGNET.md` (was under `docs/operate/demo/`). Flagged
+> separately for DK: the other `docs/operate/demo/` docs
+> (`RUN_SIGNET.md`, `COLD_USER_WALKTHROUGH.md`, `FLINT_DEMO.md`) and the dead `opennametags.org` URLs in
+> `review-refresh.sh` look like further stale signet-prototype material.
+
+The original Bucket B inventory (now deleted) is preserved below for the record.
+
+These were local dev/test tooling, not the dead remote-deploy stack — private-signet experiment helpers, not in
+the clean deploy path and not in the main sweep.
 
 - **Sparrow wallet helpers:** `configure-sparrow-private-signet.sh`, `print-private-signet-sparrow-config.sh`,
   `start-private-signet-sparrow-session.sh`, `open-private-signet-sparrow-tunnel.sh`,

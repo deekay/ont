@@ -44,30 +44,6 @@ Then open:
 npm run check
 ```
 
-### Use the private signet Sparrow helper
-
-From the repo:
-
-```bash
-npm run sparrow:private-signet:start
-```
-
-From anywhere:
-
-```bash
-/path/to/ont/scripts/start-private-signet-sparrow-session.sh
-```
-
-### Run or reset the private signet auction demo
-
-```bash
-npm run test:private-signet-auction-smoke
-```
-
-```bash
-npm run reset:private-signet-demo -- root@<server-ip> ~/.ssh/<your-key>
-```
-
 ## Repository Structure
 
 ### Apps
