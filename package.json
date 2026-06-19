@@ -8,7 +8,7 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "npm run build --workspaces --if-present",
+    "build": "node ./scripts/build-workspaces.mjs",
     "check": "npm run test",
     "check:surfaces": "node ./scripts/check-surface-boundaries.mjs",
     "check:deploy": "node ./scripts/check-deploy-clean-stack.mjs",
