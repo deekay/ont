@@ -2336,6 +2336,33 @@ value/recovery history (the resolver `ResolverStore` value/recovery path stays B
 (file store only); signet/VPS deployment; and any bitcoind acceptance — 6c is hermetic and proves durable-state
 survival, not chain validation. No new consensus, no new firewall; the audited core + B4 adapters untouched.
 
+88. publisher-onboarding-neutrality: publisher setup stays simple without making any wallet/payment backend canonical
+— **RATIFIED product/operator boundary** (DK, 2026-06-18)
+
+*Status: **RATIFIED.** Operational/product decision, not consensus law. Operator guide:
+[`../operate/PUBLISHER_ONBOARDING.md`](../operate/PUBLISHER_ONBOARDING.md).*
+
+**The rule.** ONT core/publisher ships the open publisher stack, configuration, adapter contracts, and
+health checks. Operators choose interchangeable payment, signing, and broadcast backends. No commercial
+provider, hosted wallet, Lightning backend, node wallet, or signing product is a protocol dependency or
+the canonical project path.
+
+**Docs shape.** Canonical setup docs describe required capabilities and checks: payment intake,
+payment verification, funding/signing/broadcast, durable storage, data availability, network match,
+operator metadata, refunds/failures, and health status. Provider-specific material belongs in optional
+operator recipes and must be framed as examples, not endorsements. A recipe can make unboxing easier,
+but it cannot become the source of truth for what a publisher is.
+
+**Product target.** The simple path is a future `ont publisher init` wizard: choose network, choose
+profile (hosted backend / self-hosted backend / custom), collect backend config, run health checks, then
+write a config that can enter live mode only when the required capabilities pass. A later web launcher
+may wrap the same flow, but its job is to deploy/configure an ONT publisher, not to redirect every
+operator to one vendor.
+
+**Boundary.** This does not build payment or wallet adapters, does not choose a provider, and does not
+make a live publisher mainnet-ready. It fixes the onboarding boundary so future convenience work does
+not accidentally bundle commercial infrastructure into the protocol.
+
 ## Fairness Principles To Carry Into The Launch Rewrite
 
 The rewritten launch draft should explicitly state:

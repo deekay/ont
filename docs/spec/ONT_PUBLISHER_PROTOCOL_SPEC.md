@@ -22,6 +22,11 @@ the canonical client.
   returns an inclusion proof and an anchor txid. No multi-round dance.
 - **Replaceable:** any publisher can serve any wallet; a wallet can fall
   back to a different publisher or to direct L1.
+- **Backend-neutral:** a publisher may use any compatible payment,
+  signing, and broadcast backend. The protocol does not canonize a hosted
+  wallet, Lightning implementation, node wallet, or signer. Operator setup
+  guidance lives in
+  [`../operate/PUBLISHER_ONBOARDING.md`](../operate/PUBLISHER_ONBOARDING.md).
 - **No new trust assumptions:** the publisher cannot forge ownership (the
   consensus rules enforce insertion-uniqueness against the accumulator) and
   cannot quietly inflate fees beyond the on-chain miner cost (the consensus
@@ -33,7 +38,8 @@ Non-goals: multi-publisher coordination protocol (each publisher runs
 independently; conflicts resolve at the consensus layer via commit
 priority — see `@ont/core/research/delta-merge-sim.ts`). Custody of user
 funds beyond the moments between payment and anchor confirmation. Any
-custody of user keys.
+custody of user keys. Choosing or endorsing an operator's wallet/payment
+provider.
 
 ## What the wallet wants from the publisher
 

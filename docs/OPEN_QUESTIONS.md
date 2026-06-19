@@ -242,3 +242,16 @@ non-payer is simply left out (see
 Atomically binding the off-chain payment to on-chain inclusion remains a longer-term
 research item with no v1 dependency on any specific primitive; if revisited, it reopens
 here.
+
+### 6.5 Publisher backend onboarding — [PARTIALLY ANSWERED]
+
+Decision #88 answers the product boundary: ONT publisher onboarding stays
+provider-neutral. The project should ship the publisher stack, setup wizard,
+adapter contracts, and health checks; operators choose interchangeable payment,
+signing, and broadcast backends. Commercial or hosted backends may be documented
+as optional recipes, but none is canonical protocol infrastructure.
+
+Still open: the concrete adapter contracts, health-check surface, and setup
+recipes for dev/signet, hosted-backend, self-hosted, and custom operator
+profiles. See
+[`operate/PUBLISHER_ONBOARDING.md`](./operate/PUBLISHER_ONBOARDING.md).

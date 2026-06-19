@@ -11,7 +11,7 @@ marked ⏳ with today's location linked.
 | **Everyone** | [GLOSSARY.md](./GLOSSARY.md) — every term, defined once | — |
 | **Bitcoin reviewer** | [DESIGN.md](./DESIGN.md) | [RISKS.md](./RISKS.md) + [OPEN_QUESTIONS.md](./OPEN_QUESTIONS.md) |
 | **Implementer** | [spec/](./spec/) — the normative docs (below) | [core/STATUS.md](./core/STATUS.md) for what's wired |
-| **Operator** | [operate/SELF_HOSTING.md](./operate/SELF_HOSTING.md) | demos + operators (below) |
+| **Operator** | [operate/SELF_HOSTING.md](./operate/SELF_HOSTING.md) | [publisher onboarding](./operate/PUBLISHER_ONBOARDING.md) + demos/operators (below) |
 | **The team** | [core/STATUS.md](./core/STATUS.md) — source of truth for what's real | [core/DECISIONS.md](./core/DECISIONS.md) — the memory |
 
 ## The front door
@@ -58,10 +58,11 @@ next work.
 ## For operators
 
 Everything operational lives in `docs/operate/`:
-[self-hosting](./operate/SELF_HOSTING.md) · [testing](./operate/TESTING.md) ·
+[self-hosting](./operate/SELF_HOSTING.md) ·
+[publisher onboarding](./operate/PUBLISHER_ONBOARDING.md) · [testing](./operate/TESTING.md) ·
 [new-user testing guide](./operate/NEW_USER_TESTING_GUIDE.md) ·
 [operators](./operate/) (domain, Supabase, VPS) · [demo](./operate/demo/)
-(walkthroughs, signet, Sparrow)
+(walkthroughs and signet demos)
 
 ## Launch
 
