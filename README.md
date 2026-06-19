@@ -249,7 +249,7 @@ negotiable. For each: what evidence would break it, and where we are still expos
 - **Censorship-resistant** — no operator can permanently prevent acquiring or resolving a name.
   *Broken by:* a chokepoint with no route around it. The backstops: direct L1 claiming is always
   available, any resolver is replaceable, and verification catches a lying one.
-  *Exposure:* the live publisher is single-writer; discovery is config-seeded; and the
+  *Exposure:* the publisher is single-writer; discovery is config-seeded; and the
   **fail-closed data-availability deadline is the sharpest open item** — until it's implemented, the
   withhold-then-reveal defense for contested names is not operational. On denial-by-collision: a
   spite griefer can nullify a targeted name for ₿1,000 per round, with no payoff; the

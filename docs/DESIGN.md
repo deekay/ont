@@ -287,8 +287,8 @@ Billions of names cannot each be a Bitcoin transaction, so cheap uncontested cla
 - **The gate rule (designed; not yet enforced in code).** The rule is that a batch anchor
   counts only if its Bitcoin transaction fee is **≥ the sum of the per-name gates** — so the
   ₿1,000 cannot be batched away, and miners receive ₿1,000 × N. As of 2026-06-10 this
-  validation is **not yet implemented** in the replay/consensus path (the live signet
-  publisher pays a flat configured anchor fee); implementing it inside the audited boundary
+  validation is **not yet implemented** in the replay/consensus path (the proven signet
+  publisher paid a flat configured anchor fee before the 2026-06-11 decommission); implementing it inside the audited boundary
   is queued work. See
   [`spec/ONT_ISSUANCE_FEE_MECHANICS.md`](./spec/ONT_ISSUANCE_FEE_MECHANICS.md) and the
   Known-incomplete list in [`core/STATUS.md`](./core/STATUS.md).
