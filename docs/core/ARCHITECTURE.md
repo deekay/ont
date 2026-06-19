@@ -123,7 +123,7 @@ The wallet is responsible for:
 
 The authoritative state is the Bitcoin-compatible chain the resolver is indexing:
 
-- private signet for the hosted demo and current live proofs
+- private signet for the hosted demo and live proofs (decommissioned 2026-06-11 — see [STATUS.md](./STATUS.md))
 - regtest for exhaustive automated tests
 
 ## Main Components
@@ -252,7 +252,7 @@ Auction and indexing:
 - [../../legacy/packages/core/src/indexer.ts](../../legacy/packages/core/src/indexer.ts) - legacy chain replay, name state, auction observations, and resolver snapshots, mining reference only.
 
 Batched claim path and scaling research (see [STATUS.md](./STATUS.md) for which
-pieces are live on signet versus simulation-only):
+pieces were proven on signet (decommissioned 2026-06-11) versus simulation-only):
 
 - [../../legacy/packages/core/src/accumulator.ts](../../legacy/packages/core/src/accumulator.ts) - legacy sparse Merkle accumulator, mining reference only.
 - [../../legacy/packages/core/src/research/delta-merge-sim.ts](../../legacy/packages/core/src/research/delta-merge-sim.ts) - legacy leaderless per-block merge simulation, mining reference only.

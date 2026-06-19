@@ -59,7 +59,7 @@ Bitcoin, not from any server's say-so.
 
 ```mermaid
 flowchart TB
-  subgraph CHEAP["Batched claim path — every name starts here (live on signet)"]
+  subgraph CHEAP["Batched claim path — every name starts here"]
     W["Wallet / claim site<br/>pay-first claim"] --> PB["Publisher<br/>batches claims into a<br/>sparse-Merkle accumulator"]
     PB -->|"OP_RETURN anchor<br/>prevRoot → newRoot"| BTC[("Bitcoin")]
     BTC --> IX["Indexer decodes the anchor<br/>(RPC polling + replay)"]
@@ -76,7 +76,7 @@ flowchart TB
   W -. "2+ claims with no bond → nullified, reopens" .-> NX["No owner"]
 ```
 
-**The batched claim path** (live on signet end-to-end since 2026-06-09):
+**The batched claim path** (proven end-to-end on signet, 2026-06-09 → decommissioned 2026-06-11):
 
 1. **Claim, pay-first.** The claim site or wallet requests a quote, pays the publisher (Lightning
    on mainnet; stubbed on signet), and submits the name + intended owner key. A non-payer is
@@ -145,7 +145,7 @@ parameters are placeholders until they're frozen and published before launch (se
 
 ## The three roles, operationally
 
-### Publisher — write side (`apps/publisher`; live on signet, single-writer)
+### Publisher — write side (`apps/publisher`; single-writer; signet deploy decommissioned 2026-06-11)
 
 - **Pay-first.** Quote → payment → inclusion. A claim enters the pending set only after payment
   clears; the publisher's exposure is bounded structurally, the user's is ~₿1,000 (~$1).
@@ -163,7 +163,7 @@ parameters are placeholders until they're frozen and published before launch (se
   multi-publisher convergence is
   [simulated and tested](./docs/research/ONT_MULTI_PUBLISHER_CONVERGENCE.md), not deployed.
 
-### Resolver — read side (`apps/resolver` + `apps/indexer`; live on signet)
+### Resolver — read side (`apps/resolver` + `apps/indexer`; signet deploy decommissioned 2026-06-11)
 
 - **Source.** Fixture, Bitcoin RPC, or esplora (`ONT_SOURCE_MODE`), pinned to an expected chain.
   Polls for new blocks (default every 10s) and replays each block's ONT events through the indexer
@@ -269,7 +269,7 @@ truth and wins over this summary.
 
 | Status | Summary |
 | --- | --- |
-| **Live (signet)** | Owner-key transfer / value records / recovery; bonded auction bid resolver-accepted; the **batched claim path end-to-end since 2026-06-09** (claim → anchor → data-availability fetch → re-verify → public explorer); single-writer publisher with restart-surviving data-availability bundles; claim site; unified 12-word secret across all surfaces |
+| **Proven on signet — decommissioned 2026-06-11** | Owner-key transfer / value records / recovery; bonded auction bid resolver-accepted; the **batched claim path end-to-end 2026-06-09 → 2026-06-11** (claim → anchor → data-availability fetch → re-verify → public explorer); single-writer publisher with restart-surviving data-availability bundles; claim site; unified 12-word secret across all surfaces. The live signet deployment came down 2026-06-11 (see [STATUS.md](./docs/core/STATUS.md)). |
 | **Prototype** | Bitcoin-inclusion verifier (tested vs a real mainnet block; producers don't emit proofs); mobile iOS app (walkable signet demo) |
 | **Designed** | Registry-free discovery; the watchtower; the fail-closed data-availability deadline; leaderless multi-publisher deployment |
 

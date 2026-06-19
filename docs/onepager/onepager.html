@@ -177,9 +177,9 @@
     (<code>prevRoot → newRoot</code>) per ~10k claims; bonded auctions for contested names; transfers and
     recovery — the rare, high-stakes events. <strong>Off-chain, free, forever:</strong> pointing your name
     anywhere (owner-signed value records — instant, no fee, no chain touch). The notice window itself costs
-    nothing: uncontested → finalized and resolvable. Try it live on signet:
-    <a href="https://claim.opennametags.org">claim.opennametags.org</a> — keys generated in your browser,
-    claim batched and anchored, name visible in the explorer once the anchor confirms.</p>
+    nothing: uncontested → finalized and resolvable. Proven end-to-end on a private signet (keys generated in
+    your browser, claim batched and anchored, name visible in the explorer once the anchor confirms) — that
+    signet deployment was decommissioned on 2026-06-11 for the clean-build rebuild.</p>
 
   <h2>The roles, defined by what they cannot do</h2>
   <table>
@@ -193,8 +193,8 @@
       name — <strong>abort-only</strong> by construction</td></tr>
     <tr><td>Worst case</td><td>You're out ~₿1,000 (~$1) and re-claim elsewhere</td><td>A wasted query —
       verify, compare resolvers, or self-host</td><td>It goes offline and merely adds nothing</td></tr>
-    <tr><td>Status</td><td>Live (signet), single-writer; multi-publisher simulated</td><td>Live
-      (signet)</td><td>Designed, not built — the credential construction is an open problem</td></tr>
+    <tr><td>Status</td><td>Proven on signet (decommissioned), single-writer; multi-publisher simulated</td><td>Proven
+      on signet (decommissioned)</td><td>Designed, not built — the credential construction is an open problem</td></tr>
   </table>
   <p class="note">Recovery is opt-in: a name with no recovery descriptor is one key, cold-storage style.
     Publisher and resolver are separate at the protocol layer (claim via A, verify via B, self-host
@@ -270,12 +270,13 @@
     </div>
   </div>
 
-  <h2>Status — honest (signet prototype; not mainnet-ready)</h2>
-  <p><strong>Live end-to-end on a private signet:</strong> owner-key transfer, owner-signed value records,
-    recovery, a bonded auction bid the resolver accepts — and, since 2026-06-09, the full batched claim path: a
-    claim at claim.opennametags.org is batched, anchored on-chain, re-verified by the indexer against the
-    anchored root, and appears in the public explorer. One 12-word phrase derives identical keys across the
-    claim site, web tools, and the mobile app, locked by shared conformance vectors.
+  <h2>Status — honest (signet prototype, decommissioned; not mainnet-ready)</h2>
+  <p><strong>Proven end-to-end on a private signet (decommissioned 2026-06-11):</strong> owner-key transfer,
+    owner-signed value records, recovery, a bonded auction bid the resolver accepts — and, since 2026-06-09, the
+    full batched claim path: a claim is batched, anchored on-chain, re-verified by the indexer against the
+    anchored root, and resolves in the explorer. One 12-word phrase derives identical keys across the
+    claim site, web tools, and the mobile app, locked by shared conformance vectors. The live signet deployment
+    (claim site, explorer, read tooling) was taken down on 2026-06-11 for the clean-build rebuild.
     <strong>Not live (disclosed):</strong> the fail-closed data-availability deadline (design + simulation only); the
     light-client emit path; multi-publisher (simulated; production is single-writer); real Lightning
     payment (stubbed on signet); auction settlement inside the audited core (decided, gated on demonstrated

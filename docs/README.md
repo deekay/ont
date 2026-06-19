@@ -61,9 +61,7 @@ Everything operational lives in `docs/operate/`:
 [self-hosting](./operate/SELF_HOSTING.md) ·
 [clean-slate VPS / signet (G3)](./operate/G3_CLEAN_SLATE_VPS.md) ·
 [publisher onboarding](./operate/PUBLISHER_ONBOARDING.md) · [testing](./operate/TESTING.md) ·
-[new-user testing guide](./operate/NEW_USER_TESTING_GUIDE.md) ·
-[operators](./operate/) (domain, Supabase, VPS) · [demo](./operate/demo/)
-(walkthroughs and signet demos)
+[operators](./operate/) (domain, Supabase, VPS)
 
 ## Launch
 

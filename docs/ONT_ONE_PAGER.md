@@ -166,7 +166,7 @@ are how ownership is decided.
 | **Cannot** | Mint or move ownership; lock you out of the system (direct L1 self-claim always works) | Decide or invent ownership; forge records | Move, transfer, or point a name — abort-only by construction |
 | Worst case | You're out ~₿1,000 (~$1) and re-claim elsewhere | A wasted query — verify, compare resolvers, or self-host | It goes offline and merely adds nothing |
 | Running one takes | Bitcoin node, Lightning rail, on-chain funds for anchors; pay-first, so no capital risked on users | Bitcoin node + storage; no Lightning, no funds | Chain watching + a name-scoped abort-only credential |
-| Status | Live (signet), single-writer; multi-publisher simulated | Live (signet) | **Designed, not built** — the credential construction is an open problem (a pre-signed veto can't reference a UTXO whose outpoint doesn't exist yet) |
+| Status | Proven on signet (decommissioned), single-writer; multi-publisher simulated | Proven on signet (decommissioned) | **Designed, not built** — the credential construction is an open problem (a pre-signed veto can't reference a UTXO whose outpoint doesn't exist yet) |
 
 Recovery itself is opt-in: a name with no recovery descriptor is one key, cold-storage style —
 nothing to watch. Publisher and resolver are separate at the protocol layer (claim via A, verify
@@ -211,14 +211,14 @@ signs transfers (L1), value records (off-chain, free, instant), and optional rec
 long tail), and whether the launch notice window is long enough for a competitive early market to
 form — so premium names aren't swept cheaply before other bidders show up.
 
-## Status — honest (signet prototype; not mainnet-ready)
+## Status — honest (signet prototype, decommissioned; not mainnet-ready)
 
-**Live end-to-end on a private signet:** owner-key transfer, owner-signed value records, recovery,
-a bonded auction bid the resolver accepts — and, since 2026-06-09, the full batched claim path: a claim at
-[claim.opennametags.org](https://claim.opennametags.org) is batched, anchored on-chain,
-re-verified by the indexer against the anchored root, and appears in the
-[public explorer](https://opennametags.org/explore). One 12-word phrase derives identical keys
-across the claim site, web tools, and the mobile app, locked by shared conformance vectors.
+**Proven end-to-end on a private signet (decommissioned 2026-06-11):** owner-key transfer, owner-signed value
+records, recovery, a bonded auction bid the resolver accepts — and, since 2026-06-09, the full batched claim
+path: a claim is batched, anchored on-chain, re-verified by the indexer against the anchored root, and resolves
+in the explorer. One 12-word phrase derives identical keys across the claim site, web tools, and the mobile app,
+locked by shared conformance vectors. The live signet deployment (claim site, explorer, read tooling) was taken
+down on 2026-06-11 for the clean-build rebuild — STATUS.md is the source of truth for what's wired today.
 
 **Not live (disclosed):** the fail-closed data-availability deadline (design + simulation only); the light-client
 emit path; multi-publisher (simulated; production is single-writer); real Lightning payment
