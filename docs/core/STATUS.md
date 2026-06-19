@@ -139,8 +139,9 @@ determine **owner-key authority and replay validation** (transfers, value record
 - **Aggregate gate-fee enforcement: designed, not implemented (found 2026-06-10).** The rule
   that a batch anchor counts only if its Bitcoin tx fee is **≥ Σ per-name gates** (what stops
   the ₿1,000 being batched away) exists in the design docs and in code comments only — there
-  is **no validation** in the consensus/indexer replay path, and the live signet publisher
-  broadcasts anchors with a flat configured fee independent of batch size. Until implemented,
+  is **no validation** in the consensus/indexer replay path, and the proven signet publisher
+  broadcast anchors with a flat configured fee independent of batch size before the 2026-06-11
+  decommission. Until implemented,
   "miners receive ₿1,000 × N" is design intent, not enforced behavior. Queued for the audited
   boundary alongside the Decision #42 settlement move; the overclaiming comments in
   `apps/publisher` are corrected as of this date.
