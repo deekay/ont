@@ -49,9 +49,8 @@ If you want to evaluate rather than browse:
    [The trust surface](#the-trust-surface-and-auditing-it-yourself) below.
 3. **Run the tests (~5 min):** the commands in the same section — including the CI lock that
    fails the build if the audited surface grows.
-4. **Watch the live loop (~5 min):** claim a throwaway name at
-   [claim.opennametags.org](https://claim.opennametags.org) and watch it appear in the
-   [explorer](https://opennametags.org/explore) once the anchor confirms on the signet.
+4. **Run it yourself (~5 min):** stand up the clean stack locally with `npm run selfhost:up`
+   (see [SELF_HOSTING.md](./docs/operate/SELF_HOSTING.md)) — the hosted signet demo is retired.
 
 ## Architecture: the two paths, end to end
 
@@ -323,11 +322,7 @@ npm run selfhost:up      # http://127.0.0.1:3000
 ```
 
 To point the stack at your own Bitcoin backend, see
-[SELF_HOSTING.md](./docs/operate/SELF_HOSTING.md). The hosted signet demo exercises the batched claim path
-live: claim a name at [claim.opennametags.org](https://claim.opennametags.org) (keys generated in
-your browser; the page runs offline for key generation) and watch it appear in the
-[explorer](https://opennametags.org/explore) once the anchor confirms. Walkthrough:
-[Flint demo](./docs/operate/demo/FLINT_DEMO.md).
+[SELF_HOSTING.md](./docs/operate/SELF_HOSTING.md).
 
 ## Repository map
 
@@ -341,7 +336,7 @@ proof-bundle — the audited core) + `packages/protocol` (names · wire · event
 - `apps/publisher` — the batched-path publisher: quotes, pay-first batching, anchor broadcast, `/da/{root}`
 - `apps/resolver` — read API: ownership, value/recovery records, provenance, the data-availability loop
 - `apps/indexer` — standalone chain-indexing entrypoint
-- `apps/claim` — the self-contained claim site (claim.opennametags.org)
+- `apps/claim` — the self-contained claim site
 - `apps/web` — hosted site: explorer, auctions, transfer prep
 - `apps/cli` — auction / transfer / record / operator tooling
 - `apps/wallet` — local desktop wallet/client prototype

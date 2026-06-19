@@ -43,8 +43,3 @@ fi
 
 echo
 echo "Review refresh complete."
-echo "Suggested manual checks:"
-echo "  https://opennametags.org/ont-private/api/experimental-auctions"
-echo "  https://opennametags.org/api/private-auction-smoke-status"
-echo "  https://opennametags.org/auctions"
-echo "  https://opennametags.org/ont-private/auctions"

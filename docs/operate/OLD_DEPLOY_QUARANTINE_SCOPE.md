@@ -59,9 +59,11 @@ matching `package.json` entry, add superseded banners to the two stale operate d
 > private-signet steps in `scripts/review-refresh.sh` (renumbered to 1/3–3/3), the stale `vitest.config.ts`
 > exclusion comment, the two private-signet sections in `CONTRIBUTING.md`, the dead Sparrow walkthrough link in
 > `README.md`, and the orphaned demo doc `SPARROW_PRIVATE_SIGNET.md` (was under `docs/operate/demo/`). Flagged
-> separately for DK: the other `docs/operate/demo/` docs
-> (`RUN_SIGNET.md`, `COLD_USER_WALKTHROUGH.md`, `FLINT_DEMO.md`) and the dead `opennametags.org` URLs in
-> `review-refresh.sh` look like further stale signet-prototype material.
+> separately for DK: the other `docs/operate/demo/` docs and the dead `opennametags.org` URLs.
+> **RESOLVED (DK ruled "sweep or retire to a legacy place", 2026-06-19, event c5ed148f):** the three remaining demo
+> docs (`RUN_SIGNET.md`, `COLD_USER_WALKTHROUGH.md`, `FLINT_DEMO.md`) were **retired to `docs/research/archive/`**;
+> the dead `opennametags.org` URLs were **swept** from `review-refresh.sh` and `README.md` (two hosted-demo blocks +
+> the dead claim-site reference). `mobile/src/config.ts` is left untouched — out-of-workspace, post-B5 rewrite.
 
 The original Bucket B inventory (now deleted) is preserved below for the record.
 
