@@ -30,3 +30,9 @@ export {
   type ServedTxOutput,
   type ConfirmedAnchorTxView,
 } from "./confirmed-anchor-tx.js";
+export {
+  projectServedNameState,
+  type ProjectServedNameStateInput,
+  type ServedNameStateResult,
+  type ServedNameStateRejectReason,
+} from "./serve-name-state.js";
