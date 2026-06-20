@@ -1,10 +1,12 @@
 // LE-RESOLVE-1 battery — the resolver's enforced name-state read firewall (projectServedNameState). Pure, total,
-// fail-closed, recompute-don't-trust: it serves an indexer-produced NameStateRecord ONLY when the §2a integrity
-// bindings independently re-verify, and stamps every serve not-ownership-authority. A corrupt mirror is rejected
-// as a served-error, never served as valid-but-corrupt enforced state.
+// fail-closed, recompute-don't-trust: it serves an indexer-produced NameStateRecord ONLY when its FULL §2a
+// integrity independently re-verifies (via the same strict codec the store uses on disk) AND it is the name asked
+// for; it stamps every serve not-ownership-authority. A corrupt mirror — including a buggy/hostile source that
+// returns a name/leaf-valid record with malformed batchLocalIndex / anchoredRoot / anchor / firstServableHeight /
+// trace — is rejected as a served-error, never served as valid-but-corrupt enforced state.
 import { describe, expect, it } from "vitest";
 import { sha256Hex, utf8ToBytes } from "@ont/protocol";
-import type { NameStateRecord } from "@ont/name-state-store";
+import type { NameStateRecord, NameStateAnchorCoords, NameStateTraceStep } from "@ont/name-state-store";
 import { projectServedNameState } from "./serve-name-state.js";
 
 const NAME = "alice"; // canonical (lowercase)
@@ -42,45 +44,50 @@ describe("projectServedNameState (LE-RESOLVE read firewall)", () => {
     expect(r.trace).toEqual([{ step: "verdict", ok: true, reason: "batched-claim-accepted" }]);
   });
 
+  it("a record with an extra own-key is rejected invalid-record (closed-shape codec, not silently served)", () => {
+    const withExtra = { ...validRecord(), sneaky: "x" } as unknown as NameStateRecord;
+    expect(projectServedNameState({ name: NAME, record: withExtra })).toEqual({ ok: false, reason: "invalid-record" });
+  });
+
   it("a null record (no enforced state for the name) is name-unknown", () => {
     expect(projectServedNameState({ name: NAME, record: null })).toEqual({ ok: false, reason: "name-unknown" });
   });
 
-  it("a non-canonical stored name fails closed (never case-folded) — non-canonical-name", () => {
-    const rec = validRecord({ canonicalName: "Alice", leafKeyHex: leafKeyOf("Alice") });
-    expect(projectServedNameState({ name: "Alice", record: rec })).toEqual({ ok: false, reason: "non-canonical-name" });
-  });
-
-  it("a stored name that differs from the requested name is name-mismatch (reject-don't-normalize, exact match)", () => {
+  it("a valid record that is not the requested name is name-mismatch (reject-don't-normalize, exact match)", () => {
     // Requested with a different case: "alice" stored, "Alice" asked — no case-fold, so it does NOT serve.
     expect(projectServedNameState({ name: "Alice", record: validRecord() })).toEqual({ ok: false, reason: "name-mismatch" });
     // A different name entirely.
     expect(projectServedNameState({ name: "bob", record: validRecord() })).toEqual({ ok: false, reason: "name-mismatch" });
   });
 
-  it("a leaf key that does not recompute from the canonical name is leaf-key-mismatch (§2a binding broken)", () => {
-    const rec = validRecord({ leafKeyHex: "0".repeat(64) });
-    expect(projectServedNameState({ name: NAME, record: rec })).toEqual({ ok: false, reason: "leaf-key-mismatch" });
-  });
+  // The §2a integrity recheck (defense-in-depth): a name/leaf-valid record with ANY malformed field is rejected
+  // invalid-record before it can be served — a buggy/hostile LR-2/LR-3 source cannot bypass the store codec.
+  const malformed: Record<string, Partial<NameStateRecord>> = {
+    "non-canonical name": { canonicalName: "Alice", leafKeyHex: leafKeyOf("Alice") },
+    "leaf key that does not recompute": { leafKeyHex: "0".repeat(64) },
+    "owner with a short pubkey": { owner: { kind: "owner-key", ownerPubkeyHex: "11" } },
+    "owner with a non-owner-key kind": { owner: { kind: "script" as unknown as "owner-key", ownerPubkeyHex: OWNER } },
+    "owner that is null": { owner: null as unknown as NameStateRecord["owner"] },
+    "owner with uppercase hex": { owner: { kind: "owner-key", ownerPubkeyHex: "AA".repeat(32) } },
+    "a negative batchLocalIndex": { batchLocalIndex: -1 },
+    "a non-hex anchoredRoot": { anchoredRoot: "nothex" },
+    "a null anchor": { anchor: null as unknown as NameStateAnchorCoords },
+    "an out-of-range anchor.vout": { anchor: { txid: "b".repeat(64), minedHeight: 170, txIndex: 0, vout: -1 } },
+    "an Infinite firstServableHeight": { firstServableHeight: Number.POSITIVE_INFINITY },
+    "an empty trace": { trace: [] },
+    "a null trace step": { trace: [null as unknown as NameStateTraceStep] },
+    "a trace step with a non-finite evidence value": {
+      trace: [{ step: "verdict", ok: true, reason: "x", evidence: { n: Number.POSITIVE_INFINITY } }],
+    },
+  };
+  for (const [label, over] of Object.entries(malformed)) {
+    it(`rejects ${label} as invalid-record (full §2a recheck, fail-closed)`, () => {
+      expect(projectServedNameState({ name: NAME, record: validRecord(over) })).toEqual({ ok: false, reason: "invalid-record" });
+    });
+  }
 
-  it("a malformed owner (wrong kind / bad-length pubkey / missing) is invalid-owner", () => {
-    const shortKey = validRecord({ owner: { kind: "owner-key", ownerPubkeyHex: "11" } });
-    expect(projectServedNameState({ name: NAME, record: shortKey })).toEqual({ ok: false, reason: "invalid-owner" });
-    const wrongKind = validRecord({ owner: { kind: "script" as unknown as "owner-key", ownerPubkeyHex: OWNER } });
-    expect(projectServedNameState({ name: NAME, record: wrongKind })).toEqual({ ok: false, reason: "invalid-owner" });
-    const noOwner = validRecord({ owner: null as unknown as NameStateRecord["owner"] });
-    expect(projectServedNameState({ name: NAME, record: noOwner })).toEqual({ ok: false, reason: "invalid-owner" });
-    const upperHex = validRecord({ owner: { kind: "owner-key", ownerPubkeyHex: "AA".repeat(32) } });
-    expect(projectServedNameState({ name: NAME, record: upperHex })).toEqual({ ok: false, reason: "invalid-owner" });
-  });
-
-  it("an empty trace is empty-trace (a served record must carry its enforcement evidence path)", () => {
-    expect(projectServedNameState({ name: NAME, record: validRecord({ trace: [] }) })).toEqual({ ok: false, reason: "empty-trace" });
-  });
-
-  it("is total — a structurally malformed record rejects, never throws", () => {
+  it("is total — a structurally malformed record rejects invalid-record, never throws", () => {
     const garbage = { canonicalName: 123 } as unknown as NameStateRecord;
-    const r = projectServedNameState({ name: NAME, record: garbage });
-    expect(r.ok).toBe(false);
+    expect(projectServedNameState({ name: NAME, record: garbage })).toEqual({ ok: false, reason: "invalid-record" });
   });
 });
