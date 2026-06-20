@@ -103,13 +103,17 @@ function mapInclusionReason(reason: InclusionRejectReason): ConfirmedBatchAnchor
       : "anchor-not-included";
 }
 
-interface DecodedRootAnchor {
+/** The RootAnchor OP_RETURN fields. The firewall mints anchoredRoot=newRoot + batchSize from these; the
+ *  live enforcement loop (LE-INDEX) also needs `prevRoot` (which `enforceBatchedClaim.anchor` requires and the
+ *  ConfirmedBatchAnchor mint discards), so it is exposed via `decodeRootAnchorFields` — ONE decode path. */
+export interface RootAnchorFields {
+  readonly prevRoot: string;
   readonly newRoot: string;
   readonly batchSize: number;
 }
 
 /** Decode the candidate output's OP_RETURN as a RootAnchor, or null. decodeEvent throws → caught. */
-function decodeRootAnchorAt(tx: LegacyTransaction, vout: number): DecodedRootAnchor | null {
+function decodeRootAnchorAt(tx: LegacyTransaction, vout: number): RootAnchorFields | null {
   const output = tx.outputs[vout];
   if (output === undefined) return null;
   const data = opReturnData(output.scriptPubKeyHex);
@@ -121,7 +125,7 @@ function decodeRootAnchorAt(tx: LegacyTransaction, vout: number): DecodedRootAnc
     return null;
   }
   if (event.type !== EventType.RootAnchor) return null;
-  return { newRoot: event.newRoot, batchSize: event.batchSize };
+  return { prevRoot: event.prevRoot, newRoot: event.newRoot, batchSize: event.batchSize };
 }
 
 /**
@@ -129,13 +133,13 @@ function decodeRootAnchorAt(tx: LegacyTransaction, vout: number): DecodedRootAnc
  * [0, outputs.length) decoding to a RootAnchor — NO fallback to other outputs. Otherwise EXACTLY ONE
  * output must decode to a RootAnchor (0 or >1 → null, no silent first-match).
  */
-function selectRootAnchor(tx: LegacyTransaction, anchorVout: number | undefined): DecodedRootAnchor | null {
+function selectRootAnchor(tx: LegacyTransaction, anchorVout: number | undefined): RootAnchorFields | null {
   if (tx === null || typeof tx !== "object" || !Array.isArray(tx.outputs)) return null;
   if (anchorVout !== undefined) {
     if (!Number.isInteger(anchorVout) || anchorVout < 0 || anchorVout >= tx.outputs.length) return null;
     return decodeRootAnchorAt(tx, anchorVout);
   }
-  let found: DecodedRootAnchor | null = null;
+  let found: RootAnchorFields | null = null;
   for (let i = 0; i < tx.outputs.length; i += 1) {
     const candidate = decodeRootAnchorAt(tx, i);
     if (candidate === null) continue;
@@ -143,4 +147,14 @@ function selectRootAnchor(tx: LegacyTransaction, anchorVout: number | undefined)
     found = candidate;
   }
   return found;
+}
+
+/**
+ * Decode the RootAnchor OP_RETURN fields (prevRoot, newRoot, batchSize) from an anchor tx, or null. Reuses the
+ * firewall's single decode path (`selectRootAnchor`) so it preserves the no-fallback `anchorVout` + exactly-one-
+ * decodable-RootAnchor rules — the LE-INDEX enforcement loop needs `prevRoot` (which the ConfirmedBatchAnchor
+ * mint discards) for `enforceBatchedClaim.anchor`. Decode only; mints no fact and re-derives no firewall rule.
+ */
+export function decodeRootAnchorFields(anchorTx: LegacyTransaction, anchorVout?: number): RootAnchorFields | null {
+  return selectRootAnchor(anchorTx, anchorVout);
 }
