@@ -2,13 +2,14 @@ import { mkdtemp, rm, writeFile, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { sha256Hex, utf8ToBytes } from "@ont/protocol";
 import type { NameStateRecord } from "./record.js";
 import { createFileNameStateStore, type FileStoreFs, nodeFileStoreFs } from "./file-name-state-store.js";
 
 function recordFor(name: string, ownerByte: string): NameStateRecord {
   return {
     canonicalName: name,
-    leafKeyHex: "a".repeat(64),
+    leafKeyHex: sha256Hex(utf8ToBytes(name)),
     owner: { kind: "owner-key", ownerPubkeyHex: ownerByte.repeat(64) },
     batchLocalIndex: 0,
     anchoredRoot: "7".repeat(64),

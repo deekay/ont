@@ -13,7 +13,11 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run"
+    "test": "npm run build -w @ont/protocol && npm run build -w @ont/wire && vitest run"
+  },
+  "dependencies": {
+    "@ont/protocol": "file:../protocol",
+    "@ont/wire": "file:../wire"
   },
   "devDependencies": {
     "vitest": "^3.2.4"

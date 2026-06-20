@@ -13,15 +13,21 @@ shared-infra pattern as `@ont/anchor-store`.
 - **Owns:** the `NameStateRecord` / `NameStateStore` types (§2a), the strict fail-closed codec
   (`encode`/`decode`), and the durable file store (`createFileNameStateStore`, atomic temp+rename, hydrate-once,
   fail-closed corruption). Keyed by `canonicalName`.
-- **Does NOT:** decide anything. No consensus / firewall / DA logic. The audited core
+- **Does NOT:** decide any consensus rule. No firewall / DA logic. The audited core
   (`@ont/claim-path` `enforceBatchedClaim`) decides **before** the loop writes a record; this package only
-  persists what it is given and re-validates the shape on the untrusted-disk boundary. The read accessor mints
-  and mutates nothing.
+  persists what it is given and re-validates **storage integrity** on the untrusted-disk boundary. The read
+  accessor mints and mutates nothing.
+- **Storage-integrity guard (not a consensus decision):** the codec enforces the §2a name→leaf binding —
+  `canonicalName` must be canonical (`isCanonicalName`, W3 reject-don't-normalize, never case-fold) and
+  `leafKeyHex` must RECOMPUTE as `sha256Hex(utf8ToBytes(canonicalName))` — so a corrupt disk or poison runtime
+  record can't mint a false name→leaf binding. Trace `evidence` numbers must be finite (NaN/Infinity would
+  serialize to `null`). Mirrors `@ont/anchor-store`'s txid-recompute guard (integrity, the audited core still decides).
 - **Source of record fields:** the loop sources every field from the VERIFIED committed-entry seam
   (`@ont/adapter-indexer` `buildCommittedBatchForRoot` input) joined to the accepted served/root facts — NOT
-  claim-path's synthetic completeness projection. `canonicalName` is reject-don't-normalize (W3); anchor `vout`
-  is preserved from the inclusion candidate / firewall side.
-- **Deps:** none at runtime (the generic fs seam is kept local). Dev: vitest.
+  claim-path's synthetic completeness projection. anchor `vout` is preserved from the inclusion candidate / firewall side.
+- **Deps:** `@ont/protocol` (`sha256Hex`/`utf8ToBytes` for the leaf-key recompute) + `@ont/wire` (`isCanonicalName`)
+  — reused, not re-implemented, so the canonical-name grammar can't drift from W3. The generic fs seam is kept
+  local. Dev: vitest.
 
 ## Tests
 

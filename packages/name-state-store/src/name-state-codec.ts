@@ -5,6 +5,8 @@
 // and decode() is the untrusted-disk boundary (no missing/extra fields, objects-not-arrays, validated
 // primitives). Neither direction makes a consensus decision — this is storage integrity only; the audited core
 // already decided before the loop wrote the record.
+import { sha256Hex, utf8ToBytes } from "@ont/protocol";
+import { isCanonicalName } from "@ont/wire";
 import type {
   NameStateRecord,
   NameStateOwner,
@@ -74,7 +76,10 @@ function validatedEvidence(value: unknown, fail: (reason: string) => never): Rec
   }
   const out: Record<string, string | number> = {};
   for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-    if (typeof v !== "string" && typeof v !== "number") fail("trace step.evidence values must be string|number");
+    // A NUMBER must be FINITE: NaN/Infinity pass typeof but JSON.stringify them to `null`, so they would
+    // silently corrupt the record across a restart. Reject them up front (the untrusted-disk boundary).
+    const okValue = typeof v === "string" || (typeof v === "number" && Number.isFinite(v));
+    if (!okValue) fail("trace step.evidence values must be a string or a finite number");
     out[k] = v as string | number;
   }
   return out;
@@ -82,6 +87,8 @@ function validatedEvidence(value: unknown, fail: (reason: string) => never): Rec
 
 function validatedTrace(value: unknown, fail: (reason: string) => never): NameStateTraceStep[] {
   if (!Array.isArray(value)) fail("trace must be an array");
+  // A record only exists on accept, which always has a verdict path — an empty trace is a poison/corrupt record.
+  if (value.length === 0) fail("trace must be non-empty (the accepted verdict path)");
   const steps: NameStateTraceStep[] = [];
   for (const entry of value as unknown[]) {
     // step/ok/reason required; evidence optional. Reject any other key (closed shape, optional-aware).
@@ -124,7 +131,14 @@ function validatedRecord(value: unknown, fail: (reason: string) => never): NameS
   }
   const r = value as Record<string, unknown>;
   if (!isNonEmptyString(r.canonicalName)) fail("canonicalName must be a non-empty string");
+  // §2a integrity (untrusted-disk boundary): the name must be canonical (W3 reject-don't-normalize, never
+  // case-fold) and the leaf key must RECOMPUTE from it — so a corrupt/poison record can't mint a false
+  // name→leaf binding. This is storage integrity, NOT a consensus decision (the audited core already decided).
+  if (!isCanonicalName(r.canonicalName)) fail("canonicalName must be canonical (W3 reject-don't-normalize)");
   if (!isHex64(r.leafKeyHex)) fail("leafKeyHex must be 64-char lowercase hex");
+  if (r.leafKeyHex !== sha256Hex(utf8ToBytes(r.canonicalName))) {
+    fail("leafKeyHex must equal sha256Hex(utf8ToBytes(canonicalName)) — name→leaf binding mismatch");
+  }
   if (!isU32(r.batchLocalIndex)) fail("batchLocalIndex must be a u32 integer");
   if (!isHex64(r.anchoredRoot)) fail("anchoredRoot must be 64-char lowercase hex");
   if (!isU32(r.firstServableHeight)) fail("firstServableHeight must be a u32 integer");
