@@ -12,13 +12,20 @@ This is the first real deployment of the rewritten software. See
 ## The clean stack
 
 ```
-bitcoind(signet) --RPC--> indexer (node ingest, chain-gated) --file store--> resolver (read) --> web (display)
+                                                                      signed raw
+publisher (write entry: /broadcast) --------RPC--------> bitcoind(signet)
+       ^ off-box wallet signs                                  |
+       |                                                       RPC
+       +-- /assemble (unsigned)                                v
+                                          indexer (node ingest, chain-gated) --file store--> resolver (read) --> web (display)
 ```
 
 The indexer polls bitcoind for confirmed ONT anchors and writes them to a durable file store
 (`ONT_STORE=file` under `ONT_STORE_DIR`). The resolver reads the **same** directory (shared volume) and
 serves `GET /tx/:txid`; the web surface reads the resolver over HTTP and renders. A restart resumes from
-the durable cursor without re-ingesting (go-live G2). Everything is wired in
+the durable cursor without re-ingesting (go-live G2). The **publisher** is the write entry: `/assemble/*`
+returns an **unsigned** tx for off-box (B5 wallet) signing, and `/broadcast` relays an **already-signed**
+legacy raw to bitcoind — the publisher never signs and never reads the store. Everything is wired in
 [`docker-compose.yml`](../../docker-compose.yml); `npm run check:deploy` gates that file, the entrypoint,
 and `.env.example` against old-stack leakage.
 
@@ -30,10 +37,12 @@ and `.env.example` against old-stack leakage.
 | **indexer** | `apps/indexer/.../main.js` | `ONT_SOURCE=node`, `ONT_CHAIN=signet`, `ONT_RPC_URL`, `ONT_RPC_USER/PASSWORD`, `ONT_STORE=file`, `ONT_STORE_DIR=/app/.data`, `INDEXER_POLL_MS` | `ont_data` volume (writer) | chain gate passes; loop logs `starting` | poll advances; `confirmed-anchors.json` + cursor persist |
 | **resolver** | `apps/resolver/.../index.js` | `PORT=4174`, `ONT_STORE=file`, `ONT_STORE_DIR=/app/.data` | `ont_data` volume (reader, same dir) | `GET /health` | `GET /tx/:txid` → 404 when absent, the confirmed view when present |
 | **web** | `apps/web/.../index.js` | `PORT=4175`, `ONT_RESOLVER_URL=http://resolver:4174` | none | `GET /health` | landing + `/?q=<txid>` render through the resolver |
+| **publisher** | `apps/publisher/.../index.js` | `PORT=4176`, `ONT_SOURCE=node`, `ONT_CHAIN=signet`, `ONT_RPC_URL`, `ONT_RPC_USER/PASSWORD` | none (never reads the store) | `GET /health` | `/assemble/*` → unsigned tx; `/broadcast` of a signed raw → bitcoind accepts (needs funded signet — §4c) |
 
 The indexer's chain gate (`@ont/node-live`) fails **closed** before the first poll: a missing or mispointed
 `ONT_RPC_URL`, or a chain mismatch (e.g. the node is not signet), stops the daemon at startup rather than
-ingesting from the wrong chain.
+ingesting from the wrong chain. The **publisher** shares the same gate (`ONT_SOURCE=node`): a missing RPC or
+a chain mismatch stops it **before it listens**, so it can never broadcast to the wrong chain.
 
 ## Prerequisites
 
@@ -49,7 +58,7 @@ Safe to run by an operator/agent; touches no VPS state.
 cp .env.example .env
 # Edit .env: set ONT_RPC_PASSWORD (required), pin BITCOIND_IMAGE, adjust binds if fronting with a proxy.
 npm run check:deploy          # static clean-stack gate — must be green before deploying
-docker compose build          # build the resolver/web/indexer image from docker/Dockerfile
+docker compose build          # build the indexer/resolver/web/publisher image from docker/Dockerfile
 ```
 
 ## 2. ⚠️ Destructive VPS teardown — DK-owned
@@ -70,8 +79,8 @@ docker compose down --volumes --remove-orphans     # old containers + named volu
 ## 3. Clean rebuild + boot
 
 ```bash
-docker compose up -d                         # bitcoind → indexer → resolver → web (ordered by healthchecks)
-docker compose ps                            # all services Up; resolver/web healthy
+docker compose up -d                         # bitcoind → indexer/publisher → resolver → web (ordered by healthchecks)
+docker compose ps                            # all services Up; resolver/web/publisher healthy
 docker compose logs -f bitcoind              # watch the signet IBD finish
 docker compose logs -f indexer               # chain gate passes, then `{"service":"@ont/indexer","status":"starting"}`
 ```
@@ -81,8 +90,10 @@ and its own chain gate blocks polling until the node reports signet.
 
 ## 4. Acceptance — what this slice proves
 
-This slice proves the deployed stack **boots clean on a fresh signet and the read path serves**. It does
-**not** prove a live claim→anchor→render — that needs the publisher/claim path, deferred to a later slice (4c).
+The **boot/read** acceptance (4a–4b) is auto-provable on a fresh signet with no funds and is what this
+runbook gates. The publisher is now wired into the stack, so the **write-smoke** (4c) is also exercisable —
+but it needs a **funded signet wallet** to sign a real anchor, so it is the **operator's run**, not something
+the clean boot proves on its own. None of this is mainnet or a B3 data-availability path.
 
 ### 4a. Boot smoke (deployed stack, live signet)
 
@@ -127,9 +138,37 @@ The G2 durable file read — store → resolver `/tx` → web render — is prov
   The seed coexists on a quiet stack; a later real anchor supersedes it (see the script header). Use it as a
   one-shot read-presence check, then let real ingest take over.
 
-### 4c. Deferred to the publisher slice
+### 4c. Write-smoke (operator, needs a funded signet)
 
-A real claim → publisher anchor → indexer ingest → render on live signet is the publisher/claim slice, not this one.
+This is the real end-to-end write path: **assemble → off-box sign → broadcast → ingest → render**. The
+publisher is in the stack and chain-gated, but signing a real anchor needs a **funded signet wallet**, so
+this is the operator's run (the boot smoke in 4a does not perform it).
+
+```bash
+# 0. Publisher is up and past its chain gate (same gate as the indexer):
+curl -fsS http://127.0.0.1:4176/health                       # publisher: ok
+
+# 1. Assemble the UNSIGNED RootAnchor tx (publisher never signs; the body is the B4 assemble input):
+curl -fsS -X POST http://127.0.0.1:4176/assemble/root-anchor \
+  -H 'content-type: application/json' -d @root-anchor-input.json
+#    -> { "ok": true, "unsignedTxid": "...", "unsignedTxHex": "..." }   (unsignedTxid is a TEMPLATE id)
+
+# 2. Sign OFF-BOX with a funded signet wallet (B5 wallet handoff — the publisher holds no keys), producing a
+#    fully-signed legacy raw. Fund the input(s) from a signet faucet first.
+
+# 3. Broadcast the SIGNED raw — the only route that touches the chain; relays verbatim to bitcoind:
+curl -fsS -X POST http://127.0.0.1:4176/broadcast \
+  -H 'content-type: application/json' -d '{"signedTxHex":"<signed-raw-hex>"}'
+#    -> 202 { "ok": true, "txid": "<chain-txid>" }   (the real chain txid, not the template id)
+
+# 4. Once mined + confirmed, the indexer ingests it and the read path renders it:
+curl -fsS "http://127.0.0.1:4174/tx/<chain-txid>"            # resolver: the confirmed view
+curl -fsS "http://127.0.0.1:4175/?q=<chain-txid>"            # web: rendered
+```
+
+Until a funded signet run is done, the write path is proven only **hermetically** in-repo (the `@ont/publisher`
++ regtest e2e suites, `npm test`) — the seam is exercised end-to-end against a test wallet, just not on the
+deployed signet box.
 
 Restart-survival (G2) carries over: `docker compose restart indexer resolver` and the durable cursor +
 confirmed anchors persist — the resolver still serves what was ingested before the restart.
@@ -143,8 +182,10 @@ confirmed anchors persist — the resolver still serves what was ingested before
   (npm entries dropped); see [OLD_DEPLOY_QUARANTINE_SCOPE.md](./OLD_DEPLOY_QUARANTINE_SCOPE.md). The compose +
   this runbook are the canonical clean-stack path. (The private-signet *local-dev* helpers were retired —
   deleted per DK on 2026-06-19; see [OLD_DEPLOY_QUARANTINE_SCOPE.md](./OLD_DEPLOY_QUARANTINE_SCOPE.md).)
-- **Publisher / claim path is out of scope here.** G3 slice-1 is the read path. The publisher
-  (claim/anchor-serving) and a real claim→anchor→render smoke come in a later slice.
+- **Publisher write path is wired; the funded write-smoke is the operator's.** The non-signing publisher
+  (`/assemble/*` unsigned + `/broadcast` of a signed raw) is in the stack and chain-gated. The boot/read
+  acceptance (4a–4b) needs no funds; the real anchor write-smoke (4c) needs a funded signet wallet and is the
+  operator's run. The publisher holds no keys and never reads the store.
 - **bitcoind image is operator-pinned.** `BITCOIND_IMAGE` defaults to `btcpayserver/bitcoin:28.1`
   (signet-capable, validated live); pin and validate a build you trust, and check the `bitcoin-cli` health
   probe path for that image on first boot.

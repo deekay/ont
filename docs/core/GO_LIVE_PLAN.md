@@ -291,3 +291,9 @@ bitcoind). The destructive VPS operations are **DK's to run** (or run with the
 runbook I draft); this repo carries the infra-as-code + runbook, not VPS access.
 The old signet was already decommissioned in software (STATUS.md, 2026-06-11);
 this stands up a **new** signet for the clean stack.
+
+The clean compose stack now carries the **write entry** as well as the read path: the non-signing
+publisher (`/assemble/*` unsigned + `/broadcast` of a signed raw, chain-gated like the indexer) is a
+service in `docker-compose.yml`, so the box can run the full **assemble → off-box sign → broadcast →
+ingest → render** smoke. That write-smoke needs a **funded signet wallet** and is the operator's run; the
+boot/read acceptance needs no funds. See [G3_CLEAN_SLATE_VPS.md](../operate/G3_CLEAN_SLATE_VPS.md) §4c.

@@ -24,7 +24,8 @@ case "$SERVICE" in
     exec node "${APP_ROOT}/apps/indexer/dist/apps/indexer/src/main.js"
     ;;
   publisher)
-    # Claim/anchor-serving side (out of the G3 slice-1 read-smoke scope; included for completeness).
+    # Write entry. PORT (default 4176), ONT_SOURCE=node + ONT_CHAIN + ONT_RPC_URL[/_USER/_PASSWORD] -> chain-gated
+    # before listen. Non-signing: /assemble/* return an unsigned tx; /broadcast relays a signed legacy raw. No store.
     exec node "${APP_ROOT}/apps/publisher/dist/apps/publisher/src/index.js"
     ;;
   bash|sh)
