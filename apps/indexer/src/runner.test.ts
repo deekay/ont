@@ -92,6 +92,7 @@ describe("runIndexerTick — LE-INDEX enforcement wiring", () => {
     return {
       has: (n) => Promise.resolve(m.has(n)),
       put: (r) => { m.set(r.canonicalName, r); return Promise.resolve(); },
+      putMany: (rs) => { for (const r of rs) m.set(r.canonicalName, r); return Promise.resolve(); },
       getByName: (n) => Promise.resolve(m.get(n) ?? null),
     };
   };

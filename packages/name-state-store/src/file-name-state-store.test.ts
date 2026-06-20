@@ -112,4 +112,42 @@ describe("createFileNameStateStore", () => {
     expect(await reader.getByName("alice")).toEqual(recordFor("alice", "1"));
     expect(await reader.has("bob")).toBe(false);
   });
+
+  it("putMany writes a batch ATOMICALLY (all records land, one temp+rename)", async () => {
+    const calls: string[] = [];
+    const spyFs: FileStoreFs = {
+      readFile: nodeFileStoreFs.readFile,
+      mkdir: nodeFileStoreFs.mkdir,
+      writeFile: async (p, d) => { calls.push("write"); await nodeFileStoreFs.writeFile(p, d); },
+      rename: async (a, b) => { calls.push("rename"); await nodeFileStoreFs.rename(a, b); },
+    };
+    const store = createFileNameStateStore(filePath, spyFs);
+    await store.putMany([recordFor("alice", "1"), recordFor("bob", "2")]);
+    expect(calls).toEqual(["write", "rename"]); // ONE write + ONE rename for the whole batch
+    const reader = createFileNameStateStore(filePath);
+    expect(await reader.getByName("alice")).toEqual(recordFor("alice", "1"));
+    expect(await reader.getByName("bob")).toEqual(recordFor("bob", "2"));
+  });
+
+  it("putMany is all-or-NOTHING: a write failure leaves NO partial durable state (the atomicity fix)", async () => {
+    const failingFs: FileStoreFs = { ...nodeFileStoreFs, writeFile: async () => { throw new Error("disk full"); } };
+    const store = createFileNameStateStore(filePath, failingFs);
+    await expect(store.putMany([recordFor("alice", "1"), recordFor("bob", "2")])).rejects.toThrow(/disk full/);
+    // Neither name landed — a corrupt/failed mid-batch write can't leave name 1 durable while name 2 fails.
+    const reader = createFileNameStateStore(filePath);
+    expect(await reader.has("alice")).toBe(false);
+    expect(await reader.has("bob")).toBe(false);
+  });
+
+  it("putMany rejects an internal duplicate canonicalName before any write", async () => {
+    const store = createFileNameStateStore(filePath);
+    await expect(store.putMany([recordFor("alice", "1"), recordFor("alice", "2")])).rejects.toThrow(/duplicate canonicalName/);
+    expect(await createFileNameStateStore(filePath).has("alice")).toBe(false); // nothing written
+  });
+
+  it("putMany of an empty batch is a no-op (no file written)", async () => {
+    const store = createFileNameStateStore(filePath);
+    await store.putMany([]);
+    expect(await createFileNameStateStore(filePath).has("alice")).toBe(false);
+  });
 });

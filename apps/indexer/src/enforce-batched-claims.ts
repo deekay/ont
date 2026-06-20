@@ -19,7 +19,7 @@ import {
 } from "@ont/adapter-indexer";
 import { buildMembershipProof, buildAccumulatorBatchClaimBundle, type ServedLeaf } from "@ont/evidence";
 import { enforceBatchedClaim, type BatchedClaimPolicy, type BatchDataSource } from "@ont/claim-path";
-import type { NameStateStore } from "@ont/name-state-store";
+import type { NameStateRecord, NameStateStore } from "@ont/name-state-store";
 
 /** The published batch material for an anchored root — the B3/B4 DA-transport seam (fixture in tests / the
  *  hermetic e2e; the real `/da/{root}` transport in LE-DA-SERVE). The indexer NEVER trusts it: it is re-verified
@@ -67,6 +67,9 @@ export async function enforceBatchedClaims(
   for (const candidate of candidates) {
     // The anchored root is known only after a successful decode; label rejects with "?" until then.
     let anchoredRoot = "?";
+    // The accept's records are COLLECTED inside the try and written atomically OUTSIDE it (see step 8): a
+    // persistence failure must throw out of the tick (cursor not advanced) rather than be swallowed as a reject.
+    let recordsToWrite: readonly NameStateRecord[] | null = null;
     try {
       // 1. Decode the anchor's RootAnchor fields (prevRoot + vout are what the ConfirmedBatchAnchor mint drops).
       const fields = decodeRootAnchorFields(candidate.anchorTx, candidate.anchorVout);
@@ -150,8 +153,9 @@ export async function enforceBatchedClaims(
         continue;
       }
 
-      // 7. Accept ⇒ write ONE record per committed entry from the VERIFIED committed-entry seam (NOT the
+      // 7. Accept ⇒ COLLECT one record per committed entry from the VERIFIED committed-entry seam (NOT the
       //    bundle's single member). The trace is the accepted verdict path; the anchor vout is the decoded one.
+      //    The write is deferred to step 8 so a persistence failure is NOT swallowed by this catch.
       const firstServableHeight = verdict.nameStateDelta.firstServableHeight;
       const trace = verdict.trace.map((e) => ({
         step: e.step,
@@ -159,24 +163,30 @@ export async function enforceBatchedClaims(
         reason: e.reason,
         ...(e.evidence === undefined ? {} : { evidence: e.evidence }),
       }));
-      for (const [batchLocalIndex, e] of material.committedEntries.entries()) {
-        await deps.nameStateStore.put({
-          canonicalName: e.name,
-          leafKeyHex: sha256Hex(utf8ToBytes(e.name)),
-          owner: { kind: "owner-key", ownerPubkeyHex: e.ownerPubkey },
-          batchLocalIndex,
-          anchoredRoot,
-          anchor: { txid, minedHeight: candidate.minedHeight, txIndex: candidate.pos, vout: fields.vout },
-          firstServableHeight,
-          trace,
-        });
-        namesWritten += 1;
-      }
-      accepted.push(anchoredRoot);
+      recordsToWrite = material.committedEntries.map((e, batchLocalIndex) => ({
+        canonicalName: e.name,
+        leafKeyHex: sha256Hex(utf8ToBytes(e.name)),
+        owner: { kind: "owner-key", ownerPubkeyHex: e.ownerPubkey } as const,
+        batchLocalIndex,
+        anchoredRoot,
+        anchor: { txid, minedHeight: candidate.minedHeight, txIndex: candidate.pos, vout: fields.vout },
+        firstServableHeight,
+        trace,
+      }));
     } catch {
-      // Total: an unexpected throw (store write / builder misuse) never aborts the batch (fail-closed here).
+      // Total: an unexpected ENFORCEMENT-logic throw (decode/build/verdict) never aborts the batch — that
+      // candidate fails closed and the loop continues. The STORE WRITE is deliberately NOT in this try (step 8).
       rejected.push({ anchoredRoot, reason: "enforce-error" });
+      continue;
     }
+
+    // 8. ATOMIC persist OUTSIDE the try: write ALL the accepted batch's records in one all-or-nothing putMany.
+    //    A persistence failure THROWS OUT of the driver (and runIndexerTick) so the cursor is not advanced and
+    //    the batch retries — never partial or lost name-state ("accept writes all committed entries or none").
+    if (recordsToWrite === null) continue; // only an accept set it; reject/skip/decode-null already `continue`d
+    await deps.nameStateStore.putMany(recordsToWrite);
+    namesWritten += recordsToWrite.length;
+    accepted.push(anchoredRoot);
   }
 
   return { accepted, skipped, rejected, namesWritten };

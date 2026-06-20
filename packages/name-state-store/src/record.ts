@@ -53,5 +53,9 @@ export interface NameStateRecord {
 export interface NameStateStore {
   has(canonicalName: string): Promise<boolean>;
   put(record: NameStateRecord): Promise<void>;
+  /** Write a batch ATOMICALLY — all records land durably or NONE do (one temp+rename + one publish). The
+   *  accept of a batched claim writes ALL its committed entries, so a mid-batch persistence failure must not
+   *  leave partial name-state; the caller lets a throw propagate so the indexer cursor is not advanced (retry). */
+  putMany(records: readonly NameStateRecord[]): Promise<void>;
   getByName(canonicalName: string): Promise<NameStateRecord | null>;
 }

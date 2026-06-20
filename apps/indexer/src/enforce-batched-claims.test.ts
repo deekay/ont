@@ -18,6 +18,7 @@ import { legacyTxidOf, headerMeetsTarget, type LegacyTransaction } from "@ont/bi
 import type { BuildConfirmedBatchAnchorInput } from "@ont/adapter-indexer";
 import type { NameStateRecord, NameStateStore } from "@ont/name-state-store";
 import { enforceBatchedClaims, type BatchMaterial, type EnforceBatchedClaimsDeps } from "./enforce-batched-claims.js";
+import { runIndexerTick, createInMemoryIndexerCursorStore, createInMemoryConfirmedAnchorStore } from "./runner.js";
 
 // ---------- byte helpers ----------
 function hexToBytes(hex: string): Uint8Array {
@@ -119,6 +120,19 @@ function inMemoryStore(): NameStateStore & { all(): NameStateRecord[] } {
   return {
     has: (n) => Promise.resolve(m.has(n)),
     put: (r) => { m.set(r.canonicalName, r); return Promise.resolve(); },
+    putMany: (rs) => { for (const r of rs) m.set(r.canonicalName, r); return Promise.resolve(); },
+    getByName: (n) => Promise.resolve(m.get(n) ?? null),
+    all: () => [...m.values()],
+  };
+}
+
+/** A store whose batch write FAILS — models a mid-batch persistence failure. all() proves no record landed. */
+function failingPutManyStore(): NameStateStore & { all(): NameStateRecord[] } {
+  const m = new Map<string, NameStateRecord>();
+  return {
+    has: (n) => Promise.resolve(m.has(n)),
+    put: () => Promise.reject(new Error("disk full")),
+    putMany: () => Promise.reject(new Error("disk full")), // atomic write fails → NOTHING durable
     getByName: (n) => Promise.resolve(m.get(n) ?? null),
     all: () => [...m.values()],
   };
@@ -188,6 +202,35 @@ describe("enforceBatchedClaims (LE-INDEX driver)", () => {
     expect(report.accepted).toEqual([]);
     expect(report.namesWritten).toBe(0);
     expect(d.store.all()).toEqual([]);
+  });
+
+  it("atomicity: a name-state write failure THROWS out (accept writes ALL or NONE — no partial durable state)", async () => {
+    const store = failingPutManyStore();
+    const d: EnforceBatchedClaimsDeps = {
+      batchMaterial: (r, p) => (r === ANCHORED_ROOT && p === PREV_ROOT ? FULL_MATERIAL : null),
+      nameStateStore: store,
+      policy: POLICY,
+    };
+    // The atomic putMany failure is NOT swallowed as a reject — it throws out (so the wired tick won't advance
+    // the cursor), and the all-or-nothing write left NO partial name-state.
+    await expect(enforceBatchedClaims([candidate()], d)).rejects.toThrow(/disk full/);
+    expect(store.all()).toEqual([]);
+  });
+
+  it("atomicity (wired): a name-state write failure aborts runIndexerTick so the cursor is NOT advanced (retry)", async () => {
+    const store = failingPutManyStore();
+    const cursorStore = createInMemoryIndexerCursorStore(0);
+    const blockSource = { nextConfirmedAnchors: () => Promise.resolve({ candidates: [candidate()], cursor: { height: 99 } }) };
+    await expect(
+      runIndexerTick({
+        blockSource,
+        cursorStore,
+        anchorStore: createInMemoryConfirmedAnchorStore(),
+        enforcement: { batchMaterial: (r, p) => (r === ANCHORED_ROOT && p === PREV_ROOT ? FULL_MATERIAL : null), nameStateStore: store, policy: POLICY },
+      }),
+    ).rejects.toThrow(/disk full/);
+    expect(store.all()).toEqual([]); // no partial name-state
+    expect(await cursorStore.load()).toEqual({ height: 0 }); // cursor NOT advanced — the batch retries
   });
 });
 

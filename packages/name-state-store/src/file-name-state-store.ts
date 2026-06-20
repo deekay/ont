@@ -71,6 +71,32 @@ export function createFileNameStateStore(filePath: string, fs: FileStoreFs = nod
     return hydrated;
   }
 
+  // The atomic write shared by put + putMany (a closure, not `this`, so a destructured method still works).
+  async function writeBatch(records: readonly NameStateRecord[]): Promise<void> {
+    const state = await ensureHydrated();
+    if (records.length === 0) return; // nothing to write — no-op (no needless rewrite)
+
+    // Build the NEXT map without mutating live state (durability-before-visibility). A batch must not carry two
+    // records for one name (a corrupt/duplicated caller batch) — fail closed before any write.
+    const nextByName = new Map(state.byName);
+    const seen = new Set<string>();
+    for (const record of records) {
+      if (seen.has(record.canonicalName)) throw new Error(`name-state store: duplicate canonicalName ${record.canonicalName} in batch`);
+      seen.add(record.canonicalName);
+      nextByName.set(record.canonicalName, record);
+    }
+
+    // Encode the full array (re-validates every record incl. the new ones) and write ONCE, atomically — so
+    // either ALL the batch's records land durably or NONE do (one temp+rename + one publish).
+    const data = JSON.stringify([...nextByName.values()].map(encodeNameStateRecord));
+    await fs.mkdir(dirname(filePath));
+    await fs.writeFile(tempPath, data);
+    await fs.rename(tempPath, filePath);
+
+    // Publish only after the durable rewrite succeeded — a write/rename failure leaves the last durable state.
+    state.byName = nextByName;
+  }
+
   return {
     async has(canonicalName: string): Promise<boolean> {
       const state = await ensureHydrated();
@@ -80,21 +106,7 @@ export function createFileNameStateStore(filePath: string, fs: FileStoreFs = nod
       const state = await ensureHydrated();
       return state.byName.get(canonicalName) ?? null;
     },
-    async put(record: NameStateRecord): Promise<void> {
-      const state = await ensureHydrated();
-
-      // Build the NEXT map without mutating live state (durability-before-visibility).
-      const nextByName = new Map(state.byName);
-      nextByName.set(record.canonicalName, record);
-
-      // Encode the full array (re-validates every record incl. the new one) and write atomically.
-      const data = JSON.stringify([...nextByName.values()].map(encodeNameStateRecord));
-      await fs.mkdir(dirname(filePath));
-      await fs.writeFile(tempPath, data);
-      await fs.rename(tempPath, filePath);
-
-      // Publish only after the durable rewrite succeeded.
-      state.byName = nextByName;
-    },
+    put: (record) => writeBatch([record]),
+    putMany: (records) => writeBatch(records),
   };
 }
