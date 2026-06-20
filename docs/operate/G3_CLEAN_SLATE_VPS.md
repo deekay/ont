@@ -142,33 +142,76 @@ The G2 durable file read — store → resolver `/tx` → web render — is prov
 
 This is the real end-to-end write path: **assemble → off-box sign → broadcast → ingest → render**. The
 publisher is in the stack and chain-gated, but signing a real anchor needs a **funded signet wallet**, so
-this is the operator's run (the boot smoke in 4a does not perform it).
+this is the operator's run (the boot smoke in 4a does not perform it). The steps below mirror the hermetic
+regtest e2e ([`packages/regtest-e2e/src/root-anchor-e2e.ts`](../../packages/regtest-e2e/src/root-anchor-e2e.ts))
+step-for-step — on regtest it funds by mining to a legacy address; on signet it funds from a faucet.
+
+> **⚠ THE one constraint — everything must be legacy-serializable.** The indexer reads a matched anchor with
+> `parseLegacyTransaction` **and** re-fetches+parses each funding input's **parent** tx
+> ([`apps/indexer/src/live/node-block-source.ts`](../../apps/indexer/src/live/node-block-source.ts) — a
+> witness/segwit body is **dropped**). So the anchor tx **and** the tx that created the funding UTXO must both
+> be legacy (P2PKH, no witness). Use **legacy addresses throughout** and a **legacy funding hop**. The
+> publisher's `/broadcast` independently fails closed (`422 tx-not-legacy`) on a segwit raw — belt and braces.
+
+A `bitcoin-cli` shortcut against the compose bitcoind (RPC creds from `.env`):
 
 ```bash
+BCLI="docker compose exec -T bitcoind bitcoin-cli -signet -rpcuser=$ONT_RPC_USER -rpcpassword=$ONT_RPC_PASSWORD"
+WALLET="-rpcwallet=ont-anchor"
+
 # 0. Publisher is up and past its chain gate (same gate as the indexer):
 curl -fsS http://127.0.0.1:4176/health                       # publisher: ok
 
-# 1. Assemble the UNSIGNED RootAnchor tx (publisher never signs; the body is the B4 assemble input):
+# 1. Wallet + a LEGACY funding address; fund it from a signet faucet, wait for 1+ confirmations.
+$BCLI createwallet ont-anchor                                # once; later runs: $BCLI loadwallet ont-anchor
+FUND_ADDR=$($BCLI $WALLET getnewaddress "" legacy); echo "$FUND_ADDR"   # paste into a signet faucet
+
+# 2. Legacy funding HOP — spend the faucet UTXO into a fresh legacy address so the RootAnchor's funding
+#    prevout has a legacy-serializable PARENT tx (the faucet's own tx may be segwit). Wait 1 conf.
+HOP_ADDR=$($BCLI $WALLET getnewaddress "" legacy)
+HOP_TXID=$($BCLI $WALLET sendtoaddress "$HOP_ADDR" 0.0005)    # enough to cover the anchor's fee
+$BCLI $WALLET listunspent 1 9999999 "[\"$HOP_ADDR\"]"        # note the {txid, vout} of the hop output
+
+# 3. Assemble input. prevRoot/newRoot are well-formed 32-byte LOWERCASE hex; for a PLUMBING smoke they are
+#    placeholders (this proves write→ingest→render, NOT a real consensus batch — see the note below).
+cat > root-anchor-input.json <<'JSON'
+{ "prevRoot": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "newRoot":  "7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a",
+  "batchSize": 5,
+  "fundingInputs": [{ "prevoutTxid": "<HOP_TXID>", "prevoutVout": 0 }] }
+JSON
+# ^ prevRoot/newRoot are 64 hex chars (32 bytes) each; set prevoutTxid/prevoutVout from step 2's listunspent.
+
+# 4. Assemble the UNSIGNED tx (publisher never signs; no changeOutput — fundrawtransaction adds legacy change):
 curl -fsS -X POST http://127.0.0.1:4176/assemble/root-anchor \
   -H 'content-type: application/json' -d @root-anchor-input.json
 #    -> { "ok": true, "unsignedTxid": "...", "unsignedTxHex": "..." }   (unsignedTxid is a TEMPLATE id)
 
-# 2. Sign OFF-BOX with a funded signet wallet (B5 wallet handoff — the publisher holds no keys), producing a
-#    fully-signed legacy raw. Fund the input(s) from a signet faucet first.
+# 5. Off-box: add legacy change + SIGN with the bitcoind wallet (the publisher holds no keys). add_inputs:false
+#    keeps a segwit UTXO from sneaking in; the change address is legacy so the signed raw stays legacy.
+$BCLI $WALLET fundrawtransaction "<unsignedTxHex>" \
+  "{\"changeAddress\":\"$($BCLI $WALLET getnewaddress '' legacy)\",\"add_inputs\":false}"   # -> .hex
+$BCLI $WALLET signrawtransactionwithwallet "<funded.hex>"    # -> .hex ; .complete MUST be true
 
-# 3. Broadcast the SIGNED raw — the only route that touches the chain; relays verbatim to bitcoind:
+# 6. Broadcast the SIGNED raw — the only route that touches the chain; 422 if not legacy, relays verbatim else:
 curl -fsS -X POST http://127.0.0.1:4176/broadcast \
-  -H 'content-type: application/json' -d '{"signedTxHex":"<signed-raw-hex>"}'
+  -H 'content-type: application/json' -d '{"signedTxHex":"<signed.hex>"}'
 #    -> 202 { "ok": true, "txid": "<chain-txid>" }   (the real chain txid, not the template id)
 
-# 4. Once mined + confirmed, the indexer ingests it and the read path renders it:
+# 7. Once mined + confirmed on signet, the indexer ingests it and the read path renders it:
 curl -fsS "http://127.0.0.1:4174/tx/<chain-txid>"            # resolver: the confirmed view
 curl -fsS "http://127.0.0.1:4175/?q=<chain-txid>"            # web: rendered
 ```
 
-Until a funded signet run is done, the write path is proven only **hermetically** in-repo (the `@ont/publisher`
-+ regtest e2e suites, `npm test`) — the seam is exercised end-to-end against a test wallet, just not on the
-deployed signet box.
+**Placeholder roots = a plumbing smoke.** The `prevRoot`/`newRoot` above are arbitrary well-formed values; the
+assemble adapter does not validate root semantics, so this proves the **transport** (write → ingest → render),
+not a consensus-valid batch. A real anchor (`prevRoot` = the actual base root, `newRoot` from a real delta over
+a committed batch) is the batched-claim path (**B3**), out of this slice.
+
+**Not yet run against live signet.** The faucet + legacy-hop specifics above are derived from the regtest e2e
+(which funds by mining to legacy); the exact signet faucet/hop should be confirmed on the **first funded run**.
+Until then the write path is proven only **hermetically** in-repo (the `@ont/publisher` + regtest e2e suites,
+`npm test`) — the seam runs end-to-end against a test wallet, just not on the deployed signet box.
 
 Restart-survival (G2) carries over: `docker compose restart indexer resolver` and the durable cursor +
 confirmed anchors persist — the resolver still serves what was ingested before the restart.
