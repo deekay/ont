@@ -153,9 +153,13 @@ step-for-step — on regtest it funds by mining to a legacy address; on signet i
 > be legacy (P2PKH, no witness). Use **legacy addresses throughout** and a **legacy funding hop**. The
 > publisher's `/broadcast` independently fails closed (`422 tx-not-legacy`) on a segwit raw — belt and braces.
 
-A `bitcoin-cli` shortcut against the compose bitcoind (RPC creds from `.env`):
+This recipe is fully scripted (**requires `jq` on the host**); run it **from the repo directory** (where
+`.env` lives). It loads the RPC creds into your shell first — `docker compose` interpolates `.env` for the
+compose file, but your interactive shell does **not**, so without this step `bitcoin-cli` would get empty
+`-rpcuser`/`-rpcpassword` and fail on the first call.
 
 ```bash
+set -a; . ./.env; set +a     # load ONT_RPC_USER / ONT_RPC_PASSWORD (the compose .env) into THIS shell
 BCLI="docker compose exec -T bitcoind bitcoin-cli -signet -rpcuser=$ONT_RPC_USER -rpcpassword=$ONT_RPC_PASSWORD"
 WALLET="-rpcwallet=ont-anchor"
 
@@ -170,37 +174,44 @@ FUND_ADDR=$($BCLI $WALLET getnewaddress "" legacy); echo "$FUND_ADDR"   # paste 
 #    prevout has a legacy-serializable PARENT tx (the faucet's own tx may be segwit). Wait 1 conf.
 HOP_ADDR=$($BCLI $WALLET getnewaddress "" legacy)
 HOP_TXID=$($BCLI $WALLET sendtoaddress "$HOP_ADDR" 0.0005)    # enough to cover the anchor's fee
-$BCLI $WALLET listunspent 1 9999999 "[\"$HOP_ADDR\"]"        # note the {txid, vout} of the hop output
 
-# 3. Assemble input. prevRoot/newRoot are well-formed 32-byte LOWERCASE hex; for a PLUMBING smoke they are
-#    placeholders (this proves write→ingest→render, NOT a real consensus batch — see the note below).
-cat > root-anchor-input.json <<'JSON'
+# 3. Capture the EXACT spendable prevout of the hop output (txid+vout) — never assume an output index;
+#    sendtoaddress orders payment vs change however it likes. Empty UTXO_VOUT ⇒ the hop has not confirmed yet.
+UTXO=$($BCLI $WALLET listunspent 1 9999999 "[\"$HOP_ADDR\"]")
+UTXO_TXID=$(echo "$UTXO" | jq -r --arg t "$HOP_TXID" 'map(select(.txid==$t))[0].txid')
+UTXO_VOUT=$(echo "$UTXO" | jq -r --arg t "$HOP_TXID" 'map(select(.txid==$t))[0].vout')
+[ -n "$UTXO_VOUT" ] && [ "$UTXO_VOUT" != null ] || echo "hop UTXO not spendable yet — wait for a confirmation"
+
+# 4. Generate the assemble input from those exact values. prevRoot/newRoot are well-formed 32-byte LOWERCASE
+#    hex (64 chars); for a PLUMBING smoke they are placeholders (proves write→ingest→render, NOT a batch).
+cat > root-anchor-input.json <<JSON
 { "prevRoot": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
   "newRoot":  "7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a",
   "batchSize": 5,
-  "fundingInputs": [{ "prevoutTxid": "<HOP_TXID>", "prevoutVout": 0 }] }
+  "fundingInputs": [{ "prevoutTxid": "$UTXO_TXID", "prevoutVout": $UTXO_VOUT }] }
 JSON
-# ^ prevRoot/newRoot are 64 hex chars (32 bytes) each; set prevoutTxid/prevoutVout from step 2's listunspent.
 
-# 4. Assemble the UNSIGNED tx (publisher never signs; no changeOutput — fundrawtransaction adds legacy change):
-curl -fsS -X POST http://127.0.0.1:4176/assemble/root-anchor \
-  -H 'content-type: application/json' -d @root-anchor-input.json
-#    -> { "ok": true, "unsignedTxid": "...", "unsignedTxHex": "..." }   (unsignedTxid is a TEMPLATE id)
+# 5. Assemble the UNSIGNED tx (publisher never signs; no changeOutput — fundrawtransaction adds legacy change):
+UNSIGNED_HEX=$(curl -fsS -X POST http://127.0.0.1:4176/assemble/root-anchor \
+  -H 'content-type: application/json' -d @root-anchor-input.json | jq -r '.unsignedTxHex')
 
-# 5. Off-box: add legacy change + SIGN with the bitcoind wallet (the publisher holds no keys). add_inputs:false
-#    keeps a segwit UTXO from sneaking in; the change address is legacy so the signed raw stays legacy.
-$BCLI $WALLET fundrawtransaction "<unsignedTxHex>" \
-  "{\"changeAddress\":\"$($BCLI $WALLET getnewaddress '' legacy)\",\"add_inputs\":false}"   # -> .hex
-$BCLI $WALLET signrawtransactionwithwallet "<funded.hex>"    # -> .hex ; .complete MUST be true
+# 6. Off-box: add legacy change + SIGN with the bitcoind wallet (the publisher holds no keys). add_inputs:false
+#    keeps a segwit UTXO from sneaking in; the legacy change address keeps the signed raw legacy.
+CHANGE_ADDR=$($BCLI $WALLET getnewaddress "" legacy)
+FUNDED_HEX=$($BCLI $WALLET fundrawtransaction "$UNSIGNED_HEX" \
+  "{\"changeAddress\":\"$CHANGE_ADDR\",\"add_inputs\":false}" | jq -r '.hex')
+SIGNED=$($BCLI $WALLET signrawtransactionwithwallet "$FUNDED_HEX")
+echo "$SIGNED" | jq -e '.complete' >/dev/null || echo "WARN: signing did not complete"
+SIGNED_HEX=$(echo "$SIGNED" | jq -r '.hex')
 
-# 6. Broadcast the SIGNED raw — the only route that touches the chain; 422 if not legacy, relays verbatim else:
-curl -fsS -X POST http://127.0.0.1:4176/broadcast \
-  -H 'content-type: application/json' -d '{"signedTxHex":"<signed.hex>"}'
-#    -> 202 { "ok": true, "txid": "<chain-txid>" }   (the real chain txid, not the template id)
+# 7. Broadcast the SIGNED raw — the only route that touches the chain; 422 if not legacy, relays verbatim else:
+ANCHOR_TXID=$(curl -fsS -X POST http://127.0.0.1:4176/broadcast \
+  -H 'content-type: application/json' -d "{\"signedTxHex\":\"$SIGNED_HEX\"}" | jq -r '.txid')
+echo "broadcast txid: $ANCHOR_TXID"          # the real chain txid (NOT the assemble template id)
 
-# 7. Once mined + confirmed on signet, the indexer ingests it and the read path renders it:
-curl -fsS "http://127.0.0.1:4174/tx/<chain-txid>"            # resolver: the confirmed view
-curl -fsS "http://127.0.0.1:4175/?q=<chain-txid>"            # web: rendered
+# 8. Once mined + confirmed on signet, the indexer ingests it and the read path renders it:
+curl -fsS "http://127.0.0.1:4174/tx/$ANCHOR_TXID"           # resolver: the confirmed view
+curl -fsS "http://127.0.0.1:4175/?q=$ANCHOR_TXID"           # web: rendered
 ```
 
 **Placeholder roots = a plumbing smoke.** The `prevRoot`/`newRoot` above are arbitrary well-formed values; the
