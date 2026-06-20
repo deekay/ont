@@ -37,6 +37,15 @@ export {
   type IndexerTickReport,
   type RunLoopOptions,
 } from "./runner.js";
+// LE-INDEX live batched-claim enforcement driver (live-enforcement) — published so the hermetic enforcement
+// e2e (packages/regtest-e2e) can type its enforcement dep + batch material without a deep app-internal import.
+export {
+  enforceBatchedClaims,
+  type BatchMaterial,
+  type BatchMaterialSource,
+  type EnforceBatchedClaimsDeps,
+  type EnforceBatchedClaimsReport,
+} from "./enforce-batched-claims.js";
 // Env-selected live block source (go-live slice 4b) — published so the regtest e2e composes it.
 export { selectIndexerBlockSource } from "./live/select-block-source.js";
 // Env-selected durable stores (go-live G2 slice 3) — published so the restart-survival e2e (6c) drives the SAME

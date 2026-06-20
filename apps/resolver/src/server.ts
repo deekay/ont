@@ -1,6 +1,7 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import {
   confirmedAnchorTxToServedTx,
+  projectServedNameState,
   projectServedRecoveryHistory,
   projectServedValueHistory,
   validateRecoveryDescriptorSubmission,
@@ -12,12 +13,18 @@ import type {
   ProjectServedRecoveryHistoryInput,
   ProjectServedValueHistoryInput,
 } from "@ont/adapter-resolver";
+import type { NameStateRecord } from "@ont/name-state-store";
 import type { SignedRecoveryDescriptor, SignedValueRecord } from "@ont/protocol";
 
 /** Injected read-only confirmed-anchor view source (G2 slice 4b). The harness composes it over the durable
  *  store (createFileConfirmedAnchorStore.getByTxid → bridge); the resolver server NEVER imports the indexer
  *  or the file store. Absent ⇒ /tx/:txid is not served (404). */
 export type AnchorTxViewSource = (txid: string) => Promise<ConfirmedAnchorTxView | null>;
+
+/** Injected read-only enforced name-state source (LE-RESOLVE). The main composes it over the durable
+ *  @ont/name-state-store (createFileNameStateStore.getByName → fresh-per-read); the resolver server NEVER imports
+ *  the indexer or the file store. Absent ⇒ /names/:name/state is not served (404). */
+export type NameStateViewSource = (name: string) => Promise<NameStateRecord | null>;
 
 export interface ResolverStore {
   valueState(name: string): Promise<ProjectServedValueHistoryInput | null>;
@@ -34,6 +41,8 @@ export interface ResolverServiceOptions {
   readonly store: ResolverStore;
   /** Read-only confirmed-anchor tx source for GET /tx/:txid; absent ⇒ that route 404s. */
   readonly anchorTxView?: AnchorTxViewSource;
+  /** Read-only enforced name-state source for GET /names/:name/state; absent ⇒ that route 404s. */
+  readonly nameStateView?: NameStateViewSource;
 }
 
 export function createInMemoryResolverStore(): ResolverStore {
@@ -90,6 +99,7 @@ export async function handleResolverRequest(request: Request, options: ResolverS
       if (!name) return json({ ok: false, reason: "bad-name" }, 400);
       if (segments[2] === "value-history") return serveValueHistory(name, options.store);
       if (segments[2] === "recovery-history") return serveRecoveryHistory(name, options.store);
+      if (segments[2] === "state") return serveNameState(name, options.nameStateView);
     }
 
     if (segments.length === 2 && segments[0] === "tx") {
@@ -131,6 +141,21 @@ async function serveConfirmedTx(txid: string, anchorTxView?: AnchorTxViewSource)
   const served = confirmedAnchorTxToServedTx(view);
   if (served === null) return json({ ok: false, reason: "not-found" }, 404); // inconsistent anchor → clean 404
   return json(served, 200);
+}
+
+async function serveNameState(name: string, nameStateView?: NameStateViewSource): Promise<Response> {
+  // Read-only: a thin coordinator over the injected durable source + the adapter-resolver read firewall. Absent
+  // source ⇒ the route is not served (404, the hermetic default, mirroring /tx). projectServedNameState decides
+  // serve-or-reject from the FULL §2a recheck; no store touch, no mint/put/repair, no per-name fallback.
+  if (!nameStateView) return json({ ok: false, reason: "not-served" }, 404);
+  let record: NameStateRecord | null;
+  try {
+    record = await nameStateView(name);
+  } catch {
+    return json({ ok: false, reason: "store-unavailable" }, 503);
+  }
+  const projected = projectServedNameState({ name, record });
+  return json(projected, nameStateReadStatus(projected.ok, projected.ok ? null : projected.reason));
 }
 
 async function serveValueHistory(name: string, store: ResolverStore): Promise<Response> {
@@ -196,6 +221,13 @@ async function submitRecoveryDescriptor(request: Request, store: ResolverStore):
 function readStatus(ok: boolean, reason: string | null): number {
   if (ok) return 200;
   return reason === "ownership-unknown" || reason === "empty-history" ? 404 : 409;
+}
+
+function nameStateReadStatus(ok: boolean, reason: string | null): number {
+  if (ok) return 200;
+  // name-unknown ⇒ no enforced state for this name (404); name-mismatch / invalid-record ⇒ a corrupt or
+  // inconsistent mirror (409), matching the /names/ family's corruption→409 convention.
+  return reason === "name-unknown" ? 404 : 409;
 }
 
 function json(body: unknown, status = 200): Response {

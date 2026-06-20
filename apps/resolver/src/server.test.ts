@@ -3,13 +3,16 @@ import {
   computeRecoveryDescriptorHash,
   computeValueRecordHash,
   deriveOwnerPubkey,
+  sha256Hex,
   signRecoveryDescriptor,
   signValueRecord,
+  utf8ToBytes,
   type SignedRecoveryDescriptor,
   type SignedValueRecord,
 } from "@ont/protocol";
 import type { OwnershipInterval, ProjectServedRecoveryHistoryInput, ProjectServedValueHistoryInput } from "@ont/adapter-resolver";
-import { handleResolverRequest, type ResolverStore } from "./server.js";
+import type { NameStateRecord } from "@ont/name-state-store";
+import { handleResolverRequest, type NameStateViewSource, type ResolverStore } from "./server.js";
 
 // Clean runnable resolver red battery. The resolver app is an imperative HTTP shell around @ont/adapter-resolver:
 // it reads/writes only through a mocked store port, delegates projection and submission guards to the adapter,
@@ -231,5 +234,84 @@ describe("resolver service — HTTP shell totality", () => {
     });
     expect(throwing.status).toBe(503);
     expect(await throwing.json()).toMatchObject({ ok: false, reason: "store-unavailable" });
+  });
+});
+
+// LE-RESOLVE — GET /names/:name/state: the resolver serves enforced name-state through the adapter read firewall
+// over an injected, READ-ONLY NameStateViewSource (NOT the submission ResolverStore). The route is governed
+// entirely by that injected source — absent ⇒ 404, throwing ⇒ 503 — and projectServedNameState decides
+// serve-or-reject from the full §2a recheck. The deep firewall behaviour is in serve-name-state.test.ts; these
+// pin the wiring + reason→status mapping.
+describe("resolver service — GET /names/:name/state (LE-RESOLVE)", () => {
+  const NS_NAME = "alice";
+  const NS_OWNER = "11".repeat(32);
+  function nameStateRecord(over: Partial<NameStateRecord> = {}): NameStateRecord {
+    return {
+      canonicalName: NS_NAME,
+      leafKeyHex: sha256Hex(utf8ToBytes(NS_NAME)),
+      owner: { kind: "owner-key", ownerPubkeyHex: NS_OWNER },
+      batchLocalIndex: 0,
+      anchoredRoot: "7".repeat(64),
+      anchor: { txid: "b".repeat(64), minedHeight: 170, txIndex: 0, vout: 1 },
+      firstServableHeight: 170,
+      trace: [{ step: "verdict", ok: true, reason: "batched-claim-accepted" }],
+      ...over,
+    };
+  }
+  const nsStore = {} as ResolverStore; // the state route never touches the submission store
+  const reqState = (name: string, nameStateView?: NameStateViewSource): Promise<Response> =>
+    handleResolverRequest(new Request(`http://resolver.test/names/${name}/state`), { store: nsStore, nameStateView });
+
+  it("serves a valid enforced record at 200 with not-ownership-authority stamps", async () => {
+    const res = await reqState(NS_NAME, async () => nameStateRecord());
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({
+      ok: true,
+      provenance: "resolver-indexed-mirror",
+      authority: "not-ownership-authority",
+      canonicalName: NS_NAME,
+      owner: { kind: "owner-key", ownerPubkeyHex: NS_OWNER },
+    });
+  });
+
+  it("no nameStateView source → 404 not-served (route governed entirely by the injected source)", async () => {
+    const res = await reqState(NS_NAME);
+    expect(res.status).toBe(404);
+    expect(await res.json()).toMatchObject({ ok: false, reason: "not-served" });
+  });
+
+  it("an unknown name (source returns null) → 404 name-unknown", async () => {
+    const res = await reqState("bob", async () => null);
+    expect(res.status).toBe(404);
+    expect(await res.json()).toMatchObject({ ok: false, reason: "name-unknown" });
+  });
+
+  it("a corrupt mirror record → 409 invalid-record (firewall fail-closed, never served)", async () => {
+    const res = await reqState(NS_NAME, async () => nameStateRecord({ anchoredRoot: "nothex" }));
+    expect(res.status).toBe(409);
+    expect(await res.json()).toMatchObject({ ok: false, reason: "invalid-record" });
+  });
+
+  it("a source that returns a record for a different name → 409 name-mismatch (reject-don't-normalize)", async () => {
+    // stored "alice", asked "Alice" — no case-fold, so the firewall refuses to serve it.
+    const res = await reqState("Alice", async () => nameStateRecord());
+    expect(res.status).toBe(409);
+    expect(await res.json()).toMatchObject({ ok: false, reason: "name-mismatch" });
+  });
+
+  it("a throwing source → 503 store-unavailable (broken durable read surfaced, never store-coupled)", async () => {
+    const res = await reqState(NS_NAME, async () => {
+      throw new Error("boom");
+    });
+    expect(res.status).toBe(503);
+    expect(await res.json()).toMatchObject({ ok: false, reason: "store-unavailable" });
+  });
+
+  it("POST /names/:name/state → 405 (the state route is read-only)", async () => {
+    const res = await handleResolverRequest(
+      new Request(`http://resolver.test/names/${NS_NAME}/state`, { method: "POST" }),
+      { store: nsStore },
+    );
+    expect(res.status).toBe(405);
   });
 });

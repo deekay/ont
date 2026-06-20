@@ -10,6 +10,11 @@ import {
   type ConfirmedAnchorStore,
   type IngestAnchorsReport,
 } from "./ingest-anchors.js";
+import {
+  enforceBatchedClaims,
+  type EnforceBatchedClaimsDeps,
+  type EnforceBatchedClaimsReport,
+} from "./enforce-batched-claims.js";
 import type { BuildConfirmedBatchAnchorInput } from "@ont/adapter-indexer";
 
 /** Where ingestion has reached (a confirmed Bitcoin height); durable across restarts. */
@@ -40,11 +45,14 @@ export interface IndexerRunnerDeps {
   readonly anchorStore: ConfirmedAnchorStore;
   /** The slice-1 firewall seam, threaded to ingestConfirmedAnchors; omit ⇒ the real buildConfirmedBatchAnchor. */
   readonly confirm?: ConfirmAnchor;
+  /** LE-INDEX (additive): live batched-claim enforcement over the same candidates; omit ⇒ RootAnchor read path only. */
+  readonly enforcement?: EnforceBatchedClaimsDeps;
 }
 
 export interface IndexerTickReport {
   readonly cursor: IndexerCursor; // the cursor after this tick
   readonly anchors: IngestAnchorsReport; // the slice-1 ingest result
+  readonly enforcement?: EnforceBatchedClaimsReport; // present only when deps.enforcement is configured (LE-INDEX)
 }
 
 /**
@@ -57,8 +65,13 @@ export async function runIndexerTick(deps: IndexerRunnerDeps): Promise<IndexerTi
   const batch = await deps.blockSource.nextConfirmedAnchors(cursor);
   // deps.confirm undefined ⇒ ingestConfirmedAnchors applies its real-adapter default (default-param on undefined).
   const anchors = await ingestConfirmedAnchors(batch.candidates, deps.anchorStore, deps.confirm);
+  // LE-INDEX (additive): when enforcement is configured, run live batched-claim enforcement over the SAME
+  // candidates and persist per-name state. Omit ⇒ unchanged RootAnchor read path (G1/G2/G3).
+  const enforcement = deps.enforcement
+    ? await enforceBatchedClaims(batch.candidates, deps.enforcement)
+    : undefined;
   await deps.cursorStore.save(batch.cursor);
-  return { cursor: batch.cursor, anchors };
+  return { cursor: batch.cursor, anchors, ...(enforcement === undefined ? {} : { enforcement }) };
 }
 
 export interface RunLoopOptions {

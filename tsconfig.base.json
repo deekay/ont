@@ -34,6 +34,7 @@
       "@ont/core/experimental-auction": ["packages/core/src/experimental-auction.ts"],
       "@ont/db": ["packages/db/src/index.ts"],
       "@ont/evidence": ["packages/evidence/src/index.ts"],
+      "@ont/name-state-store": ["packages/name-state-store/src/index.ts"],
       "@ont/protocol": ["packages/protocol/src/index.ts"],
       "@ont/protocol/auction-bid-package": ["packages/protocol/src/auction-bid-package.ts"],
       "@ont/protocol/bond": ["packages/protocol/src/bond.ts"],

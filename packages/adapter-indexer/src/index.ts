@@ -2,9 +2,11 @@
 // First sub-slice: B4-INDEX-ANCHOR (the inclusion firewall → ConfirmedBatchAnchor + fee-tx parts).
 export {
   buildConfirmedBatchAnchor,
+  decodeRootAnchorFields,
   type BuildConfirmedBatchAnchorInput,
   type ConfirmedBatchAnchorResult,
   type ConfirmedBatchAnchorRejectReason,
+  type RootAnchorFields,
 } from "./confirmed-batch-anchor.js";
 
 // B4-INDEX-COMMIT: the fee-critical committed-batch projection (B4_ADAPTERS_PLAN §9.6).

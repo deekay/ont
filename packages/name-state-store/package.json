@@ -1,0 +1,25 @@
+{
+  "name": "@ont/name-state-store",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "ONT durable enforced name-state store — node-targeted file store + the NameStateRecord/store types (live-enforcement LE-INDEX, LIVE_ENFORCEMENT_PLAN §2a). SHARED infra: the indexer writes (put) per accepted batched-claim name, the resolver reads (getByName). No consensus/firewall logic; persistence only — the loop decides, this stores.",
+  "exports": {
+    ".": {
+      "types": "./dist/name-state-store/src/index.d.ts",
+      "default": "./dist/name-state-store/src/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run build -w @ont/protocol && npm run build -w @ont/wire && vitest run"
+  },
+  "dependencies": {
+    "@ont/protocol": "file:../protocol",
+    "@ont/wire": "file:../wire"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.4"
+  }
+}
