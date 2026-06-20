@@ -12,6 +12,8 @@ import {
   type IndexerRunnerDeps,
   type IndexerTickReport,
 } from "./runner.js";
+import type { NameStateRecord, NameStateStore } from "@ont/name-state-store";
+import type { EnforceBatchedClaimsDeps } from "./enforce-batched-claims.js";
 
 // @ont/indexer slice-3 red battery — the runnable batch-ingestion daemon. runIndexerTick is one ingest cycle
 // (pull → drive slice-1 ingest → advance cursor); runIndexerLoop repeats until shouldStop, resilient + paced.
@@ -78,6 +80,52 @@ describe("runIndexerTick", () => {
     expect(report.anchors.accepted).toEqual([]);
     expect(records.size).toBe(0);
     expect(report.cursor).toEqual({ height: 3 });
+  });
+});
+
+// LE-INDEX enforcement wiring (additive): runIndexerTick runs enforceBatchedClaims over the SAME candidates
+// ONLY when deps.enforcement is configured; absent ⇒ the RootAnchor read path is unchanged (the deep driver
+// behaviour is covered by enforce-batched-claims.test.ts + the hermetic e2e — these pin only the wiring).
+describe("runIndexerTick — LE-INDEX enforcement wiring", () => {
+  const memNameStore = (): NameStateStore => {
+    const m = new Map<string, NameStateRecord>();
+    return {
+      has: (n) => Promise.resolve(m.has(n)),
+      put: (r) => { m.set(r.canonicalName, r); return Promise.resolve(); },
+      getByName: (n) => Promise.resolve(m.get(n) ?? null),
+    };
+  };
+  const enforcement: EnforceBatchedClaimsDeps = {
+    batchMaterial: () => null,
+    nameStateStore: memNameStore(),
+    policy: { window: { K: 6, W: 2, C: 3 }, gateFeeSchedule: { gateOneByteSats: 1_000_000n, gateLongNameFloorSats: 100_000n } },
+  };
+
+  it("omits enforcement when deps.enforcement is absent (read path unchanged)", async () => {
+    const { store } = memAnchorStore();
+    const report = await runIndexerTick({
+      blockSource: oneShotBlockSource([candidate], 7),
+      cursorStore: createInMemoryIndexerCursorStore(0),
+      anchorStore: store,
+      confirm: okConfirm,
+    });
+    expect(report.enforcement).toBeUndefined();
+    expect(report.anchors.accepted).toEqual([ROOT]); // ingest is unaffected
+  });
+
+  it("runs enforcement over the same candidates and threads its report when configured", async () => {
+    const { store } = memAnchorStore();
+    const report = await runIndexerTick({
+      blockSource: oneShotBlockSource([candidate], 7),
+      cursorStore: createInMemoryIndexerCursorStore(0),
+      anchorStore: store,
+      confirm: okConfirm,
+      enforcement,
+    });
+    // The opaque candidate decodes to null (no RootAnchor), so enforce returns an empty report — but its
+    // PRESENCE proves the tick invoked enforceBatchedClaims over the candidates and threaded the result.
+    expect(report.enforcement).toEqual({ accepted: [], skipped: [], rejected: [], namesWritten: 0 });
+    expect(report.anchors.accepted).toEqual([ROOT]); // ingest still runs alongside (additive)
   });
 });
 
