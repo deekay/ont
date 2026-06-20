@@ -1,12 +1,16 @@
-# ONT clean-build go-live stack — G3 clean-slate signet READ path.
-# See docs/operate/G3_CLEAN_SLATE_VPS.md for the teardown -> rebuild -> boot/read-smoke runbook.
+# ONT clean-build go-live stack — G3 clean-slate signet READ + WRITE path.
+# See docs/operate/G3_CLEAN_SLATE_VPS.md for the teardown -> rebuild -> boot/read/write-smoke runbook.
 #
 #   bitcoind(signet) --RPC--> indexer (node ingest, chain-gated) --file store--> resolver (read) --> web (display)
+#                       ^                                                                signed raw
+#                       +------------------------------ publisher (write entry: /broadcast) <--- off-box wallet sign
 #
 # The indexer writes confirmed anchors to a durable file store (ONT_STORE=file under ONT_STORE_DIR); the resolver
-# reads the SAME dir (shared volume), so a restart resumes without re-ingesting (go-live G2). Acceptance is a
-# clean-slate signet boot + read smoke — NOT mainnet, NOT a B3 claim/data-availability path. Secrets, host binds,
-# and the bitcoind image are operator config in .env (copy .env.example). `npm run check:deploy` gates this file.
+# reads the SAME dir (shared volume), so a restart resumes without re-ingesting (go-live G2). The publisher is the
+# write entry: it assembles UNSIGNED txs and relays already-signed raws to bitcoind (it never signs, never reads the
+# store). Acceptance is a clean-slate signet boot + read smoke; the write-smoke (publisher /broadcast -> ingest ->
+# render) needs a funded signet and is the operator's run. NOT mainnet, NOT a B3 data-availability path. Secrets,
+# host binds, and the bitcoind image are operator config in .env (copy .env.example). `npm run check:deploy` gates this file.
 services:
   # Fresh signet Bitcoin Core. The indexer's only chain source. Image is operator-pinned (BITCOIND_IMAGE) — use a
   # Bitcoin Core >= 25 signet-capable build you trust; first boot does a signet IBD (small). RPC auth comes from .env.
@@ -109,6 +113,39 @@ services:
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:4175/health >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  # Write entry (apps/publisher/src/index.ts). The publisher NEVER signs and NEVER reads the anchor store
+  # (no ont_data volume): /assemble/* return an UNSIGNED tx for off-box (B5 wallet) signing, and /broadcast is
+  # the ONLY route that touches the chain — it relays an already-signed legacy raw to bitcoind via sendrawtransaction.
+  # ONT_SOURCE=node runs the same @ont/node-live chain gate as the indexer BEFORE the server listens, so a
+  # mispointed/missing RPC or a chain mismatch fails closed at startup. Bound to 127.0.0.1 by default (override
+  # ONT_PUBLISHER_BIND); the operator drives the write-smoke from the box. See the runbook §4c.
+  publisher:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    command: ["publisher"]
+    env_file:
+      - .env
+    environment:
+      PORT: "4176"
+      ONT_SOURCE: node
+      ONT_CHAIN: signet
+      ONT_RPC_URL: http://bitcoind:38332
+      ONT_RPC_USER: ${ONT_RPC_USER:-ontrpc}
+      ONT_RPC_PASSWORD: ${ONT_RPC_PASSWORD:?set ONT_RPC_PASSWORD in .env}
+    depends_on:
+      bitcoind:
+        condition: service_healthy
+    ports:
+      - "${ONT_PUBLISHER_BIND:-127.0.0.1}:4176:4176"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:4176/health >/dev/null || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 10
