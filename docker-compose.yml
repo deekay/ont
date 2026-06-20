@@ -11,8 +11,12 @@ services:
   # Fresh signet Bitcoin Core. The indexer's only chain source. Image is operator-pinned (BITCOIND_IMAGE) — use a
   # Bitcoin Core >= 25 signet-capable build you trust; first boot does a signet IBD (small). RPC auth comes from .env.
   bitcoind:
-    image: ${BITCOIND_IMAGE:-btcpayserver/bitcoin:28.0}
+    image: ${BITCOIND_IMAGE:-btcpayserver/bitcoin:28.1}
+    # The btcpayserver/bitcoin entrypoint runs `exec gosu bitcoin "$@"` only when argv[0] is the binary
+    # (bitcoind/bitcoin-cli/...); any other argv[0] falls to `exec "$@"`, so a leading `-signet` becomes
+    # `exec -signet` and crash-loops. Name the binary first; the flags follow.
     command:
+      - bitcoind
       - -signet
       - -server
       - -txindex

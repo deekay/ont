@@ -145,5 +145,6 @@ confirmed anchors persist — the resolver still serves what was ingested before
   deleted per DK on 2026-06-19; see [OLD_DEPLOY_QUARANTINE_SCOPE.md](./OLD_DEPLOY_QUARANTINE_SCOPE.md).)
 - **Publisher / claim path is out of scope here.** G3 slice-1 is the read path. The publisher
   (claim/anchor-serving) and a real claim→anchor→render smoke come in a later slice.
-- **bitcoind image is operator-pinned.** `BITCOIND_IMAGE` defaults to a placeholder; pin a signet-capable
-  Bitcoin Core build you trust and validate the `bitcoin-cli` health probe path for that image on first boot.
+- **bitcoind image is operator-pinned.** `BITCOIND_IMAGE` defaults to `btcpayserver/bitcoin:28.1`
+  (signet-capable, validated live); pin and validate a build you trust, and check the `bitcoin-cli` health
+  probe path for that image on first boot.
