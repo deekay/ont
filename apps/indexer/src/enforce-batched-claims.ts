@@ -51,9 +51,12 @@ export interface EnforceBatchedClaimsReport {
 }
 
 /**
- * Drive live enforcement over `candidates`, persisting per-name state for accepted batches only. Total
- * (never throws): a decode/serialize failure or a rejected verdict skips that candidate fail-closed. On
- * accept it writes ALL committed entries (per LIVE_ENFORCEMENT_PLAN §2a) — never just the bundle's member.
+ * Drive live enforcement over `candidates`, persisting per-name state for accepted batches only. The
+ * ENFORCEMENT logic is total — a decode/serialize failure or a rejected verdict skips that candidate
+ * fail-closed, never throwing. The one deliberate exception is PERSISTENCE: an accept's atomic `putMany`
+ * runs OUTSIDE that fail-closed catch, so a store-write failure THROWS OUT (cursor not advanced → retry)
+ * rather than masquerading as a rejected claim. On accept it writes ALL committed entries (per
+ * LIVE_ENFORCEMENT_PLAN §2a) — never just the bundle's member.
  */
 export async function enforceBatchedClaims(
   candidates: readonly BuildConfirmedBatchAnchorInput[],
