@@ -1,8 +1,9 @@
 # Live enforcement — wiring the audited B3/B4 enforcement into the deployed services
 
 > **Status: DESIGN-FIRST (sequencing note, no implementation). Writer: ClaudeleLunatique.
-> Reviewer: ChatLunatique — design-concur GRANTED (event c90a23a5); 2 refinements folded (§2a name-state
-> payload + §2 proof-bundle seam are the net-new design for a re-glance).** Opens after the go-live G3 write path
+> Reviewer: ChatLunatique — design-concur GRANTED (event c90a23a5) + re-glance (proof-bundle row green;
+> §2a folded the verified-committed-entry source / `canonicalName` / `trace` / firewall-`vout` findings).**
+> Opens after the go-live G3 write path
 > merged to `origin/main` @ `9a482008`. Proposed stable name: **`live-enforcement`** (DK assigns the
 > DECISIONS.md number on ratification). Per SOFTWARE_CANON phase-sequencing, this design note may merge;
 > no implementation lands until the design is concurred. Branch: `live-enforcement-plan`.
@@ -38,23 +39,34 @@ name-state delta, **never a bare mutation**.
 | read firewalls + store-guards | `@ont/adapter-resolver` | resolver: serve the enforced name-state, append-only submission guards |
 | RootAnchor + `/da/{root}` serving | `@ont/adapter-publisher` | publisher: serve the batch bytes the availability seam reads |
 
-## 2a. The `@ont/name-state-store` payload (LE-RESOLVE must answer *names*) — CL refinement 2(b)
+## 2a. The `@ont/name-state-store` payload (LE-RESOLVE must answer *names*) — CL refinement 2(b) + re-glance
 
 `enforceBatchedClaim`'s `NameStateDelta` is **root-level only** (`anchoredRoot`, `firstServableHeight` —
-`packages/claim-path/src/enforce-batched-claim.ts:108-120,263-270`) — not enough for a resolver to answer
-"who owns name X". On `accept`, the loop already holds the batch's per-leaf projections (the completeness
-input it built). So the store records, **per accepted name**, a `NameStateRecord`:
+`packages/claim-path/src/enforce-batched-claim.ts:108-120,263-270`) — not enough to answer "who owns name X".
+**Source the per-name material from the VERIFIED committed-entry seam, NOT claim-path's completeness
+projection** (CL re-glance): `buildCompletenessInput` fabricates synthetic `name: b3-batched-leaf-${index}`
+(`enforce-batched-claim.ts:325-330`) and the gate-fee adapter output drops the name to a byte-length
+(`packages/adapter-indexer/src/committed-batch.ts:86-88`). The real canonical name + owner live in the
+`CommittedBatchEntry[]` the loop feeds to `buildCommittedBatchForRoot` (`committed-batch.ts:18-23,52-88` —
+W3-gated `isCanonicalName`, recomputed leaf key, root-bound). So **after** that adapter call returns non-null
+**and** `enforceBatchedClaim` accepts, the loop writes one `NameStateRecord` per verified committed entry,
+joining the entry to the accepted served/root facts:
 
-- `normalizedName` (the store key) + `name`
-- `owner` — `DcvOwnerIdentity` (`owner-key` xonly hex, or `owner-commitment` hex)
-- `anchoredRoot` + anchor coordinates (`txid`, `minedHeight`, `txIndex`, `vout`)
+- `canonicalName` (the store **key** — **reject-don't-normalize**: non-canonical names are rejected upstream
+  by `isCanonicalName`/W3, never case-folded; `committed-batch.ts:13-16,69`,
+  `apps/web/src/render-name-view.ts:31-35`) + `leafKeyHex` (`= sha256Hex(utf8ToBytes(canonicalName))`)
+- `owner` — under current B3 the 32-byte lowercase-hex `ownerPubkey` (value === ownerPubkey)
+- `batchLocalIndex`
+- `anchoredRoot` + anchor coords `txid`, `minedHeight`, `txIndex`, **`vout` preserved from the inclusion
+  candidate / firewall side** — NOT inferred: `ConfirmedBatchAnchor` does not carry vout
+  (`confirmed-batch-anchor.ts:83-87`) and claim-path hard-codes `vout: 0` (`enforce-batched-claim.ts:317`)
 - `firstServableHeight`
+- `trace` — the accepted `BatchedClaimResult.trace` (`enforce-batched-claim.ts:114-120`), so LE-RESOLVE
+  returns the evidence trace, not just ownership
 
-Keyed by `normalizedName`; mirrors `@ont/anchor-store` (node-targeted, `file|memory`, codec, **no
-resolver→indexer edge**). The per-name records are **derived by the loop** from the accepted batch's
-projections — `enforceBatchedClaim`'s return type is unchanged (the loop owns the projection→record
-mapping). A reject writes **no** records. LE-RESOLVE reads this store to answer per-name queries with the
-accepted evidence.
+Keyed by `canonicalName`; mirrors `@ont/anchor-store` (node-targeted, `file|memory`, codec, **no
+resolver→indexer edge**). `enforceBatchedClaim`'s return type is unchanged — the loop owns the
+verified-entry → record join. A reject writes **no** records.
 
 ## 3. Slice sequence (dependency-ordered, tests-first, hermetic first)
 
