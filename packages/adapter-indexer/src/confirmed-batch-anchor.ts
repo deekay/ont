@@ -110,6 +110,8 @@ export interface RootAnchorFields {
   readonly prevRoot: string;
   readonly newRoot: string;
   readonly batchSize: number;
+  /** The output index the RootAnchor was decoded from — the authoritative anchor vout for the §2a anchor coords. */
+  readonly vout: number;
 }
 
 /** Decode the candidate output's OP_RETURN as a RootAnchor, or null. decodeEvent throws → caught. */
@@ -125,7 +127,7 @@ function decodeRootAnchorAt(tx: LegacyTransaction, vout: number): RootAnchorFiel
     return null;
   }
   if (event.type !== EventType.RootAnchor) return null;
-  return { prevRoot: event.prevRoot, newRoot: event.newRoot, batchSize: event.batchSize };
+  return { prevRoot: event.prevRoot, newRoot: event.newRoot, batchSize: event.batchSize, vout };
 }
 
 /**

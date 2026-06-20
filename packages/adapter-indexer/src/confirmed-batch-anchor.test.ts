@@ -346,8 +346,8 @@ describe("buildConfirmedBatchAnchor — totality", () => {
 });
 
 describe("decodeRootAnchorFields (LE-INDEX prevRoot decode — reuses the firewall decode path)", () => {
-  it("decodes prevRoot/newRoot/batchSize from the anchor (prevRoot is what the ConfirmedBatchAnchor mint drops)", () => {
-    expect(decodeRootAnchorFields(anchorTx)).toEqual({ prevRoot: PREV_ROOT, newRoot: ROOT, batchSize: 2 });
+  it("decodes prevRoot/newRoot/batchSize/vout from the anchor (prevRoot+vout are what the mint drops)", () => {
+    expect(decodeRootAnchorFields(anchorTx)).toEqual({ prevRoot: PREV_ROOT, newRoot: ROOT, batchSize: 2, vout: 0 });
   });
 
   it("explicit anchorVout selects the NAMED RootAnchor (no fallback to another output)", () => {
@@ -357,7 +357,7 @@ describe("decodeRootAnchorFields (LE-INDEX prevRoot decode — reuses the firewa
       { valueSats: 0n, scriptPubKeyHex: opReturn(rootAnchorPayload(ROOT_Y, 3)) }, // vout 1
       { valueSats: 7_000_000n, scriptPubKeyHex: "51" },
     ]);
-    expect(decodeRootAnchorFields(twoAnchors, 1)).toEqual({ prevRoot: PREV_ROOT, newRoot: ROOT_Y, batchSize: 3 });
+    expect(decodeRootAnchorFields(twoAnchors, 1)).toEqual({ prevRoot: PREV_ROOT, newRoot: ROOT_Y, batchSize: 3, vout: 1 });
   });
 
   it("two decodable RootAnchors without anchorVout → null (exactly-one, no silent first-match)", () => {
