@@ -13,6 +13,8 @@
 //   web       apps/web/src/index.ts        PORT (4175), ONT_RESOLVER_URL; serves /health
 //   indexer   apps/indexer/src/main.ts     ONT_SOURCE=node, ONT_CHAIN, ONT_RPC_URL[/_USER/_PASSWORD],
 //                                          ONT_STORE=file, ONT_STORE_DIR, INDEXER_POLL_MS; chain-gated daemon
+//   publisher apps/publisher/src/index.ts  PORT (4176), ONT_SOURCE=node, ONT_CHAIN, ONT_RPC_URL[/_USER/_PASSWORD];
+//                                          chain-gated, non-signing; /assemble/* (unsigned) + /broadcast (signed raw)
 //   stores    @ont/indexer select-stores   ONT_STORE=memory|file + ONT_STORE_DIR (resolver reads the same dir)
 //   runtime   @ont/node-live               ONT_SOURCE | ONT_CHAIN | ONT_RPC_URL | ONT_RPC_USER | ONT_RPC_PASSWORD
 //
@@ -56,11 +58,13 @@ const REQUIRE_COMPOSE = [
   { token: "ONT_CHAIN", why: "indexer chain gate needs ONT_CHAIN=signet" },
   { token: "ONT_RPC_URL", why: "indexer node source needs the bitcoind RPC URL" },
   { token: "ONT_RESOLVER_URL", why: "web reads its tx source from the resolver URL" },
+  { token: "publisher:", why: "the non-signing publisher write service (assemble unsigned + broadcast signed raw) is part of the go-live write path" },
 ];
 // Clean-stack requirements that need exact shape, not just token presence (CL bar: ONT_STORE=file + nonempty dir).
 const REQUIRE_COMPOSE_RE = [
   { re: /ONT_STORE:\s*file\b/, why: "durable store must be ONT_STORE=file (not memory) for live read" },
   { re: /ONT_STORE_DIR:\s*\S+/, why: "ONT_STORE_DIR must be set to a nonempty path (indexer writes, resolver reads)" },
+  { re: /PORT:\s*"4176"/, why: "publisher service must set PORT=4176 (its HTTP listen port — index.ts default)" },
 ];
 
 // Clean-stack requirements for the entrypoint dispatch.
@@ -69,12 +73,13 @@ const REQUIRE_ENTRYPOINT = [
 ];
 
 // Runbook must carry per-service coverage and separate repo-prep from DK-owned destructive steps (CL bar).
-// publisher is deliberately deferred to the publisher/claim slice, so it is NOT required here.
+// The publisher is now part of the go-live write path (publisher slice), so its per-service row IS required.
 const REQUIRE_RUNBOOK_RE = [
   { re: /\|\s*\*\*bitcoind\*\*/, why: "runbook needs a per-service row for bitcoind (env/storage/health/smoke)" },
   { re: /\|\s*\*\*indexer\*\*/, why: "runbook needs a per-service row for indexer" },
   { re: /\|\s*\*\*resolver\*\*/, why: "runbook needs a per-service row for resolver" },
   { re: /\|\s*\*\*web\*\*/, why: "runbook needs a per-service row for web" },
+  { re: /\|\s*\*\*publisher\*\*/, why: "runbook needs a per-service row for the publisher write service" },
   { re: /repo-prep/i, why: "runbook must label the non-destructive repo-prep steps" },
   { re: /destructive/i, why: "runbook must call out the destructive teardown explicitly" },
   { re: /DK-owned/i, why: "destructive VPS teardown must be marked DK-owned, separated from repo-prep" },
