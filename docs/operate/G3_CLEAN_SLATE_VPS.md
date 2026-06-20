@@ -159,28 +159,30 @@ compose file, but your interactive shell does **not**, so without this step `bit
 `-rpcuser`/`-rpcpassword` and fail on the first call.
 
 ```bash
+[ -f .env ] || { echo "ERROR: no .env in $(pwd) — run from the repo directory (see §1)." >&2; exit 1; }
 set -a; . ./.env; set +a     # load ONT_RPC_USER / ONT_RPC_PASSWORD (the compose .env) into THIS shell
+set -euo pipefail            # FAIL CLOSED: stop at the first missing prerequisite, never broadcast on a gap
 BCLI="docker compose exec -T bitcoind bitcoin-cli -signet -rpcuser=$ONT_RPC_USER -rpcpassword=$ONT_RPC_PASSWORD"
 WALLET="-rpcwallet=ont-anchor"
 
 # 0. Publisher is up and past its chain gate (same gate as the indexer):
-curl -fsS http://127.0.0.1:4176/health                       # publisher: ok
+curl -fsS http://127.0.0.1:4176/health >/dev/null || { echo "ERROR: publisher not healthy on :4176." >&2; exit 1; }
 
-# 1. Wallet + a LEGACY funding address; fund it from a signet faucet, wait for 1+ confirmations.
-$BCLI createwallet ont-anchor                                # once; later runs: $BCLI loadwallet ont-anchor
-FUND_ADDR=$($BCLI $WALLET getnewaddress "" legacy); echo "$FUND_ADDR"   # paste into a signet faucet
+# 1. Wallet (create-or-load, idempotent) + a LEGACY funding address; fund it from a signet faucet, wait 1+ conf.
+$BCLI createwallet ont-anchor 2>/dev/null || $BCLI loadwallet ont-anchor 2>/dev/null || true
+FUND_ADDR=$($BCLI $WALLET getnewaddress "" legacy); echo "fund this from a signet faucet: $FUND_ADDR"
 
-# 2. Legacy funding HOP — spend the faucet UTXO into a fresh legacy address so the RootAnchor's funding
-#    prevout has a legacy-serializable PARENT tx (the faucet's own tx may be segwit). Wait 1 conf.
+# 2. Legacy funding HOP — spend the faucet UTXO into a fresh legacy address so the RootAnchor's funding prevout
+#    has a legacy-serializable PARENT tx (the faucet's own tx may be segwit). Wait 1 conf before step 3.
 HOP_ADDR=$($BCLI $WALLET getnewaddress "" legacy)
-HOP_TXID=$($BCLI $WALLET sendtoaddress "$HOP_ADDR" 0.0005)    # enough to cover the anchor's fee
+HOP_TXID=$($BCLI $WALLET sendtoaddress "$HOP_ADDR" 0.0005) \
+  || { echo "ERROR: hop send failed — is FUND_ADDR funded and confirmed?" >&2; exit 1; }   # enough for the fee
 
-# 3. Capture the EXACT spendable prevout of the hop output (txid+vout) — never assume an output index;
-#    sendtoaddress orders payment vs change however it likes. Empty UTXO_VOUT ⇒ the hop has not confirmed yet.
+# 3. Capture the EXACT spendable prevout VOUT of the hop output — never assume an output index (sendtoaddress
+#    orders payment vs change however it likes). FAILS CLOSED if the hop has not confirmed (no spendable UTXO).
 UTXO=$($BCLI $WALLET listunspent 1 9999999 "[\"$HOP_ADDR\"]")
-UTXO_TXID=$(echo "$UTXO" | jq -r --arg t "$HOP_TXID" 'map(select(.txid==$t))[0].txid')
-UTXO_VOUT=$(echo "$UTXO" | jq -r --arg t "$HOP_TXID" 'map(select(.txid==$t))[0].vout')
-[ -n "$UTXO_VOUT" ] && [ "$UTXO_VOUT" != null ] || echo "hop UTXO not spendable yet — wait for a confirmation"
+UTXO_VOUT=$(echo "$UTXO" | jq -er --arg t "$HOP_TXID" 'map(select(.txid==$t))[0].vout') \
+  || { echo "ERROR: hop UTXO $HOP_TXID not spendable yet — wait for 1 confirmation, then re-run from step 3." >&2; exit 1; }
 
 # 4. Generate the assemble input from those exact values. prevRoot/newRoot are well-formed 32-byte LOWERCASE
 #    hex (64 chars); for a PLUMBING smoke they are placeholders (proves write→ingest→render, NOT a batch).
@@ -188,30 +190,35 @@ cat > root-anchor-input.json <<JSON
 { "prevRoot": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
   "newRoot":  "7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a",
   "batchSize": 5,
-  "fundingInputs": [{ "prevoutTxid": "$UTXO_TXID", "prevoutVout": $UTXO_VOUT }] }
+  "fundingInputs": [{ "prevoutTxid": "$HOP_TXID", "prevoutVout": $UTXO_VOUT }] }
 JSON
 
-# 5. Assemble the UNSIGNED tx (publisher never signs; no changeOutput — fundrawtransaction adds legacy change):
+# 5. Assemble the UNSIGNED tx (publisher never signs; no changeOutput — fundrawtransaction adds legacy change).
+#    jq -er fails closed if .unsignedTxHex is absent/null (e.g. the input was rejected 422).
 UNSIGNED_HEX=$(curl -fsS -X POST http://127.0.0.1:4176/assemble/root-anchor \
-  -H 'content-type: application/json' -d @root-anchor-input.json | jq -r '.unsignedTxHex')
+  -H 'content-type: application/json' -d @root-anchor-input.json | jq -er '.unsignedTxHex') \
+  || { echo "ERROR: assemble failed — check the publisher /assemble/root-anchor response." >&2; exit 1; }
 
 # 6. Off-box: add legacy change + SIGN with the bitcoind wallet (the publisher holds no keys). add_inputs:false
 #    keeps a segwit UTXO from sneaking in; the legacy change address keeps the signed raw legacy.
 CHANGE_ADDR=$($BCLI $WALLET getnewaddress "" legacy)
 FUNDED_HEX=$($BCLI $WALLET fundrawtransaction "$UNSIGNED_HEX" \
-  "{\"changeAddress\":\"$CHANGE_ADDR\",\"add_inputs\":false}" | jq -r '.hex')
+  "{\"changeAddress\":\"$CHANGE_ADDR\",\"add_inputs\":false}" | jq -er '.hex') \
+  || { echo "ERROR: fundrawtransaction failed — insufficient funds, or input/change not legacy." >&2; exit 1; }
 SIGNED=$($BCLI $WALLET signrawtransactionwithwallet "$FUNDED_HEX")
-echo "$SIGNED" | jq -e '.complete' >/dev/null || echo "WARN: signing did not complete"
-SIGNED_HEX=$(echo "$SIGNED" | jq -r '.hex')
+echo "$SIGNED" | jq -e '.complete == true' >/dev/null \
+  || { echo "ERROR: signing did not complete (.complete=false) — refusing to broadcast." >&2; exit 1; }
+SIGNED_HEX=$(echo "$SIGNED" | jq -er '.hex')
 
-# 7. Broadcast the SIGNED raw — the only route that touches the chain; 422 if not legacy, relays verbatim else:
+# 7. Broadcast the SIGNED raw — the only route that touches the chain; 422 if not legacy, relays verbatim else.
 ANCHOR_TXID=$(curl -fsS -X POST http://127.0.0.1:4176/broadcast \
-  -H 'content-type: application/json' -d "{\"signedTxHex\":\"$SIGNED_HEX\"}" | jq -r '.txid')
+  -H 'content-type: application/json' -d "{\"signedTxHex\":\"$SIGNED_HEX\"}" | jq -er '.txid') \
+  || { echo "ERROR: broadcast failed — non-legacy raw (422) or node rejected; check the /broadcast response." >&2; exit 1; }
 echo "broadcast txid: $ANCHOR_TXID"          # the real chain txid (NOT the assemble template id)
 
-# 8. Once mined + confirmed on signet, the indexer ingests it and the read path renders it:
-curl -fsS "http://127.0.0.1:4174/tx/$ANCHOR_TXID"           # resolver: the confirmed view
-curl -fsS "http://127.0.0.1:4175/?q=$ANCHOR_TXID"           # web: rendered
+# 8. Once mined + confirmed on signet, the indexer ingests it and the read path renders it (404 until then):
+curl -fsS "http://127.0.0.1:4174/tx/$ANCHOR_TXID" || echo "not ingested yet — wait for a confirmation, then retry"
+curl -fsS "http://127.0.0.1:4175/?q=$ANCHOR_TXID" || true
 ```
 
 **Placeholder roots = a plumbing smoke.** The `prevRoot`/`newRoot` above are arbitrary well-formed values; the
