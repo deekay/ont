@@ -2416,13 +2416,15 @@ bonded challenge game) → Rung 4 *Permissionless discovery* (on-chain seed anno
 signed seed list). Each rung's numeric threshold is a launch-freeze parameter; the requirement here is
 only that each trigger be measurable.
 
-**OPEN sub-call (G-A header-source mechanism).** RC-1 (the light-client gate) is ratified, but the
-*specific* independent-header-source policy under G-A is **not yet ruled** — DK ratified the launch mode
-(item 1); the header-source mechanism (item 2) is pending. Recommendation on the table:
-**bundled-checkpoint headers + proof-of-work-validate-forward as the default, the user's own / a
-3rd-party node as opt-in hardening, mobile in scope; "trust a server's header word without validating"
-rejected.** The PoW-validation primitive (`validateHeaderChain`) already exists; the work is requiring
-it on every client path + fixing the checkpoint policy. To be confirmed as a follow-up.
+**G-A header-source mechanism — RATIFIED** (DK, event a1efe737, 2026-06-29). The independent canonical
+header source is **bundled-checkpoint headers + proof-of-work-validate-forward as the default**, with
+the user's own / a 3rd-party node as **opt-in hardening**, and **mobile in scope**; accepting a server's
+header word *without* PoW validation is **rejected** (it is the RC-1 hole). Because the client validates
+proof-of-work from a baked-in checkpoint, who *serves* the post-checkpoint header bytes (the operator
+included) cannot forge a higher-work chain — independence comes from independent *validation*, not a
+trusted transport. The PoW-validation primitive (`validateHeaderChain`) already exists; the remaining
+G-A work is requiring it on every client proof path + fixing the bundled-checkpoint policy. G-A is now
+fully specified.
 
 **Boundary.** Launch-mode / sequencing only — no `@ont/consensus` change. Numeric launch parameters
 (bond floor, notice-window schedule, Rung 2-4 thresholds) are frozen later with the launch-param set,
