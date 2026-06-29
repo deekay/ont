@@ -4,7 +4,7 @@
 If the README, one-pager, design brief, or the website disagree with this file, **this file
 wins** — fix the others. (It exists because those numbers drifted apart once; don't let them again.)
 
-Last updated: 2026-06-26.
+Last updated: 2026-06-29.
 
 ## Where the project is (2026-06-26)
 
@@ -151,9 +151,11 @@ design choice, the numbers are calibration.
   against a real mainnet block, but producers don't emit `bitcoinInclusion` end-to-end and launch
   clients don't yet enforce `verifyProofBundleAgainstBitcoin` against an independent canonical
   best-chain header source — so "verify against Bitcoin" is the verifier's *capability*, not yet the
-  live app/resolver path. da-trust-model (#82) makes closing this a **hard launch gate** (it is RC-1 of
-  the proposed bootstrap-operator launch mode). Until it is closed (mobile included), a client trusts
-  the resolver it queries for liveness, though never for ownership once the gate lands.
+  live app/resolver path. da-trust-model (#82) makes closing this a **hard launch gate** (RC-1 of the
+  ratified bootstrap-operator launch mode (#89)). The header-source mechanism is decided:
+  **bundled-checkpoint headers + proof-of-work-validate-forward** by default, own-node opt-in, mobile in
+  scope. Until the gate is closed (mobile included), a client trusts the resolver it queries for
+  liveness, though never for ownership once it lands.
 - **DA fail-closed enforcement: built + wired hermetically, not yet proven on a live chain.** *(Was
   "design + simulation only.")* The window algebra is ratified — da-windows (#49) (one clock, inclusive
   boundaries, `K ≥ W + C`), availability-height (#84) (`firstServableHeight = h`), batch-completeness
@@ -178,22 +180,24 @@ design choice, the numbers are calibration.
 - **Launch parameters above are placeholders** and must be frozen before launch — until then,
   user-facing copy must not call the rules "frozen."
 
-## Proposed launch mode — bootstrap-operator (#89, pending DK ratification)
+## Launch mode — bootstrap-operator (#89, RATIFIED)
 
-The proposed launch posture is an **auditable single-operator launch mode with mandatory verification
-and a written decentralization ladder** (proposed name `bootstrap-operator`, next number #89). It is
-CL-green with conditions and **awaiting DK's ruling — not yet canon.** It adds **no new consensus law**;
-it rests on the already-ratified da-trust-model (#82), batch-completeness (#83), and
+The launch posture is an **auditable single-operator launch mode with mandatory verification and a
+written decentralization ladder** — bootstrap-operator (#89), **ratified** (DK, 2026-06-29; paper
+[`../research/BOOTSTRAP_OPERATOR.md`](../research/BOOTSTRAP_OPERATOR.md)). It adds **no new consensus
+law**; it rests on the already-ratified da-trust-model (#82), batch-completeness (#83), and
 availability-height (#84). One honest operator runs indexer + resolver + publisher + archive; all
 name-state derives deterministically from Bitcoin + a public, content-addressed archive; the worst a
 bad operator can do is go down or censor — never forge or steal.
 
-On ratification, its five must-ship gates become the go-live work-list:
+Its five must-ship gates are the go-live work-list:
 
-- **G-A** — light-client gate enforced end-to-end (RC-1; the Known-incomplete item above).
+- **G-A** — light-client gate enforced end-to-end (RC-1; the Known-incomplete item above). Header source:
+  **bundled-checkpoint + PoW-validate-forward** default, own-node opt-in, mobile in scope (ratified).
 - **G-B** — a re-derive-from-scratch verifier (CLI / replay + fixtures + documented mirror/archive format).
 - **G-C** — portable, content-addressed archive export + portable receipts/material/proofs + deterministic
-  mirror instructions + **≥1 operator-funded public archive** (RC-2).
+  mirror instructions + **≥1 operator-funded public archive** (RC-2). DK committed to hosting the archive
+  + funding signet; portability (users not locked to that archive) stays a build obligation.
 - **G-D** — the DA-deadline conformance battery (bare anchor / missing material / late material / valid
   in-window) green as tests.
 - **G-E** — non-authoritative product copy: ONT secures the string; verification/discovery is not
@@ -201,4 +205,5 @@ On ratification, its five must-ship gates become the go-live work-list:
 
 Decentralization beyond the launch operator is a written ladder (verifiable → replicated →
 permissionless availability → permissionless discovery), each rung removing one trust assumption against
-a measurable trigger. (Full paper lands in `docs/research/` on ratification.)
+a measurable trigger. Full detail in the decision paper
+([`../research/BOOTSTRAP_OPERATOR.md`](../research/BOOTSTRAP_OPERATOR.md)).
