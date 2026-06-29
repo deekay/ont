@@ -2363,6 +2363,71 @@ operator to one vendor.
 make a live publisher mainnet-ready. It fixes the onboarding boundary so future convenience work does
 not accidentally bundle commercial infrastructure into the protocol.
 
+89. bootstrap-operator: ONT launches as an auditable single-operator launch mode with mandatory
+verification and a written decentralization ladder — **RATIFIED** (DK, event 4ee8e6ec, 2026-06-29)
+
+*Status: **RATIFIED.** Writer ClaudeleLunatique; reviewer ChatLunatique (GREEN with five ratification
+conditions, no veto — review events `895b53e6` / `be1a89fbf37f` / `5748c776`, all folded). Decision
+paper: [`../research/BOOTSTRAP_OPERATOR.md`](../research/BOOTSTRAP_OPERATOR.md). This is a launch-MODE /
+sequencing decision — **no new consensus law**; it rests on the already-ratified da-trust-model (#82),
+batch-completeness (#83), and availability-height (#84).*
+
+**The statement.** ONT launches as an **auditable single-operator launch mode**: one honest operator
+runs indexer + resolver + publisher + archive, and all name-state derives deterministically from
+Bitcoin + a public, content-addressed archive (hash on-chain, bytes off-chain). The worst a bad
+operator can do is **go down or censor — never forge or steal** (the #82 firewall: safety
+unconditional, liveness bootstrapped). This is explicitly **not the final protocol**: decentralization
+is a written 4-rung ladder, each rung removing one trust assumption against an objective, measurable
+trigger.
+
+**The ruling.** Adopt `bootstrap-operator` for launch, subject to RC-1..RC-5. Everything else in the
+2026-06-21 adversary docket is either answered-now or deferred-to-a-rung-with-a-written-trigger (the
+collapse map in the paper).
+
+**Ratification conditions (binding).**
+- **RC-1 — light-client verification is a hard launch blocker.** Clients MUST require `bitcoinInclusion`
+  and run `verifyProofBundleAgainstBitcoin` against an independent canonical header source on every
+  relevant proof path, enforced end-to-end before cutover.
+- **RC-2 — no soft dependency on the operator archive.** Day one: content-addressed archive export +
+  portable receipts/material/proofs + deterministic mirror instructions + ≥1 operator-funded public
+  archive. (Full replication is Rung 2; portability is day-one.)
+- **RC-3 — a minimal re-derive verifier is a launch gate** (alongside RC-1): a "re-derive from scratch"
+  CLI/replay + fixtures so the operator is trusted-but-caught.
+- **RC-4 — the ladder has objective exit criteria** — measurable thresholds, never "when mature."
+- **RC-5 — product copy must not overclaim:** bootstrap does NOT solve squatting/legitimacy, discovery
+  capture, archive liveness, or operator censorship — it makes those non-safety risks explicit and
+  removable. Copy says: ONT secures the string; verification/discovery is non-authoritative.
+
+**Launch-blocking gates (the must-ship set, G-A..G-E).**
+- **G-A** — light-client gate enforced end-to-end (RC-1).
+- **G-B** — re-derive verifier CLI/replay + fixtures + documented mirror/archive format (RC-3).
+- **G-C** — portable content-addressed archive export + portable receipts + mirror instructions + ≥1
+  operator-funded public archive (RC-2). **DK committed to hosting the archive + funding signet (event
+  4ee8e6ec)**; the portability requirement (users not locked to that archive) stays a build obligation.
+- **G-D** — the DA-deadline conformance battery green: (1) bare anchor → no mutation; (2) missing
+  material → fail-closed, no mutation; (3) late material → no cheap-path priority revival; (4) valid
+  in-window material → accepted.
+- **G-E** — non-authoritative product copy wired into the surfaces (RC-5).
+
+**The decentralization ladder (objective triggers).** Rung 1 *Verifiable* (the re-derive verifier —
+shipped at launch per RC-3) → Rung 2 *Replicated* (≥1 independent mirror running the same deterministic
+pipeline; clients cross-check) → Rung 3 *Permissionless availability* (the LE-DA-SERVE transport +
+bonded challenge game) → Rung 4 *Permissionless discovery* (on-chain seed announcements replace the
+signed seed list). Each rung's numeric threshold is a launch-freeze parameter; the requirement here is
+only that each trigger be measurable.
+
+**OPEN sub-call (G-A header-source mechanism).** RC-1 (the light-client gate) is ratified, but the
+*specific* independent-header-source policy under G-A is **not yet ruled** — DK ratified the launch mode
+(item 1); the header-source mechanism (item 2) is pending. Recommendation on the table:
+**bundled-checkpoint headers + proof-of-work-validate-forward as the default, the user's own / a
+3rd-party node as opt-in hardening, mobile in scope; "trust a server's header word without validating"
+rejected.** The PoW-validation primitive (`validateHeaderChain`) already exists; the work is requiring
+it on every client path + fixing the checkpoint policy. To be confirmed as a follow-up.
+
+**Boundary.** Launch-mode / sequencing only — no `@ont/consensus` change. Numeric launch parameters
+(bond floor, notice-window schedule, Rung 2-4 thresholds) are frozen later with the launch-param set,
+not here. Mainnet stays hard-gated behind external audit (clean-build (#46) ruled call 6).
+
 ## Fairness Principles To Carry Into The Launch Rewrite
 
 The rewritten launch draft should explicitly state:

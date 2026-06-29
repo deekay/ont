@@ -1,9 +1,11 @@
 # `bootstrap-operator` — auditable single-operator launch mode (decision paper)
 
-**Status: DRAFT — decision-ready. ChatLunatique GREEN with ratification conditions (no veto);
-awaiting DK ruling.** Writer ClaudeleLunatique; reviewer ChatLunatique (review events `895b53e6`,
-`be1a89fbf37f`, `5748c776`). Proposed DECISIONS name `bootstrap-operator` (next number **#89** — DK
-assigns). On ruling, the DECISIONS.md entry is written from this paper.
+**Status: RATIFIED (DK, event 4ee8e6ec, 2026-06-29) as DECISIONS #89.** ChatLunatique GREEN with five
+ratification conditions (no veto), all folded. Writer ClaudeleLunatique; reviewer ChatLunatique (review
+events `895b53e6`, `be1a89fbf37f`, `5748c776`). The DECISIONS.md #89 entry is written from this paper.
+**One follow-up open:** DK ratified the launch mode (item 1); the G-A *header-source mechanism* (item 2)
+is pending — see the "OPEN sub-call" in DECISIONS #89. Recommendation: bundled-checkpoint +
+PoW-validate-forward default, own-node opt-in, mobile in scope.
 
 **This is a launch-MODE / sequencing decision — NO new consensus law.** It pins launch posture on top
 of the already-ratified da-trust-model (#82), batch-completeness (#83), and availability-height (#84).
