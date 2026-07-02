@@ -2517,6 +2517,45 @@ settled here**: #35 stays a working assumption, RISKS.md's MEV analysis votes se
 matters, and the deciding evidence is *live signet relay-bid-timing data* (a post-launch measurement). Do not
 claim the mainnet form settled. **Reopen trigger:** the live-data readout.
 
+94. relay-target: which Bitcoin Core relay policy ONT's on-chain OP_RETURN carriers target —
+**working assumption** (DK approved the A4 finding, event 799b7400, 2026-07-02)
+
+*Status: **working assumption.** Records the direction taken after A4 (the OP_RETURN standardness/relay
+spike; findings note `docs/research/OP_RETURN_RELAY_SPIKE_A4.md`, co-located in this change set at commit
+`af378373`). Writer ClaudeleLunatique; reviewer ChatLunatique (GREEN, review event ad606d9d). This binds
+when LE-INVOKE is actually built, **not** now — nothing on-chain changes today.*
+
+**What A4 established (the accepted finding — not the policy call).** Measured against the repo-pinned target
+Bitcoin Core v28.1 (`btcpayserver/bitcoin:28.1`; default `-datacarrier=1 -datacarriersize=83`):
+- **`RootAnchor` relays on stock defaults.** 73-byte payload → 75-byte OP_RETURN scriptPubKey ≤ the 83-byte
+  data-carrier limit; accepted. This is the **only** carrier broadcasting today, so A4 is **not a live-prod
+  break**.
+- **The larger carriers do not relay on v28.1 defaults.** Built `RecoverOwner` invoke (171B payload / 174B
+  script) is rejected `reject-reason: scriptpubkey`; representative `Transfer` (138B script) and max-name
+  `AuctionBid` (187B script) likewise. The identical raw tx passes once the node restarts with
+  `-datacarriersize=1000`, which cleanly isolates the rejection to datacarrier standardness — not fee or
+  input shape. `RecoverOwner` is **built but unbroadcast** (LE-INVOKE/LE-CONTESTED are still ahead per
+  STATUS), so this is a **pre-LE-INVOKE gate**, not a current outage.
+
+**Direction (working assumption).** Treat "ONT works on stock default-policy nodes with zero operator
+config" as a **strong preference, not a hard invariant.** Target Bitcoin Core **v30+**, whose relaxed
+default data-carrier policy relays the ≤184-byte single-OP_RETURN carriers (the same relaxation A4 proved
+empirically via `-datacarriersize=1000`). `RootAnchor` already relays on v28.1 defaults, so **nothing
+changes on-chain today**; the target only starts to bind when a larger carrier (`RecoverOwner` first) is
+actually broadcast.
+
+**Reversible fork DK still owns.** If DK instead means *permissionless-on-default-nodes is a hard
+invariant*, this flips off v30+ and onto fallback option 3 — a **carrier-shrink wire redesign** that fits the
+135–184B events inside an 83-byte scriptPubKey (a `RecoverOwner`-invoke re-architecture, e.g.
+commit-on-chain/reveal-off-chain or multi-output, **not** a tweak). Say the word and the direction switches;
+until then the entry stands as the v30+ preference.
+
+**Reopen trigger.** The moment LE-INVOKE opens (i.e. broadcasting a 135–184B carrier becomes real), this
+working assumption must be confirmed or corrected into a launch commitment; it also reopens if the operator
+trust model changes (e.g. a decision to guarantee default-node relay). Companion doc-truth fix: STATUS.md's
+OP_RETURN row, tightened from the vague "relies on modern node policy" to the precise
+v28.1-rejects / v30+-relays language.
+
 ## Fairness Principles To Carry Into The Launch Rewrite
 
 The rewritten launch draft should explicitly state:

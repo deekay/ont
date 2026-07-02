@@ -119,7 +119,7 @@ over a live adversarial chain*, not moving it inside.
 | Short-name opening bond (≤4 chars, **mandatory bond-first** — no cheap-claim path) | **₿100,000,000** (≈1 BTC) at 1 char, halving per char; 5+ chars use gate + contention | working baseline (`@ont/protocol` bond curve, clamped to ≤4 chars) |
 | Bond maturity | ~52,560 blocks (~1 yr) | placeholder / test override |
 | Notice window | **6 blocks (test); target = weeks** | placeholder · fairness lever, **not frozen** |
-| OP_RETURN event size | **up to 184 bytes exactly** (max-name AuctionBid; RecoverOwner is 171 bytes) | test-pinned in `@ont/wire`; above the 80-byte default policy; relies on modern node policy |
+| OP_RETURN event size | **up to 184 bytes exactly** (max-name AuctionBid; RecoverOwner 171B; RootAnchor 73B) | test-pinned in `@ont/wire`. **RootAnchor** (only carrier live today) relays on the pinned Core v28.1 defaults (75B script ≤ the 83-byte `-datacarriersize` limit). The larger carriers (Transfer 138B, RecoverOwner 174B, AuctionBid 187B scripts) **exceed** v28.1 default data-carrier policy and relay only under a raised operator `-datacarriersize` or Core **v30+** defaults — this binds when LE-INVOKE ships, not now. See relay-target (#94). |
 | On-chain footprint (issuance) | **~0.015–0.019 vB/name** amortized @ ~10k/batch | measured |
 
 ## Launch parameters (auction + notice mechanics)
