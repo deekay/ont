@@ -3,6 +3,11 @@ import { headerMeetsTarget, bitsToTarget, type BitcoinDifficultyCheckpoint, type
 import { verifyProofBundleAgainstBitcoin } from "@ont/consensus";
 import { buildAccumulatorBatchClaimBundle, buildBitcoinInclusion, buildMembershipProof } from "@ont/evidence";
 import {
+  SIGNET_BITCOIN_DIFFICULTY_CHECKPOINT,
+  SIGNET_BITCOIN_NETWORK_PARAMS,
+  SIGNET_CHALLENGE_SCRIPT_PUBKEY_HEX,
+} from "@ont/launch-config";
+import {
   accumulatorRootOf,
   computeValueRecordHash,
   deriveOwnerPubkey,
@@ -34,6 +39,14 @@ function bytesToHex(bytes: Uint8Array): string {
   return h;
 }
 const reversed = (b: Uint8Array): Uint8Array => Uint8Array.from(b).reverse();
+function overwriteNonce(headerHex: string, nonce: number): string {
+  const bytes = hexToBytes(headerHex);
+  bytes[76] = nonce & 0xff;
+  bytes[77] = (nonce >>> 8) & 0xff;
+  bytes[78] = (nonce >>> 16) & 0xff;
+  bytes[79] = (nonce >>> 24) & 0xff;
+  return bytesToHex(bytes);
+}
 
 // ---------- synthetic anchor header (1-tx block) + trusted checkpoint/params ----------
 const EASY_BITS = 0x2000ffff; // target 0xffff<<232; the checkpoint epoch's bits
@@ -111,6 +124,93 @@ const BUNDLE = buildAccumulatorBatchClaimBundle({
 
 const provider = (headers: readonly string[] | null): HeaderRangeProvider => ({
   fetchHeaderHex: async () => headers,
+});
+
+// ---------- real signet launch checkpoint + no-network header tail ----------
+const SIGNET_RANGE_START_HEIGHT = SIGNET_BITCOIN_DIFFICULTY_CHECKPOINT.height + 1;
+const SIGNET_HEADER_RANGE = [
+  "000000205319b55397090ee5acf575ee0d8e6f1204babb38cc2b0357bfc69b030300000066a0302acc0c6b7042faa806a4bbd7e3d48cffc0803f2d6cb8a2d1fbe639114fd5dd466ac339151d464ff405",
+  "0000002055730d2ddc8eaa251e4d43b623e0296afcda12502a73277982f5326714000000bbcc8ae343be9a4110ce4209962996c825483097866fd34543b01851e9612cfe50de466ac339151d1e7c1e06",
+  "0000002040e56abc24626cf24bf15d7a7fefe4a1d7829c3b9684ffc48454a7c4100000001cbc0f514ba66ead2fe45bad836d4e15a500b84284598d6f11d3eca90a1b1009a0e1466ac339151d90f2950e",
+  "00000020c1bbba44d3ba527d02a6a315e60ecfccc288d2e83f43b8bf64de04550a000000323b302dfdfe38f8e5efeec7926f39664af41c2314e24902b559fe9484f0256e67e2466ac339151db6155208",
+] as const;
+const MAINNET_HEADER_AT_311446 =
+  "0200000040c79de67514e818f7d4868c58a5a41693a05d696e7a7a1c00000000000000006387626ac34066fef724cf097f23bcbfdaab1a5701f4edd0e5fb2418ae24db7e7cf9c953e66b3f181aeab162";
+const BROKEN_POW_SIGNET_CHILD = overwriteNonce(SIGNET_HEADER_RANGE[0], 0);
+
+describe("real signet launch checkpoint — bundled config validates forward and fails closed", () => {
+  it("carries the BIP325 default signet challenge script for the later solution gate", () => {
+    expect(SIGNET_CHALLENGE_SCRIPT_PUBKEY_HEX).toBe(
+      "512103ad5e0edad18cb1f0fc0d28a3d4f1f3e445640337489abb10404f2d1e086be430210359ef5021964fe22d6f8e05b2463c9540ce96883fe3b278760f048f5189f2e6c452ae",
+    );
+  });
+
+  it("validates a known real signet header range from the bundled checkpoint", () => {
+    const r = buildCanonicalHeaderSourceFromHeaders(
+      SIGNET_HEADER_RANGE,
+      SIGNET_RANGE_START_HEIGHT,
+      SIGNET_HEADER_RANGE.length,
+      SIGNET_BITCOIN_DIFFICULTY_CHECKPOINT,
+      SIGNET_BITCOIN_NETWORK_PARAMS,
+    );
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.tipHeight).toBe(311_449);
+    expect(r.tipHashHex).toBe("000000015c590137438ec3e2bae4586a51d2b5cb0f407c952dba0ae8e8c49495");
+    expect(r.cumulativeWorkHex).toBe("eafe5a609e2");
+    expect(r.headerSource.headerHexAtHeight(311_446)).toBe(SIGNET_HEADER_RANGE[0]);
+    expect(r.headerSource.headerHexAtHeight(311_449)).toBe(SIGNET_HEADER_RANGE[3]);
+    expect(r.headerSource.headerHexAtHeight(311_450)).toBeNull();
+  });
+
+  it("a signet child with malformed PoW yields no source", () => {
+    expect(headerMeetsTarget(hexToBytes(BROKEN_POW_SIGNET_CHILD))).toBe(false);
+    const r = buildCanonicalHeaderSourceFromHeaders(
+      [BROKEN_POW_SIGNET_CHILD, ...SIGNET_HEADER_RANGE.slice(1)],
+      SIGNET_RANGE_START_HEIGHT,
+      SIGNET_HEADER_RANGE.length,
+      SIGNET_BITCOIN_DIFFICULTY_CHECKPOINT,
+      SIGNET_BITCOIN_NETWORK_PARAMS,
+    );
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.reason).toBe("spv-pow-insufficient");
+  });
+
+  it("a short real-signet tail fails closed before validation", () => {
+    const r = buildCanonicalHeaderSourceFromHeaders(
+      SIGNET_HEADER_RANGE.slice(0, -1),
+      SIGNET_RANGE_START_HEIGHT,
+      SIGNET_HEADER_RANGE.length,
+      SIGNET_BITCOIN_DIFFICULTY_CHECKPOINT,
+      SIGNET_BITCOIN_NETWORK_PARAMS,
+    );
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.reason).toBe("header-range-count-mismatch");
+  });
+
+  it("a shifted stale signet range fails closed", () => {
+    const r = buildCanonicalHeaderSourceFromHeaders(
+      SIGNET_HEADER_RANGE.slice(1),
+      SIGNET_RANGE_START_HEIGHT,
+      SIGNET_HEADER_RANGE.length - 1,
+      SIGNET_BITCOIN_DIFFICULTY_CHECKPOINT,
+      SIGNET_BITCOIN_NETWORK_PARAMS,
+    );
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.reason).toBe("spv-broken-linkage");
+  });
+
+  it("a wrong-network header range fails closed", () => {
+    const r = buildCanonicalHeaderSourceFromHeaders(
+      [MAINNET_HEADER_AT_311446],
+      SIGNET_RANGE_START_HEIGHT,
+      1,
+      SIGNET_BITCOIN_DIFFICULTY_CHECKPOINT,
+      SIGNET_BITCOIN_NETWORK_PARAMS,
+    );
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.reason).toBe("spv-broken-linkage");
+  });
 });
 
 describe("buildCanonicalHeaderSourceFromHeaders (pure core) — validation + exact-count firewall", () => {

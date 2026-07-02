@@ -12,7 +12,7 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "test": "npm run build -w @ont/protocol && npm run build -w @ont/bitcoin && npm run build -w @ont/wire && npm run build -w @ont/consensus && npm run build -w @ont/evidence && vitest run",
+    "test": "npm run build -w @ont/protocol && npm run build -w @ont/bitcoin && npm run build -w @ont/wire && npm run build -w @ont/consensus && npm run build -w @ont/evidence && npm run build -w @ont/launch-config && vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
@@ -21,6 +21,7 @@
   "devDependencies": {
     "@ont/consensus": "file:../consensus",
     "@ont/evidence": "file:../evidence",
+    "@ont/launch-config": "file:../launch-config",
     "@ont/protocol": "file:../protocol",
     "vitest": "^3.2.4"
   }

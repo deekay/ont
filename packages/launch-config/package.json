@@ -1,0 +1,20 @@
+{
+  "name": "@ont/launch-config",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "ONT launch configuration - trusted bundled Bitcoin checkpoints and network params. Supplies client launch data only; no consensus law.",
+  "exports": {
+    ".": {
+      "types": "./dist/launch-config/src/index.d.ts",
+      "default": "./dist/launch-config/src/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@ont/bitcoin": "file:../bitcoin"
+  }
+}
