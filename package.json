@@ -10,6 +10,7 @@
   "scripts": {
     "build": "node ./scripts/build-workspaces.mjs",
     "check": "npm run test",
+    "check:audit-map": "node ./scripts/gen-audit-map.mjs --check",
     "check:surfaces": "node ./scripts/check-surface-boundaries.mjs",
     "check:deploy": "node ./scripts/check-deploy-clean-stack.mjs",
     "dev:cli": "npm run dev -w @ont/cli --",
