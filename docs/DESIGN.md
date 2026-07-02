@@ -148,13 +148,18 @@ take your name. See [`research/OWNER_KEY_RECOVERY.md`](./research/OWNER_KEY_RECO
 ## 4. Trust surface, sovereignty, and verification
 
 **The surface is deliberately tiny.** Who-owns-what is a deterministic function of Bitcoin.
-The audited core — **to be frozen at launch** (Decision #44) — is `engine.ts` (event
-replay), `state.ts` (name state), and `proof-bundle.ts` (portable proofs), over the
-`@ont/protocol` primitives (names, wire formats, events, transfer/value/recovery payloads).
-Today that boundary implements **owner-key authority and replay validation**; auction
-settlement and batched-path finalization are migrating inside per Decisions #42/#44, and
-until they land those rules live outside it (see [`core/STATUS.md`](./core/STATUS.md) for
-the honest scoped claim). A CI test (`packages/consensus/src/trust-surface.test.ts`)
+The audited core — **to be frozen at launch** (Decision #44) — is the `@ont/consensus`
+boundary manifest: the three state-mutating deciders `engine.ts` (event replay), `state.ts`
+(name state), and `proof-bundle.ts` (portable proofs), plus the pure consensus-support,
+parameter, and verdict tiers they consume, over the `@ont/protocol` primitives (names, wire
+formats, events, transfer/value/recovery payloads). This boundary decides **all**
+ownership-changing rules: owner-key authority and replay validation, and — **in-kernel** in
+the clean-build, not migrating outside — auction settlement (settlement-into-core #42, born
+in as a kernel rule in `packages/consensus/src/auction-resolution.ts`), batched-path
+finalization, data-availability eligibility, gate-fee validation, and transcript
+completeness (#42/#65/#68/#85). Those rules are **built and tested hermetically today**;
+what remains is proving them live on signet — see [`core/STATUS.md`](./core/STATUS.md), the
+single source of truth for what is wired. A CI test (`packages/consensus/src/trust-surface.test.ts`)
 **fails the build** if the boundary changes without a recorded decision — the allowlist is
 the boundary manifest, so the surface a newcomer must audit cannot silently drift.
 Allocation policy, convenience (resolver/indexer), and research/simulation code live

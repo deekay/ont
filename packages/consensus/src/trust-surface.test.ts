@@ -7,12 +7,15 @@ import { describe, expect, it } from "vitest";
 const srcDir = dirname(fileURLToPath(import.meta.url));
 
 // The sovereignty trust-surface MANIFEST of @ont/consensus.
-// See docs/DESIGN.md (trust surface / sovereignty map) ("the whole trust surface: ~7 files").
-// Today these modules hold owner-key authority and replay validation: a name
-// moves only if its current owner key signed it, and that is provable to
-// anyone. They do NOT yet decide all ownership — auction settlement and
-// cheap-rail finalization live outside and are migrating inside per Decisions
-// #42/#44 (see docs/core/STATUS.md for the honest scoped claim). They must
+// See docs/DESIGN.md (trust surface / sovereignty map).
+// These modules decide ALL ownership-changing rules: owner-key authority and
+// replay validation (a name moves only if its current owner key signed it, and
+// that is provable to anyone), and — in the clean-build, born in-kernel rather
+// than migrating in from outside — auction settlement (auction-resolution.ts,
+// settlement-into-core #42 / auction #68), batched-path finalization, DA
+// eligibility, gate-fee, and transcript completeness. Those rules are built and
+// tested hermetically; what remains is proving them live (see docs/core/STATUS.md,
+// the single source of truth for what is wired). They must
 // depend ONLY on the protocol/bitcoin primitives and on each other — never on
 // allocation policy, convenience (indexer/resolver), or research/simulation
 // code.
