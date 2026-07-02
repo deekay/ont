@@ -2556,6 +2556,46 @@ trust model changes (e.g. a decision to guarantee default-node relay). Companion
 OP_RETURN row, tightened from the vague "relies on modern node policy" to the precise
 v28.1-rejects / v30+-relays language.
 
+95. signet-solution-gate: on signet the light client's "operator can't forge" property holds for the
+inclusion-proof layer only; the signet header chain is provider-trusted for authenticity until the BIP325
+challenge is validated — **resolved design call** (ClaudeleLunatique, folding ChatLunatique flag event
+`c0cdf28`, 2026-07-02; DK override welcome)
+
+*Status: **resolved design call** on `G_TRACK_BUILD_SPINE.md` §3(c); not a consensus-law change. Writer
+ClaudeleLunatique; raised by ChatLunatique's G-track concur pass (flag event `c0cdf28`). Governs how the
+G-track signet milestone is labelled; carries a named reopen path (`GA-SIGNET-SOLUTION`).*
+
+**The flag.** §3(c) originally read "headers are validated from the bundled checkpoint, so the operator
+*cannot forge* a higher-work chain." That is true on **mainnet** and **false on signet**. `validateHeaderChain`
+(`packages/bitcoin/src/validate-header-chain.ts`) is header-only: it checks linkage, expected nBits per height,
+per-header PoW, retarget rules, and cumulative work. On mainnet that forces a forger to meet real difficulty →
+real work → infeasible. On **signet**, BIP325 makes block validity turn on the **signet challenge signature**
+(carried in block/coinbase witness material, **not** the 80-byte header), and the retarget schedule targets
+trivial difficulty — so an operator can grind a header chain that passes every header-only check. Today's
+`BitcoinNetworkParams` (`powLimitHex` / `powTargetTimespan` / `powRetargetInterval`) has no field for the
+challenge, and `canonical-header-source.ts` is explicitly one trusted active-chain provider with no
+fork-selection / reorg-currentness. Confirmed by direct read.
+
+**Ruling.** The client's independence is **two layers**, and only one is network-agnostic:
+- **Inclusion-proof layer — always independent.** `verifyProofBundleAgainstBitcoin` fails closed on a
+  forged/missing inclusion proof on every network. This catches the operator regardless of chain.
+- **Header-authenticity layer — network-dependent.** *Mainnet:* PoW-backed, operator cannot forge.
+  *Signet:* **provider-trusted** — header-only + PoW does not prevent forgery, so the served signet header
+  chain is trusted for authenticity (a trusted-bitcoind smoke).
+
+Therefore the G-track signet milestone (`G-C-MINIMAL`) is labelled a **trusted-bitcoind / resolver
+active-chain smoke** with an independent inclusion layer — **not** a fully independent signet consensus light
+client — and no surface asserts signet header independence. `@ont/launch-config` **carries the signet challenge**
+(provenance-noted) from GA-CHECKPOINT on, so the gate can be opened without a params migration. A companion
+**freshness/range invariant** rides with this: a "Bitcoin-verified" mark requires the validated range to reach
+at least anchor height + the launch confirmation depth; stale/short/partial ranges fail closed.
+
+**Reopen path (named).** `GA-SIGNET-SOLUTION` (G_TRACK_BUILD_SPINE §2.1 slice 9) validates the BIP325
+challenge against the carried config, upgrading signet from *provider-trusted* to *caught*. Sequenced after the
+first live loop so it never blocks G-C-MINIMAL; **reorders ahead of slice 4 only if DK rules signet must be
+fully independent before the first testable milestone.** Mainnet gets the property free from PoW and is
+unaffected.
+
 ## Fairness Principles To Carry Into The Launch Rewrite
 
 The rewritten launch draft should explicitly state:
