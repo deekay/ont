@@ -31,6 +31,12 @@ jobs:
       - name: Unit and package tests
         run: npm test
 
+      - name: Boundary and doc ratchets
+        run: |
+          npm run check:surfaces
+          npm run check:audit-map
+          bash scripts/check-doc-links.sh
+
       - name: One-pager parity (MD vs print HTML)
         run: node scripts/check-onepager-parity.mjs
 

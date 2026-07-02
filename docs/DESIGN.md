@@ -149,10 +149,10 @@ take your name. See [`research/OWNER_KEY_RECOVERY.md`](./research/OWNER_KEY_RECO
 
 **The surface is deliberately tiny.** Who-owns-what is a deterministic function of Bitcoin.
 The audited core — **to be frozen at launch** (Decision #44) — is the `@ont/consensus`
-boundary manifest: the three state-mutating deciders `engine.ts` (event replay), `state.ts`
-(name state), and `proof-bundle.ts` (portable proofs), plus the pure consensus-support,
-parameter, and verdict tiers they consume, over the `@ont/protocol` primitives (names, wire
-formats, events, transfer/value/recovery payloads). This boundary decides **all**
+boundary manifest, rendered mechanically in [`core/AUDIT_SURFACE_MAP.md`](./core/AUDIT_SURFACE_MAP.md)
+from `packages/consensus/src/trust-surface.test.ts`. The manifest includes the state-mutating
+deciders plus the pure consensus-support, parameter, and verdict tiers they consume. This boundary
+decides **all**
 ownership-changing rules: owner-key authority and replay validation, and — **in-kernel** in
 the clean-build, not migrating outside — auction settlement (settlement-into-core #42, born
 in as a kernel rule in `packages/consensus/src/auction-resolution.ts`), batched-path
@@ -160,8 +160,9 @@ finalization, data-availability eligibility, gate-fee validation, and transcript
 completeness (#42/#65/#68/#85). Those rules are **built and tested hermetically today**;
 what remains is proving them live on signet — see [`core/STATUS.md`](./core/STATUS.md), the
 single source of truth for what is wired. A CI test (`packages/consensus/src/trust-surface.test.ts`)
-**fails the build** if the boundary changes without a recorded decision — the allowlist is
-the boundary manifest, so the surface a newcomer must audit cannot silently drift.
+and generated-map check (`npm run check:audit-map`) **fail the build** if the boundary changes
+without a recorded decision and regenerated map — the allowlist is the boundary manifest, so
+the surface a newcomer must audit cannot silently drift.
 Allocation policy, convenience (resolver/indexer), and research/simulation code live
 *outside* this boundary.
 
@@ -209,7 +210,10 @@ Status: living map of the v1 sovereignty core, originally dated 2026-05-24.
 | Bitcoin decides order and finality | Every state change is a Bitcoin transaction; the state is a deterministic replay of Bitcoin, so two honest reviewers always agree | `core/engine.ts` `applyBlockTransactionsWithProvenance` |
 | You can prove ownership to anyone | A portable proof bundle lets a fresh verifier check ownership from public data, trusting no server | `core/proof-bundle.ts` |
 
-That's the whole trust surface: **~7 files.** A bad actor's only routes to "take your name" are (1) forge your signature, (2) break Bitcoin's ordering, or (3) find a bug in those files. There is no admin, no registrar, no expiry, no override.
+The current audited file set and per-file external-import allowlists are generated in
+[`core/AUDIT_SURFACE_MAP.md`](./core/AUDIT_SURFACE_MAP.md). A bad actor's only routes to "take your
+name" are (1) forge your signature, (2) break Bitcoin's ordering, or (3) find a bug in those files.
+There is no admin, no registrar, no expiry, no override.
 
 #### The rules, plainly
 
@@ -249,15 +253,16 @@ That's the whole trust surface: **~7 files.** A bad actor's only routes to "take
 
 #### The package boundary
 
-The core-side trust surface now lives in its own package, **`@ont/consensus`** (`engine.ts`,
-`state.ts`, `proof-bundle.ts`), which depends only on `@ont/protocol` and `@ont/bitcoin`. A reviewer
-can audit the whole surface by reading that one small package plus the protocol-side rules above; its
-entire dependency footprint is visible in `packages/consensus/package.json`. `@ont/core` re-exports it
-for convenience, so allocation (auctions), the indexer, and research/simulation code can *consume* the
-core but the package boundary makes it physically impossible for the core to import them.
+The core-side trust surface now lives in its own package, **`@ont/consensus`**. A reviewer
+can audit the whole surface by reading that package's generated manifest map plus the
+protocol-side rules above; the current per-file dependency footprint is visible in
+[`core/AUDIT_SURFACE_MAP.md`](./core/AUDIT_SURFACE_MAP.md) and `packages/consensus/package.json`.
+`@ont/core` re-exports it for convenience, so allocation (auctions), the indexer, and
+research/simulation code can *consume* the core but the package boundary makes it physically
+impossible for the core to import them.
 
 The boundary is also **enforced in code**: `packages/consensus/src/trust-surface.test.ts` fails CI if
-the audited core imports anything beyond `@ont/protocol`/`@ont/bitcoin` and its own files, and
+the audited core imports anything beyond each file's pinned allowlist and its own files, and
 `packages/core/src/research-quarantine.test.ts` keeps research a leaf nothing else depends on. So the
 trust surface a newcomer must audit cannot silently grow. This realizes
 `feedback-freeze-minimal-auditable-core`. See also
