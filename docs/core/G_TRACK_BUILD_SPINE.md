@@ -5,8 +5,9 @@
 > version… don't want to be a blocker").** This is the sequencing spec that carries the
 > clean-build from *feature-complete + hermetic* (see [STATUS.md](./STATUS.md)) to a
 > **testable deployment on signet** where independent clients — cli, web, and the mobile
-> app — verify ownership against Bitcoin. No new consensus law; every verifier already lives
-> in the audited `@ont/consensus`. Branch: `ga-build-spec`.
+> app — verify ownership against Bitcoin. No new consensus law; the consensus **inclusion** verifier
+> (`verifyProofBundleAgainstBitcoin`) is resident in the audited `@ont/consensus`, and header validation is
+> the pinned `@ont/bitcoin` primitive + `@ont/adapter-header` seam. Branch: `ga-build-spec`.
 
 ## 0. Purpose / scope / tests (nothing-is-precious, #46)
 
