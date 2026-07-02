@@ -2521,9 +2521,9 @@ claim the mainnet form settled. **Reopen trigger:** the live-data readout.
 **working assumption** (DK approved the A4 finding, event 799b7400, 2026-07-02)
 
 *Status: **working assumption.** Records the direction taken after A4 (the OP_RETURN standardness/relay
-spike; findings note `OP_RETURN_RELAY_SPIKE_A4.md`, currently on branch `codex/a4-opreturn-relay`, not yet
-merged to main). Writer ClaudeleLunatique; reviewer ChatLunatique
-(pending). This binds when LE-INVOKE is actually built, **not** now — nothing on-chain changes today.*
+spike; findings note `docs/research/OP_RETURN_RELAY_SPIKE_A4.md`, co-located in this change set at commit
+`af378373`). Writer ClaudeleLunatique; reviewer ChatLunatique (GREEN, review event ad606d9d). This binds
+when LE-INVOKE is actually built, **not** now — nothing on-chain changes today.*
 
 **What A4 established (the accepted finding — not the policy call).** Measured against the repo-pinned target
 Bitcoin Core v28.1 (`btcpayserver/bitcoin:28.1`; default `-datacarrier=1 -datacarriersize=83`):
