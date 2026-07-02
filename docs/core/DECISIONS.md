@@ -2430,6 +2430,93 @@ fully specified.
 (bond floor, notice-window schedule, Rung 2-4 thresholds) are frozen later with the launch-param set,
 not here. Mainnet stays hard-gated behind external audit (clean-build (#46) ruled call 6).
 
+90. archival-floor: the day-one minimum data-availability archival obligations — **RATIFIED** (DK,
+event ce24c1ed, 2026-07-02)
+
+*Status: **RATIFIED.** Ratifies the archival-economics obligations owed per da-windows (#49); external-review
+priority #1. Writer ClaudeleLunatique; reviewer ChatLunatique (GREEN after the owner-proof/completeness fix
+— review event 753409ec, folded). Delivers via G-C (RC-2) + G-B (RC-3) of bootstrap-operator (#89).*
+
+**Ruling.** ONT's day-one DA floor is a set of *obligations*, not a promise that "the operator will
+archive it":
+- **Owner-retained portable proofs/materials** — every owner holds a bundle sufficient to *re-prove their
+  name's acceptance without any archive*: their leaf **plus the batch's completeness witness** (the exact
+  N-leaf delta that reconstructs the anchored root — "my leaf only" is NOT enough under batch-completeness
+  (#83)), **or** a replay-equivalent anchored-snapshot proof. With that, a name's *ownership* survives even
+  if every archive vanishes; only *discovery of others' names* degrades.
+- **≥1 operator-funded public archive**, content-addressed, hash-reverified on serve (RC-2; DK committed to
+  host + fund the signet archive).
+- **Deterministic mirror instructions**, so the 1-of-N honest-archive floor is *achievable by anyone* (RC-2).
+- **AssumeUTXO-style anchored state snapshots/checkpoints** as a documented obligation for full-state
+  bootstrapping (a late verifier bootstraps from checkpoint + recent history, not TB-scale replay; RISKS R12).
+  **A snapshot is never authority** — accepted only if it is *replay-equivalent to Bitcoin + archive* (the
+  replay-equivalence law, B2_KERNEL_HARDENING Z2).
+
+**Day-one replay must work.** G-B (re-derive) MUST be runnable at launch from the day-one archive/export, or
+RC-3 is not delivered; only *long-term / indefinite public* replay-from-genesis is the non-guaranteed
+*subsidized service, not a guarantee* (say so in copy; ties G-E / #93). **Deferred (explicitly):** the
+subsidy/market design for long-term TB-scale archival economics is a later operator/economics note — the
+obligations above are day-one and MUST NOT be deferred behind "the operator will archive it." **Ripple:**
+this ratifies the #49-owed archival note; write it before external review.
+
+91. audit-surface-map: retire the "~7 files" promise; the guarantee is the manifest + a generated map —
+**RATIFIED** (DK, event ce24c1ed, 2026-07-02)
+
+*Status: **RATIFIED.** Writer ClaudeleLunatique; reviewer ChatLunatique (GREEN — generated-count +
+test-comment-cleanup edits folded, review event 753409ec).*
+
+**Ruling.** The "a careful reader confirms ownership in ~7 files" claim (DESIGN.md §4) is retired. The
+audited surface is the boundary manifest's current set across 4 tiers (CORE_DECIDERS / CONSENSUS_SUPPORT /
+CONSENSUS_PARAMS / CONSENSUS_VERDICTS, #57–59) — **a generated count, never hardcoded** (a decision to stop
+hardcoding counts must not itself hardcode one) — with no purity lost (boundary-manifest (#44) well-guarded).
+The I4 guarantee is **not** an arbitrary file count; it is (a) the per-file import allowlist + boundary-manifest
+CI ratchet (`packages/consensus/src/trust-surface.test.ts`) that fails the build if the surface grows or takes
+an I/O import, and (b) a **generated audit map** (auto-produced from the manifest) that replaces the hardcoded
+count in DESIGN.md §4.
+
+**Ripples:** A2 doc-fix (regenerate DESIGN.md §4 from the 4-tier manifest **and** fix the stale manifest
+comments in `packages/consensus/src/trust-surface.test.ts:9-16`, which still say "~7 files" and "settlement …
+migrating inside" — stale claims in the manifest file itself are the most misleading); A3 build the generator.
+
+92. launch-param-freeze: the consolidated launch-parameter freeze is a launch-act gate, not a build gate —
+**RATIFIED** (DK, event ce24c1ed, 2026-07-02)
+
+*Status: **RATIFIED.** Consolidates the per-parameter "launch-freeze" tags across #49/#83/#84/#89. Writer
+ClaudeleLunatique; reviewer ChatLunatique (GREEN — Rung 3 full-phrase restore folded, review event 753409ec).*
+
+**Ruling.**
+(a) Parameter **values** are frozen before the launch *act* — and before any user-facing constant or any
+live-signet claim that models launch economics — **not** before build. Build proceeds on **parametric tests
+at multiple values** (#49 ratified the window *algebra*; integer values are launch-freeze work).
+(b) Freeze **order**: DA windows `(K,W,C)` first (they gate replay determinism + the whole DA story) →
+notice-window schedule + cold-start/land-rush decision together (R7) → bond floor + maturity → **set the #83
+batch-size-cap value** (bounds the whole-batch-fail blast radius).
+(c) The bootstrap-ladder Rung 2–4 numeric triggers (RC-4) are part of this frozen set. Proposed placeholders
+for ratification (byte-thresholds want a cost-rationale tie first):
+- **Rung 2 (replicated):** earliest of 10k accepted names / 1 GiB archive / any archive-missing or censorship
+  incident unresolved 24h / operator downtime >4h on public signet / before mainnet candidate.
+- **Rung 3 (permissionless availability — the `LE-DA-SERVE` transport + bonded challenge game, per #89):**
+  earliest of 100k long-tail names / 50 GiB archive / two withholding incidents / one incident
+  operator-attested DA can't resolve cleanly. (A minimal operator `/da/{root}` is useful signet transport; it
+  is NOT permissionless availability by itself.)
+- **Rung 4 (permissionless discovery):** ≥3 independent operators/mirrors stable 30d / one resolver >70%
+  client traffic 30d / before any mainnet copy claims decentralization beyond bootstrap.
+
+93. auction-form-signet: keep open-ascending for signet with conditions; mainnet form stays open —
+**RATIFIED** (DK, event ce24c1ed, 2026-07-02)
+
+*Status: **RATIFIED**; amends the status of auction-form working-assumption #35. Writer ClaudeleLunatique;
+reviewer ChatLunatique (GREEN, review event 753409ec).*
+
+**Ruling.** For the signet bootstrap launch, keep **open-ascending**: bond-opens (#37) + soft-close extension
+already defang the ordering-grab and sniping that motivate sealed-bid; sealed-bid reintroduces a
+reveal-withholding failure mode; open bidding matches Bitcoin's transparency and is cheaper to verify —
+**provided** two conditions: (a) model the soft-close **extension-grief cost**, and (b) specify the
+**direct-L1 relay fallback**. The **mainnet** auction form (sealed-second-price vs open-ascending) is **not
+settled here**: #35 stays a working assumption, RISKS.md's MEV analysis votes sealed if ordering-resistance
+matters, and the deciding evidence is *live signet relay-bid-timing data* (a post-launch measurement). Do not
+claim the mainnet form settled. **Reopen trigger:** the live-data readout.
+
 ## Fairness Principles To Carry Into The Launch Rewrite
 
 The rewritten launch draft should explicitly state:
