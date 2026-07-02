@@ -53,10 +53,10 @@ export interface EnforceBatchedClaimsReport {
 /**
  * Drive live enforcement over `candidates`, persisting per-name state for accepted batches only. The
  * ENFORCEMENT logic is total — a decode/serialize failure or a rejected verdict skips that candidate
- * fail-closed, never throwing. The one deliberate exception is PERSISTENCE: an accept's atomic `putMany`
- * runs OUTSIDE that fail-closed catch, so a store-write failure THROWS OUT (cursor not advanced → retry)
- * rather than masquerading as a rejected claim. On accept it writes ALL committed entries (per
- * LIVE_ENFORCEMENT_PLAN §2a) — never just the bundle's member.
+ * fail-closed, never throwing. The deliberate exceptions are source/persistence failures: a throwing
+ * batch-material source and an accept's atomic `putMany` both run OUTSIDE the fail-closed catch, so the tick
+ * THROWS OUT (cursor not advanced → retry) rather than silently skipping missing live material or a lost write.
+ * On accept it writes ALL committed entries (per LIVE_ENFORCEMENT_PLAN §2a) — never just the bundle's member.
  */
 export async function enforceBatchedClaims(
   candidates: readonly BuildConfirmedBatchAnchorInput[],
@@ -73,14 +73,23 @@ export async function enforceBatchedClaims(
     // The accept's records are COLLECTED inside the try and written atomically OUTSIDE it (see step 8): a
     // persistence failure must throw out of the tick (cursor not advanced) rather than be swallowed as a reject.
     let recordsToWrite: readonly NameStateRecord[] | null = null;
+    let fields: ReturnType<typeof decodeRootAnchorFields> = null;
     try {
       // 1. Decode the anchor's RootAnchor fields (prevRoot + vout are what the ConfirmedBatchAnchor mint drops).
-      const fields = decodeRootAnchorFields(candidate.anchorTx, candidate.anchorVout);
+      fields = decodeRootAnchorFields(candidate.anchorTx, candidate.anchorVout);
       if (fields === null) continue; // not a decodable RootAnchor candidate — nothing to enforce
       anchoredRoot = fields.newRoot;
+    } catch {
+      rejected.push({ anchoredRoot, reason: "enforce-error" });
+      continue;
+    }
 
-      // 2. The published batch material (re-verified below). Absent ⇒ a bare RootAnchor → no name-state mutation.
-      const material = deps.batchMaterial(anchoredRoot, fields.prevRoot);
+    // 2. The published batch material (re-verified below). Absent ⇒ a bare RootAnchor → no name-state mutation.
+    // Source failures are I/O/config failures, not consensus verdicts: throw out of the tick so the cursor is not
+    // advanced and a misconfigured live daemon cannot silently "reject" its way past missing material.
+    const material = deps.batchMaterial(anchoredRoot, fields.prevRoot);
+
+    try {
       if (material === null) {
         skipped.push(anchoredRoot);
         continue;

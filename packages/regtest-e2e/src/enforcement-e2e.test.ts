@@ -1,20 +1,19 @@
 // LE-INDEX slice-3 red battery — the hermetic live-enforcement e2e (UNGATED: part of the default acceptance
 // suite; no bitcoind, no ONT_E2E_REGTEST gate). It wires the audited `enforceBatchedClaim` through the REAL
-// runIndexerTick over REAL file stores (cursor.json + confirmed-anchors.json via selectIndexerStores, plus a
-// file-backed @ont/name-state-store), driven by a COHERENT synthetic mined fee-adequate RootAnchor anchor — so
-// green only when the enforcement genuinely passes against Bitcoin, and the per-name state is DURABLE.
+// daemon selector path (selectIndexerRunnerDeps, as called by main.ts) into runIndexerTick over REAL file stores,
+// driven by a COHERENT synthetic mined fee-adequate RootAnchor anchor and fixture-file batch material — so green
+// only when the daemon wiring genuinely loads material, enforces against Bitcoin, and writes DURABLE per-name state.
 //
 // The CL §6.3 acceptance battery (LIVE_ENFORCEMENT_PLAN): (a) an accepted batch writes per-name name-state
 // (+ survives a restart — read via a FRESH file store over the same dir); (b) withheld served bytes → reject at
 // availability, NO mutation; (c) a mismatched proof bundle (non-canonical header) → reject at inclusion, NO
-// mutation; (d) a bare RootAnchor still lands in the anchor-store read path and causes NO name-state mutation.
-// Plus (e): the atomicity fix proven over REAL file stores — a name-state persistence failure THROWS out of the
-// tick so the durable cursor is NOT advanced and NO partial name-state lands. RED until enforcement-e2e lands.
+// mutation; (d) a missing fixture material entry in the daemon path THROWS out of the tick so the durable cursor is
+// NOT advanced and NO name-state lands. RED until enforcement-e2e lands.
 import { describe, expect, it } from "vitest";
 import { runEnforcementE2e } from "./enforcement-e2e.js";
 
-describe("runEnforcementE2e (LE-INDEX — live enforcement through runIndexerTick over real file stores)", () => {
-  it("accepts a valid batch, persists per-name state durably, rejects/skips the rest, and is atomic", async () => {
+describe("runEnforcementE2e (LE-INDEX — daemon-selected enforcement through runIndexerTick)", () => {
+  it("loads fixture material through the daemon selector, writes names, rejects bad material, and fails closed", async () => {
     const r = await runEnforcementE2e();
 
     // The confirmed RootAnchor facts the whole battery is built on.
@@ -58,16 +57,10 @@ describe("runEnforcementE2e (LE-INDEX — live enforcement through runIndexerTic
     expect(r.badHeader.rejectedReason).toMatch(/hrns-rejected-at-inclusion/);
     expect(r.badHeader.aliceDurable).toBe(false);
 
-    // ── (d) a bare RootAnchor lands in the read path, causes NO name-state mutation ─────────────────────────
-    expect(r.bare.skippedRoots).toEqual([r.anchoredRoot]);
-    expect(r.bare.namesWritten).toBe(0);
-    expect(r.bare.anchorInReadPath).toBe(true); // the anchor still lands in anchor-store (read path untouched)
-    expect(r.bare.aliceDurable).toBe(false);
-
-    // ── (e) atomicity over REAL file stores: a persistence failure throws out → cursor not advanced, no partial ─
-    expect(r.atomicity.threw).toBe(true);
-    expect(r.atomicity.errorMessage).toMatch(/disk full/);
-    expect(r.atomicity.cursorHeightAfterRestart).toBe(0); // the durable cursor was NOT advanced → the batch retries
-    expect(r.atomicity.aliceDurable).toBe(false); // all-or-nothing: no partial name-state landed on disk
+    // ── (d) missing fixture material in the daemon path fails loud/closed, never a quiet skip ────────────────
+    expect(r.missingMaterial.threw).toBe(true);
+    expect(r.missingMaterial.errorMessage).toMatch(/batch material missing/);
+    expect(r.missingMaterial.cursorHeightAfterRestart).toBe(0); // cursor NOT advanced → the batch retries
+    expect(r.missingMaterial.aliceDurable).toBe(false); // no name-state landed on disk
   });
 });

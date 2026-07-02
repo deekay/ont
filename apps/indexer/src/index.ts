@@ -52,5 +52,8 @@ export { selectIndexerBlockSource } from "./live/select-block-source.js";
 // env-selected indexer path operators use. selectIndexerStores only CONSTRUCTS the stores; the cursor store stays
 // indexer-owned (ownership does not move out).
 export { selectIndexerStores, type IndexerStores } from "./live/select-stores.js";
+// Env-selected daemon runner deps (block source + stores + optional live enforcement) — published so the hermetic
+// e2e can exercise the same main.ts → runner selector path while injecting only the block-source/confirm seams.
+export { selectIndexerRunnerDeps, type SelectIndexerRunnerDepsOptions } from "./live/select-runner-deps.js";
 // The firewall input type — re-exported so the hermetic e2e can type its fake block source's candidates.
 export type { BuildConfirmedBatchAnchorInput } from "@ont/adapter-indexer";

@@ -4,23 +4,21 @@
 //   - a COHERENT synthetic mined fee-adequate RootAnchor anchor (a real RootAnchor OP_RETURN + real accumulator
 //     roots over a 2-name batch alice+carol) — so the audited enforceBatchedClaim only accepts when it genuinely
 //     passes against Bitcoin (inclusion → gate-fee → availability → completeness → verdict), not a stub;
-//   - driven through the REAL runIndexerTick with the REAL env-selected file stores
-//     (selectIndexerStores({ ONT_STORE: "file", ONT_STORE_DIR }) for cursor.json + confirmed-anchors.json) PLUS a
-//     file-backed @ont/name-state-store under the same dir — the exact wiring an operator runs;
+//   - driven through the REAL daemon selector path (selectIndexerRunnerDeps, as called by main.ts) into the REAL
+//     runIndexerTick with ONT_STORE=file and ONT_ENFORCEMENT=fixture-file — cursor/anchor/name-state stores and
+//     batch-material loading are selected exactly as the daemon does;
 //   - the per-name name-state is read back through a FRESH file store after the stores are dropped (restart);
 //   - the §6.3 acceptance battery (LIVE_ENFORCEMENT_PLAN): (a) accept writes per-name state + survives restart;
 //     (b) withheld served bytes → reject at availability, NO mutation; (c) a mismatched proof bundle
-//     (non-canonical header) → reject at inclusion, NO mutation; (d) a bare RootAnchor still lands in the
-//     anchor-store read path and causes NO name-state mutation;
-//   - plus (e): the atomicity fix proven over REAL file stores — a name-state persistence failure THROWS out of
-//     the tick so the durable cursor is NOT advanced and NO partial name-state lands on disk.
+//     (non-canonical header) → reject at inclusion, NO mutation; (d) missing fixture material in the daemon path
+//     THROWS out of the tick so the durable cursor is NOT advanced and NO name-state lands on disk.
 //
 // HERMETIC by design (mirrors the G2 restart e2e): the ingest firewall `confirm` is FAKED (this slice locks live
 // ENFORCEMENT + durable name-state, not the inclusion firewall — that is slice-1 tested), while ENFORCEMENT
 // re-verifies the coherent anchor against Bitcoin independently via the candidate's headerSource. The driver-level
 // separation/atomicity tests live in apps/indexer/src/enforce-batched-claims.test.ts; this e2e pins the live
 // wiring + durability end-to-end. TESTS: ./enforcement-e2e.test.ts.
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { accumulatorRootOf, deriveOwnerPubkey, sha256Hex, utf8ToBytes, normalizeName } from "@ont/protocol";
@@ -28,19 +26,17 @@ import { encodeEvent, EventType } from "@ont/wire";
 import { legacyTxidOf, headerMeetsTarget, type LegacyTransaction } from "@ont/bitcoin";
 import {
   createFileNameStateStore,
-  nodeFileStoreFs,
-  type FileStoreFs,
   type NameStateRecord,
 } from "@ont/name-state-store";
 import {
   runIndexerTick,
+  selectIndexerRunnerDeps,
   selectIndexerStores,
   type ConfirmAnchor,
   type IndexerBlockSource,
   type IndexerTickReport,
   type BuildConfirmedBatchAnchorInput,
   type BatchMaterial,
-  type EnforceBatchedClaimsDeps,
   type EnforceBatchedClaimsReport,
 } from "@ont/indexer";
 
@@ -59,13 +55,7 @@ interface RejectOutcome {
   readonly anchorInReadPath: boolean;
   readonly aliceDurable: boolean;
 }
-interface BareOutcome {
-  readonly skippedRoots: readonly string[];
-  readonly namesWritten: number;
-  readonly anchorInReadPath: boolean;
-  readonly aliceDurable: boolean;
-}
-interface AtomicityOutcome {
+interface MissingMaterialOutcome {
   readonly threw: boolean;
   readonly errorMessage: string;
   readonly cursorHeightAfterRestart: number; // unchanged (0) — the failed batch retries
@@ -83,8 +73,7 @@ export interface EnforcementE2eResult {
   readonly accept: AcceptOutcome;
   readonly withheld: RejectOutcome;
   readonly badHeader: RejectOutcome;
-  readonly bare: BareOutcome;
-  readonly atomicity: AtomicityOutcome;
+  readonly missingMaterial: MissingMaterialOutcome;
 }
 
 // ── byte helpers (the firewall's exactly-one-RootAnchor OP_RETURN scan) ─────────────────────────────────────
@@ -180,7 +169,6 @@ const FULL_MATERIAL: BatchMaterial = {
   servedLeaves: SERVED,
 };
 const WITHHELD_MATERIAL: BatchMaterial = { ...FULL_MATERIAL, servedLeaves: [{ keyHex: LEAF_A, valueHex: OWNER_A }] }; // only 1 of 2
-const POLICY = { window: { K: 6, W: 2, C: 3 }, gateFeeSchedule: { gateOneByteSats: 1_000_000n, gateLongNameFloorSats: 100_000n } };
 
 // The ingest firewall is faked (this slice locks enforcement + durability, not inclusion): confirm returns the ok
 // record for the anchor so it lands in the read path. Enforcement re-verifies the anchor against Bitcoin itself.
@@ -190,10 +178,8 @@ const confirm: ConfirmAnchor = () => ({
   feeTxParts: { anchorTx: ANCHOR_TX, prevoutTxs: [PREVOUT_A, PREVOUT_B] },
 });
 
-// A name-state file store whose every write FAILS — models a mid-batch persistence failure over real file I/O.
-const failingNameStateFs: FileStoreFs = { ...nodeFileStoreFs, writeFile: () => Promise.reject(new Error("disk full")) };
-
 const NAME_STATE_FILE = "name-state.json";
+const BATCH_MATERIAL_FILE = "batch-material.json";
 
 async function withTempDir<T>(fn: (dir: string) => Promise<T>): Promise<T> {
   const dir = await mkdtemp(join(tmpdir(), "ont-enforcement-e2e-"));
@@ -204,26 +190,31 @@ async function withTempDir<T>(fn: (dir: string) => Promise<T>): Promise<T> {
   }
 }
 
-/** One enforcement tick over REAL file stores under `dir`: the env-selected cursor/anchor stores + a file-backed
- *  name-state store, the coherent anchor candidate, and `material` as the (re-verified) batch-material seam. */
+function encodeMaterialFileEntry(material: BatchMaterial) {
+  return {
+    anchoredRoot: ANCHORED_ROOT,
+    prevRoot: PREV_ROOT,
+    committedEntries: material.committedEntries,
+    baseLeaves: [...material.baseLeaves.entries()].map(([keyHex, valueHex]) => ({ keyHex, valueHex })),
+    servedLeaves: material.servedLeaves,
+  };
+}
+
+async function writeMaterialFile(dir: string, material: BatchMaterial | null): Promise<string> {
+  const path = join(dir, BATCH_MATERIAL_FILE);
+  const materials = material === null ? [] : [encodeMaterialFileEntry(material)];
+  await writeFile(path, JSON.stringify({ materials }), "utf8");
+  return path;
+}
+
+/** One enforcement tick over REAL daemon-selected file stores under `dir`: selectIndexerRunnerDeps is the
+ *  main.ts selector path, with only the block-source and ingest-confirm seams injected for this hermetic fixture. */
 async function runTick(opts: {
   readonly dir: string;
   readonly material: BatchMaterial | null;
   readonly candidateOverride?: Partial<BuildConfirmedBatchAnchorInput>;
-  readonly nameStateFs?: FileStoreFs;
 }): Promise<IndexerTickReport> {
-  const env = { ONT_STORE: "file", ONT_STORE_DIR: opts.dir };
-  const stores = selectIndexerStores(env);
-  const nameStatePath = join(opts.dir, NAME_STATE_FILE);
-  const nameStateStore = opts.nameStateFs
-    ? createFileNameStateStore(nameStatePath, opts.nameStateFs)
-    : createFileNameStateStore(nameStatePath);
-  const material = opts.material;
-  const enforcement: EnforceBatchedClaimsDeps = {
-    batchMaterial: (root, prev) => (root === ANCHORED_ROOT && prev === PREV_ROOT ? material : null),
-    nameStateStore,
-    policy: POLICY,
-  };
+  const materialFile = await writeMaterialFile(opts.dir, opts.material);
   const cand = candidate(opts.candidateOverride);
   let yielded = false;
   const blockSource: IndexerBlockSource = {
@@ -233,7 +224,11 @@ async function runTick(opts: {
       return Promise.resolve({ candidates: [cand], cursor: { height: cursor.height + 1 } });
     },
   };
-  return runIndexerTick({ blockSource, cursorStore: stores.cursorStore, anchorStore: stores.anchorStore, confirm, enforcement });
+  const deps = await selectIndexerRunnerDeps(
+    { ONT_STORE: "file", ONT_STORE_DIR: opts.dir, ONT_ENFORCEMENT: "fixture-file", ONT_BATCH_MATERIAL_FILE: materialFile },
+    { blockSource, confirm },
+  );
+  return runIndexerTick(deps);
 }
 
 /** The "restart": FRESH env-selected stores + a FRESH name-state store over the same dir, then read durable state. */
@@ -282,19 +277,12 @@ export async function runEnforcementE2e(): Promise<EnforcementE2eResult> {
     return { rejectedReason: enf.rejected[0]?.reason, namesWritten: enf.namesWritten, anchorInReadPath: back.anchorInReadPath, aliceDurable: back.alice !== null };
   });
 
-  // (d) bare RootAnchor → lands in read path, no name-state mutation
-  const bare = await withTempDir(async (dir) => {
-    const enf = requireEnforcement(await runTick({ dir, material: null }));
-    const back = await restartReads(dir);
-    return { skippedRoots: enf.skipped, namesWritten: enf.namesWritten, anchorInReadPath: back.anchorInReadPath, aliceDurable: back.alice !== null };
-  });
-
-  // (e) atomicity over real file stores: a persistence failure throws out → cursor not advanced, no partial state
-  const atomicity = await withTempDir(async (dir) => {
+  // (d) daemon misconfiguration: fixture-file enforcement with no matching material fails loud/closed.
+  const missingMaterial = await withTempDir(async (dir) => {
     let threw = false;
     let errorMessage = "";
     try {
-      await runTick({ dir, material: FULL_MATERIAL, nameStateFs: failingNameStateFs });
+      await runTick({ dir, material: null });
     } catch (e) {
       threw = true;
       errorMessage = e instanceof Error ? e.message : String(e);
@@ -315,7 +303,6 @@ export async function runEnforcementE2e(): Promise<EnforcementE2eResult> {
     accept,
     withheld,
     badHeader,
-    bare,
-    atomicity,
+    missingMaterial,
   };
 }
