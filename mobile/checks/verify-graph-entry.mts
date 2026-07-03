@@ -1,5 +1,4 @@
 export {
-  checkProofBundleHeaderDepthCoverage,
-  fetchSignetLaunchHeaderSource,
-  runVerifyProofBundleAgainstBitcoin,
-} from "@ont/light-client";
+  fetchMobileSignetLaunchHeaderSource,
+  mobileBitcoinVerificationState,
+} from "../src/verification/bitcoin";

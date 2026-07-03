@@ -14,6 +14,7 @@ const EXTENSIONS = ["", ".mjs", ".js", ".cjs", ".mts", ".ts", ".tsx", ".jsx", ".
 const visited = new Set();
 const queue = [ENTRY];
 const blocked = [];
+let reachedBitcoinDefault = false;
 
 while (queue.length > 0) {
   const file = realPath(queue.shift());
@@ -35,6 +36,9 @@ while (queue.length > 0) {
     }
 
     const resolved = resolveSpecifier(specifier, file);
+    if (specifier === "@ont/bitcoin" && resolved !== null) {
+      reachedBitcoinDefault = true;
+    }
     if (resolved !== null && isParseable(resolved)) {
       queue.push(resolved);
     }
@@ -49,7 +53,12 @@ if (blocked.length > 0) {
   process.exit(1);
 }
 
-console.log(`mobile verify graph ok: ${visited.size} reachable files, no node:* or @ont/bitcoin/node edges`);
+if (!reachedBitcoinDefault) {
+  console.error("mobile verify graph did not reach the default @ont/bitcoin entry");
+  process.exit(1);
+}
+
+console.log(`mobile verify graph ok: ${visited.size} reachable files, reached @ont/bitcoin, no node:* or @ont/bitcoin/node edges`);
 
 function staticSpecifiers(sourceFile) {
   const specifiers = [];

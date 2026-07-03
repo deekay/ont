@@ -21,6 +21,7 @@ const checks = [
   "transfer-onchain",
   "auction-bid",
   "recovery-descriptor",
+  "proof-bundle",
   "demo-claim",
   "backup",
   "edge-cases",

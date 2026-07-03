@@ -11,8 +11,11 @@ npm run check:crypto
 ```
 
 Runs the offline suite (no network): `accumulator`, `claim`, `value-record`,
-`recovery-descriptor`, `demo-claim`, `backup`, `edge-cases` (name-normalization
-boundaries, the demo-sign helpers, and the mock auction bidder).
+`recovery-descriptor`, `proof-bundle`, `demo-claim`, `backup`, `edge-cases`
+(name-normalization boundaries, the demo-sign helpers, and the mock auction
+bidder). `proof-bundle` imports the mobile verification mapper and the shared
+`@ont/light-client` symbols; it requires verifier success plus launch-depth
+coverage before the mobile state can become Bitcoin-verified.
 
 The `*.live.mts` checks are **not** in that suite — they POST to a live resolver
 (`config.API_BASE`) and need the local signet test accounts under
