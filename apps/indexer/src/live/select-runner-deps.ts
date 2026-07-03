@@ -35,7 +35,7 @@ export async function selectIndexerRunnerDeps(
       startHeight: SIGNET_BITCOIN_DIFFICULTY_CHECKPOINT.height + 1,
     });
   }
-  const enforcement = selectIndexerEnforcement(env);
+  const enforcement = await selectIndexerEnforcement(env);
   return {
     blockSource: selected.blockSource,
     cursorStore,

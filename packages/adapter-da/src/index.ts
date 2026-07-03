@@ -6,6 +6,14 @@ export {
   type FetchServedLeavesInput,
 } from "./served-transport.js";
 export {
+  createHttpDaRecordSource,
+  type CreateHttpDaRecordSourceOptions,
+  type HttpDaFetch,
+  type HttpDaFetchInit,
+  type HttpDaFetchResponse,
+  type HttpDaRecordSource,
+} from "./http-da-record-source.js";
+export {
   decodeEncodedMaterial,
   decodeEncodedMaterialFile,
   decodeEncodedMaterialJson,

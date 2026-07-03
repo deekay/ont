@@ -16,7 +16,7 @@ async function main(): Promise<void> {
   process.on("SIGTERM", stop);
 
   // Env-selected runner deps. In node mode this awaits the chain gate BEFORE any block poll; when
-  // ONT_ENFORCEMENT=fixture-file, this also wires batch material + name-state + policy or fails closed.
+  // ONT_ENFORCEMENT=fixture-file|http-da, this also wires batch material + name-state + policy or fails closed.
   const deps = await selectIndexerRunnerDeps(process.env);
 
   console.log(JSON.stringify({ service: "@ont/indexer", status: "starting", intervalMs }));

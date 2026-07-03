@@ -1,11 +1,19 @@
 // @ont/indexer live — LE-INDEX env-selected enforcement deps.
 //
 // ONT_ENFORCEMENT unset/off keeps the daemon on the RootAnchor read path. ONT_ENFORCEMENT=fixture-file wires
-// live enforcement with a file-backed batch-material fixture, a memory/file name-state store that mirrors
-// ONT_STORE, and launch policy params from env/defaults. Unknown modes and missing fixture material fail closed.
+// live enforcement with a file-backed batch-material fixture. ONT_ENFORCEMENT=http-da prefetches declared
+// roots at boot into a sync cache. Both modes select a memory/file name-state store that mirrors ONT_STORE
+// and launch policy params from env/defaults. Unknown modes and missing required env fail closed at boot.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { decodeEncodedMaterialFile } from "@ont/adapter-da";
+import {
+  createHttpDaRecordSource,
+  decodeEncodedMaterialFile,
+  isHex64Lower,
+  type EncodedBatchMaterial,
+  type HttpDaFetch,
+  type HttpDaRecordSource,
+} from "@ont/adapter-da";
 import { createFileNameStateStore, type NameStateRecord, type NameStateStore } from "@ont/name-state-store";
 import type { BatchedClaimPolicy } from "@ont/claim-path";
 import type { BatchMaterial, EnforceBatchedClaimsDeps } from "../enforce-batched-claims.js";
@@ -15,15 +23,27 @@ const DEFAULT_POLICY: BatchedClaimPolicy = {
   gateFeeSchedule: { gateOneByteSats: 1_000_000n, gateLongNameFloorSats: 100_000n },
 };
 
-export function selectIndexerEnforcement(
+export interface SelectIndexerEnforcementOptions {
+  readonly daFetch?: HttpDaFetch | undefined;
+  readonly daTimeoutMs?: number | undefined;
+}
+
+export async function selectIndexerEnforcement(
   env: Record<string, string | undefined>,
-): EnforceBatchedClaimsDeps | undefined {
+  options: SelectIndexerEnforcementOptions = {},
+): Promise<EnforceBatchedClaimsDeps | undefined> {
   const mode = env.ONT_ENFORCEMENT ?? "off";
   if (mode === "off") return undefined;
-  if (mode !== "fixture-file") {
-    throw new Error(`ONT_ENFORCEMENT must be off|fixture-file (got ${JSON.stringify(mode)})`);
+  if (mode === "fixture-file") {
+    return selectFixtureFileEnforcement(env);
   }
+  if (mode === "http-da") {
+    return selectHttpDaEnforcement(env, options);
+  }
+  throw new Error(`ONT_ENFORCEMENT must be off|fixture-file|http-da (got ${JSON.stringify(mode)})`);
+}
 
+function selectFixtureFileEnforcement(env: Record<string, string | undefined>): EnforceBatchedClaimsDeps {
   const materialFile = env.ONT_BATCH_MATERIAL_FILE;
   if (!materialFile) throw new Error("ONT_ENFORCEMENT=fixture-file requires ONT_BATCH_MATERIAL_FILE");
 
@@ -36,6 +56,22 @@ export function selectIndexerEnforcement(
       }
       return material;
     },
+    nameStateStore: selectNameStateStore(env),
+    policy: selectBatchedClaimPolicy(env),
+  };
+}
+
+async function selectHttpDaEnforcement(
+  env: Record<string, string | undefined>,
+  options: SelectIndexerEnforcementOptions,
+): Promise<EnforceBatchedClaimsDeps> {
+  const endpoint = env.ONT_DA_ENDPOINT;
+  if (!endpoint) throw new Error("ONT_ENFORCEMENT=http-da requires ONT_DA_ENDPOINT");
+  const roots = readDeclaredDaRoots(env.ONT_DA_ROOTS);
+  const source = createHttpDaRecordSource({ endpoint, fetch: options.daFetch, timeoutMs: options.daTimeoutMs });
+  const materials = await loadHttpDaMaterials(source, roots);
+  return {
+    batchMaterial: (anchoredRoot, prevRoot) => materials.get(materialKey(anchoredRoot, prevRoot)) ?? null,
     nameStateStore: selectNameStateStore(env),
     policy: selectBatchedClaimPolicy(env),
   };
@@ -112,13 +148,42 @@ function loadBatchMaterialFile(path: string): Map<string, BatchMaterial> {
   for (const encoded of materialFile.materials) {
     const key = materialKey(encoded.anchoredRoot, encoded.prevRoot);
     if (out.has(key)) throw new Error(`duplicate batch material for ${encoded.anchoredRoot}/${encoded.prevRoot}`);
-    out.set(key, {
-      committedEntries: encoded.committedEntries,
-      baseLeaves: new Map(encoded.baseLeaves.map((leaf) => [leaf.keyHex, leaf.valueHex])),
-      servedLeaves: encoded.servedLeaves,
-    });
+    out.set(key, materialFromEncoded(encoded));
   }
   return out;
+}
+
+async function loadHttpDaMaterials(
+  source: HttpDaRecordSource,
+  roots: readonly string[],
+): Promise<Map<string, BatchMaterial>> {
+  const out = new Map<string, BatchMaterial>();
+  for (const root of roots) {
+    const encoded = await source.fetchRecord(root);
+    if (encoded === null) continue;
+    out.set(materialKey(root, encoded.prevRoot), materialFromEncoded(encoded));
+  }
+  return out;
+}
+
+function materialFromEncoded(encoded: EncodedBatchMaterial): BatchMaterial {
+  return {
+    committedEntries: encoded.committedEntries,
+    baseLeaves: new Map(encoded.baseLeaves.map((leaf) => [leaf.keyHex, leaf.valueHex])),
+    servedLeaves: encoded.servedLeaves,
+  };
+}
+
+function readDeclaredDaRoots(raw: string | undefined): readonly string[] {
+  if (!raw) throw new Error("ONT_ENFORCEMENT=http-da requires ONT_DA_ROOTS");
+  const roots = raw.split(",").map((entry) => entry.trim()).filter((entry) => entry.length > 0);
+  if (roots.length === 0) throw new Error("ONT_ENFORCEMENT=http-da requires ONT_DA_ROOTS");
+  const seen = new Set<string>();
+  for (const root of roots) {
+    if (!isHex64Lower(root)) throw new Error(`ONT_DA_ROOTS contains malformed root ${JSON.stringify(root)}`);
+    seen.add(root);
+  }
+  return [...seen];
 }
 
 function materialKey(anchoredRoot: string, prevRoot: string): string {
