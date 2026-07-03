@@ -572,6 +572,24 @@ Implications:
 - public signet should only appear in historical notes or explicit cleanup
   context, not as an active user path
 
+*Reaffirmed 2026-07-03 (DK, events e09473d2 → 4d3fcf06/d3566d54).* During the
+G-track deploy push the live stand-up quietly drifted onto **public** signet —
+`docker-compose.yml` bitcoind runs bare `-signet` (default public chain), which
+is why it wanted a public IBD (checkpoint h311445) + a faucet drop. That drift
+**violated this decision**. DK's ruling holds #36: the demo/test chain is
+**private signet**. Rationale restated by DK: this is a *test-and-validate*
+environment, not a real-money-names one, so there is no reason to take on
+public-IBD + faucet cost. Consequences recorded:
+- the live stand-up re-points bitcoind to our own `-signetchallenge` (recipe:
+  `legacy/scripts/bootstrap-private-signet-vps.sh`) + a miner to self-fund; the
+  public IBD and the handed-off faucet address are dropped
+- **`GA-SIGNET-SOLUTION` (#100) is foreclosed on private signet** — validating a
+  BIP325 challenge whose signing key *we* hold proves nothing (circular). It
+  stays design-of-record only (`docs/core/GA_SIGNET_SOLUTION_SPEC.md`), not
+  built; reopens only if we ever point at a chain we do not control
+- on private signet the header chain stays **provider-trusted** (#95); that is
+  the label the software carries today and the correct posture for validation
+
 37. Bond opens the auction (escalation trigger = bond, not bare claim) — 2026-06-04
 
 *Short name: **bond-opens** (named 2026-06-11 per the doc-canon naming rule).*
