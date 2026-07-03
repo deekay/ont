@@ -1,19 +1,20 @@
 # ONT clean-build go-live stack — G3 clean-slate signet READ + WRITE path.
 # See docs/operate/G3_CLEAN_SLATE_VPS.md for the teardown -> rebuild -> boot/read/write-smoke runbook.
 #
-#   bitcoind(signet) --RPC--> indexer (node ingest, chain-gated) --file store--> resolver (read) --> web (display)
-#                       ^                                                                signed raw
-#                       +------------------------------ publisher (write entry: /broadcast) <--- off-box wallet sign
+#   private-signet-miner --RPC--> bitcoind(private signet) --RPC--> indexer (node ingest, chain-gated)
+#                                      ^                              --file store--> resolver (read) --> web (display)
+#                                      +---- publisher (/broadcast) <--- signed raw from off-box wallet
 #
 # The indexer writes confirmed anchors to a durable file store (ONT_STORE=file under ONT_STORE_DIR); the resolver
 # reads the SAME dir (shared volume), so a restart resumes without re-ingesting (go-live G2). The publisher is the
 # write entry: it assembles UNSIGNED txs and relays already-signed raws to bitcoind (it never signs, never reads the
-# store). Acceptance is a clean-slate signet boot + read smoke; the write-smoke (publisher /broadcast -> ingest ->
-# render) needs a funded signet and is the operator's run. NOT mainnet, NOT a B3 data-availability path. Secrets,
-# host binds, and the bitcoind image are operator config in .env (copy .env.example). `npm run check:deploy` gates this file.
+# store). The miner bootstraps a private signet with mature coinbase funds for the off-box signing wallet, then mines
+# at a low cadence so claims confirm. NOT mainnet, NOT a B3 data-availability path. Secrets, host binds, challenge,
+# miner address, and image pins are operator config in .env (copy .env.example). `npm run check:deploy` gates this file.
 services:
-  # Fresh signet Bitcoin Core. The indexer's only chain source. Image is operator-pinned (BITCOIND_IMAGE) — use a
-  # Bitcoin Core >= 25 signet-capable build you trust; first boot does a signet IBD (small). RPC auth comes from .env.
+  # Fresh private-signet Bitcoin Core. The indexer's only chain source. Image is operator-pinned (BITCOIND_IMAGE) —
+  # use a Bitcoin Core >= 25 signet-capable build you trust. The custom challenge makes this our private chain,
+  # so there is no public-signet IBD; the miner sidecar produces blocks and funds the off-box signing wallet.
   bitcoind:
     image: ${BITCOIND_IMAGE:-btcpayserver/bitcoin:28.1}
     # The btcpayserver/bitcoin entrypoint runs `exec gosu bitcoin "$@"` only when argv[0] is the binary
@@ -22,6 +23,8 @@ services:
     command:
       - bitcoind
       - -signet
+      - -signetchallenge=${ONT_SIGNET_CHALLENGE:-51}
+      - -dnsseed=0
       - -server
       - -txindex
       - -rpcbind=0.0.0.0
@@ -39,6 +42,32 @@ services:
       timeout: 10s
       retries: 20
       start_period: 30s
+
+  # Private-signet block producer. It adapts the proven legacy flow onto compose:
+  # contrib/signet/miner + fast grinder, 110 bootstrap blocks for coinbase maturity, then low-rate ongoing mining.
+  # Coinbase pays the off-box funding/signing wallet address; the publisher still never holds keys.
+  private-signet-miner:
+    build:
+      context: .
+      dockerfile: docker/private-signet-miner.Dockerfile
+      args:
+        BITCOIND_IMAGE: ${BITCOIND_IMAGE:-btcpayserver/bitcoin:28.1}
+        BITCOIN_SOURCE_VERSION: ${ONT_SIGNET_MINER_BITCOIN_VERSION:-28.1}
+    env_file:
+      - .env
+    environment:
+      ONT_RPC_URL: http://bitcoind:38332
+      ONT_RPC_USER: ${ONT_RPC_USER:-ontrpc}
+      ONT_RPC_PASSWORD: ${ONT_RPC_PASSWORD:?set ONT_RPC_PASSWORD in .env}
+      ONT_SIGNET_CHALLENGE: ${ONT_SIGNET_CHALLENGE:-51}
+      ONT_SIGNET_MINER_ADDRESS: ${ONT_SIGNET_MINER_ADDRESS:?set ONT_SIGNET_MINER_ADDRESS in .env}
+      ONT_SIGNET_BOOTSTRAP_BLOCKS: "${ONT_SIGNET_BOOTSTRAP_BLOCKS:-110}"
+      ONT_SIGNET_MINE_INTERVAL_SECONDS: "${ONT_SIGNET_MINE_INTERVAL_SECONDS:-45}"
+      ONT_SIGNET_MINE_NBITS: "${ONT_SIGNET_MINE_NBITS:-1e0377ae}"
+    depends_on:
+      bitcoind:
+        condition: service_healthy
+    restart: unless-stopped
 
   # Live ingest daemon (apps/indexer/src/main.ts). ONT_SOURCE=node runs the @ont/node-live chain gate against
   # ONT_CHAIN before any poll — a mispointed/missing RPC fails closed here, before the loop starts.

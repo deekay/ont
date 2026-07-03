@@ -230,10 +230,11 @@ Nothing here needs DK until **G-C-MINIMAL** (slice 4). I will spec each with exa
 the [G3 runbook](../operate/G3_CLEAN_SLATE_VPS.md) when the slice is ready, so they arrive as
 copy-paste, not discovery:
 
-1. **A signet host** — a small VPS (or reuse the box in the G3 runbook) to run bitcoind-signet +
+1. **A private-signet host** — a small VPS (or reuse the box in the G3 runbook) to run private-signet bitcoind +
    indexer + resolver + non-signing publisher.
-2. **Signet BTC funding** — a signet faucet top-up for the publisher wallet to broadcast the claim
-   carrier (gate is ₿1,000 sats-equiv on signet; trivial).
+2. **Private-signet funding wallet** — a legacy signet address controlled by an off-box wallet, configured as
+   `ONT_SIGNET_MINER_ADDRESS`, receives self-mined private-signet coinbase and funds the claim carrier after
+   maturity.
 3. **DNS / host for resolver + web** — when G-C lands, a hostname to point the web + mobile
    surfaces at the live resolver.
 

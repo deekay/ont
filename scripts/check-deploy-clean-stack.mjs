@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 // Go-live G3 slice-1 — deploy-infra clean-stack gate. See docs/operate/G3_CLEAN_SLATE_VPS.md.
 //
-// The clean-build go-live stack is bitcoind(signet) -> indexer(node ingest -> durable file store) ->
-// resolver(read) -> web(display). This gate is a RATCHET that keeps the checked-in deploy infra
-// (docker-compose.yml, docker/entrypoint.sh, .env.example) wired to the CLEAN apps' real runtime env and
+// The clean-build go-live stack is private-signet miner -> bitcoind(private signet) ->
+// indexer(node ingest -> durable file store) -> resolver(read) -> web(display). This gate is a RATCHET
+// that keeps the checked-in deploy infra (docker-compose.yml, docker/entrypoint.sh, .env.example, miner
+// assets) wired to the CLEAN apps' real runtime env and
 // free of old-stack (pre-clean-build / pre-ONT-rebrand) leakage, and keeps the operator runbook honest
 // (per-service coverage + repo-prep separated from DK-owned destructive steps). It is a STATIC shape check
-// only — it does NOT boot the stack; the clean-slate signet boot/read smoke is the operator gate in the runbook.
+// only — it does NOT boot the stack; the clean-slate private-signet boot/read smoke is the operator gate in the runbook.
 //
 // The clean runtime contract (verified against the app entrypoints):
 //   resolver  apps/resolver/src/index.ts   PORT (4174), ONT_STORE, ONT_STORE_DIR; serves /health, /tx/:txid
@@ -17,6 +18,8 @@
 //                                          chain-gated, non-signing; /assemble/* (unsigned) + /broadcast (signed raw)
 //   stores    @ont/indexer select-stores   ONT_STORE=memory|file + ONT_STORE_DIR (resolver reads the same dir)
 //   runtime   @ont/node-live               ONT_SOURCE | ONT_CHAIN | ONT_RPC_URL | ONT_RPC_USER | ONT_RPC_PASSWORD
+//   miner     private-signet-miner         ONT_SIGNET_MINER_ADDRESS, ONT_SIGNET_BOOTSTRAP_BLOCKS,
+//                                          ONT_SIGNET_MINE_INTERVAL_SECONDS
 //
 // Exit 0 = clean; exit 1 = violations (listed). No deps; reads files as text.
 import { existsSync, readFileSync } from "node:fs";
@@ -25,6 +28,8 @@ const FILES = {
   compose: "docker-compose.yml",
   entrypoint: "docker/entrypoint.sh",
   env: ".env.example",
+  minerDockerfile: "docker/private-signet-miner.Dockerfile",
+  minerScript: "docker/private-signet-miner.sh",
   runbook: "docs/operate/G3_CLEAN_SLATE_VPS.md",
 };
 
@@ -59,12 +64,18 @@ const REQUIRE_COMPOSE = [
   { token: "ONT_RPC_URL", why: "indexer node source needs the bitcoind RPC URL" },
   { token: "ONT_RESOLVER_URL", why: "web reads its tx source from the resolver URL" },
   { token: "publisher:", why: "the non-signing publisher write service (assemble unsigned + broadcast signed raw) is part of the go-live write path" },
+  { token: "private-signet-miner:", why: "private signet needs a miner sidecar for bootstrap maturity and ongoing confirmations" },
+  { token: "-signetchallenge=${ONT_SIGNET_CHALLENGE:-51}", why: "bitcoind must run private signet, not public default signet" },
+  { token: "-dnsseed=0", why: "private signet must not attempt public-signet DNS peer discovery" },
+  { token: "ONT_SIGNET_MINER_ADDRESS", why: "miner coinbase must pay the off-box funding/signing wallet" },
 ];
 // Clean-stack requirements that need exact shape, not just token presence (CL bar: ONT_STORE=file + nonempty dir).
 const REQUIRE_COMPOSE_RE = [
   { re: /ONT_STORE:\s*file\b/, why: "durable store must be ONT_STORE=file (not memory) for live read" },
   { re: /ONT_STORE_DIR:\s*\S+/, why: "ONT_STORE_DIR must be set to a nonempty path (indexer writes, resolver reads)" },
   { re: /PORT:\s*"4176"/, why: "publisher service must set PORT=4176 (its HTTP listen port — index.ts default)" },
+  { re: /ONT_SIGNET_BOOTSTRAP_BLOCKS:\s*"\$\{ONT_SIGNET_BOOTSTRAP_BLOCKS:-110\}"/, why: "miner must bootstrap 110 blocks by default so coinbase matures" },
+  { re: /ONT_SIGNET_MINE_INTERVAL_SECONDS:\s*"\$\{ONT_SIGNET_MINE_INTERVAL_SECONDS:-45\}"/, why: "miner must keep producing low-rate blocks for confirmations" },
 ];
 
 // Clean-stack requirements for the entrypoint dispatch.
@@ -80,9 +91,32 @@ const REQUIRE_RUNBOOK_RE = [
   { re: /\|\s*\*\*resolver\*\*/, why: "runbook needs a per-service row for resolver" },
   { re: /\|\s*\*\*web\*\*/, why: "runbook needs a per-service row for web" },
   { re: /\|\s*\*\*publisher\*\*/, why: "runbook needs a per-service row for the publisher write service" },
+  { re: /\|\s*\*\*private-signet-miner\*\*/, why: "runbook needs a per-service row for the private-signet miner" },
   { re: /repo-prep/i, why: "runbook must label the non-destructive repo-prep steps" },
   { re: /destructive/i, why: "runbook must call out the destructive teardown explicitly" },
   { re: /DK-owned/i, why: "destructive VPS teardown must be marked DK-owned, separated from repo-prep" },
+];
+
+const REQUIRE_ENV = [
+  { token: "ONT_SIGNET_CHALLENGE=51", why: ".env.example must document the private-signet OP_TRUE challenge" },
+  { token: "ONT_SIGNET_MINER_ADDRESS=replace-with-off-box-legacy-signet-address", why: ".env.example must require the off-box funding wallet address" },
+  { token: "ONT_SIGNET_BOOTSTRAP_BLOCKS=110", why: ".env.example must pin the 110-block coinbase-maturity bootstrap default" },
+];
+
+const REQUIRE_MINER_DOCKERFILE = [
+  { token: "contrib/signet/miner", why: "miner sidecar must adapt Bitcoin Core's proven signet miner" },
+  { token: "grind-header-fast.c", why: "miner sidecar must build the checked-in fast grinder" },
+  { token: "ont-private-signet-miner", why: "miner image must enter through the compose miner wrapper" },
+];
+
+const REQUIRE_MINER_SCRIPT = [
+  { token: "signetchallenge=${SIGNET_CHALLENGE}", why: "miner bitcoin-cli config must use the same private-signet challenge as bitcoind" },
+  { token: "replace-with-off-box-legacy-signet-address", why: "miner must fail closed if the operator leaves the placeholder address in .env" },
+  { token: "ONT_SIGNET_MINER_ADDRESS", why: "miner must pay coinbase to the off-box funding wallet" },
+  { token: "ONT_SIGNET_BOOTSTRAP_BLOCKS", why: "miner must bootstrap to the coinbase maturity target" },
+  { token: "ONT_SIGNET_MINE_INTERVAL_SECONDS", why: "miner must keep mining at a low ongoing cadence" },
+  { token: "contrib/signet/miner", why: "miner wrapper must call Bitcoin Core's signet miner" },
+  { token: "--grind-cmd", why: "miner wrapper must pass the fast grinder command" },
 ];
 
 const violations = [];
@@ -110,6 +144,15 @@ for (const { re, why } of REQUIRE_COMPOSE_RE) {
 }
 for (const { token, why } of REQUIRE_ENTRYPOINT) {
   if (!text.entrypoint.includes(token)) violations.push(`MISSING in ${FILES.entrypoint}: "${token}" — ${why}`);
+}
+for (const { token, why } of REQUIRE_ENV) {
+  if (!text.env.includes(token)) violations.push(`MISSING in ${FILES.env}: "${token}" — ${why}`);
+}
+for (const { token, why } of REQUIRE_MINER_DOCKERFILE) {
+  if (!text.minerDockerfile.includes(token)) violations.push(`MISSING in ${FILES.minerDockerfile}: "${token}" — ${why}`);
+}
+for (const { token, why } of REQUIRE_MINER_SCRIPT) {
+  if (!text.minerScript.includes(token)) violations.push(`MISSING in ${FILES.minerScript}: "${token}" — ${why}`);
 }
 for (const { re, why } of REQUIRE_RUNBOOK_RE) {
   if (!re.test(text.runbook)) violations.push(`MISSING in ${FILES.runbook}: /${re.source}/ — ${why}`);
@@ -147,4 +190,4 @@ if (violations.length > 0) {
   process.exit(1);
 }
 
-console.log("check-deploy-clean-stack: clean (docker-compose.yml, docker/entrypoint.sh, .env.example, runbook, package.json script targets)");
+console.log("check-deploy-clean-stack: clean (docker-compose.yml, docker/entrypoint.sh, miner assets, .env.example, runbook, package.json script targets)");

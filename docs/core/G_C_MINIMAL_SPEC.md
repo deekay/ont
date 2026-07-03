@@ -252,11 +252,14 @@ docker compose logs --tail=30 indexer   # MUST boot clean — any "batch materia
 
 ### 6.3 Fund → legacy-hop → assemble → sign → broadcast
 
-Identical to [G3 §4c](../operate/G3_CLEAN_SLATE_VPS.md) steps 0–7, with **one substitution**: skip
-§4c step 4's placeholder heredoc — use `root-anchor-input.json` from §6.1, filling its
-`fundingInputs` with the `$HOP_TXID`/`$UTXO_VOUT` captured in §4c steps 1–3. Everything else — legacy
-funding hop, `add_inputs:false`, legacy change, sign-then-`/broadcast` — is unchanged; the
-⚠ legacy-serializable constraint still governs (the indexer drops witness bodies).
+Funding comes from the private-signet miner sidecar: `ONT_SIGNET_MINER_ADDRESS` is a legacy signet address
+controlled by the off-box funding wallet, and the sidecar bootstraps 110 blocks so mature coinbase exists
+before the operator write-smoke. Follow [G3 §4c](../operate/G3_CLEAN_SLATE_VPS.md)
+steps 0–7, with **one substitution**: skip §4c step 4's placeholder heredoc — use
+`root-anchor-input.json` from §6.1, filling its `fundingInputs` with the `$HOP_TXID`/`$UTXO_VOUT`
+captured from the off-box legacy funding hop in §4c steps 1–3. Everything else — legacy funding hop,
+`add_inputs:false`, legacy change, sign-then-`/broadcast` — is unchanged; the ⚠ legacy-serializable
+constraint still governs (the indexer drops witness bodies).
 
 ### 6.4 Confirm enforcement → verify from each surface
 
