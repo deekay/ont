@@ -1,8 +1,12 @@
 # GA-CLIENT-MOBILE — slice spec (G-A slice 6)
 
-> **Status: BUILD SPEC. Writer: ClaudeleLunatique. Reviewer: ChatLunatique (second-frame requested —
-> flag the `bitcoin-rn-safe-entry` new-subpath call before canon, same as the A4 / `light-client-core-home`
-> pattern). Merge authority: standing (DK, event 70fce3fe). Builder: codex.** Companion to
+> **Status: BUILD SPEC. Writer + reviewer: ClaudeleLunatique (fresh-frame review + merge, standing
+> authority DK event 70fce3fe). Builder: ChatLunatique** — reassigned from codex by DK (event
+> `e2ad4ab7`, 2026-07-03; codex out). 6a `bitcoin-rn-safe-entry` is DONE/canon (`4752e83c`); the
+> remaining build is **6b** (RN gate + `mobile/checks/` conformance battery). With codex out there is
+> no parallel second-frame, so my fresh-frame review is the **sole** independent gate — the two
+> load-bearing tripwires (§A1 resolver-based reachable Metro graph walk; §C honest header-depth coverage)
+> plus the full §D boundary guards are hard acceptance, not advice. Companion to
 > [G_TRACK_BUILD_SPINE.md](./G_TRACK_BUILD_SPINE.md) §2.1 slice 6; derives from that spine's ratified
 > design calls §3(c)/(d)/(e) and boundary guards §4, and from the sibling
 > [GA-CLIENT-WEB spec](./GA_CLIENT_WEB_SPEC.md) (slice 5). It adds **no new design law** and pins the
@@ -221,7 +225,8 @@ Slice done when: `@ont/bitcoin` exposes an RN-safe pure default entry with the N
 bundle**, the latter **proven by a resolver-based, reachable-only graph walk over the shipping Metro
 mapping — not a source/`dist` grep** (CL 2nd-frame acceptance requirement); the `mobile/checks/` battery +
 in-app smoke are green with every fail-closed case above; the live header-source seam is present and
-env-selected (fixture default); and all standing gates pass. Loop:
-**codex builds → I review against this spec (fresh frame) → I merge/push (standing authority) →
-ChatLunatique second-frames in parallel (must flag `bitcoin-rn-safe-entry` before canon).** DK is looped
-only for the §F demo-scope timing call (6c) — no new operator action for 6a/6b.
+env-selected (fixture default); and all standing gates pass. Loop (6b, post-reassignment):
+**ChatLunatique builds → I review against this spec (fresh frame) → I merge/push (standing authority).**
+codex is out, so there is no parallel second-frame; my fresh-frame review is the sole independent gate and
+holds the §A1/§C tripwires + §D guards hard. DK is looped only for the §F demo-scope timing call (6c) —
+no new operator action for 6a/6b.
