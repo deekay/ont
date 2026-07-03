@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { decodeEncodedMaterialJson, type DaRecordStore, type EncodedBatchMaterial } from "@ont/adapter-da";
 import { assembleRecoverOwnerInvokeTx, assembleRootAnchorTx } from "@ont/adapter-publisher";
 import { legacyTxidOf, parseLegacyTransaction, serializeLegacyTransaction, type LegacyTransaction } from "@ont/bitcoin";
 import { handlePublisherRequest, type PublisherBroadcastPort } from "./server.js";
@@ -9,6 +10,13 @@ const TXID_A = "11".repeat(32);
 const TXID_B = "22".repeat(32);
 const PUBKEY = "cd".repeat(32);
 const SIG = "ef".repeat(64);
+const MATERIAL: EncodedBatchMaterial = {
+  anchoredRoot: ROOT_B,
+  prevRoot: ROOT_A,
+  committedEntries: [{ name: "alice", ownerPubkey: PUBKEY }],
+  baseLeaves: [],
+  servedLeaves: [{ keyHex: "33".repeat(32), valueHex: PUBKEY }],
+};
 
 function rootAnchorInput(over: Record<string, unknown> = {}): Record<string, unknown> {
   return {
@@ -53,6 +61,14 @@ function broadcastFixture(result = { ok: true as const, txid: TXID_B }) {
     },
   };
   return { port, seen };
+}
+
+function daRecordFixture(records: Record<string, string> = { [ROOT_B]: JSON.stringify(MATERIAL) }): DaRecordStore {
+  return {
+    async getRecord(anchoredRoot) {
+      return records[anchoredRoot] ?? null;
+    },
+  };
 }
 
 // A legacy-serializable raw tx hex for the /broadcast tests. The publisher never inspects signedness — it
@@ -146,6 +162,44 @@ describe("publisher service — HTTP shell (assemble / broadcast split)", () => 
     const unavailable = await handlePublisherRequest(request("/broadcast", { signedTxHex: hex }), { broadcast: throwing });
     expect(unavailable.status).toBe(503);
     expect(await unavailable.json()).toEqual({ ok: false, reason: "broadcast-unavailable" });
+  });
+
+  it("GET /da/:root serves a staged material record as JSON that decodes through the DA codec", async () => {
+    const { port } = broadcastFixture();
+    const res = await handlePublisherRequest(new Request(`http://publisher.test/da/${ROOT_B}`), {
+      broadcast: port,
+      daRecordSource: daRecordFixture(),
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe("application/json; charset=utf-8");
+    const raw = await res.text();
+    expect(decodeEncodedMaterialJson(raw)).toEqual(MATERIAL);
+  });
+
+  it("GET /da/:root fails closed for unknown, malformed, and unset DA sources", async () => {
+    const { port } = broadcastFixture();
+    const unknown = await handlePublisherRequest(new Request(`http://publisher.test/da/${ROOT_A}`), {
+      broadcast: port,
+      daRecordSource: daRecordFixture(),
+    });
+    expect(unknown.status).toBe(404);
+    expect(await unknown.json()).toEqual({ ok: false, reason: "not-found" });
+
+    const malformed = await handlePublisherRequest(new Request("http://publisher.test/da/not-a-root"), {
+      broadcast: port,
+      daRecordSource: {
+        async getRecord() {
+          throw new Error("root guard failed");
+        },
+      },
+    });
+    expect(malformed.status).toBe(400);
+    expect(await malformed.json()).toEqual({ ok: false, reason: "malformed-root" });
+
+    const unset = await handlePublisherRequest(new Request(`http://publisher.test/da/${ROOT_B}`), { broadcast: port });
+    expect(unset.status).toBe(404);
+    expect(await unset.json()).toEqual({ ok: false, reason: "not-found" });
   });
 
   it("bad JSON, unsupported methods, and unknown routes return JSON errors", async () => {
