@@ -172,8 +172,8 @@ fast-follow. Consequences:
   addition (RN-safe graph already enforced by slice 6a/6b).
 - **6c in-app UI wiring** — rendering the three states (`bitcoin-verified` /
   `resolver-mirror` / `unavailable`) in the app UI is now **in scope for the demo**. It rides the
-  post-B5 mobile rewrite; sequenced against that rewrite's readiness. Separate mini-slice, spec to
-  follow once the live provider (4a) lands and the rewrite state is known. It does **not** block
+  post-B5 mobile rewrite; sequenced against that rewrite's readiness. **Spec: §10** (dispatched to
+  ChatLunatique after A′ landed + the post-B5 mobile state was confirmed). It does **not** block
   4a or 4b.
 
 ## 6. 4b operator walk (DK) — copy-paste, A′-aware
@@ -202,11 +202,32 @@ Run the A′ generator for the one real name to serve — it emits the material 
 anchoredRoot, batchSize)`:
 
 ```bash
-# exact flag surface pinned on A′ handback; artifact shapes per §9
+# single-name path (the first signet stand-up); artifact shapes per §9
 node scripts/generate-fixture-batch-material.mjs \
   --name <name> --owner-pubkey <64-hex> \
   --material-out batch-material.json --anchor-out root-anchor-input.json
 ```
+
+**Flag surface (pinned from `scripts/generate-fixture-batch-material.mjs` @ `df301cc0`):**
+
+| Flag | Meaning |
+|---|---|
+| `--entry <name>:<ownerPubkey>` | one entry, direct 64-hex owner pubkey (repeatable for a multi-name batch) |
+| `--entry-secret <name>:<privHex>` | one entry, dev owner **secret** — pubkey derived via `deriveOwnerPubkey` (repeatable) |
+| `--name <name>` | single-form name; pair with **exactly one** of `--owner-pubkey` / `--dev-secret` (alias `--owner-secret`) |
+| `--owner-pubkey <64-hex>` | owner pubkey for `--name` |
+| `--dev-secret` / `--owner-secret <hex>` | owner secret for `--name` (derives the pubkey) |
+| `--input <entries.json>` | batch from a JSON array or `{ "entries": [...] }`; entries are `{name, ownerPubkey}` or `{name, devSecret}` |
+| `--material-out <path>` | **required** — the indexer fixture (`decodeEncodedMaterial` shape) |
+| `--anchor-out <path>` | **required** — the publisher RootAnchor input `{prevRoot, newRoot: anchoredRoot, batchSize}` |
+| `--force` | overwrite existing outputs (default **refuses**, exits 1) |
+| `--help` | usage → exit 0 |
+
+Prints `materialKey = prevRoot:anchoredRoot` on success — that pair is what the resolver keys the
+served bundle on (§6.4's 404 path). **First-batch-only constraint:** the generator always emits
+`baseLeaves = []`, so `prevRoot` is the empty-accumulator root. That is exactly right for the *first*
+signet name (empty prior state); a second real name off the same chain would need real prior leaves,
+out of scope for this milestone.
 
 `batch-material.json` → the indexer's fixture; `root-anchor-input.json` carries the real
 `prevRoot`/`newRoot`/`batchSize` to broadcast (this **replaces** the §4c placeholder heredoc), minus
@@ -217,9 +238,11 @@ the `fundingInputs` filled from the live hop in §6.3.
 ```bash
 # from the repo dir (where .env / compose live); indexer is up on the default read-path from G3 §3.
 docker compose cp batch-material.json indexer:/app/.data/batch-material.json   # land it in the ont_data volume
-# opt IN for the stand-up (off by default per §9): set the two env on the indexer service, then recreate
-#   so boot re-runs selectIndexerEnforcement and loads the file (exact opt-in mechanism — .env vs compose
-#   override — pinned on A′ handback):
+# opt IN for the stand-up (off by default per §9): compose reads both from the environment via
+#   ONT_ENFORCEMENT=${ONT_ENFORCEMENT:-off} and ONT_BATCH_MATERIAL_FILE=${...:-/app/.data/batch-material.json}
+#   (docker-compose.yml, documented in .env.example) — so set the two in .env, then --force-recreate
+#   so boot re-runs selectIndexerEnforcement and loads the file. Accepted modes: off | fixture-file
+#   (anything else fails closed at boot, select-enforcement.ts:31):
 #     ONT_ENFORCEMENT=fixture-file
 #     ONT_BATCH_MATERIAL_FILE=/app/.data/batch-material.json
 docker compose up -d --force-recreate indexer
@@ -360,3 +383,87 @@ real anchor committing that material's `(prevRoot, anchoredRoot)` drives a name-
 resolver serves the proof bundle → `ont verify <name>` and the web live path go **Bitcoin-verified**
 against the 4a resolver-served header range (reaching ≥ anchor + depth), labelled `provider-trusted`
 (#95); the enforcement env is opt-in/off-by-default; `consensus/src` zero-diff; standing gates green.
+
+## 10. 6c MOBILE-VERIFY-WIRE — render the on-device verify states on the name screen (`mobile-first-signet` #96)
+
+**Builder: ChatLunatique. Reviewer: ClaudeleLunatique.** Last slice for `mobile-first-signet` (#96):
+the finish line is **mobile-green** — the app UI shows *verified against Bitcoin on this device*. A′
+(§9) made CLI/web verify runnable against a real served name; the RN-safe verify **core** already
+shipped (6a/6b). 6c is pure app-wiring: no new verification logic, no `consensus/src` touch.
+
+### 10.1 Confirmed post-B5 state (CL, event `f1c65d6e`, 2026-07-03)
+
+- Verify core present + graph-clean: `mobile/src/verification/bitcoin.ts` exports
+  `mobileBitcoinVerificationState`, `fetchMobileSignetLaunchHeaderSource`,
+  `unavailableMobileBitcoinVerificationState`, and the three states
+  `bitcoin-verified` / `resolver-mirror` / `unavailable`. `check:mobile-verify-graph` green
+  (reaches default `@ont/bitcoin`, **no** `node:*` / `@ont/bitcoin/node` edge).
+- **Not wired to UI.** `mobile/src/screens/NameDetailScreen.tsx` loads only `resolver.name()`,
+  `valueHistory()`, `nameActivity()` off the old `/name/...` surface.
+- `mobile/src/api/resolver.ts` has **no** `/names/:name/state` client and no header-range provider;
+  `mobile/src/api/types.ts` has no served-state response type. The verify core is referenced only by
+  checks, never by a screen/API.
+
+### 10.2 Canonical reference — mirror the web async live-name seam
+
+The web already does exactly this; 6c is its React-Native transliteration. Read and mirror:
+
+- `apps/web/src/server.ts` → `liveHeaderSourceForServed(served, provider)` (~L186): `anchorHeight =
+  proofBundleMaxAnchorHeight(served.proofBundle)` → `fetchSignetLaunchHeaderSource({anchorHeight,
+  provider})` → `headerSource`.
+- `apps/web/src/live/select-bitcoin-header-source.ts` → the provider is `resolver:<base-url>` only,
+  built by `createResolverHeaderRangeProvider({resolverUrl})`. Mobile has no env selector — it wires
+  the resolver base directly (§10.4).
+- `apps/web/src/render-name-view.ts` (~L128) → renders `bitcoin-verified` with the anchor/required
+  height + `provider-trusted` (#95) copy. Mobile mirrors the *label*, not the DOM.
+
+### 10.3 Served-state contract (already live from 4a/A′)
+
+`GET /names/:name/state` returns `ServedNameStateResult`
+(`packages/adapter-resolver/src/serve-name-state.ts:38`):
+`{ ok: true, owner: { kind: "owner-key", ownerPubkeyHex }, proofBundle, anchor, firstServableHeight,
+provenance: "resolver-indexed-mirror", authority: "not-ownership-authority", ... }` **200**, or
+`{ ok: false, reason }` with **404** = `name-unknown` (not enforced/served yet) and **409/503** =
+corrupt mirror / store-unavailable (`server.ts:254` `nameStateReadStatus`).
+
+### 10.4 Build items (all in `mobile/`, no shared-package change)
+
+1. **Types** (`mobile/src/api/types.ts`): add `ServedNameStateResponse` mirroring the `ok:true` /
+   `ok:false` shapes above. Keep `proofBundle` typed **`unknown`** — the verify core
+   (`mobileBitcoinVerificationState`) takes `unknown` and re-parses it; do **not** hand-roll a
+   structural proof-bundle type the core would only re-validate.
+2. **Resolver client** (`mobile/src/api/resolver.ts`): add
+   `nameState: (name) => apiGet<ServedNameStateResponse>(\`/names/${encodeURIComponent(name)}/state\`)`.
+   `apiGet` throws `ApiError` on non-2xx — **catch 404 → treat as `proofBundle: null`** (name exists
+   on the legacy surface but has no enforced Bitcoin state yet → `resolver-mirror` "no-proof-bundle",
+   ownership still shown). Let 409/503 surface as `unavailable` `transport-error`.
+3. **Header-range provider**: reuse `createResolverHeaderRangeProvider({ resolverUrl: API_BASE })`
+   from `@ont/light-client` (RN-safe — global `fetch`, no node edge; `API_BASE` from
+   `mobile/src/config`, the same base `apiGet` uses). Do **not** re-implement a provider.
+4. **Screen wiring** (`mobile/src/screens/NameDetailScreen.tsx`): in the existing async loader, after
+   `nameState(name)`: derive `anchorHeight = proofBundleMaxAnchorHeight(served.proofBundle)` →
+   `fetchMobileSignetLaunchHeaderSource({ anchorHeight, provider })` → `mobileBitcoinVerificationState(
+   { proofBundle: served.proofBundle, headerSource, ownerPubkeyHex: served.owner.ownerPubkeyHex })`.
+   Render the three states as a badge near the title/owner block (L63–98): `bitcoin-verified` →
+   "verified against Bitcoin on this device" + `provider-trusted` (#95) note; `resolver-mirror` →
+   "resolver mirror — not yet Bitcoin-verified"; `unavailable` → muted.
+
+### 10.5 Invariants (pin, mirror §4)
+
+- **No signet header independence.** The ✓ is `provider-trusted` (#95); never present it as trustless.
+  The core's `signetHeaderAuthenticity: "provider-trusted"` field carries this — surface it.
+- **Fail-closed, no false ✓.** Provider absent, header fetch fails, or 404-not-served ⇒
+  `resolver-mirror` / `unavailable` — never `bitcoin-verified`. The core already enforces this
+  (null `headerSource` ⇒ mirror); 6c must not add a path that fabricates a ✓ around it.
+- **Graph stays clean.** `check:mobile-verify-graph` MUST stay green after the new imports — the only
+  new package edge is `@ont/light-client` (`createResolverHeaderRangeProvider` +
+  `proofBundleMaxAnchorHeight`), already RN-safe and imported by the verify core.
+- **proofBundle stays `unknown`** at the API boundary (see 10.4.1).
+
+### 10.6 Acceptance — mobile-green
+
+On device against the stand-up resolver: opening the **served** name shows *verified against Bitcoin
+on this device* (provider-trusted, reaching ≥ anchor + depth); a not-served/absent name shows
+*resolver mirror* / *unavailable*; killing the provider never yields a false ✓. Mobile test suite +
+`check:mobile-verify-graph` + standing gates green; `consensus/src` zero-diff. When this lands,
+`mobile-first-signet` (#96) is **done** and all three surfaces verify.
