@@ -9,6 +9,17 @@ active-chain selection, tip freshness, or confirmation depth. Launch clients and
 enforce those policies before marking an inclusion Bitcoin-verified; this package only gives them one
 auditable home for the launch checkpoint, network PoW params, and later signet-solution validation input.
 
+## Launch confirmation depth
+
+`LAUNCH_CONFIRMATION_DEPTH = 6` is the current launch-client verification depth for hermetic and signet
+test deployments. It is not consensus law and does not enter `@ont/consensus`; web/CLI/mobile clients use it
+to decide whether a validated header source reaches far enough past an anchor before displaying ownership as
+Bitcoin-verified.
+
+Provenance: da-windows (#49) ratified the K/W/C algebra and kept final values launch-freeze work; S7 carries
+provisional test/deployment values `(K, W, C) = (6, 2, 3)`. This constant intentionally follows that provisional
+K for client display gating until launch parameters freeze.
+
 ## Signet checkpoint
 
 Refresh policy: refreshed per release, per `docs/core/G_TRACK_BUILD_SPINE.md` §3.

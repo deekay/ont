@@ -4,6 +4,12 @@ export type LaunchBitcoinNetwork = "signet";
 
 export const LAUNCH_BITCOIN_NETWORKS = ["signet"] as const satisfies readonly LaunchBitcoinNetwork[];
 
+// Launch-client verification depth for the current hermetic/signet test deployment posture. This is not
+// consensus law: clients use it to decide whether a verified inclusion has enough validated header coverage
+// to be displayed as Bitcoin-verified. Provenance: da-windows (#49) S7 provisional K=6 for conformance/test
+// deployments; final launch values freeze later.
+export const LAUNCH_CONFIRMATION_DEPTH = 6;
+
 // PoW retarget parameters consumed by @ont/bitcoin. Signet challenge validation
 // and active-chain freshness are launch-client/provider policy, not this config.
 export const SIGNET_BITCOIN_NETWORK_PARAMS = {
@@ -20,6 +26,9 @@ export const SIGNET_BITCOIN_DIFFICULTY_CHECKPOINT = {
   epochStartTime: 1_782_456_498,
   cumulativeWorkHex: "eafb567b00e",
 } as const satisfies BitcoinDifficultyCheckpoint;
+
+export const SIGNET_LAUNCH_CHECKPOINT_ID =
+  `signet:${SIGNET_BITCOIN_DIFFICULTY_CHECKPOINT.height}:${SIGNET_BITCOIN_DIFFICULTY_CHECKPOINT.hashHex}`;
 
 // BIP325 default signet challenge scriptPubKey. Header validation does not
 // consume this yet; GA-SIGNET-SOLUTION will validate block solution material

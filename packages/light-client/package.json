@@ -1,0 +1,24 @@
+{
+  "name": "@ont/light-client",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "ONT light-client verify core - thin client-facing proof-bundle orchestration over @ont/consensus.",
+  "exports": {
+    ".": {
+      "types": "./dist/light-client/src/index.d.ts",
+      "default": "./dist/light-client/src/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run build -w @ont/protocol && npm run build -w @ont/bitcoin && npm run build -w @ont/wire && npm run build -w @ont/consensus && vitest run"
+  },
+  "dependencies": {
+    "@ont/consensus": "file:../consensus"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.4"
+  }
+}

@@ -1,9 +1,11 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { renderLanding, route } from "./render-explorer-landing.js";
-import { renderNameView } from "./render-name-view.js";
+import { renderNameView, shapeName, type BitcoinVerificationRenderOptions } from "./render-name-view.js";
 import { renderTxView, renderServedTx, shapeTxid } from "./render-tx-view.js";
-import type { WebReadPort } from "./web-read-port.js";
+import type { WebReadPort, ServedNameStateResult } from "./web-read-port.js";
+import type { BitcoinHeaderSource } from "@ont/light-client";
 import type { ResolverTxSource } from "./live/resolver-tx-source.js";
+import type { ResolverNameStateSource } from "./live/resolver-name-state-source.js";
 
 export interface WebServiceOptions {
   readonly port: WebReadPort;
@@ -14,12 +16,17 @@ export interface WebServiceOptions {
   // renderTxView / route(q, port) path, byte-stable. `| undefined` is explicit so the env selector's
   // ResolverTxSource | undefined result is assignable under exactOptionalPropertyTypes.
   readonly txSource?: ResolverTxSource | undefined;
+  readonly nameStateSource?: ResolverNameStateSource | undefined;
+  readonly bitcoinHeaderSource?: BitcoinHeaderSource | undefined;
+  readonly verificationCheckpointId?: string | undefined;
+  readonly verificationNetwork?: string | undefined;
 }
 
 export function createEmptyWebReadPort(): WebReadPort {
   return {
     valueHistory: () => null,
     recoveryHistory: () => null,
+    nameState: () => null,
     tx: () => null,
   };
 }
@@ -45,7 +52,15 @@ export async function handleWebRequest(request: Request, options: WebServiceOpti
     }
 
     if (segments.length === 2 && segments[0] === "names") {
-      return html(renderNameView({ name: segments[1], port: options.port }));
+      const rawName = segments[1];
+      if (options.nameStateSource === undefined) {
+        return html(renderNameView({ name: rawName, port: options.port, bitcoinVerification: bitcoinVerificationOptions(options) }));
+      }
+      const shaped = shapeName(rawName);
+      if (!shaped.ok) {
+        return html(renderNameView({ name: rawName, port: options.port, bitcoinVerification: bitcoinVerificationOptions(options) }));
+      }
+      return await liveNameResponse(shaped.name, options);
     }
 
     if (segments.length === 2 && segments[0] === "tx") {
@@ -96,6 +111,12 @@ const LIVE_READ_ERROR =
   `<p>The resolver could not be reached to read this transaction. Please try again later.</p>` +
   `</body></html>`;
 
+const LIVE_NAME_STATE_READ_ERROR =
+  `<!doctype html><html><head><title>Resolver unavailable</title></head><body>` +
+  `<h1>Resolver unavailable</h1>` +
+  `<p>The resolver could not be reached to read this name state. Please try again later.</p>` +
+  `</body></html>`;
+
 /**
  * The shared live tx path (G2 slice 5b-2/5c). The txid is already validated. Owns the async + HTTP status so
  * the pure `route` / `renderServedTx` stay status-free: source ServedTx → tx page (200); source null →
@@ -111,18 +132,57 @@ async function liveTxResponse(txid: string, txSource: ResolverTxSource): Promise
   }
 }
 
+async function liveNameResponse(name: string, options: WebServiceOptions): Promise<Response> {
+  if (options.nameStateSource === undefined) {
+    return html(renderNameView({ name, port: options.port, bitcoinVerification: bitcoinVerificationOptions(options) }));
+  }
+  try {
+    const served = await options.nameStateSource(name);
+    return html(
+      renderNameView({
+        name,
+        port: withNameState(options.port, served),
+        bitcoinVerification: bitcoinVerificationOptions(options),
+      }),
+    );
+  } catch {
+    return html(LIVE_NAME_STATE_READ_ERROR, 502);
+  }
+}
+
 /**
  * Async companion to the pure `route` (G2 slice 5c). When a live `txSource` is configured AND the trimmed
- * query shapes to a txid, the landing/search query goes through the SAME live tx path as direct /tx/:txid;
- * every other query (names, empty, malformed) and the no-txSource case falls to the byte-stable sync
- * route(q, port). Keeps `route` pure (string-returning) — no name live work and no B3 value/recovery path here.
+ * query shapes to a txid, the landing/search query goes through the SAME live tx path as direct /tx/:txid.
+ * When a live `nameStateSource` is configured and the trimmed query shapes to a name, it goes through the
+ * live name-state path. Empty/malformed queries and unconfigured live sources fall to the byte-stable sync
+ * route(q, port). Keeps `route` pure (string-returning).
  */
 async function routeResponse(rawQuery: string, options: WebServiceOptions): Promise<Response> {
+  const trimmed = rawQuery.trim();
   if (options.txSource !== undefined) {
-    const shaped = shapeTxid(rawQuery.trim()); // trim mirrors route(); only a txid query goes live
+    const shaped = shapeTxid(trimmed); // trim mirrors route(); only a txid query goes live
     if (shaped.ok) return liveTxResponse(shaped.txid, options.txSource);
   }
+  if (options.nameStateSource !== undefined) {
+    const shaped = shapeName(trimmed);
+    if (shaped.ok) return liveNameResponse(shaped.name, options);
+  }
   return html(route(rawQuery, options.port)); // names / empty / malformed → pure sync, byte-stable
+}
+
+function withNameState(port: WebReadPort, served: ServedNameStateResult | null): WebReadPort {
+  return {
+    ...port,
+    nameState: () => served,
+  };
+}
+
+function bitcoinVerificationOptions(options: WebServiceOptions): BitcoinVerificationRenderOptions {
+  return {
+    headerSource: options.bitcoinHeaderSource ?? null,
+    checkpointId: options.verificationCheckpointId,
+    network: options.verificationNetwork,
+  };
 }
 
 function pathSegments(url: URL): string[] {

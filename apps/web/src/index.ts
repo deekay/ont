@@ -4,12 +4,15 @@
 // internals. AuctionBid tx display renders decoded W16 fields; auction bidding/signing stays wallet-only.
 import { createEmptyWebReadPort, createWebHttpServer } from "./server.js";
 import { selectResolverTxSource } from "./live/select-resolver-tx-source.js";
+import { selectResolverNameStateSource } from "./live/select-resolver-name-state-source.js";
+import { selectBitcoinHeaderSource } from "./live/select-bitcoin-header-source.js";
 
 export {
   renderNameView,
   shapeName,
   htmlEscape,
   RESOLVER_MIRROR_NOTICE,
+  type BitcoinVerificationRenderOptions,
   type ShapeNameResult,
 } from "./render-name-view.js";
 export {
@@ -23,6 +26,7 @@ export {
   type WebReadPort,
   type ServedValueState,
   type ServedRecoveryState,
+  type ServedNameStateResult,
   type ServedTx,
   type ServedTxOutput,
 } from "./web-read-port.js";
@@ -48,6 +52,16 @@ export {
   type ResolverTxSource,
 } from "./live/resolver-tx-source.js";
 export { selectResolverTxSource } from "./live/select-resolver-tx-source.js";
+export {
+  createResolverNameStateSource,
+  type ResolverNameStateSource,
+} from "./live/resolver-name-state-source.js";
+export { selectResolverNameStateSource } from "./live/select-resolver-name-state-source.js";
+export {
+  ONT_WEB_BITCOIN_HEADER_SOURCE_ENV,
+  selectBitcoinHeaderSource,
+  type BitcoinHeaderSourceRegistry,
+} from "./live/select-bitcoin-header-source.js";
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   const port = Number.parseInt(process.env.PORT ?? "4175", 10);
@@ -56,6 +70,8 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const server = createWebHttpServer({
     port: createEmptyWebReadPort(),
     txSource: selectResolverTxSource(process.env),
+    nameStateSource: selectResolverNameStateSource(process.env),
+    bitcoinHeaderSource: selectBitcoinHeaderSource(process.env),
   });
   server.listen(port, () => {
     console.log(`@ont/web listening on http://127.0.0.1:${port}`);
