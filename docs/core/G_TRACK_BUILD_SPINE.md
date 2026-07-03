@@ -118,6 +118,12 @@ the DA/censorship story.
    to the same verdict (leaf-hash-only transport can't re-run gate-fee — it needs name pre-images).
 8. **GA-OPTION-NODE** — opt-in own-node / Esplora header provider for users who won't rely on
    the operator-served header range — hardening against a stale/partial *real* chain (liveness).
+   Slice spec: [GA_OPTION_NODE_SPEC.md](./GA_OPTION_NODE_SPEC.md) — `header-provider-liveness`
+   (#99): new `HeaderRangeProvider` transports behind the *existing* untrusted-provider firewall
+   (`consensus/src` / `@ont/bitcoin` / `@ont/adapter-header` zero-diff), env-selected via
+   `ONT_HEADER_PROVIDER`. Signet deliverable = the Esplora fetch-provider (RN-safe, cross-surface);
+   the own-node bitcoind-RPC provider is deferred as mainnet-facing (on signet it buys liveness, not
+   forge-resistance, per (#95)).
 9. **GA-SIGNET-SOLUTION** — validate the BIP325 signet challenge signature against the challenge
    carried in `@ont/launch-config`, so the signet header chain stops being provider-trusted and
    the operator-can't-forge property holds on signet too (`signet-solution-gate` (#95)). Needs
