@@ -129,7 +129,11 @@ the DA/censorship story.
    the operator-can't-forge property holds on signet too (`signet-solution-gate` (#95)). Needs
    block/coinbase witness material, not headers alone; sequenced after the first live loop so it
    never blocks G-C-MINIMAL. Reorderable ahead of slice 4 only if DK rules signet must be fully
-   independent before the first testable milestone.
+   independent before the first testable milestone. Design-of-record spec:
+   [GA_SIGNET_SOLUTION_SPEC.md](./GA_SIGNET_SOLUTION_SPEC.md) — `signet-solution-verify` (#100,
+   DK-looped trust-model change): special-case verifier for the configured 1-of-2-multisig
+   challenge, real-signet-fixture-grounded, `consensus/src` zero-diff; sub-slices 9a–9d,
+   build post-live-loop.
 
 ## 3. G-A open design calls — resolved
 
