@@ -70,12 +70,19 @@ the DA/censorship story.
    bundles.
 3. **GA-CLIENT-CLI** — `apps/cli/src/verify-commands.ts` requires inclusion and runs
    `verifyProofBundleAgainstBitcoin`; rejects unverified. Hermetic fixture provider first.
-4. **G-C-MINIMAL** — stand up bitcoind-signet + publisher + indexer + resolver from the G3
-   runbook; make one real signet claim; verify it from the CLI against the bundled checkpoint.
+4. **G-C-MINIMAL** — the live resolver-served header source + first real signet verify. Slice
+   spec: [G_C_MINIMAL_SPEC.md](./G_C_MINIMAL_SPEC.md). **Two halves:** **4a HEADER-SERVE**
+   (code-only, *no operator gate, dispatchable now*) — indexer persists the checkpoint-forward
+   header range to a store, resolver serves it (`GET /bitcoin/header-range?anchorHeight=`), an
+   HTTP `HeaderRangeProvider` client feeds `fetchSignetLaunchHeaderSource`, wired into CLI + web
+   (replacing the block-170 stub → closes the §4 coverage-source-honesty criterion by
+   construction); all hermetic-tested first. **4b STAND-UP** (DK operator action; I spec exact
+   G3-runbook commands) — boot bitcoind-signet + publisher + indexer + resolver; make one real
+   signet claim; point the CLI at the live resolver; verify against the bundled checkpoint.
    **This is the first live-testable milestone.** Explicitly a **trusted-bitcoind / resolver
    active-chain smoke**: the inclusion proof is verified independently, the signet *header chain*
    is provider-trusted (`signet-solution-gate` (#95)); it is **not** a fully independent signet
-   consensus light client. *(DK operator action; I spec exact steps.)*
+   consensus light client.
 5. **GA-CLIENT-WEB** — web read path shows ownership as *Bitcoin-verified* only after the client
    verifies; a resolver mirror is labelled non-authoritative otherwise. Slice spec:
    [GA_CLIENT_WEB_SPEC.md](./GA_CLIENT_WEB_SPEC.md) (lifts the shared verify core to a new
@@ -99,8 +106,11 @@ the DA/censorship story.
    Node-only code (`node:fs` file loader + bitcoind-RPC `Buffer`) behind a `@ont/bitcoin/node`
    subpath so the verify core's transitive graph is RN-safe (pure `@noble` validators unchanged,
    `consensus/src` zero-diff) — then **6b** RN gate + `mobile/checks/` conformance battery
-   (code-only, not DK-gated). **6c** in-app UI wiring rides the post-B5 rewrite; the only DK call is
-   the demo-scope timing (ship mobile in the first signet demo vs fast-follow — gate is ratified).
+   (code-only, not DK-gated). **6c** in-app UI wiring rides the post-B5 rewrite. **DK ruled the
+   demo-scope timing: mobile ships *with* the first signet demo, not fast-follow**
+   (`mobile-first-signet` (#96), event `e0ebf10b`, 2026-07-03) — so the mobile live-provider path
+   folds into G-C-MINIMAL 4a and 6c is in scope for the demo (sequenced against the post-B5
+   rewrite; does not block 4a/4b). See [G_C_MINIMAL_SPEC.md](./G_C_MINIMAL_SPEC.md) §5.
 7. **G-B / LE-DA-SERVE** — DA network transport, so independence is provable across two operators
    (the censorship-resistance property). Hardens the "good" version.
 8. **GA-OPTION-NODE** — opt-in own-node / Esplora header provider for users who won't rely on

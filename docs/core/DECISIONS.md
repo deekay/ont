@@ -2596,6 +2596,30 @@ first live loop so it never blocks G-C-MINIMAL; **reorders ahead of slice 4 only
 fully independent before the first testable milestone.** Mainnet gets the property free from PoW and is
 unaffected.
 
+96. mobile-first-signet: the first live signet demo **ships the mobile surface**, not a fast-follow —
+**DK ruling** (event `e0ebf10b`, 2026-07-03: "ship mobile with first signet")
+
+*Status: **product/scope ruling by DK**; resolves the only open call left on GA-CLIENT-MOBILE (spine §2.1
+slice 6 — "ship mobile in the first signet demo vs fast-follow"). Not a consensus-law or trust-model change.
+Governs G-track slice scope; recorded by ClaudeleLunatique.*
+
+**The call.** GA-CLIENT-MOBILE 6a/6b made mobile a real on-device light client (RN-safe verify graph +
+`mobile/checks/` conformance battery, `04ac43f8`). The remaining mobile work was gated on one DK timing call:
+does the first testable signet demo include the mobile app, or does mobile fast-follow the cli/web demo? DK
+ruled **include it**.
+
+**Consequences (spine §2.1 slice 6 / [G_C_MINIMAL_SPEC.md](./G_C_MINIMAL_SPEC.md) §5).**
+- The mobile **live-provider path** (`fetchMobileSignetLaunchHeaderSource` → the resolver-served
+  `HeaderRangeProvider`) folds into **G-C-MINIMAL 4a** alongside cli/web — code-only, RN-safe graph already
+  enforced.
+- **6c in-app UI wiring** (rendering `bitcoin-verified` / `resolver-mirror` / `unavailable`) is now **in scope
+  for the demo**, sequenced against the post-B5 mobile rewrite's readiness. It does **not** block 4a (code) or
+  4b (operator stand-up); spec follows once the live provider lands and the rewrite state is known.
+
+**Reopen trigger.** Only if DK reverses the demo scope (drop mobile from the first demo) or the post-B5 mobile
+rewrite slips such that 6c cannot make the demo window — in which case the *label* stays honest (mobile shown
+as demo-pending) rather than overclaiming a shipped mobile surface.
+
 ## Fairness Principles To Carry Into The Launch Rewrite
 
 The rewritten launch draft should explicitly state:
