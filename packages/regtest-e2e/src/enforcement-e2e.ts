@@ -18,12 +18,15 @@
 // re-verifies the coherent anchor against Bitcoin independently via the candidate's headerSource. The driver-level
 // separation/atomicity tests live in apps/indexer/src/enforce-batched-claims.test.ts; this e2e pins the live
 // wiring + durability end-to-end. TESTS: ./enforcement-e2e.test.ts.
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { execFileSync } from "node:child_process";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { accumulatorRootOf, deriveOwnerPubkey, sha256Hex, utf8ToBytes, normalizeName } from "@ont/protocol";
 import { encodeEvent, EventType } from "@ont/wire";
 import { legacyTxidOf, headerMeetsTarget, type LegacyTransaction } from "@ont/bitcoin";
+import { assembleRootAnchorTx } from "@ont/adapter-publisher";
 import {
   createFileNameStateStore,
   type NameStateRecord,
@@ -61,6 +64,14 @@ interface MissingMaterialOutcome {
   readonly cursorHeightAfterRestart: number; // unchanged (0) — the failed batch retries
   readonly aliceDurable: boolean;
 }
+interface GeneratedFixtureOutcome {
+  readonly materialKey: string;
+  readonly anchorInput: { readonly prevRoot: string; readonly newRoot: string; readonly batchSize: number };
+  readonly anchorTxid: string;
+  readonly acceptedRoots: readonly string[];
+  readonly namesWritten: number;
+  readonly aliceDurable: NameStateRecord | null;
+}
 export interface EnforcementE2eResult {
   readonly anchorTxid: string;
   readonly anchoredRoot: string;
@@ -74,6 +85,7 @@ export interface EnforcementE2eResult {
   readonly withheld: RejectOutcome;
   readonly badHeader: RejectOutcome;
   readonly missingMaterial: MissingMaterialOutcome;
+  readonly generatedFixture: GeneratedFixtureOutcome;
 }
 
 // ── byte helpers (the firewall's exactly-one-RootAnchor OP_RETURN scan) ─────────────────────────────────────
@@ -94,7 +106,7 @@ function opReturn(payload: Uint8Array): string {
   return bytesToHex(prefix) + bytesToHex(payload);
 }
 
-// ── a coherent 2-name batch (alice + carol, both 5 bytes ⇒ gate floor 100k each ⇒ Σg 200k ≤ paidFee 1M) ─────
+// ── a coherent 2-name batch (alice + carol, both 5 bytes => gate floor 100k each => Σg 200k <= paidFee 1M) ─────
 const NAME_A = "alice";
 const NAME_C = "carol";
 const SK_A = "11".repeat(32);
@@ -120,7 +132,7 @@ const SERVED = [
 ];
 const BATCH_SIZE = 2;
 
-// Fee-adequate anchor carrying a REAL RootAnchor OP_RETURN: prevouts 5M + 3M, one 7M output ⇒ paidFee 1M.
+// Fee-adequate anchor carrying a REAL RootAnchor OP_RETURN: prevouts 5M + 3M, one 7M output => paidFee 1M.
 const PREVOUT_A: LegacyTransaction = { version: 1, inputs: [{ prevoutTxid: "00".repeat(32), prevoutVout: 0, scriptSigHex: "", sequence: 0xffffffff }], outputs: [{ valueSats: 5_000_000n, scriptPubKeyHex: "51" }], locktime: 0 };
 const PREVOUT_B: LegacyTransaction = { version: 1, inputs: [{ prevoutTxid: "00".repeat(32), prevoutVout: 1, scriptSigHex: "", sequence: 0xffffffff }], outputs: [{ valueSats: 3_000_000n, scriptPubKeyHex: "51" }], locktime: 0 };
 const ROOT_ANCHOR_PAYLOAD = encodeEvent({ type: EventType.RootAnchor, prevRoot: PREV_ROOT, newRoot: ANCHORED_ROOT, batchSize: BATCH_SIZE });
@@ -132,12 +144,14 @@ const ANCHOR_TX: LegacyTransaction = {
 };
 const ANCHOR_TXID = legacyTxidOf(ANCHOR_TX)!;
 const ANCHOR_HEIGHT = 170;
+const REPO_ROOT = fileURLToPath(new URL("../../..", import.meta.url));
+const GENERATOR_SCRIPT = join(REPO_ROOT, "scripts/generate-fixture-batch-material.mjs");
 
 // Synthetic 1-tx block header: merkleRoot (internal) = the anchor txid; easy nBits 0x2000ffff + mined nonce.
-function mineAnchorHeader(): string {
+function mineAnchorHeader(txid = ANCHOR_TXID): string {
   const h = new Uint8Array(80);
   h[0] = 1;
-  h.set(reversedBytes(hexToBytes(ANCHOR_TXID)), 36);
+  h.set(reversedBytes(hexToBytes(txid)), 36);
   h[68] = 0x40; h[69] = 0x9c; h[70] = 0x00; h[71] = 0x00;
   h[72] = 0xff; h[73] = 0xff; h[74] = 0x00; h[75] = 0x20; // nBits LE = 0x2000ffff
   for (let nonce = 0; nonce < 5_000_000; nonce++) {
@@ -207,14 +221,11 @@ async function writeMaterialFile(dir: string, material: BatchMaterial | null): P
   return path;
 }
 
-/** One enforcement tick over REAL daemon-selected file stores under `dir`: selectIndexerRunnerDeps is the
- *  main.ts selector path, with only the block-source and ingest-confirm seams injected for this hermetic fixture. */
-async function runTick(opts: {
+async function runTickWithMaterialFile(opts: {
   readonly dir: string;
-  readonly material: BatchMaterial | null;
+  readonly materialFile: string;
   readonly candidateOverride?: Partial<BuildConfirmedBatchAnchorInput>;
 }): Promise<IndexerTickReport> {
-  const materialFile = await writeMaterialFile(opts.dir, opts.material);
   const cand = candidate(opts.candidateOverride);
   let yielded = false;
   const blockSource: IndexerBlockSource = {
@@ -230,10 +241,25 @@ async function runTick(opts: {
     },
   };
   const deps = await selectIndexerRunnerDeps(
-    { ONT_STORE: "file", ONT_STORE_DIR: opts.dir, ONT_ENFORCEMENT: "fixture-file", ONT_BATCH_MATERIAL_FILE: materialFile },
+    { ONT_STORE: "file", ONT_STORE_DIR: opts.dir, ONT_ENFORCEMENT: "fixture-file", ONT_BATCH_MATERIAL_FILE: opts.materialFile },
     { blockSource, confirm },
   );
   return runIndexerTick(deps);
+}
+
+/** One enforcement tick over REAL daemon-selected file stores under `dir`: selectIndexerRunnerDeps is the
+ *  main.ts selector path, with only the block-source and ingest-confirm seams injected for this hermetic fixture. */
+async function runTick(opts: {
+  readonly dir: string;
+  readonly material: BatchMaterial | null;
+  readonly candidateOverride?: Partial<BuildConfirmedBatchAnchorInput>;
+}): Promise<IndexerTickReport> {
+  const materialFile = await writeMaterialFile(opts.dir, opts.material);
+  return runTickWithMaterialFile({
+    dir: opts.dir,
+    materialFile,
+    ...(opts.candidateOverride === undefined ? {} : { candidateOverride: opts.candidateOverride }),
+  });
 }
 
 /** The "restart": FRESH env-selected stores + a FRESH name-state store over the same dir, then read durable state. */
@@ -251,6 +277,89 @@ async function restartReads(dir: string): Promise<{ anchorInReadPath: boolean; c
 function requireEnforcement(report: IndexerTickReport): EnforceBatchedClaimsReport {
   if (report.enforcement === undefined) throw new Error("e2e: enforcement report missing (enforcement dep not configured?)");
   return report.enforcement;
+}
+
+async function runGeneratedFixture(dir: string): Promise<GeneratedFixtureOutcome> {
+  const materialFile = join(dir, "generated-batch-material.json");
+  const anchorInputFile = join(dir, "generated-root-anchor-input.json");
+  execFileSync(process.execPath, [
+    GENERATOR_SCRIPT,
+    "--entry-secret",
+    `${NAME_A}:${SK_A}`,
+    "--material-out",
+    materialFile,
+    "--anchor-out",
+    anchorInputFile,
+  ], { cwd: REPO_ROOT, stdio: "pipe" });
+
+  const anchorInput = JSON.parse(await readFile(anchorInputFile, "utf8")) as {
+    readonly prevRoot: string;
+    readonly newRoot: string;
+    readonly batchSize: number;
+  };
+  const anchorTx = assembleRootAnchorTx({
+    prevRoot: anchorInput.prevRoot,
+    newRoot: anchorInput.newRoot,
+    batchSize: anchorInput.batchSize,
+    fundingInputs: [
+      { prevoutTxid: legacyTxidOf(PREVOUT_A)!, prevoutVout: 0 },
+      { prevoutTxid: legacyTxidOf(PREVOUT_B)!, prevoutVout: 0 },
+    ],
+    changeOutput: { valueSats: 7_000_000n, scriptPubKeyHex: "51" },
+  });
+  if (anchorTx === null) throw new Error("generated fixture: assembleRootAnchorTx returned null");
+  const anchorTxid = legacyTxidOf(anchorTx);
+  if (anchorTxid === null) throw new Error("generated fixture: anchor tx not serializable");
+  const header = mineAnchorHeader(anchorTxid);
+  const headerSource = { headerHexAtHeight: (height: number): string | null => (height === ANCHOR_HEIGHT ? header : null) };
+  const generatedCandidate: BuildConfirmedBatchAnchorInput = {
+    anchorTx,
+    prevoutTxs: [PREVOUT_A, PREVOUT_B],
+    blockHeaderHex: header,
+    minedHeight: ANCHOR_HEIGHT,
+    merkle: [],
+    pos: 0,
+    headerSource,
+    anchorVout: 0,
+  };
+  const generatedConfirm: ConfirmAnchor = () => ({
+    ok: true,
+    confirmedAnchor: {
+      anchorTxid,
+      minedHeight: ANCHOR_HEIGHT,
+      anchoredRoot: anchorInput.newRoot,
+      batchSize: anchorInput.batchSize,
+    },
+    feeTxParts: { anchorTx, prevoutTxs: [PREVOUT_A, PREVOUT_B] },
+  });
+
+  let yielded = false;
+  const blockSource: IndexerBlockSource = {
+    nextConfirmedAnchors: (cursor) => {
+      if (yielded) return Promise.resolve({ candidates: [], cursor });
+      yielded = true;
+      return Promise.resolve({
+        candidates: [generatedCandidate],
+        cursor: { height: cursor.height + 1 },
+        headers: [{ height: cursor.height + 1, headerHex: "00".repeat(80) }],
+      });
+    },
+  };
+  const deps = await selectIndexerRunnerDeps(
+    { ONT_STORE: "file", ONT_STORE_DIR: dir, ONT_ENFORCEMENT: "fixture-file", ONT_BATCH_MATERIAL_FILE: materialFile },
+    { blockSource, confirm: generatedConfirm },
+  );
+  const enforcement = requireEnforcement(await runIndexerTick(deps));
+  const back = await restartReads(dir);
+
+  return {
+    materialKey: `${anchorInput.prevRoot}:${anchorInput.newRoot}`,
+    anchorInput,
+    anchorTxid,
+    acceptedRoots: enforcement.accepted,
+    namesWritten: enforcement.namesWritten,
+    aliceDurable: back.alice,
+  };
 }
 
 export async function runEnforcementE2e(): Promise<EnforcementE2eResult> {
@@ -296,6 +405,9 @@ export async function runEnforcementE2e(): Promise<EnforcementE2eResult> {
     return { threw, errorMessage, cursorHeightAfterRestart: back.cursorHeight, aliceDurable: back.alice !== null };
   });
 
+  // (e) A' generator output + matching RootAnchor input enforce through the same daemon selector and write state.
+  const generatedFixture = await withTempDir((dir) => runGeneratedFixture(dir));
+
   return {
     anchorTxid: ANCHOR_TXID,
     anchoredRoot: ANCHORED_ROOT,
@@ -309,5 +421,6 @@ export async function runEnforcementE2e(): Promise<EnforcementE2eResult> {
     withheld,
     badHeader,
     missingMaterial,
+    generatedFixture,
   };
 }

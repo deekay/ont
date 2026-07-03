@@ -57,6 +57,10 @@ services:
       ONT_RPC_PASSWORD: ${ONT_RPC_PASSWORD:?set ONT_RPC_PASSWORD in .env}
       ONT_STORE: file
       ONT_STORE_DIR: /app/.data
+      # A' fixture-file enforcement is opt-in. Default stays off so the plain RootAnchor read path remains active
+      # unless the operator has generated /app/.data/batch-material.json before the anchor is ingested.
+      ONT_ENFORCEMENT: ${ONT_ENFORCEMENT:-off}
+      ONT_BATCH_MATERIAL_FILE: ${ONT_BATCH_MATERIAL_FILE:-/app/.data/batch-material.json}
       INDEXER_POLL_MS: "${INDEXER_POLL_MS:-10000}"
     volumes:
       - ont_data:/app/.data

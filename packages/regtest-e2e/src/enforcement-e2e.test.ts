@@ -62,5 +62,13 @@ describe("runEnforcementE2e (LE-INDEX — daemon-selected enforcement through ru
     expect(r.missingMaterial.errorMessage).toMatch(/batch material missing/);
     expect(r.missingMaterial.cursorHeightAfterRestart).toBe(0); // cursor NOT advanced → the batch retries
     expect(r.missingMaterial.aliceDurable).toBe(false); // no name-state landed on disk
+
+    // ── (e) generated A' fixture material + matching RootAnchor input drives name-state ──────────────────────
+    expect(r.generatedFixture.anchorInput.newRoot).toBe(r.generatedFixture.acceptedRoots[0]);
+    expect(r.generatedFixture.materialKey).toBe(`${r.generatedFixture.anchorInput.prevRoot}:${r.generatedFixture.anchorInput.newRoot}`);
+    expect(r.generatedFixture.anchorInput.batchSize).toBe(1);
+    expect(r.generatedFixture.namesWritten).toBe(1);
+    expect(r.generatedFixture.aliceDurable?.canonicalName).toBe(r.nameA);
+    expect(r.generatedFixture.aliceDurable?.owner).toEqual({ kind: "owner-key", ownerPubkeyHex: r.ownerA });
   });
 });
