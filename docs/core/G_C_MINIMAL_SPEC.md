@@ -37,10 +37,14 @@ independence.
 | Half | What | Gate | Owner |
 |---|---|---|---|
 | **4a HEADER-SERVE** | indexer persists the checkpoint-forward header range → resolver serves it → HTTP `HeaderRangeProvider` client → wired into CLI (+ web) | **code-only, no operator gate — dispatchable now**; all hermetic-tested first | ChatLunatique |
-| **4b STAND-UP** | boot the G3 signet stack, make one real signet claim, point the CLI at the live resolver, walk verify live | **DK operator action**; I spec exact G3-runbook commands when 4a lands | DK (I spec) |
+| **A′ ENFORCE-FIXTURE** | generator for fixture batch material + compose/runbook enforcement-env wiring, so a real anchor drives real name-state → a servable proof bundle | **code + deploy plumbing, hermetic-tested; opt-in env** | ChatLunatique — **§9** |
+| **4b STAND-UP** | boot the G3 signet stack, make one real signet claim, point the CLI at the live resolver, walk verify live | **DK operator action**; I spec exact G3-runbook commands when 4a + A′ land | DK (I spec) |
 
-4a does not wait on DK; its validation code + tests are hermetic. Only the *live* walk (4b) needs
-a running node. Ship 4a first, hand DK 4b as copy-paste.
+4a does not wait on DK; its validation code + tests are hermetic. **A′ (§9, `first-signet-a-prime`
+#97)** is the slice that makes 4b's acceptance bar runnable at all — the bare G3 write-smoke
+(§4c) broadcasts placeholder roots with no name leaves, so `ont verify` would return
+`name-not-served`. A′ is code + deploy plumbing, also hermetic-tested; only the *live* walk (4b)
+needs a running node. Ship 4a (done) → A′ → hand DK 4b as copy-paste.
 
 ## 2. Design — where the served headers come from
 
@@ -212,3 +216,82 @@ count)` 1:1, client validates the returned range exactly (steps 3–4). (3) **pe
 invariant** — step 2 + §7 now require a header-store persist/backfill failure to abort before the
 cursor advances, with a hermetic test. (4) **CLI wrapper** — step 5 now explicitly adds the
 `ont verify <name>` executable (4b's operator walk drives it), not assumed to exist.
+
+## 9. A′ ENFORCE-FIXTURE — fixture batch material so a real name gets served (`first-signet-a-prime` #97)
+
+> **Added 2026-07-03** after an end-to-end trace of `ont verify <name>` against the deployed stack.
+> DK ruled **A′** (decision `first-signet-a-prime` #97, event `90d23e5f`): the first signet
+> checkpoint is a full ✓ Bitcoin-verified moment, sequencing free (cli/web-verified as an interim
+> step is fine), driven through to mobile-green. Builder: ChatLunatique. Reviewer/writer:
+> ClaudeleLunatique. Scoped by CL (event `748fc644`) + verified against the tree.
+
+**Why this slice exists.** 4a serves headers and `ont verify <name>` fetches a **per-name proof
+bundle** from the resolver (`GET /names/:name/state`). The resolver only serves that bundle after
+the indexer **enforces a real batched claim** — which needs the **batch material** (committed
+entries + base/served leaves), not just an on-chain anchor. The documented G3 write-smoke (G3
+runbook §4c) broadcasts a `RootAnchor` with **placeholder roots and no name leaves** → no
+name-state → `ont verify` returns `name-not-served`. A′ closes that with the **already-wired**
+enforcement seam: supply fixture batch material for one real name, broadcast an anchor committing
+that material's real `(prevRoot, anchoredRoot)`, and the indexer enforces → writes name-state →
+resolver serves the proof bundle → every 4a surface goes Bitcoin-verified.
+
+**Honesty boundary (#95).** Real, cryptographically checked by the light client: the anchor tx, its
+Merkle inclusion, and checkpoint-forward header authenticity. Operator-asserted: the batch's
+**data-availability** — the mode is literally `fixture-file`. That is exactly what signet is until
+`GA-SIGNET-SOLUTION` (slice 9); **G-B** replaces it with real DA. Every surface keeps its
+`provider-trusted` label; nothing here claims signet DA independence.
+
+**Build contract (ChatLunatique) — hermetic-first, same discipline as 4a.**
+
+1. **Generator script — `scripts/generate-fixture-batch-material.mjs`.** Input: one or more
+   `{ name, ownerPubkey }` (accept an owner pubkey directly, or a dev secret to derive it via the
+   existing `deriveOwnerPubkey`). Output **two** artifacts: (a) the batch-material JSON file in the
+   **exact** shape the indexer's reader accepts (`{ materials: [{ anchoredRoot, prevRoot,
+   committedEntries: [{ name, ownerPubkey }], baseLeaves: [{ keyHex, valueHex }], servedLeaves:
+   [{ keyHex, valueHex }] }] }`), and (b) the matching **publisher RootAnchor input** —
+   `(prevRoot, newRoot = anchoredRoot, batchSize)` — for the operator to broadcast. **Lift, do not
+   re-implement:** the construction already exists in `packages/regtest-e2e/src/enforcement-e2e.ts:97-201`
+   (name→leaf `sha256Hex(utf8ToBytes(normalizeName(name)))`, `accumulatorRootOf(base/full)`,
+   `encodeMaterialFileEntry`); import the existing `@ont/*` package APIs. **Script-only:** export **no**
+   new app/indexer surface; `packages/consensus/src` **zero-diff**.
+
+   - **Correctness seam (pin with a test).** The generator's material must round-trip through the
+     indexer's own reader `decodeEncodedMaterial` (`apps/indexer/src/live/select-enforcement.ts:135-153`),
+     and the `(prevRoot, anchoredRoot)` it emits for the anchor MUST equal the key the indexer looks up
+     (`materialKey(anchoredRoot, prevRoot)` = `` `${prevRoot}:${anchoredRoot}` ``) — otherwise enforcement
+     fails closed with `batch material missing`. Add a test: generate material for a name → assert the
+     loader accepts it and `batchMaterial(anchoredRoot, prevRoot)` resolves.
+
+2. **Deploy plumbing.** The compose `indexer` service sets **no** enforcement env today
+   (`ONT_SOURCE=node`, `ONT_STORE=file`, `ONT_STORE_DIR=/app/.data`, `ont_data` volume — verified).
+   Add `ONT_ENFORCEMENT=fixture-file` + `ONT_BATCH_MATERIAL_FILE=/app/.data/batch-material.json`
+   **opt-in / env-gated, defaulting OFF** so the plain RootAnchor read-path stays the compose default
+   and A′ is explicitly opted into for the stand-up. `select-enforcement.ts` + `main.ts` already
+   select it — **no daemon-logic change.** Grow `scripts/check-deploy-clean-stack.mjs` with a static
+   requirement **iff** we make fixture-file the stand-up default, so the contract is documented +
+   checked.
+
+   - **Ordering (goes into §6).** The generated material file MUST be placed into the shared
+     `ont_data` volume **before** the indexer ingests the anchor block, or enforcement throws
+     `batch material missing` and fails closed (correct, but strands the demo). Operator step order:
+     generate → place material in volume → broadcast anchor → mine/confirm.
+
+3. **Tests + gates.** Generator round-trip test (above) + a hermetic enforce test proving generated
+   material + a matching anchor drives the indexer to write name-state (reuse/extend the
+   `enforcement-e2e.ts` harness). Standing gates green (`check:surfaces`, `check:audit-map`,
+   `check-doc-links.sh`, `git diff --check`); `consensus/src` zero-diff.
+
+**Mobile-green = the 6c wiring slice (now firmly in scope for "done").** A′ delivers ✓ on
+**CLI/web immediately**. Mobile still shows no ✓: `mobile/src/screens/NameDetailScreen.tsx` loads
+only `resolver.name()` → `/name/...` and the `mobile/src/api/resolver.ts` client has **no**
+`/names/:name/state` method and never imports the present `mobile/src/verification/bitcoin.ts` core
+(all verified). Under #97 the 6c slice (wire the name screen/api to the proof-bundle + header-range
++ on-device verify core, render the three states) is **committed, sequenced after A′**, not
+timing-gated. Spec follows once A′ lands + the post-B5 mobile-rewrite state is confirmed (CL to
+report that state as part of the A′ work-up).
+
+**A′ acceptance bar.** The generator emits material the indexer's own reader accepts and enforces; a
+real anchor committing that material's `(prevRoot, anchoredRoot)` drives a name-state write →
+resolver serves the proof bundle → `ont verify <name>` and the web live path go **Bitcoin-verified**
+against the 4a resolver-served header range (reaching ≥ anchor + depth), labelled `provider-trusted`
+(#95); the enforcement env is opt-in/off-by-default; `consensus/src` zero-diff; standing gates green.

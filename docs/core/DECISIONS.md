@@ -2620,6 +2620,48 @@ ruled **include it**.
 rewrite slips such that 6c cannot make the demo window — in which case the *label* stays honest (mobile shown
 as demo-pending) rather than overclaiming a shipped mobile surface.
 
+97. first-signet-a-prime: the first testable signet checkpoint is a **full ✓ Bitcoin-verified** moment — a real
+anchor committing **operator-supplied fixture batch material** (the already-wired `ONT_ENFORCEMENT=fixture-file`
+seam) — not the leaner header-serve-only "resolver mirror" shape. **DK ruling** (event `90d23e5f`, 2026-07-03:
+"doesn't matter sequencing, just keep pressing forward until mobile/signet is finally done. if you need to do
+cli/web as an interim step that's fine")
+
+*Status: **product/scope ruling by DK**; picks the first-signet shape (A′ over plain-A) and frees sequencing.
+Not a consensus-law or trust-model change — it operates strictly within `signet-solution-gate` (#95). Governs
+G-track slice scope; recorded by ClaudeleLunatique.*
+
+**The call.** An end-to-end trace of `ont verify <name>` against the deployed stack found a slice-boundary gap:
+verify needs the indexer to **enforce a real batched claim** (name → name-state → served proof bundle), which
+needs the **batch material**, not just an on-chain anchor. The G3 write-smoke (G3 runbook §4c) broadcasts a
+RootAnchor with **placeholder roots and no name leaves** → no name-state → `ont verify` returns
+`name-not-served`. So 4b's acceptance bar ("one real anchored claim verifies end-to-end") is **not runnable**
+off the bare write-smoke. Two honest shapes were put to DK: **A′** (real anchor + fixture batch material →
+full ✓, labelled per #95) vs **A** (header-serve-only; mobile honestly shows "resolver mirror — not yet
+Bitcoin-verified"). DK picked **A′** and freed sequencing: cli/web-verified as an interim step is fine, but the
+mandate is to **press through to mobile-green on signet**.
+
+**What is real vs operator-asserted (per #95).** Real, cryptographically checked by the light client: the
+anchor tx, its Merkle inclusion in the block, and checkpoint-forward header authenticity (validated from the
+audited h311445 checkpoint). Operator-asserted: the batch's **data-availability** — the mode is literally named
+`fixture-file`. That is exactly what signet is until `GA-SIGNET-SOLUTION` (slice 9); **G-B** closes it with real
+DA.
+
+**Consequences ([G_C_MINIMAL_SPEC.md](./G_C_MINIMAL_SPEC.md) §9).**
+- New slice **A′** (`scripts/generate-fixture-batch-material.mjs` generator + compose/runbook enforcement-env
+  wiring + deploy-check requirement + tests) lands between 4a (done) and 4b (stand-up); it makes 4b's walk
+  actually produce a verifiable name. Scoped small by ChatLunatique + verified against the tree by
+  ClaudeleLunatique: the generator lifts construction that already exists in
+  `packages/regtest-e2e/src/enforcement-e2e.ts:97-201`; its output contract is pinned on the consuming end by
+  the indexer's own reader (`apps/indexer/src/live/select-enforcement.ts` `decodeEncodedMaterial`); no daemon
+  logic change; `packages/consensus/src` **zero-diff**. ≪ G-B.
+- **Mobile-green requires the 6c UI/API wiring slice** — the mobile name screen still reads the old
+  `/name/...` surface (`mobile/src/screens/NameDetailScreen.tsx` → `resolver.name()`) and never fetches
+  `/names/:name/state` / header ranges / the present on-device `mobile/src/verification/bitcoin.ts` core. Under
+  this ruling 6c is **firmly in scope for "done"** (not "if timing"), sequenced after A′.
+
+**Reopen trigger.** `GA-SIGNET-SOLUTION` (slice 9) replaces fixture-file DA with real signet data-availability;
+or DK reverses to the plain-A header-serve-only first demo.
+
 ## Fairness Principles To Carry Into The Launch Rewrite
 
 The rewritten launch draft should explicitly state:
