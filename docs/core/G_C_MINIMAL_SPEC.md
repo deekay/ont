@@ -181,8 +181,9 @@ fast-follow. Consequences:
 **Preconditions.** 4a is merged (resolver serves the checkpoint-forward header range; `ont verify
 <name>` exists) and A′ is merged (the `scripts/generate-fixture-batch-material.mjs` generator + the
 indexer's opt-in `ONT_ENFORCEMENT=fixture-file`, off by default). Boot the G3 clean stack per
-[G3 runbook §3](../operate/G3_CLEAN_SLATE_VPS.md); ports as there — publisher `:4176`, indexer
-`:4174`, resolver `:4175`. This walk supersedes the G3 §4c write-smoke's **placeholder** roots with
+[G3 runbook §3](../operate/G3_CLEAN_SLATE_VPS.md); ports as there — resolver `:4174` (serves
+`/tx`, `/names/:name/state`, `/bitcoin/header-range`), web `:4175`, publisher `:4176`; the indexer
+has no published port. This walk supersedes the G3 §4c write-smoke's **placeholder** roots with
 A′'s **real** `(prevRoot, anchoredRoot)` so a name actually gets served. Honesty: DA is
 `fixture-file` = provider-trusted (#95); the anchor tx + Merkle inclusion + checkpoint-forward
 headers are the real light-client-checked part.
@@ -262,10 +263,10 @@ funding hop, `add_inputs:false`, legacy change, sign-then-`/broadcast` — is un
 ```bash
 # after the anchor mines + confirms, the indexer enforces the batch and writes name-state:
 curl -fsS "http://127.0.0.1:4174/tx/$ANCHOR_TXID"       # ingested
-curl -fsS "http://127.0.0.1:4175/names/<name>/state"    # resolver now serves the proof bundle (404 = not enforced yet)
+curl -fsS "http://127.0.0.1:4174/names/<name>/state"    # resolver now serves the proof bundle (404 = not enforced yet)
 
 # CLI verify against the LIVE resolver-served header range:
-ONT_BITCOIN_HEADER_SOURCE=resolver:http://127.0.0.1:4175 ont verify <name>   # → Bitcoin-verified (provider-trusted, #95)
+ONT_BITCOIN_HEADER_SOURCE=resolver:http://127.0.0.1:4174 ont verify <name>   # → Bitcoin-verified (provider-trusted, #95)
 ```
 
 Then repeat against **web** (the async live-name seam, 4a step 6) and — after the 6c wiring slice —
