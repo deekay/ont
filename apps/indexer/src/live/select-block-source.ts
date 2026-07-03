@@ -16,11 +16,28 @@ import { createEmptyIndexerBlockSource, type IndexerBlockSource } from "../runne
 import { createLiveIndexerBlockSource } from "./block-source.js";
 import { createNodeBlockSourceDeps } from "./node-block-source.js";
 import { createNodeBlockReadPort } from "./node-block-read-port.js";
+import type { HeaderRecord } from "@ont/header-store";
+
+export interface IndexerHeaderSource {
+  headerAtHeight(height: number): Promise<HeaderRecord>;
+}
+
+export interface SelectedIndexerBlockSource {
+  readonly blockSource: IndexerBlockSource;
+  readonly headerSource?: IndexerHeaderSource;
+}
 
 export async function selectIndexerBlockSource(
   env: Record<string, string | undefined>,
   assertChain?: ChainAssert,
 ): Promise<IndexerBlockSource> {
+  return (await selectIndexerBlockSourceWithHeaders(env, assertChain)).blockSource;
+}
+
+export async function selectIndexerBlockSourceWithHeaders(
+  env: Record<string, string | undefined>,
+  assertChain?: ChainAssert,
+): Promise<SelectedIndexerBlockSource> {
   // async so a synchronous resolveNodeRuntime throw (e.g. missing ONT_RPC_URL) surfaces as a
   // rejected promise, not a thrown call — callers always await a single failure channel.
   const { source, chain, rpc } = resolveNodeRuntime(env);
@@ -28,10 +45,18 @@ export async function selectIndexerBlockSource(
     source,
     chain,
     rpc,
-    memory: () => createEmptyIndexerBlockSource(),
+    memory: () => ({ blockSource: createEmptyIndexerBlockSource() }),
     // LAZY: the node read port / RPC objects are only constructed AFTER selectLivePort's
     // chain gate passes (node mode) — never in memory mode, never before the gate.
-    live: () => createLiveIndexerBlockSource(createNodeBlockSourceDeps(createNodeBlockReadPort(rpc))),
+    live: () => {
+      const deps = createNodeBlockSourceDeps(createNodeBlockReadPort(rpc));
+      return {
+        blockSource: createLiveIndexerBlockSource(deps),
+        headerSource: {
+          headerAtHeight: async (height: number) => ({ height, headerHex: await deps.headerAtHeight(height) }),
+        },
+      };
+    },
     ...(assertChain === undefined ? {} : { assertChain }),
   });
 }

@@ -76,6 +76,11 @@ export interface FetchSignetLaunchHeaderSourceInput extends SignetLaunchHeaderRa
   readonly provider: HeaderRangeProvider;
 }
 
+export interface ResolverHeaderRangeProviderOptions {
+  readonly resolverUrl: string;
+  readonly fetchImpl?: typeof fetch | undefined;
+}
+
 export function isBitcoinHeaderSource(value: unknown): value is BitcoinHeaderSource {
   return value !== null && typeof value === "object" && typeof (value as { readonly headerHexAtHeight?: unknown }).headerHexAtHeight === "function";
 }
@@ -110,6 +115,11 @@ export function signetLaunchHeaderRange(input: SignetLaunchHeaderRangeInput): Si
   }
 }
 
+export function proofBundleMaxAnchorHeight(bundle: unknown): number | null {
+  const anchorHeights = proofBundleAnchorHeights(bundle);
+  return anchorHeights.length === 0 ? null : Math.max(...anchorHeights);
+}
+
 export function buildSignetLaunchHeaderSourceFromHeaders(input: BuildSignetLaunchHeaderSourceInput): CanonicalHeaderResult {
   const range = signetLaunchHeaderRange(input);
   if (!range.ok) return range;
@@ -132,6 +142,27 @@ export async function fetchSignetLaunchHeaderSource(input: FetchSignetLaunchHead
     checkpoint: SIGNET_BITCOIN_DIFFICULTY_CHECKPOINT,
     params: SIGNET_BITCOIN_NETWORK_PARAMS,
   });
+}
+
+export function createResolverHeaderRangeProvider(input: ResolverHeaderRangeProviderOptions): HeaderRangeProvider {
+  const baseUrl = input.resolverUrl.replace(/\/+$/, "");
+  const fetchImpl = input.fetchImpl ?? fetch;
+  return {
+    async fetchHeaderHex(startHeight: number, count: number): Promise<readonly string[] | null> {
+      try {
+        const res = await fetchImpl(`${baseUrl}/bitcoin/header-range?startHeight=${startHeight}&count=${count}`);
+        if (res.status !== 200) return null;
+        const body: unknown = await res.json();
+        if (!isRecord(body)) return null;
+        if (body.startHeight !== startHeight) return null;
+        if (!Array.isArray(body.headersHex) || body.headersHex.length !== count) return null;
+        if (!body.headersHex.every((header): header is string => typeof header === "string")) return null;
+        return body.headersHex;
+      } catch {
+        return null;
+      }
+    },
+  };
 }
 
 /** Surfaces the audited STRUCTURAL report VERBATIM (not Bitcoin finality); only a throw from the audited verifier -> malformed. */
@@ -171,10 +202,8 @@ export function checkProofBundleHeaderDepthCoverage(
       return { ok: false, reason: "malformed" };
     }
 
-    const anchorHeights = proofBundleAnchorHeights(input.bundle);
-    if (anchorHeights.length === 0) return { ok: false, reason: "missing-anchor-height" };
-
-    const anchorHeight = Math.max(...anchorHeights);
+    const anchorHeight = proofBundleMaxAnchorHeight(input.bundle);
+    if (anchorHeight === null) return { ok: false, reason: "missing-anchor-height" };
     const requiredHeight = anchorHeight + input.confirmationDepth;
     const header = input.headerSource.headerHexAtHeight(requiredHeight);
     if (typeof header !== "string" || header.length === 0) {

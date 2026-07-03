@@ -13,6 +13,7 @@ import {
   type IndexerTickReport,
 } from "./runner.js";
 import type { NameStateRecord, NameStateStore } from "@ont/name-state-store";
+import { createInMemoryHeaderRangeStore, type HeaderRangeStore } from "@ont/header-store";
 import type { EnforceBatchedClaimsDeps } from "./enforce-batched-claims.js";
 
 // @ont/indexer slice-3 red battery — the runnable batch-ingestion daemon. runIndexerTick is one ingest cycle
@@ -51,6 +52,14 @@ function oneShotBlockSource(candidates: readonly BuildConfirmedBatchAnchorInput[
   return { nextConfirmedAnchors: () => Promise.resolve({ candidates, cursor: { height: toHeight } }) };
 }
 
+function oneShotBlockSourceWithHeaders(
+  candidates: readonly BuildConfirmedBatchAnchorInput[],
+  toHeight: number,
+  headers: readonly { readonly height: number; readonly headerHex: string }[],
+): IndexerBlockSource {
+  return { nextConfirmedAnchors: () => Promise.resolve({ candidates, cursor: { height: toHeight }, headers }) };
+}
+
 describe("runIndexerTick", () => {
   it("pulls candidates, drives ingest, persists accepted facts, and advances + saves the cursor", async () => {
     const { store, records } = memAnchorStore();
@@ -80,6 +89,69 @@ describe("runIndexerTick", () => {
     expect(report.anchors.accepted).toEqual([]);
     expect(records.size).toBe(0);
     expect(report.cursor).toEqual({ height: 3 });
+  });
+});
+
+describe("runIndexerTick — header persistence before cursor advance", () => {
+  const H1 = "11".repeat(80);
+  const H2 = "22".repeat(80);
+
+  it("persists one header per advanced height before saving the cursor", async () => {
+    const { store } = memAnchorStore();
+    const headerStore = createInMemoryHeaderRangeStore();
+    const cursorStore = createInMemoryIndexerCursorStore(0);
+    const report = await runIndexerTick({
+      blockSource: oneShotBlockSourceWithHeaders([candidate], 2, [
+        { height: 1, headerHex: H1 },
+        { height: 2, headerHex: H2 },
+      ]),
+      cursorStore,
+      anchorStore: store,
+      headerStore,
+      confirm: okConfirm,
+    });
+
+    expect(report.cursor).toEqual({ height: 2 });
+    await expect(headerStore.getRange(1, 2)).resolves.toEqual([H1, H2]);
+    await expect(cursorStore.load()).resolves.toEqual({ height: 2 });
+  });
+
+  it("aborts before cursor save when the advancing batch carries a sparse header range", async () => {
+    const { store } = memAnchorStore();
+    const headerStore = createInMemoryHeaderRangeStore();
+    const cursorStore = createInMemoryIndexerCursorStore(0);
+
+    await expect(runIndexerTick({
+      blockSource: oneShotBlockSourceWithHeaders([candidate], 2, [{ height: 1, headerHex: H1 }]),
+      cursorStore,
+      anchorStore: store,
+      headerStore,
+      confirm: okConfirm,
+    })).rejects.toThrow(/expected 2 headers, got 1/);
+
+    await expect(cursorStore.load()).resolves.toEqual({ height: 0 });
+    await expect(headerStore.getRange(1, 1)).resolves.toBeNull();
+  });
+
+  it("aborts before cursor save when the header store persist fails", async () => {
+    const { store } = memAnchorStore();
+    const cursorStore = createInMemoryIndexerCursorStore(0);
+    const failingHeaderStore: HeaderRangeStore = {
+      has: () => Promise.resolve(false),
+      put: () => Promise.reject(new Error("persist failed")),
+      putMany: () => Promise.reject(new Error("persist failed")),
+      getRange: () => Promise.resolve(null),
+    };
+
+    await expect(runIndexerTick({
+      blockSource: oneShotBlockSourceWithHeaders([candidate], 1, [{ height: 1, headerHex: H1 }]),
+      cursorStore,
+      anchorStore: store,
+      headerStore: failingHeaderStore,
+      confirm: okConfirm,
+    })).rejects.toThrow(/persist failed/);
+
+    await expect(cursorStore.load()).resolves.toEqual({ height: 0 });
   });
 });
 

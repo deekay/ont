@@ -2,7 +2,7 @@
 //
 // Pins the selector contract (CL concur, event a71ccd1e): ONT_STORE unset/`memory` → hermetic in-memory pair,
 // NEVER consulting ONT_STORE_DIR (a stale file-mode env can't perturb a memory run); `file` requires
-// ONT_STORE_DIR and persists both stores durably under it (a fresh selector over the same dir reloads them);
+// ONT_STORE_DIR and persists cursor/anchor/header stores durably under it (a fresh selector reloads them);
 // `file` without ONT_STORE_DIR and any unknown value (incl. empty string / case variants) fail closed.
 // Negative assertions match the impl's specific reason strings so the not-implemented stub stays red.
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
@@ -28,6 +28,7 @@ const ANCHOR_TXID = (() => {
   return t;
 })();
 const ANCHORED_ROOT = "7a".repeat(32);
+const HEADER = "11".repeat(80);
 const record: ConfirmedAnchorRecord = {
   confirmedAnchor: { anchorTxid: ANCHOR_TXID, minedHeight: 101, anchoredRoot: ANCHORED_ROOT, batchSize: 5 },
   feeTxParts: { anchorTx, prevoutTxs: [] },
@@ -43,26 +44,30 @@ describe("selectIndexerStores", () => {
   });
 
   it("ONT_STORE unset → in-memory stores (genesis cursor + empty anchors), no dir needed", async () => {
-    const { cursorStore, anchorStore } = selectIndexerStores({});
+    const { cursorStore, anchorStore, headerStore } = selectIndexerStores({});
     await expect(cursorStore.load()).resolves.toEqual({ height: 0 });
     await expect(anchorStore.has(ANCHORED_ROOT)).resolves.toBe(false);
+    await expect(headerStore.getRange(311_446, 1)).resolves.toBeNull();
   });
 
   it("ONT_STORE=memory never consults ONT_STORE_DIR (no file touched)", async () => {
-    const { cursorStore, anchorStore } = selectIndexerStores({ ONT_STORE: "memory", ONT_STORE_DIR: dir });
+    const { cursorStore, anchorStore, headerStore } = selectIndexerStores({ ONT_STORE: "memory", ONT_STORE_DIR: dir });
     await cursorStore.save({ height: 9 });
     await anchorStore.put(record);
+    await headerStore.put({ height: 311_446, headerHex: HEADER });
     await expect(readdir(dir)).resolves.toEqual([]); // memory mode wrote nothing to the dir
   });
 
-  it("ONT_STORE=file persists both stores durably under ONT_STORE_DIR", async () => {
+  it("ONT_STORE=file persists cursor, anchor, and header stores durably under ONT_STORE_DIR", async () => {
     const a = selectIndexerStores({ ONT_STORE: "file", ONT_STORE_DIR: dir });
     await a.cursorStore.save({ height: 7 });
     await a.anchorStore.put(record);
-    // a fresh selector over the same dir reloads both indexes
+    await a.headerStore.put({ height: 311_446, headerHex: HEADER });
+    // a fresh selector over the same dir reloads all indexes
     const b = selectIndexerStores({ ONT_STORE: "file", ONT_STORE_DIR: dir });
     await expect(b.cursorStore.load()).resolves.toEqual({ height: 7 });
     await expect(b.anchorStore.getByTxid(ANCHOR_TXID)).resolves.toEqual(record);
+    await expect(b.headerStore.getRange(311_446, 1)).resolves.toEqual([HEADER]);
   });
 
   it("ONT_STORE=file with a missing OR empty ONT_STORE_DIR fails closed (no relative cwd files)", () => {

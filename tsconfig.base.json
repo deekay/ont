@@ -35,6 +35,7 @@
       "@ont/core/experimental-auction": ["packages/core/src/experimental-auction.ts"],
       "@ont/db": ["packages/db/src/index.ts"],
       "@ont/evidence": ["packages/evidence/src/index.ts"],
+      "@ont/header-store": ["packages/header-store/src/index.ts"],
       "@ont/launch-config": ["packages/launch-config/src/index.ts"],
       "@ont/light-client": ["packages/light-client/src/index.ts"],
       "@ont/name-state-store": ["packages/name-state-store/src/index.ts"],

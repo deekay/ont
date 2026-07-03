@@ -62,6 +62,23 @@ describe("createNodeBlockSourceDeps (G1 3b-4)", () => {
     expect(await deps.getTipHeight()).toBe(7);
   });
 
+  it("headerAtHeight reads the block hash for the height and returns the raw 80-byte header", async () => {
+    const header = "cd".repeat(80);
+    const seenHashes: string[] = [];
+    const deps = createNodeBlockSourceDeps(
+      port({
+        getBlock: async (height) => ({ hash: `hash-${height}`, height, transactions: [] }) as BitcoinBlock,
+        getBlockHeaderHex: async (hash) => {
+          seenHashes.push(hash);
+          return header;
+        },
+      }),
+    );
+
+    expect(await deps.headerAtHeight(42)).toBe(header);
+    expect(seenHashes).toEqual(["hash-42"]);
+  });
+
   it("prefilters RootAnchor from dataHex and fetches a raw body ONLY for matched anchors", async () => {
     const a = anchorTx();
     const aTxid = legacyTxidOf(a)!;

@@ -7,6 +7,8 @@ import {
   buildSignetLaunchHeaderSourceFromHeaders,
   checkProofBundleHeaderDepthCoverage,
   fetchSignetLaunchHeaderSource,
+  createResolverHeaderRangeProvider,
+  proofBundleMaxAnchorHeight,
   runInspectProofBundle,
   runVerifyProofBundleAgainstBitcoin,
   signetLaunchHeaderRange,
@@ -91,6 +93,12 @@ describe("checkProofBundleHeaderDepthCoverage", () => {
       requiredHeight: 176,
     });
   });
+
+  it("surfaces the max proof-bundle anchor height for live range derivation", async () => {
+    const bundle = await loadSignetAnchoredBundle();
+    expect(proofBundleMaxAnchorHeight(bundle)).toBe(311_446);
+    expect(proofBundleMaxAnchorHeight({ proofSource: "accumulator_batch_claim" })).toBeNull();
+  });
 });
 
 describe("signet launch header source", () => {
@@ -147,6 +155,46 @@ describe("signet launch header source", () => {
 
     expect(source.ok).toBe(true);
     if (source.ok) expect(source.headerSource.headerHexAtHeight(fixture.requiredHeight)).toBe(fixture.headers.at(-1)?.headerHex);
+  });
+
+  it("HTTP resolver provider fetches the exact startHeight/count and validates the echoed range", async () => {
+    const fixture = await loadSignetHeaderRange();
+    const headersHex = fixture.headers.map((header) => header.headerHex);
+    const calls: string[] = [];
+    const provider = createResolverHeaderRangeProvider({
+      resolverUrl: "http://resolver.test/",
+      fetchImpl: async (url) => {
+        calls.push(String(url));
+        return new Response(JSON.stringify({ startHeight: 311_446, headersHex }), { status: 200 });
+      },
+    });
+
+    const result = await fetchSignetLaunchHeaderSource({ anchorHeight: fixture.anchorHeight, provider });
+
+    expect(calls).toEqual(["http://resolver.test/bitcoin/header-range?startHeight=311446&count=7"]);
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.headerSource.headerHexAtHeight(fixture.requiredHeight)).toBe(fixture.headers.at(-1)?.headerHex);
+  });
+
+  it("HTTP resolver provider maps malformed, mismatched, and unavailable responses to null", async () => {
+    const cases: Array<readonly [string, Response | Error]> = [
+      ["non-200", new Response(JSON.stringify({ ok: false }), { status: 404 })],
+      ["bad-json", new Response("{", { status: 200 })],
+      ["start-mismatch", new Response(JSON.stringify({ startHeight: 1, headersHex: ["aa"] }), { status: 200 })],
+      ["short", new Response(JSON.stringify({ startHeight: 311_446, headersHex: [] }), { status: 200 })],
+      ["throw", new Error("network down")],
+    ];
+
+    for (const [, response] of cases) {
+      const provider = createResolverHeaderRangeProvider({
+        resolverUrl: "http://resolver.test",
+        fetchImpl: async () => {
+          if (response instanceof Error) throw response;
+          return response;
+        },
+      });
+      await expect(provider.fetchHeaderHex(311_446, 1)).resolves.toBeNull();
+    }
   });
 
   it("fails closed for forged child, short tail, and wrong-network ranges", async () => {

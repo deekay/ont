@@ -12,7 +12,12 @@ import {
 } from "@ont/protocol";
 import type { OwnershipInterval, ProjectServedRecoveryHistoryInput, ProjectServedValueHistoryInput } from "@ont/adapter-resolver";
 import type { NameStateProofBundle, NameStateRecord } from "@ont/name-state-store";
-import { handleResolverRequest, type NameStateViewSource, type ResolverStore } from "./server.js";
+import {
+  handleResolverRequest,
+  type HeaderRangeViewSource,
+  type NameStateViewSource,
+  type ResolverStore,
+} from "./server.js";
 
 // Clean runnable resolver red battery. The resolver app is an imperative HTTP shell around @ont/adapter-resolver:
 // it reads/writes only through a mocked store port, delegates projection and submission guards to the adapter,
@@ -234,6 +239,79 @@ describe("resolver service — HTTP shell totality", () => {
     });
     expect(throwing.status).toBe(503);
     expect(await throwing.json()).toMatchObject({ ok: false, reason: "store-unavailable" });
+  });
+});
+
+describe("resolver service — GET /bitcoin/header-range", () => {
+  const emptyStore = {} as ResolverStore;
+  const H1 = "11".repeat(80);
+  const H2 = "22".repeat(80);
+  const request = (path: string, headerRangeView?: HeaderRangeViewSource): Promise<Response> =>
+    handleResolverRequest(new Request(`http://resolver.test${path}`), { store: emptyStore, headerRangeView });
+
+  it("returns exactly the requested startHeight and headersHex array", async () => {
+    const calls: Array<readonly [number, number]> = [];
+    const headerRangeView: HeaderRangeViewSource = async (startHeight, count) => {
+      calls.push([startHeight, count]);
+      return [H1, H2];
+    };
+
+    const res = await request("/bitcoin/header-range?startHeight=311446&count=2", headerRangeView);
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ startHeight: 311_446, headersHex: [H1, H2] });
+    expect(calls).toEqual([[311_446, 2]]);
+  });
+
+  it("missing source or any gap returns unavailable and never a partial body", async () => {
+    const absent = await request("/bitcoin/header-range?startHeight=311446&count=2");
+    expect(absent.status).toBe(404);
+    expect(await absent.json()).toEqual({ ok: false, reason: "unavailable" });
+
+    const gap = await request("/bitcoin/header-range?startHeight=311446&count=2", async () => null);
+    expect(gap.status).toBe(404);
+    expect(await gap.json()).toEqual({ ok: false, reason: "unavailable" });
+
+    const short = await request("/bitcoin/header-range?startHeight=311446&count=2", async () => [H1]);
+    expect(short.status).toBe(404);
+    expect(await short.json()).toEqual({ ok: false, reason: "unavailable" });
+  });
+
+  it("rejects malformed query params before consulting the source", async () => {
+    let called = false;
+    const headerRangeView: HeaderRangeViewSource = async () => {
+      called = true;
+      return [H1];
+    };
+    for (const path of [
+      "/bitcoin/header-range",
+      "/bitcoin/header-range?startHeight=&count=1",
+      "/bitcoin/header-range?startHeight=-1&count=1",
+      "/bitcoin/header-range?startHeight=1.5&count=1",
+      "/bitcoin/header-range?startHeight=1&count=0",
+      "/bitcoin/header-range?startHeight=1&count=2.5",
+    ]) {
+      const res = await request(path, headerRangeView);
+      expect(res.status).toBe(400);
+      expect(await res.json()).toEqual({ ok: false, reason: "bad-header-range-query" });
+    }
+    expect(called).toBe(false);
+  });
+
+  it("a throwing header source returns store-unavailable", async () => {
+    const res = await request("/bitcoin/header-range?startHeight=1&count=1", async () => {
+      throw new Error("boom");
+    });
+    expect(res.status).toBe(503);
+    expect(await res.json()).toEqual({ ok: false, reason: "store-unavailable" });
+  });
+
+  it("POST /bitcoin/header-range is read-only", async () => {
+    const res = await handleResolverRequest(
+      new Request("http://resolver.test/bitcoin/header-range?startHeight=1&count=1", { method: "POST" }),
+      { store: emptyStore },
+    );
+    expect(res.status).toBe(405);
   });
 });
 

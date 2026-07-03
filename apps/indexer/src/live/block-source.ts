@@ -16,10 +16,13 @@
 //   RPC primitives are injected. TESTS: ./block-source.test.ts (red battery).
 import type { BuildConfirmedBatchAnchorInput } from "@ont/adapter-indexer";
 import type { ConfirmedAnchorBatch, IndexerBlockSource, IndexerCursor } from "../runner.js";
+import type { HeaderRecord } from "@ont/header-store";
 
 export interface LiveBlockSourceDeps {
   /** Current confirmed tip height from the node (real: getBitcoinRpcBlockCount). */
   getTipHeight(): Promise<number>;
+  /** 80-byte block header at exactly `height`, for the checkpoint-forward served range. */
+  headerAtHeight?(height: number): Promise<string>;
   /** Confirmed RootAnchor candidates mined at exactly `height` (block -> candidate). */
   anchorsAtHeight(height: number): Promise<readonly BuildConfirmedBatchAnchorInput[]>;
 }
@@ -32,13 +35,15 @@ export function createLiveIndexerBlockSource(deps: LiveBlockSourceDeps): Indexer
       const tip = await deps.getTipHeight();
       // Never poll backwards; an empty/regressed tip leaves the durable cursor as-is.
       if (tip <= cursor.height) {
-        return { candidates: [], cursor };
+        return { candidates: [], cursor, headers: [] };
       }
       const candidates: BuildConfirmedBatchAnchorInput[] = [];
+      const headers: HeaderRecord[] = [];
       for (let height = cursor.height + 1; height <= tip; height += 1) {
+        if (deps.headerAtHeight !== undefined) headers.push({ height, headerHex: await deps.headerAtHeight(height) });
         candidates.push(...(await deps.anchorsAtHeight(height)));
       }
-      return { candidates, cursor: { height: tip } };
+      return { candidates, cursor: { height: tip }, headers };
     },
   };
 }

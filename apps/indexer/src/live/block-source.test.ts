@@ -34,13 +34,29 @@ describe("live indexer block source (G1)", () => {
     expect(batch.cursor).toEqual({ height: 8 });
   });
 
+  it("collects one header record per advanced height when the header seam is configured", async () => {
+    const anchorsAtHeight = vi.fn<LiveBlockSourceDeps["anchorsAtHeight"]>(async () => []);
+    const headerAtHeight = vi.fn<NonNullable<LiveBlockSourceDeps["headerAtHeight"]>>(async (h) =>
+      h.toString(16).padStart(2, "0").repeat(80),
+    );
+    const source = createLiveIndexerBlockSource({ getTipHeight: async () => 7, headerAtHeight, anchorsAtHeight });
+
+    const batch = await source.nextConfirmedAnchors({ height: 5 });
+
+    expect(headerAtHeight.mock.calls.map((c) => c[0])).toEqual([6, 7]);
+    expect(batch.headers).toEqual([
+      { height: 6, headerHex: "06".repeat(80) },
+      { height: 7, headerHex: "07".repeat(80) },
+    ]);
+  });
+
   it("returns the cursor unchanged and does not extract when the tip is not ahead (empty poll)", async () => {
     const anchorsAtHeight = vi.fn<LiveBlockSourceDeps["anchorsAtHeight"]>(async (h) => [candidateAt(h)]);
     const source = createLiveIndexerBlockSource({ getTipHeight: async () => 8, anchorsAtHeight });
 
     const batch = await source.nextConfirmedAnchors({ height: 8 });
 
-    expect(batch).toEqual({ candidates: [], cursor: { height: 8 } });
+    expect(batch).toEqual({ candidates: [], cursor: { height: 8 }, headers: [] });
     expect(anchorsAtHeight).not.toHaveBeenCalled();
   });
 
@@ -50,7 +66,7 @@ describe("live indexer block source (G1)", () => {
 
     const batch = await source.nextConfirmedAnchors({ height: 8 });
 
-    expect(batch).toEqual({ candidates: [], cursor: { height: 8 } });
+    expect(batch).toEqual({ candidates: [], cursor: { height: 8 }, headers: [] });
     expect(anchorsAtHeight).not.toHaveBeenCalled();
   });
 

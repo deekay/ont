@@ -13,7 +13,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "npm run build -w @ont/protocol && npm run build -w @ont/wire && npm run build -w @ont/bitcoin && npm run build -w @ont/consensus && npm run build -w @ont/evidence && npm run build -w @ont/claim-path && npm run build -w @ont/anchor-store && npm run build -w @ont/name-state-store && npm run build -w @ont/adapter-indexer && npm run build -w @ont/node-live && vitest run",
+    "test": "npm run build -w @ont/protocol && npm run build -w @ont/wire && npm run build -w @ont/bitcoin && npm run build -w @ont/consensus && npm run build -w @ont/evidence && npm run build -w @ont/claim-path && npm run build -w @ont/anchor-store && npm run build -w @ont/header-store && npm run build -w @ont/name-state-store && npm run build -w @ont/adapter-indexer && npm run build -w @ont/node-live && vitest run",
     "dev": "tsx src/main.ts",
     "start": "node dist/apps/indexer/src/main.js"
   },
@@ -23,6 +23,8 @@
     "@ont/claim-path": "file:../../packages/claim-path",
     "@ont/bitcoin": "file:../../packages/bitcoin",
     "@ont/evidence": "file:../../packages/evidence",
+    "@ont/header-store": "file:../../packages/header-store",
+    "@ont/launch-config": "file:../../packages/launch-config",
     "@ont/name-state-store": "file:../../packages/name-state-store",
     "@ont/node-live": "file:../../packages/node-live"
   },

@@ -3,7 +3,12 @@ import { renderLanding, route } from "./render-explorer-landing.js";
 import { renderNameView, shapeName, type BitcoinVerificationRenderOptions } from "./render-name-view.js";
 import { renderTxView, renderServedTx, shapeTxid } from "./render-tx-view.js";
 import type { WebReadPort, ServedNameStateResult } from "./web-read-port.js";
-import type { BitcoinHeaderSource } from "@ont/light-client";
+import {
+  fetchSignetLaunchHeaderSource,
+  proofBundleMaxAnchorHeight,
+  type BitcoinHeaderSource,
+  type HeaderRangeProvider,
+} from "@ont/light-client";
 import type { ResolverTxSource } from "./live/resolver-tx-source.js";
 import type { ResolverNameStateSource } from "./live/resolver-name-state-source.js";
 
@@ -17,7 +22,7 @@ export interface WebServiceOptions {
   // ResolverTxSource | undefined result is assignable under exactOptionalPropertyTypes.
   readonly txSource?: ResolverTxSource | undefined;
   readonly nameStateSource?: ResolverNameStateSource | undefined;
-  readonly bitcoinHeaderSource?: BitcoinHeaderSource | undefined;
+  readonly bitcoinHeaderProvider?: HeaderRangeProvider | undefined;
   readonly verificationCheckpointId?: string | undefined;
   readonly verificationNetwork?: string | undefined;
 }
@@ -138,11 +143,12 @@ async function liveNameResponse(name: string, options: WebServiceOptions): Promi
   }
   try {
     const served = await options.nameStateSource(name);
+    const liveHeaderSource = await liveHeaderSourceForServed(served, options.bitcoinHeaderProvider);
     return html(
       renderNameView({
         name,
         port: withNameState(options.port, served),
-        bitcoinVerification: bitcoinVerificationOptions(options),
+        bitcoinVerification: bitcoinVerificationOptions(options, liveHeaderSource),
       }),
     );
   } catch {
@@ -177,9 +183,23 @@ function withNameState(port: WebReadPort, served: ServedNameStateResult | null):
   };
 }
 
-function bitcoinVerificationOptions(options: WebServiceOptions): BitcoinVerificationRenderOptions {
+async function liveHeaderSourceForServed(
+  served: ServedNameStateResult | null,
+  provider: HeaderRangeProvider | undefined,
+): Promise<BitcoinHeaderSource | undefined> {
+  if (provider === undefined || served === null || !served.ok) return undefined;
+  const anchorHeight = proofBundleMaxAnchorHeight(served.proofBundle);
+  if (anchorHeight === null) return undefined;
+  const source = await fetchSignetLaunchHeaderSource({ anchorHeight, provider });
+  return source.ok ? source.headerSource : undefined;
+}
+
+function bitcoinVerificationOptions(
+  options: WebServiceOptions,
+  headerSource?: BitcoinHeaderSource | undefined,
+): BitcoinVerificationRenderOptions {
   return {
-    headerSource: options.bitcoinHeaderSource ?? null,
+    headerSource: headerSource ?? null,
     checkpointId: options.verificationCheckpointId,
     network: options.verificationNetwork,
   };

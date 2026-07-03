@@ -35,7 +35,9 @@ export {
   runVerifyProofBundleAgainstBitcoin,
   SIGNET_LAUNCH_HEADER_SOURCE_ID,
   buildSignetLaunchHeaderSourceFromHeaders,
+  createResolverHeaderRangeProvider,
   fetchSignetLaunchHeaderSource,
+  proofBundleMaxAnchorHeight,
   signetLaunchHeaderRange,
   type RecoveryWalletProofMessageFields,
   type VerifyRecoveryWalletProofInput,
@@ -45,6 +47,7 @@ export {
   type CanonicalHeaderResult,
   type FetchSignetLaunchHeaderSourceInput,
   type HeaderRangeProvider,
+  type ResolverHeaderRangeProviderOptions,
   type SignetLaunchHeaderRangeInput,
   type SignetLaunchHeaderRangeResult,
   type RenderMessageResult,
@@ -52,3 +55,15 @@ export {
   type InspectProofBundleResult,
   type VerifyProofBundleAgainstBitcoinResult,
 } from "./verify-commands.js";
+export {
+  ONT_BITCOIN_HEADER_SOURCE_ENV,
+  ONT_RESOLVER_URL_ENV,
+  createResolverNameProofBundleSource,
+  renderCliVerifyNameResult,
+  runOntCli,
+  selectCliVerifyResolverUrl,
+  selectCliVerifyHeaderProvider,
+  verifyNameAgainstResolver,
+  type CliVerifyNameResult,
+  type ResolverNameProofBundleSource,
+} from "./live-verify.js";

@@ -22,14 +22,14 @@ describe("selectIndexerBlockSource (G1 slice 4b entrypoint wiring)", () => {
     const src = await selectIndexerBlockSource({}, assertChain);
     expect(assertChain).not.toHaveBeenCalled();
     // The empty source yields no candidates and never advances the durable cursor.
-    expect(await src.nextConfirmedAnchors({ height: 7 })).toEqual({ candidates: [], cursor: { height: 7 } });
+    expect(await src.nextConfirmedAnchors({ height: 7 })).toEqual({ candidates: [], cursor: { height: 7 }, headers: [] });
   });
 
   it("ONT_SOURCE=memory → in-memory (empty) block source, chain gate untouched", async () => {
     const assertChain = vi.fn<ChainAssert>(async () => okChain("regtest"));
     const src = await selectIndexerBlockSource({ ONT_SOURCE: "memory" }, assertChain);
     expect(assertChain).not.toHaveBeenCalled();
-    expect(await src.nextConfirmedAnchors({ height: 0 })).toEqual({ candidates: [], cursor: { height: 0 } });
+    expect(await src.nextConfirmedAnchors({ height: 0 })).toEqual({ candidates: [], cursor: { height: 0 }, headers: [] });
   });
 
   it("node mode threads resolveNodeRuntime — missing ONT_RPC_URL fails closed BEFORE the gate", async () => {

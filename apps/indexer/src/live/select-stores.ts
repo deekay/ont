@@ -12,11 +12,17 @@ import {
   type IndexerCursorStore,
 } from "../runner.js";
 import { createFileConfirmedAnchorStore, type ConfirmedAnchorStore } from "@ont/anchor-store";
+import {
+  createFileHeaderRangeStore,
+  createInMemoryHeaderRangeStore,
+  type HeaderRangeStore,
+} from "@ont/header-store";
 import { createFileIndexerCursorStore } from "./file-cursor-store.js";
 
 export interface IndexerStores {
   readonly cursorStore: IndexerCursorStore;
   readonly anchorStore: ConfirmedAnchorStore;
+  readonly headerStore: HeaderRangeStore;
 }
 
 export function selectIndexerStores(env: Record<string, string | undefined>): IndexerStores {
@@ -27,6 +33,7 @@ export function selectIndexerStores(env: Record<string, string | undefined>): In
     return {
       cursorStore: createInMemoryIndexerCursorStore(0),
       anchorStore: createInMemoryConfirmedAnchorStore(),
+      headerStore: createInMemoryHeaderRangeStore(),
     };
   }
   if (source === "file") {
@@ -36,6 +43,7 @@ export function selectIndexerStores(env: Record<string, string | undefined>): In
     return {
       cursorStore: createFileIndexerCursorStore(join(dir, "cursor.json")),
       anchorStore: createFileConfirmedAnchorStore(join(dir, "confirmed-anchors.json")),
+      headerStore: createFileHeaderRangeStore(join(dir, "headers.json")),
     };
   }
   throw new Error(`ONT_STORE must be memory|file (got ${JSON.stringify(source)})`);

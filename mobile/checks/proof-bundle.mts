@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import {
   buildSignetLaunchHeaderSourceFromHeaders,
   checkProofBundleHeaderDepthCoverage,
+  createResolverHeaderRangeProvider,
   runVerifyProofBundleAgainstBitcoin,
 } from "@ont/light-client";
 import { LAUNCH_CONFIRMATION_DEPTH, SIGNET_LAUNCH_CHECKPOINT_ID } from "@ont/launch-config";
@@ -147,6 +148,23 @@ ok(
   if (fetched.ok) {
     ok("mobile live header-source seam returns signet metadata", fetched.network === "signet");
   }
+}
+
+{
+  const calls: string[] = [];
+  const resolverProvider = createResolverHeaderRangeProvider({
+    resolverUrl: "http://resolver.test/",
+    fetchImpl: async (url) => {
+      calls.push(String(url));
+      return new Response(JSON.stringify({ startHeight: 311_446, headersHex }), { status: 200 });
+    },
+  });
+  const fetched = await fetchMobileSignetLaunchHeaderSource({
+    anchorHeight: fixture.anchorHeight,
+    provider: resolverProvider,
+  });
+  ok("mobile resolver HTTP provider asks exact checkpoint-forward URL", calls[0] === "http://resolver.test/bitcoin/header-range?startHeight=311446&count=7");
+  ok("mobile resolver HTTP provider validates through the shared live seam", fetched.ok === true);
 }
 
 {

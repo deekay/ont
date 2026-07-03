@@ -4,6 +4,9 @@
   "private": true,
   "type": "module",
   "description": "ONT B5 surface — the `ont` CLI (clean-build). A thin operator orchestrator: consumes L1-L4 APIs and reimplements no rules; holds no keys and never signs (signing → B5-WALLET). First slice = read/query commands over an injected CliReadPort (mocked in tests; no live network). See docs/core/B5_CLI_CLASSIFICATION.md.",
+  "bin": {
+    "ont": "./dist/apps/cli/src/bin.js"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
@@ -14,6 +17,7 @@
     "@ont/protocol": "file:../../packages/protocol",
     "@ont/consensus": "file:../../packages/consensus",
     "@ont/light-client": "file:../../packages/light-client",
+    "@ont/launch-config": "file:../../packages/launch-config",
     "@ont/adapter-resolver": "file:../../packages/adapter-resolver"
   },
   "devDependencies": {

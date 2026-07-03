@@ -1,0 +1,21 @@
+{
+  "name": "@ont/header-store",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "ONT shared durable Bitcoin header range store — node-targeted file store plus strict header records. SHARED infrastructure: the indexer writes checkpoint-forward headers and the resolver reads exact contiguous ranges. No consensus/firewall logic; persistence only.",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.4"
+  }
+}

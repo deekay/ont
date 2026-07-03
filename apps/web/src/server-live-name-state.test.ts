@@ -1,6 +1,8 @@
+import { readFile } from "node:fs/promises";
 import { describe, expect, it, vi } from "vitest";
 import { handleWebRequest, type WebServiceOptions } from "./server.js";
 import type { ServedNameStateResult, WebReadPort } from "./web-read-port.js";
+import type { HeaderRangeProvider } from "@ont/light-client";
 
 const NS_OWNER = "22".repeat(32);
 const ANCHORED_ROOT = "f93b90c055208630762382e331ef07f3be22df520a7ab7e4ff54707b599839b8";
@@ -68,19 +70,52 @@ async function get(path: string, options: WebServiceOptions) {
 }
 
 describe("web server — live resolver name-state path", () => {
-  it("direct /names/:name uses nameStateSource and can render Bitcoin-verified state", async () => {
-    const nameStateSource = vi.fn(async () => served);
+  it("direct /names/:name derives the signet range from served.proofBundle and can render Bitcoin-verified state", async () => {
+    const fixture = await loadSignetHeaderRange();
+    const proofBundle = await loadSignetAnchoredBundle();
+    const signetServed: Extract<ServedNameStateResult, { readonly ok: true }> = {
+      ...served,
+      anchor: { ...served.anchor, minedHeight: fixture.anchorHeight },
+      proofBundle,
+    };
+    const calls: Array<readonly [number, number]> = [];
+    const bitcoinHeaderProvider: HeaderRangeProvider = {
+      fetchHeaderHex: async (startHeight, count) => {
+        calls.push([startHeight, count]);
+        return fixture.headers.map((header) => header.headerHex);
+      },
+    };
+    const nameStateSource = vi.fn(async () => signetServed);
     const r = await get("/names/alice", {
       port: emptyPort,
       nameStateSource,
-      bitcoinHeaderSource: { headerHexAtHeight: (height) => (height === 170 ? BLOCK_170_HEADER : height === 176 ? BLOCK_176_HEADER : null) },
-      verificationCheckpointId: "mainnet:block-169-real-range",
-      verificationNetwork: "mainnet",
+      bitcoinHeaderProvider,
     });
     expect(r.status).toBe(200);
     expect(r.text).toContain("Bitcoin-verified");
+    expect(r.text).toContain("provider-trusted");
     expect(r.text).toContain(NS_OWNER);
+    expect(calls).toEqual([[311_446, 7]]);
     expect(nameStateSource).toHaveBeenCalledWith("alice");
+  });
+
+  it("header-provider miss renders resolver-mirror, not a 502", async () => {
+    const fixture = await loadSignetHeaderRange();
+    const proofBundle = await loadSignetAnchoredBundle();
+    const signetServed: Extract<ServedNameStateResult, { readonly ok: true }> = {
+      ...served,
+      anchor: { ...served.anchor, minedHeight: fixture.anchorHeight },
+      proofBundle,
+    };
+    const nameStateSource = vi.fn(async () => signetServed);
+    const r = await get("/names/alice", {
+      port: emptyPort,
+      nameStateSource,
+      bitcoinHeaderProvider: { fetchHeaderHex: async () => null },
+    });
+    expect(r.status).toBe(200);
+    expect(r.text).toContain("not yet Bitcoin-verified");
+    expect(r.text).toContain(NS_OWNER);
   });
 
   it("/?q=<name> uses the same live name-state path when configured", async () => {
@@ -120,3 +155,18 @@ describe("web server — live resolver name-state path", () => {
     expect(nameStateSource).not.toHaveBeenCalled();
   });
 });
+
+interface SignetHeaderFixture {
+  readonly anchorHeight: number;
+  readonly headers: readonly { readonly headerHex: string }[];
+}
+
+async function loadSignetHeaderRange(): Promise<SignetHeaderFixture> {
+  const raw = await readFile(new URL("../../../fixtures/bitcoin/signet-launch-header-range-311446-311452.json", import.meta.url), "utf8");
+  return JSON.parse(raw) as SignetHeaderFixture;
+}
+
+async function loadSignetAnchoredBundle(): Promise<Extract<ServedNameStateResult, { readonly ok: true }>["proofBundle"]> {
+  const raw = await readFile(new URL("../../../fixtures/proof-bundles/signet-anchored-claim-proof.json", import.meta.url), "utf8");
+  return JSON.parse(raw) as Extract<ServedNameStateResult, { readonly ok: true }>["proofBundle"];
+}

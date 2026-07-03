@@ -32,6 +32,7 @@ export interface NodeBlockReadPort {
 
 export interface NodeBlockSourceDeps {
   getTipHeight(): Promise<number>;
+  headerAtHeight(height: number): Promise<string>;
   anchorsAtHeight(height: number): Promise<readonly BuildConfirmedBatchAnchorInput[]>;
 }
 
@@ -52,6 +53,10 @@ function txHasRootAnchor(tx: BitcoinTransaction): boolean {
 export function createNodeBlockSourceDeps(port: NodeBlockReadPort): NodeBlockSourceDeps {
   return {
     getTipHeight: () => port.getTipHeight(),
+    async headerAtHeight(height: number): Promise<string> {
+      const block = await port.getBlock(height);
+      return await port.getBlockHeaderHex(block.hash);
+    },
     async anchorsAtHeight(height: number): Promise<readonly BuildConfirmedBatchAnchorInput[]> {
       const block = await port.getBlock(height);
       const headerHex = await port.getBlockHeaderHex(block.hash);

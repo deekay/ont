@@ -47,13 +47,23 @@ export {
   type EnforceBatchedClaimsReport,
 } from "./enforce-batched-claims.js";
 // Env-selected live block source (go-live slice 4b) — published so the regtest e2e composes it.
-export { selectIndexerBlockSource } from "./live/select-block-source.js";
+export {
+  selectIndexerBlockSource,
+  selectIndexerBlockSourceWithHeaders,
+  type IndexerHeaderSource,
+  type SelectedIndexerBlockSource,
+} from "./live/select-block-source.js";
 // Env-selected durable stores (go-live G2 slice 3) — published so the restart-survival e2e (6c) drives the SAME
 // env-selected indexer path operators use. selectIndexerStores only CONSTRUCTS the stores; the cursor store stays
 // indexer-owned (ownership does not move out).
 export { selectIndexerStores, type IndexerStores } from "./live/select-stores.js";
 // Env-selected daemon runner deps (block source + stores + optional live enforcement) — published so the hermetic
 // e2e can exercise the same main.ts → runner selector path while injecting only the block-source/confirm seams.
-export { selectIndexerRunnerDeps, type SelectIndexerRunnerDepsOptions } from "./live/select-runner-deps.js";
+export {
+  backfillIndexerHeaderRange,
+  selectIndexerRunnerDeps,
+  type BackfillIndexerHeaderRangeInput,
+  type SelectIndexerRunnerDepsOptions,
+} from "./live/select-runner-deps.js";
 // The firewall input type — re-exported so the hermetic e2e can type its fake block source's candidates.
 export type { BuildConfirmedBatchAnchorInput } from "@ont/adapter-indexer";

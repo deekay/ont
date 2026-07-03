@@ -16,6 +16,7 @@ import {
   type EnforceBatchedClaimsReport,
 } from "./enforce-batched-claims.js";
 import type { BuildConfirmedBatchAnchorInput } from "@ont/adapter-indexer";
+import type { HeaderRangeStore, HeaderRecord } from "@ont/header-store";
 
 /** Where ingestion has reached (a confirmed Bitcoin height); durable across restarts. */
 export interface IndexerCursor {
@@ -26,6 +27,7 @@ export interface IndexerCursor {
 export interface ConfirmedAnchorBatch {
   readonly candidates: readonly BuildConfirmedBatchAnchorInput[];
   readonly cursor: IndexerCursor;
+  readonly headers?: readonly HeaderRecord[];
 }
 
 /** The block-source I/O seam (esplora/Bitcoin in production): assemble the next candidates after `cursor`. */
@@ -43,6 +45,7 @@ export interface IndexerRunnerDeps {
   readonly blockSource: IndexerBlockSource;
   readonly cursorStore: IndexerCursorStore;
   readonly anchorStore: ConfirmedAnchorStore;
+  readonly headerStore?: HeaderRangeStore;
   /** The slice-1 firewall seam, threaded to ingestConfirmedAnchors; omit ⇒ the real buildConfirmedBatchAnchor. */
   readonly confirm?: ConfirmAnchor;
   /** LE-INDEX (additive): live batched-claim enforcement over the same candidates; omit ⇒ RootAnchor read path only. */
@@ -63,6 +66,7 @@ export interface IndexerTickReport {
 export async function runIndexerTick(deps: IndexerRunnerDeps): Promise<IndexerTickReport> {
   const cursor = await deps.cursorStore.load();
   const batch = await deps.blockSource.nextConfirmedAnchors(cursor);
+  await persistHeadersBeforeCursorAdvance(cursor, batch, deps.headerStore);
   // deps.confirm undefined ⇒ ingestConfirmedAnchors applies its real-adapter default (default-param on undefined).
   const anchors = await ingestConfirmedAnchors(batch.candidates, deps.anchorStore, deps.confirm);
   // LE-INDEX (additive): when enforcement is configured, run live batched-claim enforcement over the SAME
@@ -105,7 +109,7 @@ export async function runIndexerLoop(deps: IndexerRunnerDeps, options: RunLoopOp
 
 /** A block-source that yields no candidates and never advances — lets the daemon start cleanly without real I/O. */
 export function createEmptyIndexerBlockSource(): IndexerBlockSource {
-  return { nextConfirmedAnchors: (cursor) => Promise.resolve({ candidates: [], cursor }) };
+  return { nextConfirmedAnchors: (cursor) => Promise.resolve({ candidates: [], cursor, headers: [] }) };
 }
 
 /** An in-memory cursor store seeded at `height` (genesis 0 by default) — clean startup; real store injectable. */
@@ -135,4 +139,18 @@ export function createInMemoryConfirmedAnchorStore(): ConfirmedAnchorStore {
     // Read-only accessor — returns the already-put record for a confirmed anchor txid, mints/mutates nothing.
     getByTxid: (anchorTxid) => Promise.resolve(byTxid.get(anchorTxid) ?? null),
   };
+}
+
+async function persistHeadersBeforeCursorAdvance(
+  cursor: IndexerCursor,
+  batch: ConfirmedAnchorBatch,
+  headerStore: HeaderRangeStore | undefined,
+): Promise<void> {
+  if (headerStore === undefined) return;
+  const headers = batch.headers ?? [];
+  const advancedBy = batch.cursor.height - cursor.height;
+  if (advancedBy > 0 && headers.length !== advancedBy) {
+    throw new Error(`header range persistence aborted: expected ${advancedBy} headers, got ${headers.length}`);
+  }
+  await headerStore.putMany(headers);
 }

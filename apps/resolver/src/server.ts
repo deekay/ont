@@ -26,6 +26,9 @@ export type AnchorTxViewSource = (txid: string) => Promise<ConfirmedAnchorTxView
  *  the indexer or the file store. Absent ⇒ /names/:name/state is not served (404). */
 export type NameStateViewSource = (name: string) => Promise<NameStateRecord | null>;
 
+/** Injected read-only Bitcoin header range source for GET /bitcoin/header-range. Absent ⇒ unavailable. */
+export type HeaderRangeViewSource = (startHeight: number, count: number) => Promise<readonly string[] | null>;
+
 export interface ResolverStore {
   valueState(name: string): Promise<ProjectServedValueHistoryInput | null>;
   recoveryState(name: string): Promise<ProjectServedRecoveryHistoryInput | null>;
@@ -43,6 +46,8 @@ export interface ResolverServiceOptions {
   readonly anchorTxView?: AnchorTxViewSource;
   /** Read-only enforced name-state source for GET /names/:name/state; absent ⇒ that route 404s. */
   readonly nameStateView?: NameStateViewSource;
+  /** Read-only checkpoint-forward Bitcoin header range source; absent ⇒ /bitcoin/header-range is unavailable. */
+  readonly headerRangeView?: HeaderRangeViewSource;
 }
 
 export function createInMemoryResolverStore(): ResolverStore {
@@ -109,6 +114,13 @@ export async function handleResolverRequest(request: Request, options: ResolverS
       return serveConfirmedTx(txid, options.anchorTxView);
     }
 
+    if (segments.length === 2 && segments[0] === "bitcoin" && segments[1] === "header-range") {
+      if (request.method !== "GET") return json({ ok: false, reason: "method-not-allowed" }, 405);
+      const query = parseHeaderRangeQuery(url);
+      if (!query.ok) return json({ ok: false, reason: query.reason }, 400);
+      return serveHeaderRange(query.startHeight, query.count, options.headerRangeView);
+    }
+
     if (segments.length === 2 && segments[0] === "submissions") {
       if (request.method !== "POST") return json({ ok: false, reason: "method-not-allowed" }, 405);
       if (segments[1] === "value-record") return submitValueRecord(request, options.store);
@@ -141,6 +153,22 @@ async function serveConfirmedTx(txid: string, anchorTxView?: AnchorTxViewSource)
   const served = confirmedAnchorTxToServedTx(view);
   if (served === null) return json({ ok: false, reason: "not-found" }, 404); // inconsistent anchor → clean 404
   return json(served, 200);
+}
+
+async function serveHeaderRange(
+  startHeight: number,
+  count: number,
+  headerRangeView?: HeaderRangeViewSource,
+): Promise<Response> {
+  if (!headerRangeView) return json({ ok: false, reason: "unavailable" }, 404);
+  let headersHex: readonly string[] | null;
+  try {
+    headersHex = await headerRangeView(startHeight, count);
+  } catch {
+    return json({ ok: false, reason: "store-unavailable" }, 503);
+  }
+  if (headersHex === null || headersHex.length !== count) return json({ ok: false, reason: "unavailable" }, 404);
+  return json({ startHeight, headersHex }, 200);
 }
 
 async function serveNameState(name: string, nameStateView?: NameStateViewSource): Promise<Response> {
@@ -228,6 +256,30 @@ function nameStateReadStatus(ok: boolean, reason: string | null): number {
   // name-unknown ⇒ no enforced state for this name (404); name-mismatch / invalid-record ⇒ a corrupt or
   // inconsistent mirror (409), matching the /names/ family's corruption→409 convention.
   return reason === "name-unknown" ? 404 : 409;
+}
+
+type HeaderRangeQueryResult =
+  | { readonly ok: true; readonly startHeight: number; readonly count: number }
+  | { readonly ok: false; readonly reason: "bad-header-range-query" };
+
+function parseHeaderRangeQuery(url: URL): HeaderRangeQueryResult {
+  const startRaw = url.searchParams.get("startHeight");
+  const countRaw = url.searchParams.get("count");
+  const startHeight = parseStrictNonNegativeInt(startRaw);
+  const count = parseStrictPositiveInt(countRaw);
+  if (startHeight === null || count === null) return { ok: false, reason: "bad-header-range-query" };
+  return { ok: true, startHeight, count };
+}
+
+function parseStrictNonNegativeInt(raw: string | null): number | null {
+  if (raw === null || !/^(0|[1-9][0-9]*)$/.test(raw)) return null;
+  const n = Number(raw);
+  return Number.isSafeInteger(n) && n >= 0 ? n : null;
+}
+
+function parseStrictPositiveInt(raw: string | null): number | null {
+  const n = parseStrictNonNegativeInt(raw);
+  return n !== null && n >= 1 ? n : null;
 }
 
 function json(body: unknown, status = 200): Response {

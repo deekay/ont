@@ -221,7 +221,12 @@ async function runTick(opts: {
     nextConfirmedAnchors: (cursor) => {
       if (yielded) return Promise.resolve({ candidates: [], cursor });
       yielded = true;
-      return Promise.resolve({ candidates: [cand], cursor: { height: cursor.height + 1 } });
+      const nextHeight = cursor.height + 1;
+      return Promise.resolve({
+        candidates: [cand],
+        cursor: { height: nextHeight },
+        headers: [{ height: nextHeight, headerHex: "00".repeat(80) }],
+      });
     },
   };
   const deps = await selectIndexerRunnerDeps(

@@ -5,7 +5,7 @@
 import { createEmptyWebReadPort, createWebHttpServer } from "./server.js";
 import { selectResolverTxSource } from "./live/select-resolver-tx-source.js";
 import { selectResolverNameStateSource } from "./live/select-resolver-name-state-source.js";
-import { selectBitcoinHeaderSource } from "./live/select-bitcoin-header-source.js";
+import { selectBitcoinHeaderProvider } from "./live/select-bitcoin-header-source.js";
 
 export {
   renderNameView,
@@ -60,8 +60,8 @@ export { selectResolverNameStateSource } from "./live/select-resolver-name-state
 export {
   ONT_WEB_BITCOIN_HEADER_SOURCE_ENV,
   SIGNET_LAUNCH_HEADER_SOURCE_ID,
-  selectBitcoinHeaderSource,
-  type BitcoinHeaderSourceRegistry,
+  selectBitcoinHeaderProvider,
+  type BitcoinHeaderProviderFactory,
 } from "./live/select-bitcoin-header-source.js";
 
 if (import.meta.url === `file://${process.argv[1]}`) {
@@ -72,7 +72,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     port: createEmptyWebReadPort(),
     txSource: selectResolverTxSource(process.env),
     nameStateSource: selectResolverNameStateSource(process.env),
-    bitcoinHeaderSource: selectBitcoinHeaderSource(process.env),
+    bitcoinHeaderProvider: selectBitcoinHeaderProvider(process.env),
   });
   server.listen(port, () => {
     console.log(`@ont/web listening on http://127.0.0.1:${port}`);
