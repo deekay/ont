@@ -70,21 +70,35 @@ graph carries **zero `node:` built-ins**.
   wired via `package.json` `exports`): the `readFileSync`-based header/tx **file loader** (`:346` region)
   and the **bitcoind-RPC client** (the `Buffer.from` basic-auth path, `:770` region). The top-level
   `import { readFileSync } from "node:fs"` moves **with them** and leaves `index.ts` entirely.
-- **Keep** in the default `@ont/bitcoin` entry: the pure `@noble`-only validators
-  (`serializeLegacyTransaction`/`parseLegacyTransaction`/`legacyTxidOf`, `bitsToTarget`/`headerMeetsTarget`,
-  `merkleRootFromProof`, `validateHeaderChain`, etc.) — **byte-identical**, no logic change.
-- **Node-only importers switch to `@ont/bitcoin/node`:** whichever of
-  `apps/{indexer,resolver,publisher,cli}` / adapters currently use the file loader or RPC client import
-  them from the new subpath. This is a mechanical, test-covered move.
+- **Keep** in the default `@ont/bitcoin` entry, and define "pure default" **tightly** (CL 2nd-frame): the
+  pure `@noble`-only validators + only the parsers/types the verify graph actually consumes —
+  `serializeLegacyTransaction`/`parseLegacyTransaction`/`legacyTxidOf`, `bitsToTarget`/`headerMeetsTarget`,
+  `merkleRootFromProof`, `validateHeaderChain`, transaction/header types (grounded: `packages/consensus/src`
+  imports exactly `headerMeetsTarget`, `merkleRootFromProof`, `legacyTxidOf`, and tx/header types — none
+  Node-only) — **byte-identical**, no logic change. **Nothing else earns the default entry:** any broad
+  block-source client or poller not on a real mobile/web verify path moves to `/node` too. `Buffer` already
+  existing in mobile for wallet deps is **not** a licence to leave a bitcoind-RPC client reachable from the
+  verify bundle.
+- **Subpath wiring is three edits, not one** (CL 2nd-frame, grounded 2026-07-03 — all sites confirmed to
+  exist): (i) add `@ont/bitcoin/node` to `packages/bitcoin/package.json` `exports` (today it exposes only
+  `"."` → `dist/index.js`); (ii) add the matching `tsconfig.base.json` path mapping; (iii) move the current
+  Node-only consumers onto the subpath — the grounded set is `apps/indexer/src/live/node-block-read-port.ts`,
+  `apps/publisher/src/live/select-broadcast.ts`, and `packages/node-live/src/{chain-gate,resolve-node-runtime}.ts`.
+  Treat that as the **starting** set, not the closed one: the true consumer set is whatever `tsc` + the
+  suites surface once the loader + RPC leave the default entry. Mechanical, test-covered move.
 - **Zero-behavior-change proof (acceptance for A1):** the pure validators are byte-identical; the full
   `@ont/bitcoin`, `@ont/consensus`, `@ont/adapter-header`, `@ont/light-client`, `@ont/cli`, `@ont/web`
   test suites stay **green unchanged**; **`packages/consensus/src` is zero-diff** (consensus imports the
   pure validators, which do not move).
-- **Bundle-graph smoke (the load-bearing new assertion):** a check that the **mobile verify import graph
-  contains no `node:` built-in** — resolve the module graph rooted at `@ont/light-client`'s verify entry
-  and assert no `node:fs` / `node:*` node. Prefer a static graph assertion (Metro `getTransformOptions` /
-  a resolver walk) so it runs in CI **without an Xcode build**; a Metro bundle of the mobile verify entry
-  succeeding is the integration-level confirmation.
+- **Bundle-graph smoke (the load-bearing new assertion — acceptance, not advice, per CL 2nd-frame):** a
+  **resolver-based, reachable-only** static graph walk rooted at the **actual mobile verify entry**, using
+  the **same Metro config / `extraNodeModules` mapping mobile will ship** and **honoring package `exports`**,
+  asserting the reachable graph contains **no `node:*` specifier** and **no `@ont/bitcoin/node` edge**. A
+  source-tree or `dist/` **grep is explicitly the wrong proof** — TS path builds leave nested copied package
+  files under `dist/` and tests legitimately contain `node:` imports, so a grep both false-positives and
+  false-negatives. The static reachability walk is the load-bearing guard; a Metro bundle of the verify
+  entry succeeding is the integration-level confirmation on top, not a substitute. Runs in CI **without an
+  Xcode build**.
 - **Rejected alternative — Metro `node:fs`/`Buffer` shims:** leaving `@ont/bitcoin` as-is and shimming
   `node:fs` to empty + polyfilling `Buffer` is **rejected as the design** — it ships a dead file loader
   and a live **bitcoind-RPC client** into the phone bundle and hides the boundary violation. It stays only
@@ -95,10 +109,13 @@ graph carries **zero `node:` built-ins**.
 `mobile/` is **not** in the npm workspace, so it cannot resolve `@ont/light-client` by workspace symlink
 the way `apps/*` do. Wire it the **standard RN-monorepo way, no reimplementation**:
 
-- **Metro resolver** (`mobile/metro.config.js`): add the repo root to `watchFolders` and map the four
-  verify-graph packages via `resolver.extraNodeModules` → their built `dist/` (or source, per the app's
-  existing transform): **`@ont/light-client`, `@ont/consensus`, `@ont/adapter-header`, `@ont/bitcoin`,
-  `@ont/launch-config`**. No `@ont/bitcoin/node`, no `@ont/adapter-*` server pieces.
+- **Metro resolver** (`mobile/metro.config.js`): add the repo root to `watchFolders` and map the
+  verify-graph packages via `resolver.extraNodeModules` — **map package roots and honor each package's
+  `exports`**, not raw `dist/` paths (CL 2nd-frame: exports resolve to nested paths like
+  `dist/light-client/src/index.js`, so a raw-`dist/` mapping is ambiguous and can diverge from what the
+  CLI/web resolver sees). The packages: **`@ont/light-client`, `@ont/consensus`, `@ont/adapter-header`,
+  `@ont/bitcoin`, `@ont/launch-config`**. No `@ont/bitcoin/node`, no `@ont/adapter-*` server pieces. The A1
+  graph smoke must walk **this same mapping** so the guard proves the graph mobile actually ships.
 - **The audited core is imported, never copied.** SOFTWARE_CANON L5: surfaces consume L1–L4, they never
   reimplement rules. Mobile calls the **same** `runVerifyProofBundleAgainstBitcoin` +
   `checkProofBundleHeaderDepthCoverage` symbols as CLI/web. Any hand-rolled verify in the current
@@ -197,10 +214,14 @@ This slice is scoped to the **gate + conformance core**, not an app rewrite:
 ## 9. §G — Acceptance + review loop
 
 Slice done when: `@ont/bitcoin` exposes an RN-safe pure default entry with the Node-only code behind
-`@ont/bitcoin/node` (all suites green unchanged, `packages/consensus/src` zero-diff); `mobile/` consumes
+`@ont/bitcoin/node` (all suites green unchanged, `packages/consensus/src` zero-diff — if this slice touches
+`packages/consensus/src`, treat it as suspect and stop); the subpath is wired in **all three places**
+(`package.json` `exports`, `tsconfig.base.json` path, every Node-only consumer moved); `mobile/` consumes
 `@ont/light-client` via Metro with **no reimplemented verifier and no `node:` built-in in the verify
-bundle**; the `mobile/checks/` battery + in-app smoke are green with every fail-closed case above; the
-live header-source seam is present and env-selected (fixture default); and all standing gates pass. Loop:
+bundle**, the latter **proven by a resolver-based, reachable-only graph walk over the shipping Metro
+mapping — not a source/`dist` grep** (CL 2nd-frame acceptance requirement); the `mobile/checks/` battery +
+in-app smoke are green with every fail-closed case above; the live header-source seam is present and
+env-selected (fixture default); and all standing gates pass. Loop:
 **codex builds → I review against this spec (fresh frame) → I merge/push (standing authority) →
 ChatLunatique second-frames in parallel (must flag `bitcoin-rn-safe-entry` before canon).** DK is looped
 only for the §F demo-scope timing call (6c) — no new operator action for 6a/6b.
