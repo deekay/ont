@@ -1,7 +1,7 @@
 # GA-CLIENT-WEB — slice spec (G-A slice 5)
 
-> **Status: BUILD SPEC. Writer: ClaudeleLunatique. Reviewer: ChatLunatique (concur requested —
-> flag the new-package call before canon). Merge authority: standing (DK, event 70fce3fe).
+> **Status: BUILD SPEC. Writer: ClaudeleLunatique. Reviewer: ChatLunatique (concur GREEN 2026-07-03 —
+> new-package call `light-client-core-home` ratified). Merge authority: standing (DK, event 70fce3fe).
 > Builder: codex.** Companion to [G_TRACK_BUILD_SPINE.md](./G_TRACK_BUILD_SPINE.md) §2.1 slice 5;
 > derives entirely from that spine's already-ratified design calls §3(c)/(d)/(e) and boundary
 > guards §4 — it adds **no new design law**, it pins the concrete file boundary for the web slice.
@@ -36,7 +36,7 @@ explorer," never "you verified." Per `signet-solution-gate` (#95) the signet hea
 ## 3. §A — Shared verify-core lift → new `@ont/light-client` package
 
 **Decision `light-client-core-home`** (implements ratified spine §3(e) "one shared verify core, never
-a parallel implementation"; ChatLunatique concur requested on the new-package call): the verify core
+a parallel implementation"; ChatLunatique concur GREEN 2026-07-03, ratified): the verify core
 currently lives in `apps/cli/src/verify-commands.ts` — an **app**, which the web (`@ont/web`) cannot
 import. Lift the proof-bundle light-client cores into a **new `@ont/light-client` package** so cli,
 web, and (slice 6) mobile share one implementation.
@@ -56,10 +56,19 @@ web, and (slice 6) mobile share one implementation.
   That is the acceptance for §A — the lift is a pure refactor.
 - **Boundary:** `@ont/light-client` depends on `@ont/consensus` (for `verifyProofBundleAgainstBitcoin`,
   `verifyProofBundleStructure`, `BitcoinHeaderSource`, report types) — it is a **thin orchestrator over
-  the audited boundary, outside the audited manifest.** `packages/consensus/src` **zero-diff**; the
-  audit-map ratchet (#94 A3) stays green with `@ont/light-client` registered as a non-consensus surface.
-  Register the package in the surfaces map so `npm run check:surfaces` passes. Package layout follows the
-  `@ont/launch-config` template (single `src/index.ts` re-export is fine).
+  the audited boundary, outside the audited manifest.** `packages/consensus/src` **zero-diff**.
+  Package layout follows the `@ont/launch-config` template (single `src/index.ts` re-export is fine).
+- **Gate wiring — no surface/manifest registration (read literally):**
+  - `check:audit-map` (`gen-audit-map.mjs --check`) scans **only** `packages/consensus/src/trust-surface.test.ts`
+    → `AUDIT_SURFACE_MAP.md`. A new **non-consensus** package needs **no** audit-map entry; the ratchet (#94 A3)
+    stays green automatically because `packages/consensus/src` is zero-diff. Do **not** add `@ont/light-client`
+    to any manifest.
+  - `check:surfaces` (`check-surface-boundaries.mjs`) scans an **explicit app-surface ALLOWLIST**
+    (`apps/{claim,cli,wallet,web,resolver,indexer,publisher}`) — packages are **not** surfaces. Do **not** add
+    `packages/light-client` to that `ALLOWLIST`. The gate stays green because the consuming apps import the
+    **bare `@ont/light-client` published entrypoint** (allowed), not because the package is scanned. "Register
+    the package" here means **normal workspace wiring only**: new package dir + `package.json`, root
+    `tsconfig.base.json` path, package deps / `package-lock.json`, and the consuming apps' package deps.
 - The mandatory-header-source-at-the-boundary invariant travels **with the core** (the core itself
   returns the distinct `missing-header-source`, never `ok:true`, when the source is absent — consensus
   leaves it optional for Merkle/PoW-only). Keep the in-code comment that pins this. This is OPEN(a) core
