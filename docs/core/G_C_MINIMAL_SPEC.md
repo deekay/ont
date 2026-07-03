@@ -1,7 +1,8 @@
 # G-C-MINIMAL — first live signet loop: resolver-served header range + CLI verify
 
-> **Status: BUILD SPEC (slice 4 of [G_TRACK_BUILD_SPINE.md](./G_TRACK_BUILD_SPINE.md) §2.1).
-> Writer: ClaudeleLunatique. Reviewer: ChatLunatique (concur requested, non-blocking).
+> **Status: BUILD SPEC (slice 4 of [G_TRACK_BUILD_SPINE.md](./G_TRACK_BUILD_SPINE.md) §2.1) —
+> ChatLunatique concurred + 4 seam patches folded (event `36bbf371`, §8).
+> Writer: ClaudeleLunatique. Reviewer: ChatLunatique.
 > Merge authority: standing (DK, event 70fce3fe, 2026-07-02).** Dispatched on DK's "go ahead"
 > (event `e0ebf10b`, 2026-07-03). This is the bridge from *hermetic fixture verify* to a
 > **live resolver-served header source**: the first milestone where a client re-derives
@@ -55,9 +56,10 @@ the resolver:
 signet bitcoind ──RPC──▶ indexer (node-block-source) ──persist──▶ header-range store (ONT_STORE)
                                                                           │
                                                                     resolver serves
-                                                            GET /bitcoin/header-range?anchorHeight=H
+                                                            GET /bitcoin/header-range?startHeight=S&count=N
                                                                           │
                           @ont/light-client HTTP HeaderRangeProvider ◀────┘
+                          (client derives (S,N) from anchorHeight via signetLaunchHeaderRange)
                                           │
               fetchSignetLaunchHeaderSource({ provider, anchorHeight })
                                           │
@@ -86,29 +88,55 @@ env-selected — same discipline as G1/G2 and live-enforcement (spine §0).
 2. **Indexer persist + backfill.** The indexer writes each ingested header to the store, and on
    boot backfills checkpoint+1 → current start height from bitcoind (`getblockhash` +
    `getBlockHeaderHex`). Reuse the existing node-block-source read port; add `getBlockHashAtHeight`
-   only if absent. Idempotent; restart-safe.
-3. **Resolver serve endpoint.** `GET /bitcoin/header-range?anchorHeight=<int>` → returns the
-   contiguous range `[checkpoint.height+1 .. anchorHeight + LAUNCH_CONFIRMATION_DEPTH]` as
-   `{ startHeight, headersHex: string[] }`, read from the store via a `selectResolver*View`-style
-   selector (`ONT_STORE` unset/"memory" → 404/unavailable, exactly like the anchor-tx view).
-   **Fail closed:** any missing height in the range → 4xx `unavailable`, never a truncated body.
-   No fork-selection / tip-currentness here — the client owns the freshness gate (§4).
+   only if absent. Idempotent; restart-safe. **Persist-before-advance invariant:** a header-store
+   persist/backfill failure MUST abort **before** the ingest cursor advances (the runner already
+   saves cursor last — keep that ordering), so a missing header can never be stranded behind an
+   advanced cursor and reappear as a permanent gap in the served range. Hermetic test: inject a
+   store persist failure and assert the cursor did **not** advance.
+3. **Resolver serve endpoint.** `GET /bitcoin/header-range?startHeight=<int>&count=<int>` → returns
+   exactly the requested contiguous range as `{ startHeight, headersHex: string[] }` (length
+   `count`, `headersHex[i]` = header at `startHeight + i`), read from the store via a
+   `selectResolver*View`-style selector (`ONT_STORE` unset/"memory" → 404/unavailable, exactly like
+   the anchor-tx view). The resolver is a **dumb range server** — it does not derive the range from
+   an anchor height; the light-client owns that derivation (`signetLaunchHeaderRange`, patch below),
+   which keeps the endpoint a 1:1 match for the `fetchHeaderHex(startHeight, count)` port.
+   **Fail closed:** any missing height in `[startHeight, startHeight+count)` → 4xx `unavailable`,
+   never a truncated/partial body. No fork-selection / tip-currentness here — the client owns the
+   freshness gate (§4).
 4. **HTTP `HeaderRangeProvider` client.** In `@ont/light-client` (or a `/live` subpath), an
-   implementation of the existing `HeaderRangeProvider` port that `fetchSignetLaunchHeaderSource`
-   already consumes (`packages/light-client/src/index.ts:125-135`). It GETs the resolver endpoint
-   and returns headers by height. Hermetic test against a fake HTTP server; malformed/short/500
-   responses surface as a fetch failure that the caller maps to `resolver-mirror`.
-5. **CLI wiring.** `apps/cli/src/verify-commands.ts`: an env-selected live provider
-   (`ONT_BITCOIN_HEADER_SOURCE=resolver:<url>`) so `ont verify <name>` fetches the range from the
-   resolver, runs the full verify, and prints Bitcoin-verified only on `ok:true` **and** depth
-   coverage. Keep the existing missing-header-source / unverified / malformed exits (slice 3
+   implementation of the existing `HeaderRangeProvider` port —
+   `fetchHeaderHex(startHeight: number, count: number): Promise<readonly string[] | null>`
+   (`packages/adapter-header/src/canonical-header-source.ts:17-19`) — that
+   `fetchSignetLaunchHeaderSource` already consumes via `fetchCanonicalHeaderSource`
+   (`packages/light-client/src/index.ts:125-135`). It GETs
+   `?startHeight=<startHeight>&count=<count>` with the **exact** `(startHeight, count)` the port was
+   called with (no `anchorHeight` on the wire — the anchor→range derivation stays in
+   `signetLaunchHeaderRange`), is **signet-bound** by construction, and validates the returned
+   `{ startHeight, headersHex }` **exactly** against the requested `(startHeight, count)`
+   (`startHeight` echoes, `headersHex.length === count`); any mismatch → `null` (mapped to
+   `header-provider-unavailable` by `fetchCanonicalHeaderSource`). Hermetic test against a fake HTTP
+   server; malformed/short/mismatched/500 responses surface as a fetch failure → `resolver-mirror`.
+5. **CLI wiring + `ont verify <name>` wrapper.** `@ont/cli` today exports verify *cores*, not a
+   parsed `ont verify <name>` executable. 4a **adds that executable command**: parse the name arg →
+   fetch its proof bundle from the resolver → select the env-configured live provider
+   (`ONT_BITCOIN_HEADER_SOURCE=resolver:<url>`) → run the shared verify core
+   (`apps/cli/src/verify-commands.ts`) → print Bitcoin-verified only on `ok:true` **and** depth
+   coverage. This is the command 4b's operator walk (§6) drives, so the wrapper is in-scope here,
+   not assumed. Keep the existing missing-header-source / unverified / malformed exits (slice 3
    contract) intact; the block-170 unit fixtures stay for unit tests.
-6. **Web wiring** (rides here since mobile+web ship with first signet, §5). Replace web's empty
-   `BUILT_IN_HEADER_SOURCES` / block-170 stub with a real registry entry for the resolver-served
-   source, env-selected via `ONT_WEB_BITCOIN_HEADER_SOURCE`
-   (`apps/web/src/live/select-bitcoin-header-source.ts`). This satisfies the **coverage-source
-   honesty** criterion (spine §4) *by construction*: a real validated range replaces the
-   170/176 stub. Web server seam unchanged (`apps/web/src/server.ts:182`).
+6. **Web wiring** (rides here since mobile+web ship with first signet, §5). The web header source is
+   **async and per-request**: `selectBitcoinHeaderSource` returns a *synchronous* `BitcoinHeaderSource`
+   from a static registry (`apps/web/src/live/select-bitcoin-header-source.ts:9`), which structurally
+   **cannot** fetch/validate `/bitcoin/header-range` — the anchor height is only known once the live
+   name path has `served.proofBundle`. So 4a adds an **async web seam in the live name path**: after
+   `liveNameResponse` receives the served proof bundle, derive the anchor height from it, fetch +
+   forward-validate the resolver range through the shared `@ont/light-client` provider (same
+   `fetchSignetLaunchHeaderSource`), then render. A fetch/validation miss still renders
+   **resolver-mirror** (ownership shown, not Bitcoin-verified); **only a broken name-state read stays
+   a 502**. This replaces the empty `BUILT_IN_HEADER_SOURCES` / block-170 stub and satisfies the
+   **coverage-source honesty** criterion (spine §4) *by construction* — a real validated range, not a
+   170/176 fixture. (Env-selected via `ONT_WEB_BITCOIN_HEADER_SOURCE`; the web server seam is
+   **not** unchanged — the live name path becomes async.)
 
 **Boundary guards (unchanged, must hold):** `packages/consensus/src` **zero-diff**; no new
 consensus law; audit-map ratchet green. The endpoint is a transport over already-audited
@@ -134,7 +162,7 @@ forge (real PoW); on **signet** it is provider-trusted (#95) and labelled so.
 DK ruled (event `e0ebf10b`, 2026-07-03) the first signet demo **ships the mobile surface**, not a
 fast-follow. Consequences:
 
-- **Web live path** — done in 4a step 6 (same HTTP provider).
+- **Web live path** — done in 4a step 6 (same HTTP provider, via the async live-name seam).
 - **Mobile live path** — `fetchMobileSignetLaunchHeaderSource` (`mobile/src/verification/bitcoin.ts`)
   points at the same resolver provider. Code-only; folds into 4a as a mobile-checks conformance
   addition (RN-safe graph already enforced by slice 6a/6b).
@@ -156,10 +184,13 @@ faucet top-up, resolver/web DNS). I convert this to copy-paste when 4a lands.
 
 ## 7. Acceptance bar
 
-**4a (code):** hermetic default suite green — the CLI (and web) verify a real proof bundle against
-the resolver-served header range; a missing/forged inclusion, a short/partial/gapped range, and an
-unreachable/malformed resolver each fail closed to non-authoritative; the block-170 fixture is gone
-from the live path (coverage-source honesty); `consensus/src` zero-diff; all standing gates green.
+**4a (code):** hermetic default suite green — the `ont verify <name>` executable (and the web
+async live-name seam) verify a real proof bundle against the resolver-served header range; the HTTP
+provider validates the returned range exactly against the requested `(startHeight, count)`; a
+missing/forged inclusion, a short/partial/gapped/mismatched range, and an unreachable/malformed
+resolver each fail closed to non-authoritative; a header-store persist/backfill failure aborts
+before the ingest cursor advances (no stranded gap); the block-170 fixture is gone from the live
+path (coverage-source honesty); `consensus/src` zero-diff; all standing gates green.
 **4b (live):** on signet, one real anchored claim verifies end-to-end from the CLI against the
 resolver-served range reaching ≥ anchor + depth, labelled provider-trusted per #95 — the first live
 "good/deployed" checkpoint DK asked for, claimed honestly.
@@ -169,3 +200,14 @@ resolver-served range reaching ≥ anchor + depth, labelled provider-trusted per
 Dispatch **4a** to codex now (steps 1–6, hermetic-first). I review each handback fresh-frame →
 merge/push (standing authority) → ChatLunatique concurs on the spec/design deltas in parallel
 (non-blocking). DK is looped only for **4b** operator actions and the 6c demo-scope timing.
+
+**Review deltas folded (ChatLunatique, 2026-07-03, event `36bbf371`).** CL concurred with the
+architecture (indexer→`ONT_STORE`→resolver sourcing; checkpoint+1 contiguity/backfill load-bearing)
+and patched four seam details, all folded above: (1) **web async seam** — step 6 now specs an async
+live-name path seam, not a static-registry entry (a synchronous `BitcoinHeaderSource` can't fetch
+the anchor-dependent range); miss → resolver-mirror, only a broken name-state read → 502. (2)
+**endpoint/port contract pinned** — `?startHeight=&count=` matching `fetchHeaderHex(startHeight,
+count)` 1:1, client validates the returned range exactly (steps 3–4). (3) **persist-before-advance
+invariant** — step 2 + §7 now require a header-store persist/backfill failure to abort before the
+cursor advances, with a hermetic test. (4) **CLI wrapper** — step 5 now explicitly adds the
+`ont verify <name>` executable (4b's operator walk drives it), not assumed to exist.
