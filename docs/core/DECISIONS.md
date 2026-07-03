@@ -2689,6 +2689,31 @@ delivers it at lowest risk.
 leaf-transport + separate committed-names section, per the parked `da-served-transport` — reopen on a size /
 independence need, or a DK ruling on wire format.
 
+99. header-provider-liveness: slice 8 (GA-OPTION-NODE) adds opt-in `HeaderRangeProvider` transports —
+an **Esplora** fetch-provider (8a/8b) and, follow-on, an **own-node bitcoind-RPC** provider (8c) — selected by a
+new `ONT_HEADER_PROVIDER` env (`resolver` default / `esplora` / `node`). The **signet slice-8 deliverable is
+Esplora only**; the own-node provider is spec'd but sequenced as a **mainnet-facing follow-on**, built on demand.
+
+*Status: **engineering/scope call by ClaudeleLunatique** within spine §3(c) (already-resolved design); flagged
+concur, CL design-concur requested before canon (A4 pattern). Not a consensus-law or trust-model change —
+`packages/consensus/src`, `@ont/bitcoin`, `@ont/adapter-header` all **zero-diff**. Governs
+[GA_OPTION_NODE_SPEC.md](./GA_OPTION_NODE_SPEC.md); recorded by ClaudeleLunatique.*
+
+**The call.** The header-range firewall (`validateHeaderChain` (#82), invoked by
+`packages/adapter-header/src/canonical-header-source.ts:96-115`) treats its provider as **UNTRUSTED by
+contract** — a forged/short/withheld range yields no source and the inclusion verifier fails closed. So a new
+provider adds **zero trust**; the slice is a pure transport swap. On **signet**, per `signet-solution-gate` (#95),
+neither own-node nor Esplora buys forge-resistance (signet PoW is not a security anchor; an operator can grind a
+passing header chain) — both buy only **liveness** (the verifier stops depending on the *operator's* resolver
+being up). Esplora delivers that liveness **RN-safe, cross-surface (CLI/web/mobile), with no new RPC-credential
+surface and no new node-only package**; the own-node provider's *distinct* payoff — real-PoW forge-resistance —
+only materialises on **mainnet**, which is hard-gated out of scope. Hence Esplora-first, own-node-deferred. The
+surface trust label stays `signetHeaderAuthenticity: "provider-trusted"` under every provider — no surface may
+imply own-node/Esplora upgrades signet independence (that waits on `GA-SIGNET-SOLUTION`, slice 9).
+
+**Reopen trigger.** DK pulls the own-node provider (8c) into the signet demo, or mainnet enters scope (where it
+earns forge-resistance), or a batched-Esplora / alternate transport is needed for range cost.
+
 ## Fairness Principles To Carry Into The Launch Rewrite
 
 The rewritten launch draft should explicitly state:
