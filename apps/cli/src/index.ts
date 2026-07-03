@@ -32,9 +32,12 @@ export {
   renderRecoveryWalletProofMessage,
   runVerifyRecoveryWalletProof,
   runInspectProofBundle,
+  runVerifyProofBundleAgainstBitcoin,
   type RecoveryWalletProofMessageFields,
   type VerifyRecoveryWalletProofInput,
+  type VerifyProofBundleAgainstBitcoinInput,
   type RenderMessageResult,
   type VerifyWalletProofResult,
   type InspectProofBundleResult,
+  type VerifyProofBundleAgainstBitcoinResult,
 } from "./verify-commands.js";
