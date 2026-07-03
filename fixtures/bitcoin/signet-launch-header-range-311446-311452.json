@@ -1,0 +1,55 @@
+{
+  "fixture": "signet-launch-header-range-311446-311452",
+  "network": "signet",
+  "checkpoint": {
+    "height": 311445,
+    "hash": "00000003039bc6bf57032bcc38bbba04126f8e0dee75f5ace50e099753b51953"
+  },
+  "startHeight": 311446,
+  "endHeight": 311452,
+  "anchorHeight": 311446,
+  "confirmationDepth": 6,
+  "requiredHeight": 311452,
+  "fetchedAt": "2026-07-03",
+  "provenance": [
+    "https://mempool.space/signet/api/block-height/{height} + /block/{hash}/header",
+    "https://blockstream.info/signet/api/block-height/{height} + /block/{hash}/header"
+  ],
+  "headers": [
+    {
+      "height": 311446,
+      "hash": "000000146732f5827927732a5012dafc6a29e023b6434d1e25aa8edc2d0d7355",
+      "headerHex": "000000205319b55397090ee5acf575ee0d8e6f1204babb38cc2b0357bfc69b030300000066a0302acc0c6b7042faa806a4bbd7e3d48cffc0803f2d6cb8a2d1fbe639114fd5dd466ac339151d464ff405"
+    },
+    {
+      "height": 311447,
+      "hash": "00000010c4a75484c4ff84963b9c82d7a1e4ef7f7a5df14bf26c6224bc6ae540",
+      "headerHex": "0000002055730d2ddc8eaa251e4d43b623e0296afcda12502a73277982f5326714000000bbcc8ae343be9a4110ce4209962996c825483097866fd34543b01851e9612cfe50de466ac339151d1e7c1e06"
+    },
+    {
+      "height": 311448,
+      "hash": "0000000a5504de64bfb8433fe8d288c2cccf0ee615a3a6027d52bad344babbc1",
+      "headerHex": "0000002040e56abc24626cf24bf15d7a7fefe4a1d7829c3b9684ffc48454a7c4100000001cbc0f514ba66ead2fe45bad836d4e15a500b84284598d6f11d3eca90a1b1009a0e1466ac339151d90f2950e"
+    },
+    {
+      "height": 311449,
+      "hash": "000000070aa730f1c5a3aa97c40b8f6cbf8053158d1f8507d164662adf5f4004",
+      "headerHex": "00000020c1bbba44d3ba527d02a6a315e60ecfccc288d2e83f43b8bf64de04550a0000005b632ca4e9abf96a9aeeaeac2fba94fe92b951fe4bf55c0eaecc954eff2f357f67e2466ac339151da228ef05"
+    },
+    {
+      "height": 311450,
+      "hash": "0000000092aaee1b4d79346cabf1909b30b20c48e2d5f54f06ddacd8f10ac128",
+      "headerHex": "0000002004405fdf2a6664d107851f8d155380bf6c8f0bc497aaa3c5f130a70a070000003da7b24b3549d877bd73c54c743e133068ca0da80a004fb45132a3f399a6667586e7466ac339151de7ddae06"
+    },
+    {
+      "height": 311451,
+      "hash": "0000000fb1c9efac43e5627cd1bc6450efbf637963f7e168529de11d13c39bc6",
+      "headerHex": "0000002028c10af1d8acdd064ff5d5e2480cb2309b90f1ab6c34794d1beeaa920000000066706cd606ebeb5f5ca851ae409e851ca24e1da9107286fe344993c0c76bb5878eee466ac339151d80098c3a"
+    },
+    {
+      "height": 311452,
+      "hash": "00000003e2a35dd112abd2de75e2dee96a175bfe2da21683147961ab30d77d11",
+      "headerHex": "00000020c69bc3131de19d5268e1f7637963bfef5064bcd17c62e543acefc9b10f000000acc640988e02a361d25601dd1cc5b48e25f3a69657df31078098f98873b3580ac1ee466ac339151dfd794102"
+    }
+  ]
+}

@@ -1,7 +1,19 @@
+import {
+  buildCanonicalHeaderSourceFromHeaders,
+  fetchCanonicalHeaderSource,
+  type CanonicalHeaderResult,
+  type HeaderRangeProvider,
+} from "@ont/adapter-header";
 import { verifyProofBundleAgainstBitcoin, verifyProofBundleStructure } from "@ont/consensus";
 import type { BitcoinHeaderSource, ProofBundleVerificationReport } from "@ont/consensus";
+import {
+  LAUNCH_CONFIRMATION_DEPTH,
+  SIGNET_BITCOIN_DIFFICULTY_CHECKPOINT,
+  SIGNET_BITCOIN_NETWORK_PARAMS,
+} from "@ont/launch-config";
 
 export type { BitcoinHeaderSource, ProofBundleVerificationReport };
+export type { CanonicalHeaderRejectReason, CanonicalHeaderResult, HeaderRangeProvider } from "@ont/adapter-header";
 
 // Shared proof-bundle light-client core. PURE thin orchestrators over the audited @ont/consensus verifier:
 // no file I/O, no network I/O, no signing, no reimplemented ownership law. Total; never throw.
@@ -37,8 +49,89 @@ export interface ProofBundleHeaderDepthCoverageInput {
   readonly confirmationDepth: number;
 }
 
+export const SIGNET_LAUNCH_HEADER_SOURCE_ID = "signet:launch-checkpoint";
+
+export type SignetLaunchHeaderRangeResult =
+  | {
+      readonly ok: true;
+      readonly checkpointHeight: number;
+      readonly startHeight: number;
+      readonly count: number;
+      readonly anchorHeight: number;
+      readonly requiredHeight: number;
+      readonly confirmationDepth: number;
+    }
+  | { readonly ok: false; readonly reason: "header-range-malformed" };
+
+export interface SignetLaunchHeaderRangeInput {
+  readonly anchorHeight: number;
+  readonly confirmationDepth?: number | undefined;
+}
+
+export interface BuildSignetLaunchHeaderSourceInput extends SignetLaunchHeaderRangeInput {
+  readonly headersHex: readonly string[];
+}
+
+export interface FetchSignetLaunchHeaderSourceInput extends SignetLaunchHeaderRangeInput {
+  readonly provider: HeaderRangeProvider;
+}
+
 export function isBitcoinHeaderSource(value: unknown): value is BitcoinHeaderSource {
   return value !== null && typeof value === "object" && typeof (value as { readonly headerHexAtHeight?: unknown }).headerHexAtHeight === "function";
+}
+
+export function signetLaunchHeaderRange(input: SignetLaunchHeaderRangeInput): SignetLaunchHeaderRangeResult {
+  try {
+    if (!isRecord(input)) return { ok: false, reason: "header-range-malformed" };
+    const anchorHeight = input.anchorHeight;
+    const confirmationDepth = input.confirmationDepth ?? LAUNCH_CONFIRMATION_DEPTH;
+    if (!Number.isInteger(anchorHeight) || anchorHeight <= SIGNET_BITCOIN_DIFFICULTY_CHECKPOINT.height) {
+      return { ok: false, reason: "header-range-malformed" };
+    }
+    if (!Number.isInteger(confirmationDepth) || confirmationDepth < 0) {
+      return { ok: false, reason: "header-range-malformed" };
+    }
+    const requiredHeight = anchorHeight + confirmationDepth;
+    if (!Number.isSafeInteger(requiredHeight)) return { ok: false, reason: "header-range-malformed" };
+    const startHeight = SIGNET_BITCOIN_DIFFICULTY_CHECKPOINT.height + 1;
+    const count = requiredHeight - SIGNET_BITCOIN_DIFFICULTY_CHECKPOINT.height;
+    if (!Number.isInteger(count) || count < 1) return { ok: false, reason: "header-range-malformed" };
+    return {
+      ok: true,
+      checkpointHeight: SIGNET_BITCOIN_DIFFICULTY_CHECKPOINT.height,
+      startHeight,
+      count,
+      anchorHeight,
+      requiredHeight,
+      confirmationDepth,
+    };
+  } catch {
+    return { ok: false, reason: "header-range-malformed" };
+  }
+}
+
+export function buildSignetLaunchHeaderSourceFromHeaders(input: BuildSignetLaunchHeaderSourceInput): CanonicalHeaderResult {
+  const range = signetLaunchHeaderRange(input);
+  if (!range.ok) return range;
+  return buildCanonicalHeaderSourceFromHeaders(
+    input.headersHex,
+    range.startHeight,
+    range.count,
+    SIGNET_BITCOIN_DIFFICULTY_CHECKPOINT,
+    SIGNET_BITCOIN_NETWORK_PARAMS,
+  );
+}
+
+export async function fetchSignetLaunchHeaderSource(input: FetchSignetLaunchHeaderSourceInput): Promise<CanonicalHeaderResult> {
+  const range = signetLaunchHeaderRange(input);
+  if (!range.ok) return range;
+  return await fetchCanonicalHeaderSource({
+    provider: input.provider,
+    startHeight: range.startHeight,
+    count: range.count,
+    checkpoint: SIGNET_BITCOIN_DIFFICULTY_CHECKPOINT,
+    params: SIGNET_BITCOIN_NETWORK_PARAMS,
+  });
 }
 
 /** Surfaces the audited STRUCTURAL report VERBATIM (not Bitcoin finality); only a throw from the audited verifier -> malformed. */

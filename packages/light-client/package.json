@@ -13,9 +13,11 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "npm run build -w @ont/protocol && npm run build -w @ont/bitcoin && npm run build -w @ont/wire && npm run build -w @ont/consensus && vitest run"
+    "test": "npm run build -w @ont/protocol && npm run build -w @ont/bitcoin && npm run build -w @ont/wire && npm run build -w @ont/consensus && npm run build -w @ont/launch-config && npm run build -w @ont/adapter-header && vitest run"
   },
   "dependencies": {
+    "@ont/adapter-header": "file:../adapter-header",
+    "@ont/launch-config": "file:../launch-config",
     "@ont/consensus": "file:../consensus"
   },
   "devDependencies": {

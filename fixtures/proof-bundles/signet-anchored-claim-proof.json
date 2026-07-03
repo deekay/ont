@@ -1,0 +1,64 @@
+{
+  "format": "ont-proof-bundle",
+  "bundleVersion": 0,
+  "status": "test-fixture-real-signet-anchor",
+  "fixtureProvenance": {
+    "fetchedAt": "2026-07-03",
+    "blockHeight": 311446,
+    "blockHash": "000000146732f5827927732a5012dafc6a29e023b6434d1e25aa8edc2d0d7355",
+    "sources": [
+      "https://mempool.space/signet/api/block-height/311446",
+      "https://mempool.space/signet/api/block/000000146732f5827927732a5012dafc6a29e023b6434d1e25aa8edc2d0d7355/txids",
+      "https://blockstream.info/signet/api/block-height/311446",
+      "https://blockstream.info/signet/api/block/000000146732f5827927732a5012dafc6a29e023b6434d1e25aa8edc2d0d7355/txids"
+    ],
+    "merkleBranch": "computed from the ordered display txids with the same Bitcoin construction as @ont/bitcoin merkleBranchForIndex"
+  },
+  "proofSource": "accumulator_batch_claim",
+  "assuranceTier": "accumulator-batched",
+  "verificationGoal": "Verify that alice's accumulator claim is anchored in a real signet block from the bundled checkpoint tail. The cited transaction is signet block 311446 tx 0 and is used only as a real inclusion-proof sample.",
+  "name": "alice",
+  "normalizedName": "alice",
+  "createdAt": "2026-07-03T00:00:00.000Z",
+  "ownershipProof": {
+    "currentOwnerPubkey": "2222222222222222222222222222222222222222222222222222222222222222",
+    "ownershipRef": "accumulator-leaf:alice"
+  },
+  "accumulatorProof": {
+    "root": "f93b90c055208630762382e331ef07f3be22df520a7ab7e4ff54707b599839b8",
+    "leaf": "2bd806c97f0e00af1a1fc3328fa763a9269723c8db8fac4f93af71db186d6e90",
+    "value": "2222222222222222222222222222222222222222222222222222222222222222",
+    "siblings": [
+      {
+        "level": 1,
+        "hash": "7a4ab456e0112c950c4f443951f713667438075e48fb9ec2b6613d81385ab8ca"
+      },
+      {
+        "level": 2,
+        "hash": "5530fccbd45e1da9514e57a90a83f74aafbfb7820c005a69a9688f5a3ac2c485"
+      }
+    ]
+  },
+  "batchAnchor": {
+    "anchorTxid": "1cc98ce8727e93a943f9cd462265492245689d7851bb9d44f64cdfaf21afb3aa",
+    "anchorHeight": 311446
+  },
+  "bitcoinInclusion": {
+    "anchors": [
+      {
+        "txid": "1cc98ce8727e93a943f9cd462265492245689d7851bb9d44f64cdfaf21afb3aa",
+        "height": 311446,
+        "blockHeaderHex": "000000205319b55397090ee5acf575ee0d8e6f1204babb38cc2b0357bfc69b030300000066a0302acc0c6b7042faa806a4bbd7e3d48cffc0803f2d6cb8a2d1fbe639114fd5dd466ac339151d464ff405",
+        "merkle": [
+          "79b6f6134f7e1da9968f6245201b9f0300236aa9ba54c2c73baf202c3018aa95",
+          "b402253c4a1ae0d5cbb953e8dfe11b1617a91bac96a091ffce1a862eeb41f6f8",
+          "0d0f43a8a745cbbe4e9154dd64bb5f7853157e801214ed60229ba708edfdfc09",
+          "171adb5b138cab350c4143b69430362451f58e8b8a2227164bd60d48d7785382",
+          "712da2304666cf337386e42203c88a63e1222f065f1fd069b55eb2d4873eed0d",
+          "4f26db41b28e0e036b9943128e5ee8902f6993d867f317084b72876abdd6ae99"
+        ],
+        "pos": 0
+      }
+    ]
+  }
+}

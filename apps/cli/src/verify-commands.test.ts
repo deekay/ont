@@ -12,6 +12,8 @@ import {
 import { verifyProofBundleAgainstBitcoin, verifyProofBundleStructure } from "@ont/consensus";
 import type { BitcoinHeaderSource } from "@ont/consensus";
 import {
+  buildSignetLaunchHeaderSourceFromHeaders,
+  fetchSignetLaunchHeaderSource,
   renderRecoveryWalletProofMessage,
   runVerifyRecoveryWalletProof,
   runInspectProofBundle,
@@ -55,6 +57,12 @@ const BLOCK_170_HEADER =
 const GOOD_HEADER_SOURCE: BitcoinHeaderSource = {
   headerHexAtHeight: (height) => (height === 170 ? BLOCK_170_HEADER : null),
 };
+
+interface SignetHeaderFixture {
+  readonly anchorHeight: number;
+  readonly requiredHeight: number;
+  readonly headers: readonly { readonly height: number; readonly headerHex: string }[];
+}
 
 describe("renderRecoveryWalletProofMessage", () => {
   it("valid fields → message equals the audited createRecoveryWalletProofMessage (consume-don't-reimplement)", () => {
@@ -133,6 +141,42 @@ describe("runVerifyProofBundleAgainstBitcoin", () => {
     });
   });
 
+  it("accepts a real signet bundle through the checkpoint-validated launch provider", async () => {
+    const fixture = await loadSignetHeaderRange();
+    const source = buildSignetLaunchHeaderSourceFromHeaders({
+      headersHex: fixture.headers.map((header) => header.headerHex),
+      anchorHeight: fixture.anchorHeight,
+    });
+    expect(source.ok).toBe(true);
+    if (!source.ok) return;
+
+    const bundle = await loadSignetAnchoredBundle();
+    const r = runVerifyProofBundleAgainstBitcoin({ bundle, headerSource: source.headerSource });
+
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(source.headerSource.headerHexAtHeight(fixture.anchorHeight)).toBe(fixture.headers[0]?.headerHex);
+    expect(source.headerSource.headerHexAtHeight(fixture.requiredHeight)).toBe(fixture.headers.at(-1)?.headerHex);
+    expect(r.report.checks).toContainEqual({
+      id: "btc.0.chain",
+      status: "passed",
+      message: "anchor 1 header is the canonical chain header at height 311446",
+    });
+  });
+
+  it("fails closed when the injected signet header provider withholds the required tail", async () => {
+    const fixture = await loadSignetHeaderRange();
+    const source = await fetchSignetLaunchHeaderSource({
+      anchorHeight: fixture.anchorHeight,
+      provider: {
+        fetchHeaderHex: async () => fixture.headers.slice(0, -1).map((header) => header.headerHex),
+      },
+    });
+
+    expect(source.ok).toBe(false);
+    if (!source.ok) expect(source.reason).toBe("header-range-count-mismatch");
+  });
+
   it("rejects a structurally-valid bundle missing bitcoinInclusion", async () => {
     const bundle = await loadBitcoinAnchoredBundle();
     delete bundle.bitcoinInclusion;
@@ -186,4 +230,16 @@ async function loadBitcoinAnchoredBundle(): Promise<Record<string, unknown>> {
   const fixtureUrl = new URL("../../../fixtures/proof-bundles/bitcoin-anchored-claim-proof.json", import.meta.url);
   const raw = await readFile(fixtureUrl, "utf8");
   return JSON.parse(raw) as Record<string, unknown>;
+}
+
+async function loadSignetAnchoredBundle(): Promise<Record<string, unknown>> {
+  const fixtureUrl = new URL("../../../fixtures/proof-bundles/signet-anchored-claim-proof.json", import.meta.url);
+  const raw = await readFile(fixtureUrl, "utf8");
+  return JSON.parse(raw) as Record<string, unknown>;
+}
+
+async function loadSignetHeaderRange(): Promise<SignetHeaderFixture> {
+  const fixtureUrl = new URL("../../../fixtures/bitcoin/signet-launch-header-range-311446-311452.json", import.meta.url);
+  const raw = await readFile(fixtureUrl, "utf8");
+  return JSON.parse(raw) as SignetHeaderFixture;
 }

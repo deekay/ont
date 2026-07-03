@@ -8,6 +8,8 @@ const ANCHOR_TXID = "f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831
 const LEAF = "2bd806c97f0e00af1a1fc3328fa763a9269723c8db8fac4f93af71db186d6e90";
 const BLOCK_170_HEADER =
   "0100000055bd840a78798ad0da853f68974f3d183e2bd1db6a842c1feecf222a00000000ff104ccb05421ab93e63f8c3ce5c2c2e9dbb37de2764b3a3175c8166562cac7d51b96a49ffff001d283e9e70";
+const BLOCK_176_HEADER =
+  "01000000089d2d7196d00f737762fe82cfd86820c6e44bb2a9dd0f5fc1fc4afd000000005c3de10cb7cb6934b0050360980f9a37a95a8bf705edfbcbd3541591ad95c16466c96a49ffff001d09338966";
 
 const emptyPort: WebReadPort = {
   valueHistory: () => null,
@@ -71,8 +73,8 @@ describe("web server — live resolver name-state path", () => {
     const r = await get("/names/alice", {
       port: emptyPort,
       nameStateSource,
-      bitcoinHeaderSource: { headerHexAtHeight: (height) => (height === 170 || height === 176 ? BLOCK_170_HEADER : null) },
-      verificationCheckpointId: "fixture:block-170",
+      bitcoinHeaderSource: { headerHexAtHeight: (height) => (height === 170 ? BLOCK_170_HEADER : height === 176 ? BLOCK_176_HEADER : null) },
+      verificationCheckpointId: "mainnet:block-169-real-range",
       verificationNetwork: "mainnet",
     });
     expect(r.status).toBe(200);

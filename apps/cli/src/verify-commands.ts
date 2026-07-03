@@ -6,16 +6,27 @@ import type {
   SignedRecoveryDescriptor,
 } from "@ont/protocol";
 export {
+  SIGNET_LAUNCH_HEADER_SOURCE_ID,
+  buildSignetLaunchHeaderSourceFromHeaders,
   checkProofBundleHeaderDepthCoverage,
+  fetchSignetLaunchHeaderSource,
   isBitcoinHeaderSource,
   runInspectProofBundle,
   runVerifyProofBundleAgainstBitcoin,
+  signetLaunchHeaderRange,
 } from "@ont/light-client";
 export type {
   BitcoinHeaderSource,
+  BuildSignetLaunchHeaderSourceInput,
+  CanonicalHeaderRejectReason,
+  CanonicalHeaderResult,
+  FetchSignetLaunchHeaderSourceInput,
+  HeaderRangeProvider,
   InspectProofBundleResult,
   ProofBundleHeaderDepthCoverageInput,
   ProofBundleHeaderDepthCoverageResult,
+  SignetLaunchHeaderRangeInput,
+  SignetLaunchHeaderRangeResult,
   ProofBundleVerificationReport,
   VerifyProofBundleAgainstBitcoinInput,
   VerifyProofBundleAgainstBitcoinResult,

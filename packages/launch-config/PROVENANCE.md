@@ -75,18 +75,18 @@ header alone sufficient to prove signet validity. This package carries the defau
 `GA-SIGNET-SOLUTION` can later validate block solution material against the same launch config without a
 config migration. The `canonical-header-source` tests in this slice intentionally do not consume it.
 
-The checkpoint block and the four-header validation tail were fetched from both public signet APIs and compared.
+The checkpoint block and the seven-header validation tail were fetched from both public signet APIs and compared.
 The tail is a point-in-time active-height fixture for adapter tests, not launch trust data; a later signet
 reorg can change the tail without changing the pinned checkpoint:
 
 ```sh
-for H in 311445 311446 311447 311448 311449; do
+for H in 311445 311446 311447 311448 311449 311450 311451 311452; do
   HASH=$(curl -fsS "https://mempool.space/signet/api/block-height/$H")
   curl -fsS "https://mempool.space/signet/api/block/$HASH/header"
   curl -fsS "https://mempool.space/signet/api/block/$HASH"
 done
 
-for H in 311445 311446 311447 311448 311449; do
+for H in 311445 311446 311447 311448 311449 311450 311451 311452; do
   HASH=$(curl -fsS "https://blockstream.info/signet/api/block-height/$H")
   curl -fsS "https://blockstream.info/signet/api/block/$HASH/header"
 done
@@ -101,6 +101,9 @@ Cross-checked headers:
 | `311447` | `00000010c4a75484c4ff84963b9c82d7a1e4ef7f7a5df14bf26c6224bc6ae540` |
 | `311448` | `0000000a5504de64bfb8433fe8d288c2cccf0ee615a3a6027d52bad344babbc1` |
 | `311449` | `000000070aa730f1c5a3aa97c40b8f6cbf8053158d1f8507d164662adf5f4004` |
+| `311450` | `0000000092aaee1b4d79346cabf1909b30b20c48e2d5f54f06ddacd8f10ac128` |
+| `311451` | `0000000fb1c9efac43e5627cd1bc6450efbf637963f7e168529de11d13c39bc6` |
+| `311452` | `00000003e2a35dd112abd2de75e2dee96a175bfe2da21683147961ab30d77d11` |
 
 `cumulativeWorkHex` was derived from the signet headers by summing Bitcoin Core block proof per epoch:
 

@@ -59,6 +59,7 @@ export {
 export { selectResolverNameStateSource } from "./live/select-resolver-name-state-source.js";
 export {
   ONT_WEB_BITCOIN_HEADER_SOURCE_ENV,
+  SIGNET_LAUNCH_HEADER_SOURCE_ID,
   selectBitcoinHeaderSource,
   type BitcoinHeaderSourceRegistry,
 } from "./live/select-bitcoin-header-source.js";
