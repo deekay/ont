@@ -15,7 +15,7 @@ import {
   type BitcoinRpcBlockchainInfo,
   type BitcoinRpcChain,
   type BitcoinRpcConfig,
-} from "@ont/bitcoin";
+} from "@ont/bitcoin/node";
 
 /** The only chains a live ONT runtime may target until the audit gate clears. */
 export type AllowedChain = "regtest" | "signet";

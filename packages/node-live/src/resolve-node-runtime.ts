@@ -7,7 +7,7 @@
 // build without one. ONT_SOURCE="" is preserved (NOT coerced to unset) so an empty env
 // value fails the selector rather than silently defaulting to memory.
 // See docs/core/GO_LIVE_PLAN.md (G1 slice 4).
-import { createBitcoinRpcConfig, type BitcoinRpcConfig } from "@ont/bitcoin";
+import { createBitcoinRpcConfig, type BitcoinRpcConfig } from "@ont/bitcoin/node";
 
 export interface NodeRuntimeEnv {
   readonly source: string | undefined;

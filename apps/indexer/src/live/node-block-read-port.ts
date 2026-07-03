@@ -10,13 +10,15 @@
 // SCOPE: RPC wiring + single-block-at-height guard; NO consensus verdicts, NO chain gate.
 // TESTS: ./node-block-read-port.test.ts (pure guard; factory smoke via mocked fetch).
 import {
+  type BitcoinBlock,
+} from "@ont/bitcoin";
+import {
   getBitcoinRpcBlockCount,
   getBitcoinRpcBlockHeaderHex,
   getBitcoinRpcRawTransactionHex,
   loadBitcoinBlocksFromRpc,
-  type BitcoinBlock,
   type BitcoinRpcConfig,
-} from "@ont/bitcoin";
+} from "@ont/bitcoin/node";
 import type { NodeBlockReadPort } from "./node-block-source.js";
 
 /** Require exactly one block at the requested height — else fail closed (no Merkle ordering is sound). */

@@ -5,7 +5,7 @@
 // gate with the resolved rpc + chain and only builds the live source after it passes; and a
 // rejecting gate fails the selection closed. RED until implemented.
 import { describe, expect, it, vi } from "vitest";
-import type { BitcoinRpcBlockchainInfo, BitcoinRpcChain, BitcoinRpcConfig } from "@ont/bitcoin";
+import type { BitcoinRpcBlockchainInfo, BitcoinRpcChain, BitcoinRpcConfig } from "@ont/bitcoin/node";
 import type { ChainAssert } from "@ont/node-live";
 import { selectIndexerBlockSource } from "./select-block-source.js";
 

@@ -6,7 +6,7 @@
 // ONT_CHAIN must be regtest|signet AND the node must actually be that chain) BEFORE the
 // live port is constructed — so a mispointed RPC can never reach mainnet and no live
 // poll/broadcast RPC happens until the chain is proven. See docs/core/GO_LIVE_PLAN.md.
-import type { BitcoinRpcConfig } from "@ont/bitcoin";
+import type { BitcoinRpcConfig } from "@ont/bitcoin/node";
 import { assertExpectedChain, type ChainAssert } from "./chain-gate.js";
 
 export interface SelectLivePortOptions<T> {

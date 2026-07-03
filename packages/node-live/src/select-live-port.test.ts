@@ -4,7 +4,7 @@
 // the chain is proven); unknown ONT_SOURCE / bad ONT_CHAIN fail closed without building
 // live. Negatives assert the specific reason so the not-implemented stub can't pass.
 import { describe, expect, it, vi } from "vitest";
-import type { BitcoinRpcBlockchainInfo, BitcoinRpcChain, BitcoinRpcConfig } from "@ont/bitcoin";
+import type { BitcoinRpcBlockchainInfo, BitcoinRpcChain, BitcoinRpcConfig } from "@ont/bitcoin/node";
 import { selectLivePort, type ChainAssert } from "./index.js";
 
 const RPC: BitcoinRpcConfig = { url: "http://127.0.0.1:18443" };

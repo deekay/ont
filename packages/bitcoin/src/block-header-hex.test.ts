@@ -5,12 +5,12 @@
 // length, non-hex, uppercase, and non-strings. Negatives assert the specific reason so the
 // not-implemented stub cannot spuriously satisfy them. RED until implemented.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { assertBlockHeaderHex } from "./index.js";
 import {
-  assertBlockHeaderHex,
   getBitcoinRpcBlockHeaderHex,
   getBitcoinRpcRawTransactionHex,
   parseBitcoinRpcBlock,
-} from "./index.js";
+} from "./node.js";
 
 const valid = "00".repeat(36) + "ab".repeat(32) + "00".repeat(12); // 80 bytes, lowercase
 

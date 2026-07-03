@@ -9,8 +9,15 @@
 // under Hermes), it resolves to the pure-JS, noble-backed `@bitcoinerlab/secp256k1`
 // instead. That package implements the same TinySecp256k1Interface.
 const { getDefaultConfig } = require("expo/metro-config");
+const { ONT_PACKAGE_ROOTS, REPO_ROOT } = require("./ont-package-roots.cjs");
 
 const config = getDefaultConfig(__dirname);
+
+config.watchFolders = Array.from(new Set([...(config.watchFolders ?? []), REPO_ROOT]));
+config.resolver.extraNodeModules = {
+  ...(config.resolver.extraNodeModules ?? {}),
+  ...ONT_PACKAGE_ROOTS,
+};
 
 const ALIASES = {
   "tiny-secp256k1": "@bitcoinerlab/secp256k1",

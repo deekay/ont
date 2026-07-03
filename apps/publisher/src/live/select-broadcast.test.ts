@@ -5,12 +5,12 @@
 // gate with the resolved rpc + chain and only builds the live port after it passes; and a
 // rejecting gate fails the selection closed. RED until implemented.
 import { describe, expect, it, vi } from "vitest";
+import type { LegacyTransaction } from "@ont/bitcoin";
 import type {
   BitcoinRpcBlockchainInfo,
   BitcoinRpcChain,
   BitcoinRpcConfig,
-  LegacyTransaction,
-} from "@ont/bitcoin";
+} from "@ont/bitcoin/node";
 import type { ChainAssert } from "@ont/node-live";
 import { selectPublisherBroadcastPort } from "./select-broadcast.js";
 

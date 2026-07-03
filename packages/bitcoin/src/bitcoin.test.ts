@@ -3,6 +3,7 @@ import { dirname, resolve } from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { getOpReturnPayloads } from "./index.js";
 import {
   BitcoinEsploraBlockPoller,
   BitcoinRpcBlockPoller,
@@ -11,7 +12,6 @@ import {
   createBitcoinRpcConfig,
   findBitcoinEsploraMatchingCheckpoint,
   findBitcoinRpcMatchingCheckpoint,
-  getOpReturnPayloads,
   getBitcoinEsploraAddressSummary,
   getBitcoinEsploraAddressUtxos,
   getBitcoinEsploraBlockHash,
@@ -26,7 +26,7 @@ import {
   parseBitcoinBlocksFixture,
   parseBitcoinRpcBlock,
   sendBitcoinRpcRawTransaction
-} from "./index.js";
+} from "./node.js";
 
 const CURRENT_DIR = dirname(fileURLToPath(import.meta.url));
 const ORIGINAL_FETCH = globalThis.fetch;

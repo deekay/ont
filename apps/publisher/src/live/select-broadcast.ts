@@ -13,7 +13,7 @@
 // SCOPE: source selection + lazy live wiring only; no signing, no assembling.
 // TESTS: ./select-broadcast.test.ts.
 import { resolveNodeRuntime, selectLivePort, type ChainAssert } from "@ont/node-live";
-import { sendBitcoinRpcRawTransaction } from "@ont/bitcoin";
+import { sendBitcoinRpcRawTransaction } from "@ont/bitcoin/node";
 import { createInMemoryPublisherBroadcastPort, type PublisherBroadcastPort } from "../server.js";
 import { createLivePublisherBroadcastPort } from "./broadcast.js";
 

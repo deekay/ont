@@ -27,6 +27,7 @@
       "@ont/adapter-resolver": ["packages/adapter-resolver/src/index.ts"],
       "@ont/anchor-store": ["packages/anchor-store/src/index.ts"],
       "@ont/bitcoin": ["packages/bitcoin/src/index.ts"],
+      "@ont/bitcoin/node": ["packages/bitcoin/src/node.ts"],
       "@ont/claim-path": ["packages/claim-path/src/index.ts"],
       "@ont/consensus": ["packages/consensus/src/index.ts"],
       "@ont/core": ["packages/core/src/index.ts"],

@@ -14,7 +14,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { BitcoinRpcConfig } from "@ont/bitcoin";
+import type { BitcoinRpcConfig } from "@ont/bitcoin/node";
 
 export interface RegtestNode {
   /** RPC config for the throwaway node — feeds the live publisher/indexer + cli(). */

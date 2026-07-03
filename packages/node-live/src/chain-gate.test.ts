@@ -5,7 +5,7 @@
 // Negative tests assert the SPECIFIC reason so the not-implemented stub cannot
 // satisfy them — RED until green. See docs/core/GO_LIVE_PLAN.md (G1).
 import { describe, expect, it, vi } from "vitest";
-import type { BitcoinRpcBlockchainInfo, BitcoinRpcChain, BitcoinRpcConfig } from "@ont/bitcoin";
+import type { BitcoinRpcBlockchainInfo, BitcoinRpcChain, BitcoinRpcConfig } from "@ont/bitcoin/node";
 import { assertExpectedChain, parseAllowedChain, type ChainAssert } from "./chain-gate.js";
 
 const RPC: BitcoinRpcConfig = { url: "http://127.0.0.1:18443" };
