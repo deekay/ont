@@ -79,7 +79,19 @@ the DA/censorship story.
 5. **GA-CLIENT-WEB** — web read path shows ownership as *Bitcoin-verified* only after the client
    verifies; a resolver mirror is labelled non-authoritative otherwise. Slice spec:
    [GA_CLIENT_WEB_SPEC.md](./GA_CLIENT_WEB_SPEC.md) (lifts the shared verify core to a new
-   `@ont/light-client` package per §3(e); web server verifies as a resolver client).
+   `@ont/light-client` package per §3(e); web server verifies as a resolver client). Landed
+   `28abf3c8` on a hermetic fixture header source; the real provider is slice 5b, below.
+5b. **GA-CLIENT-PROVIDER** — *code-only; **no operator gate**, does not wait on DK.* The
+   header-provider half of design call (c). Replace the hermetic `fixture:block-170` source in
+   CLI + web with the real one: feed a real signet header range (checkpoint `h311445` forward
+   through `anchorHeight + LAUNCH_CONFIRMATION_DEPTH`) into `validateHeaderChain`, and use its
+   returned `headerSource` (`packages/bitcoin/src/validate-header-chain.ts:284` — the validated
+   header at `h`, `null` outside range) as the client source. Closes the §4 coverage-source-honesty
+   criterion **by construction** (no fake-block-170 stub). Hermetic tests reuse the GA-CHECKPOINT
+   real-signet battery pattern (mempool.space / blockstream provenance); forged child / short tail /
+   wrong-network fail closed. `consensus/src` zero-diff. Only the *live* resolver-served transport
+   (a running node serving the range over the network) waits on the G-C-MINIMAL stand-up — the
+   validation code and its tests do not.
 6. **GA-CLIENT-MOBILE** — the iOS app ships the bundled checkpoint and runs the same verify
    before trusting ownership. First hard gate for mobile; it becomes a real light client.
 7. **G-B / LE-DA-SERVE** — DA network transport, so independence is provable across two operators
