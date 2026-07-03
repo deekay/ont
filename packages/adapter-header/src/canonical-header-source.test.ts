@@ -132,7 +132,7 @@ const SIGNET_HEADER_RANGE = [
   "000000205319b55397090ee5acf575ee0d8e6f1204babb38cc2b0357bfc69b030300000066a0302acc0c6b7042faa806a4bbd7e3d48cffc0803f2d6cb8a2d1fbe639114fd5dd466ac339151d464ff405",
   "0000002055730d2ddc8eaa251e4d43b623e0296afcda12502a73277982f5326714000000bbcc8ae343be9a4110ce4209962996c825483097866fd34543b01851e9612cfe50de466ac339151d1e7c1e06",
   "0000002040e56abc24626cf24bf15d7a7fefe4a1d7829c3b9684ffc48454a7c4100000001cbc0f514ba66ead2fe45bad836d4e15a500b84284598d6f11d3eca90a1b1009a0e1466ac339151d90f2950e",
-  "00000020c1bbba44d3ba527d02a6a315e60ecfccc288d2e83f43b8bf64de04550a000000323b302dfdfe38f8e5efeec7926f39664af41c2314e24902b559fe9484f0256e67e2466ac339151db6155208",
+  "00000020c1bbba44d3ba527d02a6a315e60ecfccc288d2e83f43b8bf64de04550a0000005b632ca4e9abf96a9aeeaeac2fba94fe92b951fe4bf55c0eaecc954eff2f357f67e2466ac339151da228ef05",
 ] as const;
 const MAINNET_HEADER_AT_311446 =
   "0200000040c79de67514e818f7d4868c58a5a41693a05d696e7a7a1c00000000000000006387626ac34066fef724cf097f23bcbfdaab1a5701f4edd0e5fb2418ae24db7e7cf9c953e66b3f181aeab162";
@@ -156,7 +156,7 @@ describe("real signet launch checkpoint — bundled config validates forward and
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.tipHeight).toBe(311_449);
-    expect(r.tipHashHex).toBe("000000015c590137438ec3e2bae4586a51d2b5cb0f407c952dba0ae8e8c49495");
+    expect(r.tipHashHex).toBe("000000070aa730f1c5a3aa97c40b8f6cbf8053158d1f8507d164662adf5f4004");
     expect(r.cumulativeWorkHex).toBe("eafe5a609e2");
     expect(r.headerSource.headerHexAtHeight(311_446)).toBe(SIGNET_HEADER_RANGE[0]);
     expect(r.headerSource.headerHexAtHeight(311_449)).toBe(SIGNET_HEADER_RANGE[3]);

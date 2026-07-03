@@ -64,7 +64,9 @@ header alone sufficient to prove signet validity. This package carries the defau
 `GA-SIGNET-SOLUTION` can later validate block solution material against the same launch config without a
 config migration. The `canonical-header-source` tests in this slice intentionally do not consume it.
 
-The checkpoint block and the four-header validation tail were fetched from both public signet APIs and compared:
+The checkpoint block and the four-header validation tail were fetched from both public signet APIs and compared.
+The tail is a point-in-time active-height fixture for adapter tests, not launch trust data; a later signet
+reorg can change the tail without changing the pinned checkpoint:
 
 ```sh
 for H in 311445 311446 311447 311448 311449; do
@@ -87,7 +89,7 @@ Cross-checked headers:
 | `311446` | `000000146732f5827927732a5012dafc6a29e023b6434d1e25aa8edc2d0d7355` |
 | `311447` | `00000010c4a75484c4ff84963b9c82d7a1e4ef7f7a5df14bf26c6224bc6ae540` |
 | `311448` | `0000000a5504de64bfb8433fe8d288c2cccf0ee615a3a6027d52bad344babbc1` |
-| `311449` | `000000015c590137438ec3e2bae4586a51d2b5cb0f407c952dba0ae8e8c49495` |
+| `311449` | `000000070aa730f1c5a3aa97c40b8f6cbf8053158d1f8507d164662adf5f4004` |
 
 `cumulativeWorkHex` was derived from the signet headers by summing Bitcoin Core block proof per epoch:
 
