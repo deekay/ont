@@ -94,6 +94,13 @@ the DA/censorship story.
    validation code and its tests do not.
 6. **GA-CLIENT-MOBILE** — the iOS app ships the bundled checkpoint and runs the same verify
    before trusting ownership. First hard gate for mobile; it becomes a real light client.
+   Slice spec: [GA_CLIENT_MOBILE_SPEC.md](./GA_CLIENT_MOBILE_SPEC.md). The out-of-workspace
+   `mobile/` (Expo/RN) app forces sub-slice **6a `bitcoin-rn-safe-entry`** — split `@ont/bitcoin`'s
+   Node-only code (`node:fs` file loader + bitcoind-RPC `Buffer`) behind a `@ont/bitcoin/node`
+   subpath so the verify core's transitive graph is RN-safe (pure `@noble` validators unchanged,
+   `consensus/src` zero-diff) — then **6b** RN gate + `mobile/checks/` conformance battery
+   (code-only, not DK-gated). **6c** in-app UI wiring rides the post-B5 rewrite; the only DK call is
+   the demo-scope timing (ship mobile in the first signet demo vs fast-follow — gate is ratified).
 7. **G-B / LE-DA-SERVE** — DA network transport, so independence is provable across two operators
    (the censorship-resistance property). Hardens the "good" version.
 8. **GA-OPTION-NODE** — opt-in own-node / Esplora header provider for users who won't rely on
