@@ -16,6 +16,7 @@ function recordFor(name: string, ownerByte: string): NameStateRecord {
     anchor: { txid: "b".repeat(64), minedHeight: 170, txIndex: 0, vout: 1 },
     firstServableHeight: 170,
     trace: [{ step: "verdict", ok: true, reason: "accept" }],
+    proofBundle: { format: "ont-proof-bundle", proofSource: "accumulator_batch_claim", name },
   };
 }
 

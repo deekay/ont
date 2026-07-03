@@ -32,6 +32,16 @@ export interface NameStateTraceStep {
   readonly evidence?: Readonly<Record<string, string | number>>;
 }
 
+export type NameStateJsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | readonly NameStateJsonValue[]
+  | { readonly [key: string]: NameStateJsonValue };
+
+export type NameStateProofBundle = { readonly [key: string]: NameStateJsonValue };
+
 /** The per-name state record (LIVE_ENFORCEMENT_PLAN §2a). Keyed by `canonicalName`. */
 export interface NameStateRecord {
   /** The store key. Reject-don't-normalize upstream (W3 / isCanonicalName) — the store never case-folds. */
@@ -46,6 +56,8 @@ export interface NameStateRecord {
   readonly firstServableHeight: number;
   /** The accepted enforcement verdict path, for LE-RESOLVE evidence. */
   readonly trace: readonly NameStateTraceStep[];
+  /** The indexer-emitted proof bundle clients verify against Bitcoin before treating this mirror as verified. */
+  readonly proofBundle: NameStateProofBundle;
 }
 
 /** Persistence port — the indexer writes (put) per accepted name; the resolver reads (getByName). The read

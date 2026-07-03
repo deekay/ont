@@ -164,6 +164,14 @@ describe("enforceBatchedClaims (LE-INDEX driver)", () => {
     expect(alice?.anchor).toEqual({ txid: ANCHOR_TXID, minedHeight: ANCHOR_HEIGHT, txIndex: 0, vout: 0 });
     expect(alice?.anchoredRoot).toBe(ANCHORED_ROOT);
     expect(alice?.trace.at(-1)).toEqual({ step: "verdict", ok: true, reason: "batched-claim-accepted" });
+    expect(verifyProofBundleAgainstBitcoin(alice!.proofBundle, { headerSource: HEADER_SOURCE }).valid).toBe(true);
+    expect(verifyProofBundleAgainstBitcoin(carol!.proofBundle, { headerSource: HEADER_SOURCE }).valid).toBe(true);
+    expect((alice!.proofBundle.accumulatorProof as { root: string; leaf: string }).root).toBe(ANCHORED_ROOT);
+    expect((alice!.proofBundle.accumulatorProof as { root: string; leaf: string }).leaf).toBe(LEAF_A);
+    expect((carol!.proofBundle.accumulatorProof as { root: string; leaf: string }).leaf).toBe(LEAF_C);
+    expect((alice!.proofBundle.bitcoinInclusion as { anchors: { txid: string; height: number }[] }).anchors).toEqual([
+      { txid: ANCHOR_TXID, height: ANCHOR_HEIGHT, blockHeaderHex: ANCHOR_HEADER, merkle: [], pos: 0 },
+    ]);
   });
 
   it("CL#1 inclusion: a non-canonical header (bundle anchor not Bitcoin-bound) rejects with NO writes", async () => {

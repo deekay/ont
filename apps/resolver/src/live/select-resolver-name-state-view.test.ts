@@ -25,6 +25,7 @@ function record(name: string, ownerPair: string, rootByte: string, height: numbe
     anchor: { txid: "b".repeat(64), minedHeight: height, txIndex: 0, vout: 1 },
     firstServableHeight: height,
     trace: [{ step: "verdict", ok: true, reason: "batched-claim-accepted" }],
+    proofBundle: { format: "ont-proof-bundle", proofSource: "accumulator_batch_claim", name },
   };
 }
 const REC_A = record("alice", "11", "7a", 170);

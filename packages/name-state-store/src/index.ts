@@ -9,6 +9,8 @@ export type {
   NameStateOwner,
   NameStateAnchorCoords,
   NameStateTraceStep,
+  NameStateJsonValue,
+  NameStateProofBundle,
 } from "./record.js";
 export {
   encodeNameStateRecord,

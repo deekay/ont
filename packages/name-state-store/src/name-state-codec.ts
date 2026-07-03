@@ -12,6 +12,8 @@ import type {
   NameStateOwner,
   NameStateAnchorCoords,
   NameStateTraceStep,
+  NameStateJsonValue,
+  NameStateProofBundle,
 } from "./record.js";
 
 /** The JSON-safe on-disk form. NameStateRecord is already JSON-safe, so the encoded form is structurally equal —
@@ -40,6 +42,34 @@ function failEncode(reason: string): never {
 }
 function failDecode(reason: string): never {
   throw new Error(`invalid encoded name-state record: ${reason}`);
+}
+
+function clonedJsonValue(value: unknown, fail: (reason: string) => never, path: string): NameStateJsonValue {
+  if (value === null) return null;
+  if (typeof value === "string" || typeof value === "boolean") return value;
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) fail(`${path} must not contain a non-finite number`);
+    return value;
+  }
+  if (Array.isArray(value)) {
+    return value.map((entry, index) => clonedJsonValue(entry, fail, `${path}[${index}]`));
+  }
+  if (typeof value === "object") {
+    const out: Record<string, NameStateJsonValue> = {};
+    for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
+      out[key] = clonedJsonValue(entry, fail, `${path}.${key}`);
+    }
+    return out;
+  }
+  fail(`${path} must be JSON-safe`);
+}
+
+function validatedProofBundle(value: unknown, fail: (reason: string) => never): NameStateProofBundle {
+  const cloned = clonedJsonValue(value, fail, "proofBundle");
+  if (typeof cloned !== "object" || cloned === null || Array.isArray(cloned)) {
+    fail("proofBundle must be a JSON object");
+  }
+  return cloned as NameStateProofBundle;
 }
 
 /** Validate the owner shape; `fail` distinguishes the encode (poison runtime) vs decode (corrupt disk) boundary. */
@@ -123,10 +153,11 @@ function validatedRecord(value: unknown, fail: (reason: string) => never): NameS
       "anchor",
       "firstServableHeight",
       "trace",
+      "proofBundle",
     ])
   ) {
     fail(
-      "expected exactly { canonicalName, leafKeyHex, owner, batchLocalIndex, anchoredRoot, anchor, firstServableHeight, trace }",
+      "expected exactly { canonicalName, leafKeyHex, owner, batchLocalIndex, anchoredRoot, anchor, firstServableHeight, trace, proofBundle }",
     );
   }
   const r = value as Record<string, unknown>;
@@ -151,6 +182,7 @@ function validatedRecord(value: unknown, fail: (reason: string) => never): NameS
     anchor: validatedAnchor(r.anchor, fail),
     firstServableHeight: r.firstServableHeight as number,
     trace: validatedTrace(r.trace, fail),
+    proofBundle: validatedProofBundle(r.proofBundle, fail),
   };
 }
 

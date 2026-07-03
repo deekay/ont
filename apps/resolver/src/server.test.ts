@@ -11,7 +11,7 @@ import {
   type SignedValueRecord,
 } from "@ont/protocol";
 import type { OwnershipInterval, ProjectServedRecoveryHistoryInput, ProjectServedValueHistoryInput } from "@ont/adapter-resolver";
-import type { NameStateRecord } from "@ont/name-state-store";
+import type { NameStateProofBundle, NameStateRecord } from "@ont/name-state-store";
 import { handleResolverRequest, type NameStateViewSource, type ResolverStore } from "./server.js";
 
 // Clean runnable resolver red battery. The resolver app is an imperative HTTP shell around @ont/adapter-resolver:
@@ -244,17 +244,52 @@ describe("resolver service — HTTP shell totality", () => {
 // pin the wiring + reason→status mapping.
 describe("resolver service — GET /names/:name/state (LE-RESOLVE)", () => {
   const NS_NAME = "alice";
-  const NS_OWNER = "11".repeat(32);
+  const NS_OWNER = "22".repeat(32);
+  const NS_ROOT = "f93b90c055208630762382e331ef07f3be22df520a7ab7e4ff54707b599839b8";
+  const NS_ANCHOR_TXID = "f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16";
+  const NS_PROOF_BUNDLE: NameStateProofBundle = {
+    format: "ont-proof-bundle",
+    bundleVersion: 0,
+    proofSource: "accumulator_batch_claim",
+    assuranceTier: "accumulator-batched",
+    verificationGoal: "resolver server served proof-bundle fixture",
+    name: NS_NAME,
+    normalizedName: NS_NAME,
+    ownershipProof: { currentOwnerPubkey: NS_OWNER, ownershipRef: "accumulator-leaf:alice" },
+    accumulatorProof: {
+      root: NS_ROOT,
+      leaf: sha256Hex(utf8ToBytes(NS_NAME)),
+      value: NS_OWNER,
+      siblings: [
+        { level: 1, hash: "7a4ab456e0112c950c4f443951f713667438075e48fb9ec2b6613d81385ab8ca" },
+        { level: 2, hash: "5530fccbd45e1da9514e57a90a83f74aafbfb7820c005a69a9688f5a3ac2c485" },
+      ],
+    },
+    batchAnchor: { anchorTxid: NS_ANCHOR_TXID, anchorHeight: 170 },
+    bitcoinInclusion: {
+      anchors: [
+        {
+          txid: NS_ANCHOR_TXID,
+          height: 170,
+          blockHeaderHex:
+            "0100000055bd840a78798ad0da853f68974f3d183e2bd1db6a842c1feecf222a00000000ff104ccb05421ab93e63f8c3ce5c2c2e9dbb37de2764b3a3175c8166562cac7d51b96a49ffff001d283e9e70",
+          merkle: ["b1fea52486ce0c62bb442b530a3f0132b826c74e473d1f2c220bfa78111c5082"],
+          pos: 1,
+        },
+      ],
+    },
+  };
   function nameStateRecord(over: Partial<NameStateRecord> = {}): NameStateRecord {
     return {
       canonicalName: NS_NAME,
       leafKeyHex: sha256Hex(utf8ToBytes(NS_NAME)),
       owner: { kind: "owner-key", ownerPubkeyHex: NS_OWNER },
       batchLocalIndex: 0,
-      anchoredRoot: "7".repeat(64),
-      anchor: { txid: "b".repeat(64), minedHeight: 170, txIndex: 0, vout: 1 },
+      anchoredRoot: NS_ROOT,
+      anchor: { txid: NS_ANCHOR_TXID, minedHeight: 170, txIndex: 1, vout: 0 },
       firstServableHeight: 170,
       trace: [{ step: "verdict", ok: true, reason: "batched-claim-accepted" }],
+      proofBundle: JSON.parse(JSON.stringify(NS_PROOF_BUNDLE)) as NameStateProofBundle,
       ...over,
     };
   }
@@ -271,6 +306,7 @@ describe("resolver service — GET /names/:name/state (LE-RESOLVE)", () => {
       authority: "not-ownership-authority",
       canonicalName: NS_NAME,
       owner: { kind: "owner-key", ownerPubkeyHex: NS_OWNER },
+      proofBundle: NS_PROOF_BUNDLE,
     });
   });
 

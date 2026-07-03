@@ -5,6 +5,7 @@ import { encodeNameStateRecord, decodeNameStateRecord } from "./name-state-codec
 
 const NAME = "alice";
 const LEAF = sha256Hex(utf8ToBytes(NAME)); // the §2a invariant: leafKeyHex === H(canonicalName)
+const PROOF_BUNDLE = { format: "ont-proof-bundle", proofSource: "accumulator_batch_claim" };
 
 const VALID: NameStateRecord = {
   canonicalName: NAME,
@@ -18,6 +19,7 @@ const VALID: NameStateRecord = {
     { step: "inclusion", ok: true, reason: "ok" },
     { step: "verdict", ok: true, reason: "accept", evidence: { firstServableHeight: 170, servedCount: 1 } },
   ],
+  proofBundle: PROOF_BUNDLE,
 };
 
 /** A deep clone so a test mutation never leaks into the shared VALID fixture. */
@@ -33,7 +35,7 @@ describe("name-state codec", () => {
 
   it("encode produces exactly the contract fields (no extras leak to disk)", () => {
     expect(Object.keys(encodeNameStateRecord(VALID)).sort()).toEqual(
-      ["anchor", "anchoredRoot", "batchLocalIndex", "canonicalName", "firstServableHeight", "leafKeyHex", "owner", "trace"],
+      ["anchor", "anchoredRoot", "batchLocalIndex", "canonicalName", "firstServableHeight", "leafKeyHex", "owner", "proofBundle", "trace"],
     );
   });
 
@@ -55,6 +57,9 @@ describe("name-state codec", () => {
       ["an array", []],
       ["a missing top-level key", (() => { const r = clone() as Record<string, unknown>; delete r.owner; return r; })()],
       ["an extra top-level key", { ...clone(), extra: 1 }],
+      ["missing proofBundle", (() => { const r = clone() as Record<string, unknown>; delete r.proofBundle; return r; })()],
+      ["proofBundle that is not an object", { ...clone(), proofBundle: [] }],
+      ["proofBundle with a non-JSON value", { ...clone(), proofBundle: { bad: undefined } }],
       ["empty canonicalName", { ...clone(), canonicalName: "" }],
       ["a non-canonical name (uppercase) — reject-don't-normalize", { ...clone(), canonicalName: "Alice" }],
       ["non-hex leafKeyHex", { ...clone(), leafKeyHex: "z".repeat(64) }],

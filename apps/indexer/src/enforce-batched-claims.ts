@@ -19,7 +19,7 @@ import {
 } from "@ont/adapter-indexer";
 import { buildMembershipProof, buildAccumulatorBatchClaimBundle, type ServedLeaf } from "@ont/evidence";
 import { enforceBatchedClaim, type BatchedClaimPolicy, type BatchDataSource } from "@ont/claim-path";
-import type { NameStateRecord, NameStateStore } from "@ont/name-state-store";
+import type { NameStateProofBundle, NameStateRecord, NameStateStore } from "@ont/name-state-store";
 
 /** The published batch material for an anchored root — the B3/B4 DA-transport seam (fixture in tests / the
  *  hermetic e2e; the real `/da/{root}` transport in LE-DA-SERVE). The indexer NEVER trusts it: it is re-verified
@@ -115,25 +115,29 @@ export async function enforceBatchedClaims(
       //    guard). It binds the cited anchor txid to Bitcoin (against the candidate's trusted headerSource) and
       //    proves ONE representative member's membership in the anchored root; the FULL batch is validated by the
       //    batchDataSource + completeness below. No valueRecords ride here, so `ownershipRef` is a SYNTHETIC
-      //    carrier ref = the representative leaf key H(name) — it is NEVER persisted into NameStateRecord and must
-      //    not be reused once real value records (with their own ref) are attached.
+      //    carrier ref = the member leaf key H(name) inside the proof bundle only; it must not be reused once
+      //    real value records (with their own ref) are attached.
+      const inclusion = {
+        txid,
+        height: candidate.minedHeight,
+        blockHeaderHex: candidate.blockHeaderHex,
+        merkle: candidate.merkle, // already firewalled upstream; re-verified by verifyProofBundleAgainstBitcoin
+        pos: candidate.pos,
+      };
+      const bundleForEntry = (entry: (typeof material.committedEntries)[number]) => {
+        const leaf = sha256Hex(utf8ToBytes(entry.name));
+        return buildAccumulatorBatchClaimBundle({
+          name: entry.name,
+          assuranceTier: "accumulator-batched",
+          verificationGoal: "live-enforcement LE-INDEX anchor/root inclusion carrier (no value records)",
+          ownership: { currentOwnerPubkey: entry.ownerPubkey, ownershipRef: leaf /* synthetic carrier ref */ },
+          membership: buildMembershipProof(fullLeaves, leaf),
+          anchor: { anchorTxid: txid, anchorHeight: candidate.minedHeight },
+          inclusion,
+        });
+      };
       const rep = material.committedEntries[0]!;
-      const repLeaf = sha256Hex(utf8ToBytes(rep.name));
-      const anchorInclusionBundle = buildAccumulatorBatchClaimBundle({
-        name: rep.name,
-        assuranceTier: "accumulator-batched",
-        verificationGoal: "live-enforcement LE-INDEX anchor/root inclusion carrier (no value records)",
-        ownership: { currentOwnerPubkey: rep.ownerPubkey, ownershipRef: repLeaf /* synthetic carrier ref */ },
-        membership: buildMembershipProof(fullLeaves, repLeaf),
-        anchor: { anchorTxid: txid, anchorHeight: candidate.minedHeight },
-        inclusion: {
-          txid,
-          height: candidate.minedHeight,
-          blockHeaderHex: candidate.blockHeaderHex,
-          merkle: candidate.merkle, // already firewalled upstream; re-verified by verifyProofBundleAgainstBitcoin
-          pos: candidate.pos,
-        },
-      });
+      const anchorInclusionBundle = bundleForEntry(rep);
 
       // 5. The batchDataSource the audited stages consume: availability (base/served) + the committed-batch
       //    RECOMPUTE + the fee witness (the candidate's own anchorTx + prevouts — one tx for inclusion AND fees).
@@ -184,6 +188,7 @@ export async function enforceBatchedClaims(
         anchor: { txid, minedHeight: candidate.minedHeight, txIndex: candidate.pos, vout: fields.vout },
         firstServableHeight,
         trace,
+        proofBundle: bundleForEntry(e) as unknown as NameStateProofBundle,
       }));
     } catch {
       // Total: an unexpected ENFORCEMENT-logic throw (decode/build/verdict) never aborts the batch — that

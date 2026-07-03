@@ -22,7 +22,7 @@ import { join } from "node:path";
 import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
 import { sha256Hex, utf8ToBytes } from "@ont/protocol";
-import { createFileNameStateStore, type NameStateRecord } from "@ont/name-state-store";
+import { createFileNameStateStore, type NameStateProofBundle, type NameStateRecord } from "@ont/name-state-store";
 import { selectResolverNameStateView, createResolverHttpServer, createInMemoryResolverStore } from "@ont/resolver";
 
 export interface NameStateServeE2eResult {
@@ -39,10 +39,51 @@ export interface NameStateServeE2eResult {
 }
 
 const NAME = "alice";
-const OWNER = "11".repeat(32);
-const ANCHORED_ROOT = "7a".repeat(32);
-const ANCHOR_TXID = "b".repeat(64);
+const OWNER = "22".repeat(32);
+const ANCHORED_ROOT = "f93b90c055208630762382e331ef07f3be22df520a7ab7e4ff54707b599839b8";
+const ANCHOR_TXID = "f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16";
 const MINED_HEIGHT = 170;
+const ANCHOR_TX_INDEX = 1;
+const leafKeyOf = (name: string): string => sha256Hex(utf8ToBytes(name));
+
+// This hermetic serve-path test is not a live-regtest miner. The bundle is an immutable, internally-verifiable
+// block-170 Bitcoin inclusion fixture whose accumulator/name/owner fields are bound to the seeded record below.
+const PROOF_BUNDLE: NameStateProofBundle = {
+  format: "ont-proof-bundle",
+  bundleVersion: 0,
+  proofSource: "accumulator_batch_claim",
+  assuranceTier: "accumulator-batched",
+  verificationGoal: "regtest-e2e served proof-bundle fixture",
+  name: NAME,
+  normalizedName: NAME,
+  ownershipProof: { currentOwnerPubkey: OWNER, ownershipRef: "accumulator-leaf:alice" },
+  accumulatorProof: {
+    root: ANCHORED_ROOT,
+    leaf: leafKeyOf(NAME),
+    value: OWNER,
+    siblings: [
+      { level: 1, hash: "7a4ab456e0112c950c4f443951f713667438075e48fb9ec2b6613d81385ab8ca" },
+      { level: 2, hash: "5530fccbd45e1da9514e57a90a83f74aafbfb7820c005a69a9688f5a3ac2c485" },
+    ],
+  },
+  batchAnchor: { anchorTxid: ANCHOR_TXID, anchorHeight: MINED_HEIGHT },
+  bitcoinInclusion: {
+    anchors: [
+      {
+        txid: ANCHOR_TXID,
+        height: MINED_HEIGHT,
+        blockHeaderHex:
+          "0100000055bd840a78798ad0da853f68974f3d183e2bd1db6a842c1feecf222a00000000ff104ccb05421ab93e63f8c3ce5c2c2e9dbb37de2764b3a3175c8166562cac7d51b96a49ffff001d283e9e70",
+        merkle: ["b1fea52486ce0c62bb442b530a3f0132b826c74e473d1f2c220bfa78111c5082"],
+        pos: ANCHOR_TX_INDEX,
+      },
+    ],
+  },
+};
+
+function proofBundle(): NameStateProofBundle {
+  return JSON.parse(JSON.stringify(PROOF_BUNDLE)) as NameStateProofBundle;
+}
 
 /** Start an HTTP server on an ephemeral localhost port and resolve its base URL. */
 function listen(server: Server): Promise<string> {
@@ -57,13 +98,14 @@ function listen(server: Server): Promise<string> {
 function acceptedRecord(): NameStateRecord {
   return {
     canonicalName: NAME,
-    leafKeyHex: sha256Hex(utf8ToBytes(NAME)),
+    leafKeyHex: leafKeyOf(NAME),
     owner: { kind: "owner-key", ownerPubkeyHex: OWNER },
     batchLocalIndex: 0,
     anchoredRoot: ANCHORED_ROOT,
-    anchor: { txid: ANCHOR_TXID, minedHeight: MINED_HEIGHT, txIndex: 0, vout: 1 },
+    anchor: { txid: ANCHOR_TXID, minedHeight: MINED_HEIGHT, txIndex: ANCHOR_TX_INDEX, vout: 0 },
     firstServableHeight: MINED_HEIGHT,
     trace: [{ step: "verdict", ok: true, reason: "batched-claim-accepted" }],
+    proofBundle: proofBundle(),
   };
 }
 
