@@ -5,23 +5,15 @@
 // ONT_STORE, and launch policy params from env/defaults. Unknown modes and missing fixture material fail closed.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { decodeEncodedMaterialFile } from "@ont/adapter-da";
 import { createFileNameStateStore, type NameStateRecord, type NameStateStore } from "@ont/name-state-store";
 import type { BatchedClaimPolicy } from "@ont/claim-path";
 import type { BatchMaterial, EnforceBatchedClaimsDeps } from "../enforce-batched-claims.js";
 
-const HEX_64_LOWER = /^[0-9a-f]{64}$/;
 const DEFAULT_POLICY: BatchedClaimPolicy = {
   window: { K: 6, W: 2, C: 3 },
   gateFeeSchedule: { gateOneByteSats: 1_000_000n, gateLongNameFloorSats: 100_000n },
 };
-
-interface EncodedBatchMaterial {
-  readonly anchoredRoot: string;
-  readonly prevRoot: string;
-  readonly committedEntries: readonly { readonly name: string; readonly ownerPubkey: string }[];
-  readonly baseLeaves: readonly { readonly keyHex: string; readonly valueHex: string }[];
-  readonly servedLeaves: readonly { readonly keyHex: string; readonly valueHex: string }[];
-}
 
 export function selectIndexerEnforcement(
   env: Record<string, string | undefined>,
@@ -114,13 +106,10 @@ function loadBatchMaterialFile(path: string): Map<string, BatchMaterial> {
   } catch {
     throw new Error("batch material file is not valid JSON");
   }
-  if (parsed === null || typeof parsed !== "object" || !Array.isArray((parsed as { materials?: unknown }).materials)) {
-    throw new Error("batch material file must be an object with a materials array");
-  }
+  const materialFile = decodeEncodedMaterialFile(parsed);
 
   const out = new Map<string, BatchMaterial>();
-  for (const entry of (parsed as { materials: unknown[] }).materials) {
-    const encoded = decodeEncodedMaterial(entry);
+  for (const encoded of materialFile.materials) {
     const key = materialKey(encoded.anchoredRoot, encoded.prevRoot);
     if (out.has(key)) throw new Error(`duplicate batch material for ${encoded.anchoredRoot}/${encoded.prevRoot}`);
     out.set(key, {
@@ -130,45 +119,6 @@ function loadBatchMaterialFile(path: string): Map<string, BatchMaterial> {
     });
   }
   return out;
-}
-
-function decodeEncodedMaterial(value: unknown): EncodedBatchMaterial {
-  if (value === null || typeof value !== "object") throw new Error("batch material entry must be an object");
-  const v = value as Record<string, unknown>;
-  const anchoredRoot = readHex64(v.anchoredRoot, "anchoredRoot");
-  const prevRoot = readHex64(v.prevRoot, "prevRoot");
-  const committedEntries = readObjectArray(v.committedEntries, "committedEntries").map((entry) => ({
-    name: readString(entry.name, "committedEntries.name"),
-    ownerPubkey: readHex64(entry.ownerPubkey, "committedEntries.ownerPubkey"),
-  }));
-  const baseLeaves = readObjectArray(v.baseLeaves, "baseLeaves").map((leaf) => ({
-    keyHex: readHex64(leaf.keyHex, "baseLeaves.keyHex"),
-    valueHex: readHex64(leaf.valueHex, "baseLeaves.valueHex"),
-  }));
-  const servedLeaves = readObjectArray(v.servedLeaves, "servedLeaves").map((leaf) => ({
-    keyHex: readHex64(leaf.keyHex, "servedLeaves.keyHex"),
-    valueHex: readHex64(leaf.valueHex, "servedLeaves.valueHex"),
-  }));
-  return { anchoredRoot, prevRoot, committedEntries, baseLeaves, servedLeaves };
-}
-
-function readObjectArray(value: unknown, label: string): Record<string, unknown>[] {
-  if (!Array.isArray(value)) throw new Error(`${label} must be an array`);
-  return value.map((entry) => {
-    if (entry === null || typeof entry !== "object") throw new Error(`${label} entries must be objects`);
-    return entry as Record<string, unknown>;
-  });
-}
-
-function readString(value: unknown, label: string): string {
-  if (typeof value !== "string") throw new Error(`${label} must be a string`);
-  return value;
-}
-
-function readHex64(value: unknown, label: string): string {
-  const s = readString(value, label);
-  if (!HEX_64_LOWER.test(s)) throw new Error(`${label} must be 32-byte lowercase hex`);
-  return s;
 }
 
 function materialKey(anchoredRoot: string, prevRoot: string): string {

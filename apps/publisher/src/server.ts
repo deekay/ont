@@ -5,6 +5,7 @@ import {
   type AssembleRecoverOwnerInvokeInput,
   type AssembleRootAnchorInput,
 } from "@ont/adapter-publisher";
+import { isHex64Lower, type DaRecordStore } from "@ont/adapter-da";
 import {
   legacyTxidOf,
   parseLegacyTransaction,
@@ -22,6 +23,7 @@ export interface PublisherBroadcastPort {
 
 export interface PublisherServiceOptions {
   readonly broadcast: PublisherBroadcastPort;
+  readonly daRecordSource?: DaRecordStore | undefined;
 }
 
 export function createInMemoryPublisherBroadcastPort(): PublisherBroadcastPort {
@@ -65,6 +67,10 @@ export async function handlePublisherRequest(request: Request, options: Publishe
       if (request.method !== "POST") return json({ ok: false, reason: "method-not-allowed" }, 405);
       return broadcastSignedRoute(request, options.broadcast);
     }
+    if (segments.length === 2 && segments[0] === "da") {
+      if (request.method !== "GET") return json({ ok: false, reason: "method-not-allowed" }, 405);
+      return daRecordRoute(segments[1]!, options.daRecordSource);
+    }
 
     return json({ ok: false, reason: "not-found" }, 404);
   } catch {
@@ -76,6 +82,21 @@ export function createPublisherHttpServer(options: PublisherServiceOptions): Ser
   return createServer((req, res) => {
     void handleNodeRequest(req, res, options);
   });
+}
+
+async function daRecordRoute(anchoredRoot: string, daRecordSource?: DaRecordStore | undefined): Promise<Response> {
+  if (!isHex64Lower(anchoredRoot)) return json({ ok: false, reason: "malformed-root" }, 400);
+  if (daRecordSource === undefined) return json({ ok: false, reason: "not-found" }, 404);
+  try {
+    const record = await daRecordSource.getRecord(anchoredRoot);
+    if (record === null) return json({ ok: false, reason: "not-found" }, 404);
+    return new Response(record, {
+      status: 200,
+      headers: { "content-type": "application/json; charset=utf-8" },
+    });
+  } catch {
+    return json({ ok: false, reason: "not-found" }, 404);
+  }
 }
 
 // Assemble-only: no broadcast port in scope. Returns the unsigned tx for off-service signing.
