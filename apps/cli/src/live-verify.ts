@@ -5,6 +5,7 @@ import {
 } from "@ont/launch-config";
 import {
   checkProofBundleHeaderDepthCoverage,
+  createEsploraHeaderRangeProvider,
   createResolverHeaderRangeProvider,
   fetchSignetLaunchHeaderSource,
   proofBundleMaxAnchorHeight,
@@ -13,6 +14,8 @@ import {
 } from "@ont/light-client";
 
 export const ONT_BITCOIN_HEADER_SOURCE_ENV = "ONT_BITCOIN_HEADER_SOURCE";
+export const ONT_HEADER_PROVIDER_ENV = "ONT_HEADER_PROVIDER";
+export const ONT_ESPLORA_URL_ENV = "ONT_ESPLORA_URL";
 export const ONT_RESOLVER_URL_ENV = "ONT_RESOLVER_URL";
 
 export type ResolverNameProofBundleSource = (name: string) => Promise<unknown | null>;
@@ -62,6 +65,19 @@ export function selectCliVerifyHeaderProvider(
   env: Record<string, string | undefined>,
   fetchImpl: typeof fetch = fetch,
 ): HeaderRangeProvider | null {
+  const provider = parseHeaderProvider(env[ONT_HEADER_PROVIDER_ENV]);
+  if (provider !== null) {
+    if (provider === "resolver") {
+      const resolverUrl = selectCliVerifyResolverUrl(env);
+      if (resolverUrl === null) throw new Error(`${ONT_HEADER_PROVIDER_ENV}=resolver requires ${ONT_RESOLVER_URL_ENV} or ${ONT_BITCOIN_HEADER_SOURCE_ENV}=resolver:<url>`);
+      return createResolverHeaderRangeProvider({ resolverUrl, fetchImpl });
+    }
+    if (provider === "esplora") {
+      return createEsploraHeaderRangeProvider({ esploraBaseUrl: requiredEnv(env, ONT_ESPLORA_URL_ENV), fetchImpl });
+    }
+    throw new Error(`${ONT_HEADER_PROVIDER_ENV}=node is deferred for slice 8; use resolver or esplora`);
+  }
+
   const source = parseResolverHeaderSource(env[ONT_BITCOIN_HEADER_SOURCE_ENV]);
   return source === null ? null : createResolverHeaderRangeProvider({ resolverUrl: source.resolverUrl, fetchImpl });
 }
@@ -202,6 +218,22 @@ function parseResolverHeaderSource(raw: string | undefined): { readonly resolver
   const resolverUrl = trimmed.slice(prefix.length).trim();
   if (resolverUrl === "") throw new Error(`${ONT_BITCOIN_HEADER_SOURCE_ENV} resolver source is missing a URL`);
   return { resolverUrl };
+}
+
+function parseHeaderProvider(raw: string | undefined): "resolver" | "esplora" | "node" | null {
+  if (raw === undefined) return null;
+  const trimmed = raw.trim();
+  if (trimmed === "") throw new Error(`${ONT_HEADER_PROVIDER_ENV} is set but empty`);
+  if (trimmed === "resolver" || trimmed === "esplora" || trimmed === "node") return trimmed;
+  throw new Error(`${ONT_HEADER_PROVIDER_ENV} must be resolver, esplora, or node`);
+}
+
+function requiredEnv(env: Record<string, string | undefined>, key: string): string {
+  const raw = env[key];
+  if (raw === undefined) throw new Error(`${key} is required`);
+  const value = raw.trim();
+  if (value === "") throw new Error(`${key} is set but empty`);
+  return value;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

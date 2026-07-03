@@ -1,5 +1,5 @@
 import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
-import { createResolverHeaderRangeProvider, proofBundleMaxAnchorHeight } from "@ont/light-client";
+import { proofBundleMaxAnchorHeight } from "@ont/light-client";
 import React from "react";
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { ApiError } from "../api/client";
@@ -13,8 +13,9 @@ import { availabilityFromRecord } from "../wallet/availability";
 import { useWallet } from "../wallet/WalletContext";
 import { eventTone, nameStatusTone } from "../status";
 import { colors, font, spacing } from "../theme";
-import { API_BASE } from "../config";
+import { API_BASE, HEADER_PROVIDER, HEADER_PROVIDER_ESPLORA_URL } from "../config";
 import {
+  createMobileSignetHeaderRangeProvider,
   fetchMobileSignetLaunchHeaderSource,
   mobileBitcoinVerificationState,
   unavailableMobileBitcoinVerificationState,
@@ -43,7 +44,11 @@ async function loadNameDetail(name: string): Promise<NameDetailData> {
   return { record, values, activity, bitcoinVerification };
 }
 
-const resolverHeaderProvider = createResolverHeaderRangeProvider({ resolverUrl: API_BASE });
+const mobileHeaderProvider = createMobileSignetHeaderRangeProvider({
+  provider: HEADER_PROVIDER,
+  resolverUrl: API_BASE,
+  esploraBaseUrl: HEADER_PROVIDER_ESPLORA_URL,
+});
 
 async function loadBitcoinVerification(
   name: string,
@@ -82,7 +87,7 @@ async function loadBitcoinVerification(
 
   const headerSource = await fetchMobileSignetLaunchHeaderSource({
     anchorHeight,
-    provider: resolverHeaderProvider,
+    provider: mobileHeaderProvider,
   });
 
   return mobileBitcoinVerificationState({

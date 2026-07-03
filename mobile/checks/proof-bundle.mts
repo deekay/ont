@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import {
   buildSignetLaunchHeaderSourceFromHeaders,
   checkProofBundleHeaderDepthCoverage,
+  createEsploraHeaderRangeProvider,
   createResolverHeaderRangeProvider,
   runVerifyProofBundleAgainstBitcoin,
 } from "@ont/light-client";
@@ -11,6 +12,7 @@ import { LAUNCH_CONFIRMATION_DEPTH, SIGNET_LAUNCH_CHECKPOINT_ID } from "@ont/lau
 const ROOT = new URL("../..", import.meta.url).pathname.replace(/\/+$/, "");
 const verificationMod = await import(`${ROOT}/mobile/src/verification/bitcoin.ts`);
 const {
+  createMobileSignetHeaderRangeProvider,
   fetchMobileSignetLaunchHeaderSource,
   mobileBitcoinVerificationState,
   unavailableMobileBitcoinVerificationState,
@@ -168,6 +170,30 @@ ok(
 }
 
 {
+  const hashes = fixture.headers.map((header) => header.height.toString(16).padStart(64, "0"));
+  const esploraProvider = createEsploraHeaderRangeProvider({
+    esploraBaseUrl: "https://esplora.test/signet/api",
+    fetchImpl: esploraFetch(fixture, hashes),
+  });
+  const fetched = await fetchMobileSignetLaunchHeaderSource({
+    anchorHeight: fixture.anchorHeight,
+    provider: esploraProvider,
+  });
+  ok("mobile Esplora provider validates through the shared live seam", fetched.ok === true);
+  const selected = createMobileSignetHeaderRangeProvider({
+    provider: "esplora",
+    resolverUrl: "http://resolver.test",
+    esploraBaseUrl: "https://esplora.test/signet/api",
+    fetchImpl: esploraFetch(fixture, hashes),
+  });
+  const selectedFetched = await fetchMobileSignetLaunchHeaderSource({
+    anchorHeight: fixture.anchorHeight,
+    provider: selected,
+  });
+  ok("mobile Esplora selector stays RN-safe and provider-trusted", selectedFetched.ok === true);
+}
+
+{
   const missing = await fetchMobileSignetLaunchHeaderSource({
     anchorHeight: fixture.anchorHeight,
     provider: null,
@@ -195,4 +221,25 @@ async function loadSignetHeaderRange(): Promise<SignetHeaderFixture> {
 
 function cloneRecord(value: Record<string, unknown>): Record<string, unknown> {
   return JSON.parse(JSON.stringify(value)) as Record<string, unknown>;
+}
+
+function esploraFetch(
+  fixture: SignetHeaderFixture,
+  hashes: readonly string[],
+): typeof fetch {
+  return async (url) => {
+    const u = new URL(String(url));
+    const heightMatch = u.pathname.match(/\/block-height\/([0-9]+)$/);
+    if (heightMatch) {
+      const height = Number.parseInt(heightMatch[1]!, 10);
+      const index = fixture.headers.findIndex((header) => header.height === height);
+      return index === -1 ? new Response("", { status: 404 }) : new Response(`${hashes[index]!}\n`, { status: 200 });
+    }
+    const headerMatch = u.pathname.match(/\/block\/([0-9a-f]{64})\/header$/);
+    if (headerMatch) {
+      const index = hashes.indexOf(headerMatch[1]!);
+      return index === -1 ? new Response("", { status: 404 }) : new Response(`${fixture.headers[index]!.headerHex}\n`, { status: 200 });
+    }
+    return new Response("", { status: 404 });
+  };
 }

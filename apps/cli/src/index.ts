@@ -35,6 +35,7 @@ export {
   runVerifyProofBundleAgainstBitcoin,
   SIGNET_LAUNCH_HEADER_SOURCE_ID,
   buildSignetLaunchHeaderSourceFromHeaders,
+  createEsploraHeaderRangeProvider,
   createResolverHeaderRangeProvider,
   fetchSignetLaunchHeaderSource,
   proofBundleMaxAnchorHeight,
@@ -47,6 +48,7 @@ export {
   type CanonicalHeaderResult,
   type FetchSignetLaunchHeaderSourceInput,
   type HeaderRangeProvider,
+  type EsploraHeaderRangeProviderOptions,
   type ResolverHeaderRangeProviderOptions,
   type SignetLaunchHeaderRangeInput,
   type SignetLaunchHeaderRangeResult,
@@ -57,6 +59,8 @@ export {
 } from "./verify-commands.js";
 export {
   ONT_BITCOIN_HEADER_SOURCE_ENV,
+  ONT_ESPLORA_URL_ENV,
+  ONT_HEADER_PROVIDER_ENV,
   ONT_RESOLVER_URL_ENV,
   createResolverNameProofBundleSource,
   renderCliVerifyNameResult,

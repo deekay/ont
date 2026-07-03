@@ -38,6 +38,11 @@ const active = NETWORKS[ACTIVE_NETWORK];
 export const ONT_HOST = active.host;
 export const API_BASE = `${ONT_HOST}/api`;
 export const ESPLORA_BASE = `${ONT_HOST}/esplora`;
+export type HeaderProviderName = "resolver" | "esplora";
+
+/** Header-range source for on-device verification. "resolver" is the default; "esplora" is liveness-only on signet. */
+export const HEADER_PROVIDER: HeaderProviderName = "resolver";
+export const HEADER_PROVIDER_ESPLORA_URL = ESPLORA_BASE;
 
 /** Owner keys are x-only Schnorr; funding addresses are bech32 (tb1q… on signet). */
 export const NETWORK = active.network;

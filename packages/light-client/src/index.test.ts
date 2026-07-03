@@ -6,6 +6,7 @@ import type { BitcoinHeaderSource } from "@ont/consensus";
 import {
   buildSignetLaunchHeaderSourceFromHeaders,
   checkProofBundleHeaderDepthCoverage,
+  createEsploraHeaderRangeProvider,
   fetchSignetLaunchHeaderSource,
   createResolverHeaderRangeProvider,
   proofBundleMaxAnchorHeight,
@@ -197,6 +198,71 @@ describe("signet launch header source", () => {
     }
   });
 
+  it("Esplora provider resolves block-height then block header in ascending order", async () => {
+    const fixture = await loadSignetHeaderRange();
+    const headersHex = fixture.headers.map((header) => header.headerHex);
+    const hashes = fixture.headers.map((header) => headerHash(header.height));
+    const calls: string[] = [];
+    const provider = createEsploraHeaderRangeProvider({
+      esploraBaseUrl: "https://esplora.test/signet/api",
+      fetchImpl: esploraFetch(calls, fixture, hashes),
+    });
+
+    await expect(provider.fetchHeaderHex(fixture.anchorHeight, fixture.headers.length)).resolves.toEqual(headersHex);
+    expect(calls).toEqual(fixture.headers.flatMap((header, index) => [
+      `https://esplora.test/signet/api/block-height/${header.height}`,
+      `https://esplora.test/signet/api/block/${hashes[index]!}/header`,
+    ]));
+  });
+
+  it("Esplora provider returns null on malformed ranges before any fetch", async () => {
+    const calls: string[] = [];
+    const provider = createEsploraHeaderRangeProvider({
+      esploraBaseUrl: "https://esplora.test/signet/api",
+      fetchImpl: async (url) => {
+        calls.push(String(url));
+        return new Response("", { status: 500 });
+      },
+    });
+
+    await expect(provider.fetchHeaderHex(-1, 1)).resolves.toBeNull();
+    await expect(provider.fetchHeaderHex(311_446, 0)).resolves.toBeNull();
+    await expect(provider.fetchHeaderHex(311_446.5, 1)).resolves.toBeNull();
+    expect(calls).toEqual([]);
+  });
+
+  it("Esplora provider maps per-height 404, network throw, missing interior height, and malformed header to null", async () => {
+    const fixture = await loadSignetHeaderRange();
+    const hashes = fixture.headers.map((header) => headerHash(header.height));
+    const cases: Array<readonly [string, typeof fetch]> = [
+      ["height-404", async () => new Response("", { status: 404 })],
+      ["throw", async () => { throw new Error("network down"); }],
+      ["missing-interior", esploraFetch([], fixture, hashes, { missingHeight: fixture.headers[1]!.height })],
+      ["bad-header", esploraFetch([], fixture, hashes, { malformedHeaderHeight: fixture.headers[1]!.height })],
+    ];
+
+    for (const [, fetchImpl] of cases) {
+      const provider = createEsploraHeaderRangeProvider({ esploraBaseUrl: "https://esplora.test/signet/api", fetchImpl });
+      await expect(provider.fetchHeaderHex(fixture.anchorHeight, fixture.headers.length)).resolves.toBeNull();
+    }
+  });
+
+  it("Esplora provider inherits the same forged-child firewall as direct header arrays", async () => {
+    const fixture = await loadSignetHeaderRange();
+    const headersHex = fixture.headers.map((header) => header.headerHex);
+    const forged = [overwriteNonce(headersHex[0]!, 0), ...headersHex.slice(1)];
+    const direct = buildSignetLaunchHeaderSourceFromHeaders({ headersHex: forged, anchorHeight: fixture.anchorHeight });
+    const provider = createEsploraHeaderRangeProvider({
+      esploraBaseUrl: "https://esplora.test/signet/api",
+      fetchImpl: esploraFetch([], fixture, fixture.headers.map((header) => headerHash(header.height)), { headersHex: forged }),
+    });
+
+    const fetched = await fetchSignetLaunchHeaderSource({ anchorHeight: fixture.anchorHeight, provider });
+
+    expect(direct.ok).toBe(false);
+    expect(fetched).toEqual(direct);
+  });
+
   it("fails closed for forged child, short tail, and wrong-network ranges", async () => {
     const fixture = await loadSignetHeaderRange();
     const headersHex = fixture.headers.map((header) => header.headerHex);
@@ -251,4 +317,47 @@ function bytesToHex(bytes: Uint8Array): string {
   let hex = "";
   for (const byte of bytes) hex += byte.toString(16).padStart(2, "0");
   return hex;
+}
+
+function headerHash(height: number): string {
+  return height.toString(16).padStart(64, "0");
+}
+
+function esploraFetch(
+  calls: string[],
+  fixture: SignetHeaderFixture,
+  hashes: readonly string[],
+  opts: {
+    readonly headersHex?: readonly string[] | undefined;
+    readonly missingHeight?: number | undefined;
+    readonly malformedHeaderHeight?: number | undefined;
+  } = {},
+): typeof fetch {
+  const hashByHeight = new Map<number, string>();
+  const headerByHash = new Map<string, string>();
+  for (const [index, header] of fixture.headers.entries()) {
+    const hash = hashes[index]!;
+    hashByHeight.set(header.height, hash);
+    headerByHash.set(hash, opts.headersHex?.[index] ?? header.headerHex);
+  }
+  return async (url) => {
+    const u = new URL(String(url));
+    calls.push(u.toString());
+    const heightMatch = u.pathname.match(/\/block-height\/([0-9]+)$/);
+    if (heightMatch) {
+      const height = Number.parseInt(heightMatch[1]!, 10);
+      if (height === opts.missingHeight) return new Response("", { status: 404 });
+      const hash = hashByHeight.get(height);
+      return hash === undefined ? new Response("", { status: 404 }) : new Response(`${hash}\n`, { status: 200 });
+    }
+    const headerMatch = u.pathname.match(/\/block\/([0-9a-f]{64})\/header$/);
+    if (headerMatch) {
+      const hash = headerMatch[1]!;
+      const header = headerByHash.get(hash);
+      const height = [...hashByHeight.entries()].find(([, h]) => h === hash)?.[0];
+      if (height === opts.malformedHeaderHeight) return new Response("zz", { status: 200 });
+      return header === undefined ? new Response("", { status: 404 }) : new Response(`${header}\n`, { status: 200 });
+    }
+    return new Response("", { status: 404 });
+  };
 }

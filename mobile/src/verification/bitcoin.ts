@@ -1,5 +1,7 @@
 import {
   checkProofBundleHeaderDepthCoverage,
+  createEsploraHeaderRangeProvider,
+  createResolverHeaderRangeProvider,
   fetchSignetLaunchHeaderSource,
   runVerifyProofBundleAgainstBitcoin,
   type BitcoinHeaderSource,
@@ -67,6 +69,22 @@ export interface FetchMobileSignetHeaderSourceInput {
   readonly anchorHeight: number;
   readonly provider?: HeaderRangeProvider | null | undefined;
   readonly confirmationDepth?: number | undefined;
+}
+
+export interface CreateMobileSignetHeaderRangeProviderInput {
+  readonly provider: "resolver" | "esplora";
+  readonly resolverUrl: string;
+  readonly esploraBaseUrl: string;
+  readonly fetchImpl?: typeof fetch | undefined;
+}
+
+export function createMobileSignetHeaderRangeProvider(
+  input: CreateMobileSignetHeaderRangeProviderInput,
+): HeaderRangeProvider {
+  if (input.provider === "resolver") {
+    return createResolverHeaderRangeProvider({ resolverUrl: input.resolverUrl, fetchImpl: input.fetchImpl });
+  }
+  return createEsploraHeaderRangeProvider({ esploraBaseUrl: input.esploraBaseUrl, fetchImpl: input.fetchImpl });
 }
 
 export function mobileBitcoinVerificationState(

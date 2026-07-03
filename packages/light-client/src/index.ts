@@ -81,6 +81,11 @@ export interface ResolverHeaderRangeProviderOptions {
   readonly fetchImpl?: typeof fetch | undefined;
 }
 
+export interface EsploraHeaderRangeProviderOptions {
+  readonly esploraBaseUrl: string;
+  readonly fetchImpl?: typeof fetch | undefined;
+}
+
 export function isBitcoinHeaderSource(value: unknown): value is BitcoinHeaderSource {
   return value !== null && typeof value === "object" && typeof (value as { readonly headerHexAtHeight?: unknown }).headerHexAtHeight === "function";
 }
@@ -165,6 +170,30 @@ export function createResolverHeaderRangeProvider(input: ResolverHeaderRangeProv
   };
 }
 
+export function createEsploraHeaderRangeProvider(input: EsploraHeaderRangeProviderOptions): HeaderRangeProvider {
+  const fetchImpl = input.fetchImpl ?? fetch;
+  return {
+    async fetchHeaderHex(startHeight: number, count: number): Promise<readonly string[] | null> {
+      try {
+        if (!isWellFormedHeaderRange(startHeight, count)) return null;
+        const headers: string[] = [];
+        for (let offset = 0; offset < count; offset += 1) {
+          const height = startHeight + offset;
+          if (!Number.isSafeInteger(height)) return null;
+          const hash = await fetchEsploraText(fetchImpl, input.esploraBaseUrl, `block-height/${height}`);
+          if (!isHexLower(hash, 64)) return null;
+          const headerHex = await fetchEsploraText(fetchImpl, input.esploraBaseUrl, `block/${hash}/header`);
+          if (!isHexLower(headerHex, 160)) return null;
+          headers.push(headerHex);
+        }
+        return headers.length === count ? headers : null;
+      } catch {
+        return null;
+      }
+    },
+  };
+}
+
 /** Surfaces the audited STRUCTURAL report VERBATIM (not Bitcoin finality); only a throw from the audited verifier -> malformed. */
 export function runInspectProofBundle(bundle: unknown): InspectProofBundleResult {
   try {
@@ -230,4 +259,19 @@ function proofBundleAnchorHeights(bundle: unknown): number[] {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isWellFormedHeaderRange(startHeight: number, count: number): boolean {
+  return Number.isInteger(startHeight) && startHeight >= 0 && Number.isInteger(count) && count >= 1;
+}
+
+async function fetchEsploraText(fetchImpl: typeof fetch, baseUrl: string, path: string): Promise<string | null> {
+  const base = baseUrl.replace(/\/+$/, "") + "/";
+  const res = await fetchImpl(new URL(path, base).toString());
+  if (res.status !== 200) return null;
+  return (await res.text()).trim();
+}
+
+function isHexLower(value: unknown, length: number): value is string {
+  return typeof value === "string" && value.length === length && /^[0-9a-f]+$/.test(value);
 }

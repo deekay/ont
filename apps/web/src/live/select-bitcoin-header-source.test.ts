@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { HeaderRangeProvider } from "@ont/light-client";
 import {
+  ONT_ESPLORA_URL_ENV,
+  ONT_HEADER_PROVIDER_ENV,
+  ONT_RESOLVER_URL_ENV,
   ONT_WEB_BITCOIN_HEADER_SOURCE_ENV,
   selectBitcoinHeaderProvider,
 } from "./select-bitcoin-header-source.js";
@@ -28,6 +31,43 @@ describe("selectBitcoinHeaderProvider", () => {
     );
     expect(selected).toBe(provider);
     expect(seen).toEqual(["http://resolver.test/"]);
+  });
+
+  it("ONT_HEADER_PROVIDER=resolver selects the resolver provider from ONT_RESOLVER_URL", () => {
+    const seen: string[] = [];
+    const selected = selectBitcoinHeaderProvider(
+      { [ONT_HEADER_PROVIDER_ENV]: "resolver", [ONT_RESOLVER_URL_ENV]: " http://resolver.test " },
+      {
+        resolver: (input) => {
+          seen.push(input.resolverUrl);
+          return provider;
+        },
+      },
+    );
+    expect(selected).toBe(provider);
+    expect(seen).toEqual(["http://resolver.test"]);
+  });
+
+  it("ONT_HEADER_PROVIDER=esplora selects the Esplora provider from ONT_ESPLORA_URL", () => {
+    const seen: string[] = [];
+    const selected = selectBitcoinHeaderProvider(
+      { [ONT_HEADER_PROVIDER_ENV]: "esplora", [ONT_ESPLORA_URL_ENV]: " https://esplora.test/signet/api " },
+      {
+        esplora: (input) => {
+          seen.push(input.esploraBaseUrl);
+          return provider;
+        },
+      },
+    );
+    expect(selected).toBe(provider);
+    expect(seen).toEqual(["https://esplora.test/signet/api"]);
+  });
+
+  it("ONT_HEADER_PROVIDER missing sub-env and unsupported values fail closed", () => {
+    expect(() => selectBitcoinHeaderProvider({ [ONT_HEADER_PROVIDER_ENV]: "esplora" })).toThrow(/ONT_ESPLORA_URL/);
+    expect(() => selectBitcoinHeaderProvider({ [ONT_HEADER_PROVIDER_ENV]: "resolver" })).toThrow(/ONT_RESOLVER_URL/);
+    expect(() => selectBitcoinHeaderProvider({ [ONT_HEADER_PROVIDER_ENV]: "node" })).toThrow(/deferred/);
+    expect(() => selectBitcoinHeaderProvider({ [ONT_HEADER_PROVIDER_ENV]: "unknown" })).toThrow(/ONT_HEADER_PROVIDER/);
   });
 
   it("present unsupported id -> throws; fixture:block-170 survives only as a negative test", () => {
