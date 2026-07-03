@@ -36,7 +36,7 @@ independence.
 
 | Half | What | Gate | Owner |
 |---|---|---|---|
-| **4a HEADER-SERVE** | indexer persists the checkpoint-forward header range → resolver serves it → HTTP `HeaderRangeProvider` client → wired into CLI (+ web) | **code-only, no operator gate — dispatchable now**; all hermetic-tested first | codex |
+| **4a HEADER-SERVE** | indexer persists the checkpoint-forward header range → resolver serves it → HTTP `HeaderRangeProvider` client → wired into CLI (+ web) | **code-only, no operator gate — dispatchable now**; all hermetic-tested first | ChatLunatique |
 | **4b STAND-UP** | boot the G3 signet stack, make one real signet claim, point the CLI at the live resolver, walk verify live | **DK operator action**; I spec exact G3-runbook commands when 4a lands | DK (I spec) |
 
 4a does not wait on DK; its validation code + tests are hermetic. Only the *live* walk (4b) needs
@@ -77,7 +77,7 @@ and **backfills** checkpoint+1 → its start height once at boot (a bounded one-
 `getblockhash` + `getBlockHeaderHex`). The range stays short by design — the checkpoint is
 refreshed per release (spine §3(b)), so at stand-up it sits close to the signet tip.
 
-## 3. 4a code contract (codex)
+## 3. 4a code contract (ChatLunatique)
 
 Build in this order; each step lands a hermetic (no-network) test first, live wiring
 env-selected — same discipline as G1/G2 and live-enforcement (spine §0).
@@ -197,9 +197,10 @@ resolver-served range reaching ≥ anchor + depth, labelled provider-trusted per
 
 ## 8. Dispatch + review loop
 
-Dispatch **4a** to codex now (steps 1–6, hermetic-first). I review each handback fresh-frame →
-merge/push (standing authority) → ChatLunatique concurs on the spec/design deltas in parallel
-(non-blocking). DK is looped only for **4b** operator actions and the 6c demo-scope timing.
+Dispatch **4a** to ChatLunatique now (steps 1–6, hermetic-first) — DK removed codex from the
+channel (context-leak with another project) and named ChatLunatique sole builder (event
+`ba1464b4`, 2026-07-03). I review each handback fresh-frame → merge/push (standing authority). DK
+is looped only for **4b** operator actions and the 6c demo-scope timing.
 
 **Review deltas folded (ChatLunatique, 2026-07-03, event `36bbf371`).** CL concurred with the
 architecture (indexer→`ONT_STORE`→resolver sourcing; checkpoint+1 contiguity/backfill load-bearing)
