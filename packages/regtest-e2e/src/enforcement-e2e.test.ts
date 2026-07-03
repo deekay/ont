@@ -8,7 +8,9 @@
 // (+ survives a restart — read via a FRESH file store over the same dir); (b) withheld served bytes → reject at
 // availability, NO mutation; (c) a mismatched proof bundle (non-canonical header) → reject at inclusion, NO
 // mutation; (d) a missing fixture material entry in the daemon path THROWS out of the tick so the durable cursor is
-// NOT advanced and NO name-state lands. RED until enforcement-e2e lands.
+// NOT advanced and NO name-state lands; (e) generated A' fixture material enforces through the same selector path;
+// (f) two operators prove the http-da path: A serves /da/{root}, B fetches via ONT_ENFORCEMENT=http-da, accepts
+// identical state, and fail-closes with no mutation on 404 or tampered served leaves. RED until enforcement-e2e lands.
 import { describe, expect, it } from "vitest";
 import { runEnforcementE2e } from "./enforcement-e2e.js";
 
@@ -70,5 +72,27 @@ describe("runEnforcementE2e (LE-INDEX — daemon-selected enforcement through ru
     expect(r.generatedFixture.namesWritten).toBe(1);
     expect(r.generatedFixture.aliceDurable?.canonicalName).toBe(r.nameA);
     expect(r.generatedFixture.aliceDurable?.owner).toEqual({ kind: "owner-key", ownerPubkeyHex: r.ownerA });
-  });
+
+    // ── (f) G-B 7c: two operators, no shared filesystem; B fetches A's /da/{root} via http-da ─────────────
+    expect(r.twoOperatorHttpDa.served.acceptedRoots).toEqual([r.anchoredRoot]);
+    expect(r.twoOperatorHttpDa.served.namesWritten).toBe(2);
+    expect(r.twoOperatorHttpDa.served.anchorInReadPath).toBe(true);
+    expect(r.twoOperatorHttpDa.served.cursorHeightAfterRestart).toBe(1);
+    expect(r.twoOperatorHttpDa.served.aliceDurable).toEqual(r.accept.aliceDurable);
+    expect(r.twoOperatorHttpDa.served.carolDurable).toEqual(r.accept.carolDurable);
+
+    // Operator A withholds the DA record (publisher returns 404): B observes a declared-root miss and writes no names.
+    expect(r.twoOperatorHttpDa.withheld.skippedRoots).toEqual([r.anchoredRoot]);
+    expect(r.twoOperatorHttpDa.withheld.rejectedReason).toBeUndefined();
+    expect(r.twoOperatorHttpDa.withheld.namesWritten).toBe(0);
+    expect(r.twoOperatorHttpDa.withheld.anchorInReadPath).toBe(true);
+    expect(r.twoOperatorHttpDa.withheld.aliceDurable).toBe(false);
+
+    // Operator A serves tampered DA leaves: B still uses the shared audited core and rejects without mutation.
+    expect(r.twoOperatorHttpDa.tampered.skippedRoots).toEqual([]);
+    expect(r.twoOperatorHttpDa.tampered.rejectedReason).toMatch(/hrns-rejected-at-(availability|completeness)/);
+    expect(r.twoOperatorHttpDa.tampered.namesWritten).toBe(0);
+    expect(r.twoOperatorHttpDa.tampered.anchorInReadPath).toBe(true);
+    expect(r.twoOperatorHttpDa.tampered.aliceDurable).toBe(false);
+  }, 15_000);
 });

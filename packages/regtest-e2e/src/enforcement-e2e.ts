@@ -11,7 +11,10 @@
 //   - the §6.3 acceptance battery (LIVE_ENFORCEMENT_PLAN): (a) accept writes per-name state + survives restart;
 //     (b) withheld served bytes → reject at availability, NO mutation; (c) a mismatched proof bundle
 //     (non-canonical header) → reject at inclusion, NO mutation; (d) missing fixture material in the daemon path
-//     THROWS out of the tick so the durable cursor is NOT advanced and NO name-state lands on disk.
+//     THROWS out of the tick so the durable cursor is NOT advanced and NO name-state lands on disk;
+//     (e) generated A' fixture material enforces through the same selector path; (f) operator-A serves
+//     /da/{root} over HTTP while operator-B fetches through ONT_ENFORCEMENT=http-da, accepts identical state, and
+//     fail-closes with no mutation on 404 or tampered served leaves.
 //
 // HERMETIC by design (mirrors the G2 restart e2e): the ingest firewall `confirm` is FAKED (this slice locks live
 // ENFORCEMENT + durable name-state, not the inclusion firewall — that is slice-1 tested), while ENFORCEMENT
@@ -20,6 +23,7 @@
 // wiring + durability end-to-end. TESTS: ./enforcement-e2e.test.ts.
 import { execFileSync } from "node:child_process";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -27,6 +31,7 @@ import { accumulatorRootOf, deriveOwnerPubkey, sha256Hex, utf8ToBytes, normalize
 import { encodeEvent, EventType } from "@ont/wire";
 import { legacyTxidOf, headerMeetsTarget, type LegacyTransaction } from "@ont/bitcoin";
 import { assembleRootAnchorTx } from "@ont/adapter-publisher";
+import { createInMemoryPublisherBroadcastPort, createPublisherHttpServer } from "@ont/publisher";
 import {
   createFileNameStateStore,
   type NameStateRecord,
@@ -58,6 +63,9 @@ interface RejectOutcome {
   readonly anchorInReadPath: boolean;
   readonly aliceDurable: boolean;
 }
+interface HttpDaRejectOutcome extends RejectOutcome {
+  readonly skippedRoots: readonly string[];
+}
 interface MissingMaterialOutcome {
   readonly threw: boolean;
   readonly errorMessage: string;
@@ -71,6 +79,11 @@ interface GeneratedFixtureOutcome {
   readonly acceptedRoots: readonly string[];
   readonly namesWritten: number;
   readonly aliceDurable: NameStateRecord | null;
+}
+interface TwoOperatorHttpDaOutcome {
+  readonly served: AcceptOutcome;
+  readonly withheld: HttpDaRejectOutcome;
+  readonly tampered: HttpDaRejectOutcome;
 }
 export interface EnforcementE2eResult {
   readonly anchorTxid: string;
@@ -86,6 +99,7 @@ export interface EnforcementE2eResult {
   readonly badHeader: RejectOutcome;
   readonly missingMaterial: MissingMaterialOutcome;
   readonly generatedFixture: GeneratedFixtureOutcome;
+  readonly twoOperatorHttpDa: TwoOperatorHttpDaOutcome;
 }
 
 // ── byte helpers (the firewall's exactly-one-RootAnchor OP_RETURN scan) ─────────────────────────────────────
@@ -183,6 +197,10 @@ const FULL_MATERIAL: BatchMaterial = {
   servedLeaves: SERVED,
 };
 const WITHHELD_MATERIAL: BatchMaterial = { ...FULL_MATERIAL, servedLeaves: [{ keyHex: LEAF_A, valueHex: OWNER_A }] }; // only 1 of 2
+const TAMPERED_SERVED_MATERIAL: BatchMaterial = {
+  ...FULL_MATERIAL,
+  servedLeaves: [{ keyHex: LEAF_A, valueHex: OWNER_A }],
+};
 
 // The ingest firewall is faked (this slice locks enforcement + durability, not inclusion): confirm returns the ok
 // record for the anchor so it lands in the read path. Enforcement re-verifies the anchor against Bitcoin itself.
@@ -247,6 +265,39 @@ async function runTickWithMaterialFile(opts: {
   return runIndexerTick(deps);
 }
 
+async function runTickWithHttpDa(opts: {
+  readonly dir: string;
+  readonly endpoint: string;
+  readonly roots?: string;
+  readonly candidateOverride?: Partial<BuildConfirmedBatchAnchorInput>;
+}): Promise<IndexerTickReport> {
+  const cand = candidate(opts.candidateOverride);
+  let yielded = false;
+  const blockSource: IndexerBlockSource = {
+    nextConfirmedAnchors: (cursor) => {
+      if (yielded) return Promise.resolve({ candidates: [], cursor });
+      yielded = true;
+      const nextHeight = cursor.height + 1;
+      return Promise.resolve({
+        candidates: [cand],
+        cursor: { height: nextHeight },
+        headers: [{ height: nextHeight, headerHex: "00".repeat(80) }],
+      });
+    },
+  };
+  const deps = await selectIndexerRunnerDeps(
+    {
+      ONT_STORE: "file",
+      ONT_STORE_DIR: opts.dir,
+      ONT_ENFORCEMENT: "http-da",
+      ONT_DA_ENDPOINT: opts.endpoint,
+      ONT_DA_ROOTS: opts.roots ?? ANCHORED_ROOT,
+    },
+    { blockSource, confirm },
+  );
+  return runIndexerTick(deps);
+}
+
 /** One enforcement tick over REAL daemon-selected file stores under `dir`: selectIndexerRunnerDeps is the
  *  main.ts selector path, with only the block-source and ingest-confirm seams injected for this hermetic fixture. */
 async function runTick(opts: {
@@ -260,6 +311,44 @@ async function runTick(opts: {
     materialFile,
     ...(opts.candidateOverride === undefined ? {} : { candidateOverride: opts.candidateOverride }),
   });
+}
+
+function materialRecordJson(material: BatchMaterial): string {
+  return JSON.stringify(encodeMaterialFileEntry(material));
+}
+
+async function withPublisherDaServer<T>(
+  records: ReadonlyMap<string, string>,
+  fn: (endpoint: string) => Promise<T>,
+): Promise<T> {
+  const server = createPublisherHttpServer({
+    broadcast: createInMemoryPublisherBroadcastPort(),
+    daRecordSource: {
+      getRecord: (anchoredRoot) => Promise.resolve(records.get(anchoredRoot) ?? null),
+    },
+  });
+
+  await new Promise<void>((resolve, reject) => {
+    const onError = (error: Error) => reject(error);
+    server.once("error", onError);
+    server.listen(0, "127.0.0.1", () => {
+      server.off("error", onError);
+      resolve();
+    });
+  });
+
+  try {
+    const address = server.address();
+    if (address === null || typeof address === "string") throw new Error("publisher e2e server did not bind TCP");
+    return await fn(`http://127.0.0.1:${(address as AddressInfo).port}`);
+  } finally {
+    await new Promise<void>((resolve, reject) => {
+      server.close((error) => {
+        if (error) reject(error);
+        else resolve();
+      });
+    });
+  }
 }
 
 /** The "restart": FRESH env-selected stores + a FRESH name-state store over the same dir, then read durable state. */
@@ -362,6 +451,56 @@ async function runGeneratedFixture(dir: string): Promise<GeneratedFixtureOutcome
   };
 }
 
+async function runTwoOperatorHttpDa(): Promise<TwoOperatorHttpDaOutcome> {
+  const served = await withTempDir((dir) => withPublisherDaServer(
+    new Map([[ANCHORED_ROOT, materialRecordJson(FULL_MATERIAL)]]),
+    async (endpoint) => {
+      const enf = requireEnforcement(await runTickWithHttpDa({ dir, endpoint }));
+      const back = await restartReads(dir);
+      return {
+        acceptedRoots: enf.accepted,
+        namesWritten: enf.namesWritten,
+        anchorInReadPath: back.anchorInReadPath,
+        cursorHeightAfterRestart: back.cursorHeight,
+        aliceDurable: back.alice,
+        carolDurable: back.carol,
+      };
+    },
+  ));
+
+  const withheld = await withTempDir((dir) => withPublisherDaServer(
+    new Map(),
+    async (endpoint) => {
+      const enf = requireEnforcement(await runTickWithHttpDa({ dir, endpoint }));
+      const back = await restartReads(dir);
+      return {
+        rejectedReason: enf.rejected[0]?.reason,
+        skippedRoots: enf.skipped,
+        namesWritten: enf.namesWritten,
+        anchorInReadPath: back.anchorInReadPath,
+        aliceDurable: back.alice !== null,
+      };
+    },
+  ));
+
+  const tampered = await withTempDir((dir) => withPublisherDaServer(
+    new Map([[ANCHORED_ROOT, materialRecordJson(TAMPERED_SERVED_MATERIAL)]]),
+    async (endpoint) => {
+      const enf = requireEnforcement(await runTickWithHttpDa({ dir, endpoint }));
+      const back = await restartReads(dir);
+      return {
+        rejectedReason: enf.rejected[0]?.reason,
+        skippedRoots: enf.skipped,
+        namesWritten: enf.namesWritten,
+        anchorInReadPath: back.anchorInReadPath,
+        aliceDurable: back.alice !== null,
+      };
+    },
+  ));
+
+  return { served, withheld, tampered };
+}
+
 export async function runEnforcementE2e(): Promise<EnforcementE2eResult> {
   // (a) accept + restart-survival
   const accept = await withTempDir(async (dir) => {
@@ -408,6 +547,9 @@ export async function runEnforcementE2e(): Promise<EnforcementE2eResult> {
   // (e) A' generator output + matching RootAnchor input enforce through the same daemon selector and write state.
   const generatedFixture = await withTempDir((dir) => runGeneratedFixture(dir));
 
+  // (f) G-B 7c: operator A serves /da/{root}; operator B fetches through ONT_ENFORCEMENT=http-da.
+  const twoOperatorHttpDa = await runTwoOperatorHttpDa();
+
   return {
     anchorTxid: ANCHOR_TXID,
     anchoredRoot: ANCHORED_ROOT,
@@ -422,5 +564,6 @@ export async function runEnforcementE2e(): Promise<EnforcementE2eResult> {
     badHeader,
     missingMaterial,
     generatedFixture,
+    twoOperatorHttpDa,
   };
 }
