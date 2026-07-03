@@ -87,7 +87,10 @@ verified-entry → record join. A reject writes **no** records.
    ownership + the evidence trace. Read-only; no resolver→indexer edge (same discipline as G2).
 3. **LE-DA-SERVE — publisher `/da/{root}` + the availability transport.** The publisher serves the batch
    bytes; the indexer availability seam fetches them. Gated on `da-served-transport` (parked) — proceeds on
-   the recommended minimal-binary transport with a flagged reopen.
+   the recommended minimal-binary transport with a flagged reopen. **Slice spec:**
+   [G_B_DA_SERVE_SPEC.md](./G_B_DA_SERVE_SPEC.md) — `da-record-content` (#98) serves the **full**
+   per-root batch material (not leaf-hashes alone) so a second operator re-runs the identical
+   `enforceBatchedClaim` incl. gate-fee, which needs canonical name pre-images.
 4. **LE-INVOKE / LE-CONTESTED — recover-owner + contested→L1 live paths**, once LE-INDEX's seams exist.
 5. **Live signet smoke** (operator) — the deployed walk; needs a funded signet (DK), folds into G4.
 

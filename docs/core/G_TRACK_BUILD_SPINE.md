@@ -112,7 +112,10 @@ the DA/censorship story.
    folds into G-C-MINIMAL 4a and 6c is in scope for the demo (sequenced against the post-B5
    rewrite; does not block 4a/4b). See [G_C_MINIMAL_SPEC.md](./G_C_MINIMAL_SPEC.md) §5.
 7. **G-B / LE-DA-SERVE** — DA network transport, so independence is provable across two operators
-   (the censorship-resistance property). Hardens the "good" version.
+   (the censorship-resistance property). Hardens the "good" version. Slice spec:
+   [G_B_DA_SERVE_SPEC.md](./G_B_DA_SERVE_SPEC.md) — `da-record-content` (#98): `GET /da/{root}`
+   serves the full per-root batch material so operator-B re-runs the identical `enforceBatchedClaim`
+   to the same verdict (leaf-hash-only transport can't re-run gate-fee — it needs name pre-images).
 8. **GA-OPTION-NODE** — opt-in own-node / Esplora header provider for users who won't rely on
    the operator-served header range — hardening against a stale/partial *real* chain (liveness).
 9. **GA-SIGNET-SOLUTION** — validate the BIP325 signet challenge signature against the challenge

@@ -2662,6 +2662,33 @@ DA.
 **Reopen trigger.** `GA-SIGNET-SOLUTION` (slice 9) replaces fixture-file DA with real signet data-availability;
 or DK reverses to the plain-A header-serve-only first demo.
 
+98. da-record-content: the G-B / LE-DA-SERVE transport (`GET /da/{root}`) serves the **full per-root batch
+material** (names + owners + base/served leaves — the A′ `EncodedBatchMaterial` shape), canonical-JSON-encoded,
+**not** the leaf-hash-only served-transport alone — so a second independent operator re-runs the identical
+`enforceBatchedClaim` **including gate-fee** to the same verdict.
+
+*Status: **engineering/scope call by ClaudeleLunatique** within the parked `da-served-transport` decision
+(LIVE_ENFORCEMENT_PLAN §4); flagged reopen, CL design-concur requested before canon (A4 pattern). Not a
+consensus-law or trust-model change — `packages/consensus/src` **zero-diff**. Governs
+[G_B_DA_SERVE_SPEC.md](./G_B_DA_SERVE_SPEC.md); recorded by ClaudeleLunatique.*
+
+**The call.** A grounded trace of the enforcement seam (`packages/claim-path/src/enforce-batched-claim.ts:39-52`
+→ `apps/indexer/src/enforce-batched-claims.ts:110-159`) shows only **one** of the four `BatchDataSource` inputs
+must cross the network: the fee witness comes from the **on-chain** anchor tx (both operators see it) and the
+committed batch is **recomputed locally** — but its inputs are the batch's **canonical name pre-images**.
+`buildCommittedBatchForRoot` (`packages/adapter-indexer/src/committed-batch.ts:69-75`) recomputes
+`H(name)` and `canonicalNameByteLength = utf8ToBytes(name).length`, and that length is the sole input to the
+gate-fee curve (`packages/consensus/src/gate-fee.ts:40-41`). The existing minimal-binary served-transport
+(`packages/adapter-da/src/served-transport.ts`) carries `H(name)‖ownerPubkey` — **leaf hashes**, which cannot be
+inverted to a byte length. So a leaf-hash-only DA transport lets a second operator check availability /
+accumulator-root reconstruction but **not** re-run gate-fee → it under-delivers the spine slice-7 "firewall-mint
+and challenge" property. Serving the full material (reusing the already-proven JSON record + `decodeEncodedMaterial`)
+delivers it at lowest risk.
+
+**Reopen trigger.** Migrating the `/da/{root}` payload to a minimal-binary transport, or splitting it into a
+leaf-transport + separate committed-names section, per the parked `da-served-transport` — reopen on a size /
+independence need, or a DK ruling on wire format.
+
 ## Fairness Principles To Carry Into The Launch Rewrite
 
 The rewritten launch draft should explicitly state:
