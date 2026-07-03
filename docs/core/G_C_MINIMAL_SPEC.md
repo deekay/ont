@@ -176,15 +176,80 @@ fast-follow. Consequences:
   follow once the live provider (4a) lands and the rewrite state is known. It does **not** block
   4a or 4b.
 
-## 6. 4b operator walk (DK) — outline; exact commands land when 4a is green
+## 6. 4b operator walk (DK) — copy-paste, A′-aware
 
-From the [G3 runbook](../operate/G3_CLEAN_SLATE_VPS.md): (1) boot bitcoind-signet + indexer +
-resolver + non-signing publisher on the signet host; (2) signet-faucet the publisher wallet past
-the ₿1,000-sats claim gate; (3) make one real claim → broadcast → mine/confirm → indexer enforces
-→ resolver serves + the header range populates; (4) point the CLI (`ONT_BITCOIN_HEADER_SOURCE=
-resolver:<url>`) at the live resolver and run `ont verify <name>` → Bitcoin-verified; (5) repeat
-against web + mobile. Queued operator prerequisites already listed in spine §6 (signet host,
-faucet top-up, resolver/web DNS). I convert this to copy-paste when 4a lands.
+**Preconditions.** 4a is merged (resolver serves the checkpoint-forward header range; `ont verify
+<name>` exists) and A′ is merged (the `scripts/generate-fixture-batch-material.mjs` generator + the
+indexer's opt-in `ONT_ENFORCEMENT=fixture-file`, off by default). Boot the G3 clean stack per
+[G3 runbook §3](../operate/G3_CLEAN_SLATE_VPS.md); ports as there — publisher `:4176`, indexer
+`:4174`, resolver `:4175`. This walk supersedes the G3 §4c write-smoke's **placeholder** roots with
+A′'s **real** `(prevRoot, anchoredRoot)` so a name actually gets served. Honesty: DA is
+`fixture-file` = provider-trusted (#95); the anchor tx + Merkle inclusion + checkpoint-forward
+headers are the real light-client-checked part.
+
+**The one ordering constraint that governs the whole walk.** The indexer reads the material file
+**once, at boot**, when it wires enforcement (`selectIndexerEnforcement` → `loadBatchMaterialFile`,
+[`select-enforcement.ts:38`](../../apps/indexer/src/live/select-enforcement.ts)) — **not** per-anchor.
+So the file must be in the `ont_data` volume **before the indexer starts with
+`ONT_ENFORCEMENT=fixture-file`**; with the env on and no file present the indexer **fails closed at
+boot** (correct — never enforce against absent material). Order is therefore: **generate → place in
+volume → (re)start indexer with enforcement on → broadcast the matching anchor → mine/confirm.**
+
+### 6.1 Generate the fixture material + anchor input (off-box, before boot)
+
+Run the A′ generator for the one real name to serve — it emits the material JSON in the exact
+`decodeEncodedMaterial` shape **and** the matching publisher RootAnchor input `(prevRoot, newRoot =
+anchoredRoot, batchSize)`:
+
+```bash
+# exact flag surface pinned on A′ handback; artifact shapes per §9
+node scripts/generate-fixture-batch-material.mjs \
+  --name <name> --owner-pubkey <64-hex> \
+  --material-out batch-material.json --anchor-out root-anchor-input.json
+```
+
+`batch-material.json` → the indexer's fixture; `root-anchor-input.json` carries the real
+`prevRoot`/`newRoot`/`batchSize` to broadcast (this **replaces** the §4c placeholder heredoc), minus
+the `fundingInputs` filled from the live hop in §6.3.
+
+### 6.2 Opt the indexer into enforcement + place the material (before it boots)
+
+```bash
+# from the repo dir (where .env / compose live); indexer is up on the default read-path from G3 §3.
+docker compose cp batch-material.json indexer:/app/.data/batch-material.json   # land it in the ont_data volume
+# opt IN for the stand-up (off by default per §9): set the two env on the indexer service, then recreate
+#   so boot re-runs selectIndexerEnforcement and loads the file (exact opt-in mechanism — .env vs compose
+#   override — pinned on A′ handback):
+#     ONT_ENFORCEMENT=fixture-file
+#     ONT_BATCH_MATERIAL_FILE=/app/.data/batch-material.json
+docker compose up -d --force-recreate indexer
+docker compose logs --tail=30 indexer   # MUST boot clean — any "batch material" / file error = stop, fix, before broadcasting
+```
+
+### 6.3 Fund → legacy-hop → assemble → sign → broadcast
+
+Identical to [G3 §4c](../operate/G3_CLEAN_SLATE_VPS.md) steps 0–7, with **one substitution**: skip
+§4c step 4's placeholder heredoc — use `root-anchor-input.json` from §6.1, filling its
+`fundingInputs` with the `$HOP_TXID`/`$UTXO_VOUT` captured in §4c steps 1–3. Everything else — legacy
+funding hop, `add_inputs:false`, legacy change, sign-then-`/broadcast` — is unchanged; the
+⚠ legacy-serializable constraint still governs (the indexer drops witness bodies).
+
+### 6.4 Confirm enforcement → verify from each surface
+
+```bash
+# after the anchor mines + confirms, the indexer enforces the batch and writes name-state:
+curl -fsS "http://127.0.0.1:4174/tx/$ANCHOR_TXID"       # ingested
+curl -fsS "http://127.0.0.1:4175/names/<name>/state"    # resolver now serves the proof bundle (404 = not enforced yet)
+
+# CLI verify against the LIVE resolver-served header range:
+ONT_BITCOIN_HEADER_SOURCE=resolver:http://127.0.0.1:4175 ont verify <name>   # → Bitcoin-verified (provider-trusted, #95)
+```
+
+Then repeat against **web** (the async live-name seam, 4a step 6) and — after the 6c wiring slice —
+**mobile**. A `name-not-served`/404 means the material↔anchor `(prevRoot, anchoredRoot)` didn't match
+`materialKey` (`` `${prevRoot}:${anchoredRoot}` ``) or the file wasn't in the volume at indexer boot
+(§6.2) — those are the fail-closed paths, not a verify bug. **Acceptance = §7 4b**, now reached via a
+real served name rather than a placeholder anchor.
 
 ## 7. Acceptance bar
 
