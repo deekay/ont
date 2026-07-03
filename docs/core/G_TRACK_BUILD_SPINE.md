@@ -152,6 +152,16 @@ override welcome on any.
   a stale, short, or partial provider range is non-authoritative and fails closed — it does not
   render as verified. This is an implementation invariant each client slice must pin, not a
   provider promise.
+- **Coverage-source honesty (tracked from the GA-CLIENT-WEB CL pass, 2026-07-03).** The hermetic
+  web fixture (`apps/web/src/live/select-bitcoin-header-source.ts`) returns the block-170 header
+  bytes at *both* height 170 and 176 so the presence-only depth check passes at `requiredHeight`.
+  This is functionally correct — `checkProofBundleHeaderDepthCoverage` checks header *presence* at
+  `anchorHeight + depth`, not bytes, and the verifier validates the anchor header byte-correctly at
+  170 — but it violates the `BitcoinHeaderSource` contract (`headerHexAtHeight(h)` = the validated
+  header *at h*). When the real resolver-served provider wires in at **G-C-MINIMAL**, the coverage
+  source must be semantically honest: a real validated header range, or an explicitly-labelled
+  synthetic coverage stub that does not read as a canonical block-170 source. Non-blocking — the
+  fixture is replaced by that wiring.
 - **Fail closed everywhere.** Missing inclusion, no header source, a stale/partial range, or a
   failed verify ⇒ the client does not present the answer as Bitcoin-verified.
 - **Signet ≠ mainnet gate.** Nothing here relaxes the mainnet external-audit gate; `ONT_CHAIN`
