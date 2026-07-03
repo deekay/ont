@@ -51,6 +51,44 @@ export interface NamesResponse {
   names: NameRecord[];
 }
 
+export type ServedNameStateResponse =
+  | {
+      readonly ok: true;
+      readonly canonicalName: string;
+      readonly owner: {
+        readonly kind: "owner-key";
+        readonly ownerPubkeyHex: string;
+        readonly [key: string]: unknown;
+      };
+      readonly leafKeyHex: string;
+      readonly batchLocalIndex: number;
+      readonly anchoredRoot: string;
+      readonly anchor: {
+        readonly txid: string;
+        readonly minedHeight: number;
+        readonly txIndex: number;
+        readonly vout: number;
+        readonly [key: string]: unknown;
+      };
+      readonly firstServableHeight: number;
+      readonly trace: readonly {
+        readonly step: string;
+        readonly ok: boolean;
+        readonly reason: string;
+        readonly evidence?: Record<string, string | number>;
+        readonly [key: string]: unknown;
+      }[];
+      readonly proofBundle: unknown;
+      readonly provenance: "resolver-indexed-mirror";
+      readonly authority: "not-ownership-authority";
+      readonly [key: string]: unknown;
+    }
+  | {
+      readonly ok: false;
+      readonly reason: "name-unknown" | "name-mismatch" | "invalid-record";
+      readonly [key: string]: unknown;
+    };
+
 export interface TxInput {
   txid: string;
   vout: number;

@@ -1,4 +1,5 @@
 import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
+import { createResolverHeaderRangeProvider, proofBundleMaxAnchorHeight } from "@ont/light-client";
 import React from "react";
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { ApiError } from "../api/client";
@@ -12,11 +13,19 @@ import { availabilityFromRecord } from "../wallet/availability";
 import { useWallet } from "../wallet/WalletContext";
 import { eventTone, nameStatusTone } from "../status";
 import { colors, font, spacing } from "../theme";
+import { API_BASE } from "../config";
+import {
+  fetchMobileSignetLaunchHeaderSource,
+  mobileBitcoinVerificationState,
+  unavailableMobileBitcoinVerificationState,
+  type MobileBitcoinVerificationState,
+} from "../verification/bitcoin";
 
 interface NameDetailData {
   record: NameRecord;
   values: ValueHistoryResponse | null;
   activity: ActivityEntry[];
+  bitcoinVerification: MobileBitcoinVerificationState;
 }
 
 async function loadNameDetail(name: string): Promise<NameDetailData> {
@@ -30,7 +39,57 @@ async function loadNameDetail(name: string): Promise<NameDetailData> {
       .then((r) => r.activity)
       .catch((e) => (e instanceof ApiError && e.status === 404 ? [] : Promise.reject(e))),
   ]);
-  return { record, values, activity };
+  const bitcoinVerification = await loadBitcoinVerification(name, record);
+  return { record, values, activity, bitcoinVerification };
+}
+
+const resolverHeaderProvider = createResolverHeaderRangeProvider({ resolverUrl: API_BASE });
+
+async function loadBitcoinVerification(
+  name: string,
+  record: NameRecord,
+): Promise<MobileBitcoinVerificationState> {
+  let served: Awaited<ReturnType<typeof resolver.nameState>>;
+  try {
+    served = await resolver.nameState(name);
+  } catch {
+    return unavailableMobileBitcoinVerificationState("transport-error");
+  }
+
+  const legacyOwnerPubkeyHex = record.currentOwnerPubkey ?? null;
+  if (served === null || (served.ok === false && served.reason === "name-unknown")) {
+    return mobileBitcoinVerificationState({
+      proofBundle: null,
+      ownerPubkeyHex: legacyOwnerPubkeyHex,
+    });
+  }
+  if (!served.ok) return unavailableMobileBitcoinVerificationState("transport-error");
+
+  const servedOwnerPubkeyHex =
+    served.owner !== null && typeof served.owner === "object" && typeof served.owner.ownerPubkeyHex === "string"
+      ? served.owner.ownerPubkeyHex
+      : null;
+  if (servedOwnerPubkeyHex === null) return unavailableMobileBitcoinVerificationState("transport-error");
+
+  const anchorHeight = proofBundleMaxAnchorHeight(served.proofBundle);
+  if (anchorHeight === null) {
+    return mobileBitcoinVerificationState({
+      proofBundle: served.proofBundle,
+      headerSource: null,
+      ownerPubkeyHex: servedOwnerPubkeyHex,
+    });
+  }
+
+  const headerSource = await fetchMobileSignetLaunchHeaderSource({
+    anchorHeight,
+    provider: resolverHeaderProvider,
+  });
+
+  return mobileBitcoinVerificationState({
+    proofBundle: served.proofBundle,
+    headerSource: headerSource.ok ? headerSource.headerSource : null,
+    ownerPubkeyHex: servedOwnerPubkeyHex,
+  });
 }
 
 export default function NameDetailScreen() {
@@ -60,9 +119,12 @@ export default function NameDetailScreen() {
         <RefreshControl refreshing={state.refreshing} onRefresh={state.refresh} tintColor={colors.accent} />
       }
     >
-      <View style={styles.titleRow}>
-        <Text style={styles.name}>{r.name}</Text>
-        <Badge label={titleCase(r.status)} tone={nameStatusTone(r.status)} />
+      <View style={styles.titleBlock}>
+        <View style={styles.titleRow}>
+          <Text style={styles.name}>{r.name}</Text>
+          <Badge label={titleCase(r.status)} tone={nameStatusTone(r.status)} />
+        </View>
+        <BitcoinVerificationBadge state={data.bitcoinVerification} />
       </View>
 
       {claimable ? (
@@ -171,6 +233,33 @@ export default function NameDetailScreen() {
   );
 }
 
+function BitcoinVerificationBadge({ state }: { state: MobileBitcoinVerificationState }) {
+  const tone =
+    state.kind === "bitcoin-verified" ? "success" : state.kind === "resolver-mirror" ? "warn" : "neutral";
+  const badgeLabel =
+    state.kind === "bitcoin-verified" ? "Bitcoin verified" : state.kind === "resolver-mirror" ? "Resolver mirror" : "Unavailable";
+  return (
+    <View style={styles.verificationBlock}>
+      <Badge label={badgeLabel} tone={tone} />
+      <Text style={state.kind === "unavailable" ? styles.verificationMuted : styles.verificationText}>
+        {verificationSummary(state)}
+      </Text>
+    </View>
+  );
+}
+
+function verificationSummary(state: MobileBitcoinVerificationState): string {
+  if (state.kind === "bitcoin-verified") {
+    const authenticity =
+      state.signetHeaderAuthenticity === "provider-trusted" ? "provider-trusted signet headers" : state.network;
+    return `${state.label}; ${authenticity}; anchor ${state.anchorHeight}, required ${state.requiredHeight}`;
+  }
+  if (state.kind === "resolver-mirror") {
+    return state.label;
+  }
+  return state.label;
+}
+
 function ActivityRow({ entry }: { entry: ActivityEntry }) {
   const ev = entry.events?.[0];
   return (
@@ -191,8 +280,12 @@ function ActivityRow({ entry }: { entry: ActivityEntry }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   content: { padding: spacing.lg, paddingBottom: spacing.xxl },
+  titleBlock: { gap: spacing.sm },
   titleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md },
   name: { fontSize: 30, fontWeight: "800", color: colors.text, letterSpacing: -0.5, flexShrink: 1 },
+  verificationBlock: { alignItems: "flex-start", gap: spacing.xs },
+  verificationText: { color: colors.textMuted, fontSize: 13, lineHeight: 18 },
+  verificationMuted: { color: colors.textFaint, fontSize: 13, lineHeight: 18 },
   primaryCard: { marginTop: spacing.md, gap: spacing.sm, borderColor: colors.accent },
   primaryLabel: { color: colors.text, fontWeight: "700", fontSize: 15 },
   primaryHint: { color: colors.textMuted, fontSize: 13, lineHeight: 18 },

@@ -11,6 +11,7 @@ import type {
   NamesResponse,
   RecoveryDescriptor,
   RecoveryDescriptorPublishResponse,
+  ServedNameStateResponse,
   ValueHistoryResponse,
   ValueRecord,
   ValueRecordPublishResponse,
@@ -22,6 +23,10 @@ export const resolver = {
 
   names: () => apiGet<NamesResponse>("/names"),
   name: (name: string) => apiGet<NameRecord>(`/name/${encodeURIComponent(name)}`),
+  nameState: (name: string) =>
+    apiGet<ServedNameStateResponse>(`/names/${encodeURIComponent(name)}/state`).catch((e) =>
+      e instanceof ApiError && e.status === 404 ? null : Promise.reject(e),
+    ),
   nameActivity: (name: string, limit = 25) =>
     apiGet<NameActivityResponse>(`/name/${encodeURIComponent(name)}/activity?limit=${limit}`),
 
