@@ -77,7 +77,9 @@ the DA/censorship story.
    is provider-trusted (`signet-solution-gate` (#95)); it is **not** a fully independent signet
    consensus light client. *(DK operator action; I spec exact steps.)*
 5. **GA-CLIENT-WEB** — web read path shows ownership as *Bitcoin-verified* only after the client
-   verifies; a resolver mirror is labelled non-authoritative otherwise.
+   verifies; a resolver mirror is labelled non-authoritative otherwise. Slice spec:
+   [GA_CLIENT_WEB_SPEC.md](./GA_CLIENT_WEB_SPEC.md) (lifts the shared verify core to a new
+   `@ont/light-client` package per §3(e); web server verifies as a resolver client).
 6. **GA-CLIENT-MOBILE** — the iOS app ships the bundled checkpoint and runs the same verify
    before trusting ownership. First hard gate for mobile; it becomes a real light client.
 7. **G-B / LE-DA-SERVE** — DA network transport, so independence is provable across two operators
