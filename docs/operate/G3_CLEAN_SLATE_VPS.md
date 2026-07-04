@@ -28,7 +28,9 @@ returns an **unsigned** tx for off-box (B5 wallet) signing, and `/broadcast` rel
 legacy raw to bitcoind — the publisher never signs and never reads the store. A `private-signet-miner`
 sidecar runs Bitcoin Core's `contrib/signet/miner` with the checked-in fast grinder, mines 110 bootstrap
 blocks to the operator's off-box funding wallet so mature coinbase exists, then keeps mining at a low
-cadence for confirmations. Everything is wired in [`docker-compose.yml`](../../docker-compose.yml);
+cadence for confirmations. The miner loads a helper wallet only because Bitcoin Core's signet miner resolves
+the reward scriptPubKey through wallet RPC; that helper wallet has private keys disabled and does not custody
+the off-box reward address. Everything is wired in [`docker-compose.yml`](../../docker-compose.yml);
 `npm run check:deploy` gates that file, the entrypoint, the miner assets, and `.env.example` against
 old-stack leakage.
 
@@ -37,7 +39,7 @@ old-stack leakage.
 | Service | Entry | Key env | Storage | Health | Smoke |
 |---|---|---|---|---|---|
 | **bitcoind** | `${BITCOIND_IMAGE}` (operator-pinned, Core ≥ 25) | `-signet`, `-signetchallenge=${ONT_SIGNET_CHALLENGE:-51}`, `-dnsseed=0`, RPC `:38332`, `ONT_RPC_USER`/`ONT_RPC_PASSWORD` | `bitcoind_data` volume | `getblockchaininfo` | private chain starts at height 0; RPC answers |
-| **private-signet-miner** | `docker/private-signet-miner.Dockerfile` | `ONT_SIGNET_MINER_ADDRESS`, `ONT_SIGNET_BOOTSTRAP_BLOCKS=110`, `ONT_SIGNET_MINE_INTERVAL_SECONDS` | none | container stays running after bootstrap | mines 110 blocks so mature coinbase exists, then low-rate confirmations |
+| **private-signet-miner** | `docker/private-signet-miner.Dockerfile` | `ONT_SIGNET_MINER_ADDRESS`, `ONT_SIGNET_MINER_WALLET=ont_miner`, `ONT_SIGNET_BOOTSTRAP_BLOCKS=110`, `ONT_SIGNET_MINE_INTERVAL_SECONDS` | helper wallet only; reward keys stay off-box | container stays running after bootstrap | mines 110 blocks so mature coinbase exists, then low-rate confirmations |
 | **indexer** | `apps/indexer/.../main.js` | `ONT_SOURCE=node`, `ONT_CHAIN=signet`, `ONT_RPC_URL`, `ONT_RPC_USER/PASSWORD`, `ONT_STORE=file`, `ONT_STORE_DIR=/app/.data`, `INDEXER_POLL_MS` | `ont_data` volume (writer) | chain gate passes; loop logs `starting` | poll advances; `confirmed-anchors.json` + cursor persist |
 | **resolver** | `apps/resolver/.../index.js` | `PORT=4174`, `ONT_STORE=file`, `ONT_STORE_DIR=/app/.data` | `ont_data` volume (reader, same dir) | `GET /health` | `GET /tx/:txid` → 404 when absent, the confirmed view when present |
 | **web** | `apps/web/.../index.js` | `PORT=4175`, `ONT_RESOLVER_URL=http://resolver:4174` | none | `GET /health` | landing + `/?q=<txid>` render through the resolver |

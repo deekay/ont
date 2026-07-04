@@ -92,6 +92,7 @@ const REQUIRE_RUNBOOK_RE = [
   { re: /\|\s*\*\*web\*\*/, why: "runbook needs a per-service row for web" },
   { re: /\|\s*\*\*publisher\*\*/, why: "runbook needs a per-service row for the publisher write service" },
   { re: /\|\s*\*\*private-signet-miner\*\*/, why: "runbook needs a per-service row for the private-signet miner" },
+  { re: /ONT_SIGNET_MINER_WALLET=ont_miner/, why: "runbook must document the helper wallet as scriptPubKey-resolution context only" },
   { re: /repo-prep/i, why: "runbook must label the non-destructive repo-prep steps" },
   { re: /destructive/i, why: "runbook must call out the destructive teardown explicitly" },
   { re: /DK-owned/i, why: "destructive VPS teardown must be marked DK-owned, separated from repo-prep" },
@@ -100,6 +101,7 @@ const REQUIRE_RUNBOOK_RE = [
 const REQUIRE_ENV = [
   { token: "ONT_SIGNET_CHALLENGE=51", why: ".env.example must document the private-signet OP_TRUE challenge" },
   { token: "ONT_SIGNET_MINER_ADDRESS=replace-with-off-box-legacy-signet-address", why: ".env.example must require the off-box funding wallet address" },
+  { token: "ONT_SIGNET_MINER_WALLET=ont_miner", why: ".env.example must document the helper wallet used only for signet miner getaddressinfo" },
   { token: "ONT_SIGNET_BOOTSTRAP_BLOCKS=110", why: ".env.example must pin the 110-block coinbase-maturity bootstrap default" },
 ];
 
@@ -112,6 +114,13 @@ const REQUIRE_MINER_DOCKERFILE = [
 const REQUIRE_MINER_SCRIPT = [
   { token: "signetchallenge=${SIGNET_CHALLENGE}", why: "miner bitcoin-cli config must use the same private-signet challenge as bitcoind" },
   { token: "replace-with-off-box-legacy-signet-address", why: "miner must fail closed if the operator leaves the placeholder address in .env" },
+  { token: "ONT_SIGNET_MINER_WALLET", why: "miner must name the helper wallet used for signet miner reward scriptPubKey resolution" },
+  { token: "-rpcwallet=${MINER_WALLET}", why: "contrib/signet/miner must call getaddressinfo through a loaded wallet RPC context" },
+  { token: "getwalletinfo", why: "miner must detect whether the helper wallet is already loaded" },
+  { token: "loadwallet", why: "miner must load an existing helper wallet before mining" },
+  { token: "createwallet", why: "miner must create a missing helper wallet before mining" },
+  { token: "disable_private_keys=true", why: "helper wallet must not custody miner reward keys" },
+  { token: "load_on_startup=true", why: "helper wallet should survive bitcoind restarts" },
   { token: "ONT_SIGNET_MINER_ADDRESS", why: "miner must pay coinbase to the off-box funding wallet" },
   { token: "ONT_SIGNET_BOOTSTRAP_BLOCKS", why: "miner must bootstrap to the coinbase maturity target" },
   { token: "ONT_SIGNET_MINE_INTERVAL_SECONDS", why: "miner must keep mining at a low ongoing cadence" },

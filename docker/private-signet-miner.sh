@@ -6,6 +6,7 @@ RPC_USER="${ONT_RPC_USER:-ontrpc}"
 RPC_PASSWORD="${ONT_RPC_PASSWORD:?set ONT_RPC_PASSWORD}"
 SIGNET_CHALLENGE="${ONT_SIGNET_CHALLENGE:-51}"
 MINER_ADDRESS="${ONT_SIGNET_MINER_ADDRESS:?set ONT_SIGNET_MINER_ADDRESS to the off-box funding wallet address}"
+MINER_WALLET="${ONT_SIGNET_MINER_WALLET:-ont_miner}"
 BOOTSTRAP_BLOCKS="${ONT_SIGNET_BOOTSTRAP_BLOCKS:-110}"
 MINE_INTERVAL_SECONDS="${ONT_SIGNET_MINE_INTERVAL_SECONDS:-45}"
 MINE_NBITS="${ONT_SIGNET_MINE_NBITS:-1e0377ae}"
@@ -25,6 +26,10 @@ if [[ "$MINE_INTERVAL_SECONDS" -lt 1 ]]; then
 fi
 if [[ "$MINER_ADDRESS" == "replace-with-off-box-legacy-signet-address" ]]; then
   echo "ONT_SIGNET_MINER_ADDRESS is still the .env.example placeholder" >&2
+  exit 1
+fi
+if [[ -z "$MINER_WALLET" || "$MINER_WALLET" == *[[:space:]]* ]]; then
+  echo "ONT_SIGNET_MINER_WALLET must be nonempty and contain no whitespace" >&2
   exit 1
 fi
 if [[ ! -f "${BITCOIN_SOURCE}/contrib/signet/miner" ]]; then
@@ -57,7 +62,7 @@ CONF
 chmod 600 "$CONF_FILE"
 
 CLI=(bitcoin-cli -conf="$CONF_FILE")
-MINER_CLI="bitcoin-cli -conf=${CONF_FILE}"
+MINER_CLI="bitcoin-cli -conf=${CONF_FILE} -rpcwallet=${MINER_WALLET}"
 
 echo "private-signet miner: waiting for bitcoind RPC at ${RPC_HOST}:${RPC_PORT}"
 until "${CLI[@]}" getblockchaininfo >/dev/null 2>&1; do
@@ -68,6 +73,20 @@ CHAIN=$("${CLI[@]}" getblockchaininfo | python3 -c 'import json,sys; print(json.
 if [[ "$CHAIN" != "signet" ]]; then
   echo "bitcoind chain gate failed: expected signet, got ${CHAIN}" >&2
   exit 1
+fi
+
+# Bitcoin Core's contrib/signet/miner resolves the reward scriptPubKey through
+# getaddressinfo, which is a wallet RPC. This helper wallet only supplies that
+# RPC context; coinbase still pays MINER_ADDRESS, the off-box funding wallet.
+if ! "${CLI[@]}" -rpcwallet="$MINER_WALLET" getwalletinfo >/dev/null 2>&1; then
+  echo "private-signet miner: loading helper wallet ${MINER_WALLET}"
+  "${CLI[@]}" loadwallet "$MINER_WALLET" true >/dev/null 2>&1 \
+    || "${CLI[@]}" -named createwallet \
+      wallet_name="$MINER_WALLET" \
+      disable_private_keys=true \
+      blank=true \
+      descriptors=true \
+      load_on_startup=true >/dev/null
 fi
 
 mine_blocks() {
