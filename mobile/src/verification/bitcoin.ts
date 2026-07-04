@@ -10,7 +10,9 @@ import {
 } from "@ont/light-client";
 import {
   LAUNCH_CONFIRMATION_DEPTH,
-  SIGNET_LAUNCH_CHECKPOINT_ID,
+  SIGNET_BITCOIN_DIFFICULTY_CHECKPOINT,
+  signetLaunchCheckpointId,
+  type LaunchBitcoinDifficultyCheckpoint,
 } from "@ont/launch-config";
 
 export type MobileBitcoinVerificationReason =
@@ -69,6 +71,7 @@ export interface FetchMobileSignetHeaderSourceInput {
   readonly anchorHeight: number;
   readonly provider?: HeaderRangeProvider | null | undefined;
   readonly confirmationDepth?: number | undefined;
+  readonly checkpoint?: LaunchBitcoinDifficultyCheckpoint | undefined;
 }
 
 export interface CreateMobileSignetHeaderRangeProviderInput {
@@ -118,7 +121,7 @@ export function mobileBitcoinVerificationState(
     ownerPubkeyHex,
     anchorHeight: coverage.anchorHeight,
     requiredHeight: coverage.requiredHeight,
-    checkpointId: input.checkpointId ?? SIGNET_LAUNCH_CHECKPOINT_ID,
+    checkpointId: input.checkpointId ?? signetLaunchCheckpointId(SIGNET_BITCOIN_DIFFICULTY_CHECKPOINT),
     network,
     signetHeaderAuthenticity: network === "signet" ? "provider-trusted" : null,
   };
@@ -131,9 +134,11 @@ export async function fetchMobileSignetLaunchHeaderSource(
     return { ok: false, reason: "missing-header-provider" };
   }
 
+  const checkpoint = input.checkpoint ?? SIGNET_BITCOIN_DIFFICULTY_CHECKPOINT;
   const result = await fetchSignetLaunchHeaderSource({
     anchorHeight: input.anchorHeight,
     confirmationDepth: input.confirmationDepth,
+    checkpoint,
     provider: input.provider,
   });
   if (!result.ok) return result;
@@ -142,7 +147,7 @@ export async function fetchMobileSignetLaunchHeaderSource(
     headerSource: result.headerSource,
     tipHeight: result.tipHeight,
     tipHashHex: result.tipHashHex,
-    checkpointId: SIGNET_LAUNCH_CHECKPOINT_ID,
+    checkpointId: signetLaunchCheckpointId(checkpoint),
     network: "signet",
   };
 }

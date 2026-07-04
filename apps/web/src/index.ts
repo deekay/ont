@@ -5,7 +5,7 @@
 import { createEmptyWebReadPort, createWebHttpServer } from "./server.js";
 import { selectResolverTxSource } from "./live/select-resolver-tx-source.js";
 import { selectResolverNameStateSource } from "./live/select-resolver-name-state-source.js";
-import { selectBitcoinHeaderProvider } from "./live/select-bitcoin-header-source.js";
+import { selectBitcoinHeaderProvider, selectBitcoinLaunchCheckpoint } from "./live/select-bitcoin-header-source.js";
 
 export {
   renderNameView,
@@ -64,12 +64,14 @@ export {
   ONT_RESOLVER_URL_ENV,
   SIGNET_LAUNCH_HEADER_SOURCE_ID,
   selectBitcoinHeaderProvider,
+  selectBitcoinLaunchCheckpoint,
   type BitcoinHeaderProviderFactories,
   type BitcoinHeaderProviderFactory,
 } from "./live/select-bitcoin-header-source.js";
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   const port = Number.parseInt(process.env.PORT ?? "4175", 10);
+  const bitcoinLaunchCheckpoint = selectBitcoinLaunchCheckpoint(process.env);
   // Live resolver tx source selected from the environment: ONT_RESOLVER_URL unset → undefined (hermetic
   // default, sync port only); nonempty → the live source; empty/blank → fail closed (throws here at startup).
   const server = createWebHttpServer({
@@ -77,6 +79,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     txSource: selectResolverTxSource(process.env),
     nameStateSource: selectResolverNameStateSource(process.env),
     bitcoinHeaderProvider: selectBitcoinHeaderProvider(process.env),
+    bitcoinLaunchCheckpoint,
   });
   server.listen(port, () => {
     console.log(`@ont/web listening on http://127.0.0.1:${port}`);

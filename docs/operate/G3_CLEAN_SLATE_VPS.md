@@ -30,7 +30,9 @@ sidecar runs Bitcoin Core's `contrib/signet/miner` with the checked-in fast grin
 blocks to the operator's off-box funding wallet so mature coinbase exists, then keeps mining at a low
 cadence for confirmations. The miner loads a helper wallet only because Bitcoin Core's signet miner resolves
 the reward scriptPubKey through wallet RPC; that helper wallet has private keys disabled and does not custody
-the off-box reward address. Everything is wired in [`docker-compose.yml`](../../docker-compose.yml);
+the off-box reward address. Client verification uses the same private signet by overriding the bundled
+public-signet launch checkpoint to this chain's genesis; signet headers remain `provider-trusted`.
+Everything is wired in [`docker-compose.yml`](../../docker-compose.yml);
 `npm run check:deploy` gates that file, the entrypoint, the miner assets, and `.env.example` against
 old-stack leakage.
 
@@ -40,9 +42,9 @@ old-stack leakage.
 |---|---|---|---|---|---|
 | **bitcoind** | `${BITCOIND_IMAGE}` (operator-pinned, Core ≥ 25) | `-signet`, `-signetchallenge=${ONT_SIGNET_CHALLENGE:-51}`, `-dnsseed=0`, RPC `:38332`, `ONT_RPC_USER`/`ONT_RPC_PASSWORD` | `bitcoind_data` volume | `getblockchaininfo` | private chain starts at height 0; RPC answers |
 | **private-signet-miner** | `docker/private-signet-miner.Dockerfile` | `ONT_SIGNET_MINER_ADDRESS`, `ONT_SIGNET_MINER_WALLET=ont_miner`, `ONT_SIGNET_BOOTSTRAP_BLOCKS=110`, `ONT_SIGNET_MINE_INTERVAL_SECONDS` | helper wallet only; reward keys stay off-box | container stays running after bootstrap | mines 110 blocks so mature coinbase exists, then low-rate confirmations |
-| **indexer** | `apps/indexer/.../main.js` | `ONT_SOURCE=node`, `ONT_CHAIN=signet`, `ONT_RPC_URL`, `ONT_RPC_USER/PASSWORD`, `ONT_STORE=file`, `ONT_STORE_DIR=/app/.data`, `INDEXER_POLL_MS` | `ont_data` volume (writer) | chain gate passes; loop logs `starting` | poll advances; `confirmed-anchors.json` + cursor persist |
+| **indexer** | `apps/indexer/.../main.js` | `ONT_SOURCE=node`, `ONT_CHAIN=signet`, `ONT_RPC_URL`, `ONT_RPC_USER/PASSWORD`, `ONT_STORE=file`, `ONT_STORE_DIR=/app/.data`, `INDEXER_POLL_MS`, `ONT_LAUNCH_CHECKPOINT_*` | `ont_data` volume (writer) | chain gate passes; loop logs `starting` | poll advances; `confirmed-anchors.json`, `headers.json` + cursor persist |
 | **resolver** | `apps/resolver/.../index.js` | `PORT=4174`, `ONT_STORE=file`, `ONT_STORE_DIR=/app/.data` | `ont_data` volume (reader, same dir) | `GET /health` | `GET /tx/:txid` → 404 when absent, the confirmed view when present |
-| **web** | `apps/web/.../index.js` | `PORT=4175`, `ONT_RESOLVER_URL=http://resolver:4174` | none | `GET /health` | landing + `/?q=<txid>` render through the resolver |
+| **web** | `apps/web/.../index.js` | `PORT=4175`, `ONT_RESOLVER_URL=http://resolver:4174`, `ONT_HEADER_PROVIDER=resolver`, `ONT_LAUNCH_CHECKPOINT_*` | none | `GET /health` | landing + name/tx views render through the resolver; served names verify against resolver-served private-signet headers |
 | **publisher** | `apps/publisher/.../index.js` | `PORT=4176`, `ONT_SOURCE=node`, `ONT_CHAIN=signet`, `ONT_RPC_URL`, `ONT_RPC_USER/PASSWORD` | none (never reads the store) | `GET /health` | `/assemble/*` → unsigned tx; `/broadcast` of a signed raw → bitcoind accepts (needs off-box wallet funds — §4c) |
 
 The indexer's chain gate (`@ont/node-live`) fails **closed** before the first poll: a missing or mispointed
@@ -64,7 +66,8 @@ Safe to run by an operator/agent; touches no VPS state.
 ```bash
 cp .env.example .env
 # Edit .env: set ONT_RPC_PASSWORD (required), ONT_SIGNET_MINER_ADDRESS (required),
-# pin BITCOIND_IMAGE if needed, and adjust binds if fronting with a proxy.
+# leave ONT_HEADER_PROVIDER=resolver and the ONT_LAUNCH_CHECKPOINT_* private-genesis values unless
+# deliberately re-pointing to a different private signet; pin BITCOIND_IMAGE if needed, and adjust binds.
 npm run check:deploy          # static clean-stack gate — must be green before deploying
 docker compose build          # build the app image plus the private-signet miner sidecar
 ```
@@ -96,6 +99,21 @@ docker compose logs -f indexer               # chain gate passes, then `{"servic
 The custom challenge (`ONT_SIGNET_CHALLENGE`, default `51` / OP_TRUE) makes this a private signet, so there is
 no public-signet IBD. The indexer waits on `bitcoind` healthy before it starts, and its own chain gate blocks
 polling until the node reports `signet`.
+
+The client launch checkpoint override must stay pointed at this private genesis:
+
+```bash
+ONT_LAUNCH_CHECKPOINT_HEIGHT=0
+ONT_LAUNCH_CHECKPOINT_HASH=00000008819873e925422c1ff0f99f7cc9bbb232af63a077a480a3633bee1ef6
+ONT_LAUNCH_CHECKPOINT_BITS=0x1e0377ae
+ONT_LAUNCH_CHECKPOINT_TIME=1598918400
+ONT_LAUNCH_CHECKPOINT_EPOCH_START=1598918400
+ONT_LAUNCH_CHECKPOINT_WORK=49d414
+ONT_HEADER_PROVIDER=resolver
+```
+
+These are signet-scoped client launch values, not consensus law and not a trust upgrade. The CLI/web/mobile
+still label private-signet headers as `provider-trusted` until independent signet-solution validation ships.
 
 ## 4. Acceptance — what this slice proves
 

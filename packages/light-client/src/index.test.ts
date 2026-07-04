@@ -15,6 +15,13 @@ import {
   signetLaunchHeaderRange,
   type VerifyProofBundleAgainstBitcoinInput,
 } from "./index.js";
+import {
+  PRIVATE_SIGNET_GENESIS_DIFFICULTY_CHECKPOINT,
+  SIGNET_LAUNCH_CHECKPOINT_ENV,
+  readSignetLaunchDifficultyCheckpointOverride,
+  selectSignetLaunchDifficultyCheckpoint,
+  signetLaunchCheckpointId,
+} from "@ont/launch-config";
 
 const BLOCK_170_HEADER =
   "0100000055bd840a78798ad0da853f68974f3d183e2bd1db6a842c1feecf222a00000000ff104ccb05421ab93e63f8c3ce5c2c2e9dbb37de2764b3a3175c8166562cac7d51b96a49ffff001d283e9e70";
@@ -31,6 +38,16 @@ const GOOD_HEADER_SOURCE: BitcoinHeaderSource = {
 };
 
 interface SignetHeaderFixture {
+  readonly checkpoint?: {
+    readonly height: number;
+    readonly hashHex?: string;
+    readonly bits?: string;
+    readonly time?: number;
+    readonly epochStartTime?: number;
+    readonly cumulativeWorkHex?: string;
+  };
+  readonly startHeight: number;
+  readonly endHeight: number;
   readonly anchorHeight: number;
   readonly confirmationDepth: number;
   readonly requiredHeight: number;
@@ -113,6 +130,116 @@ describe("signet launch header source", () => {
       requiredHeight: 311_452,
       confirmationDepth: 6,
     });
+  });
+
+  it("keeps the public-signet checkpoint as the default and parses a complete private-signet override", () => {
+    expect(selectSignetLaunchDifficultyCheckpoint({})).not.toEqual(PRIVATE_SIGNET_GENESIS_DIFFICULTY_CHECKPOINT);
+
+    const override = readSignetLaunchDifficultyCheckpointOverride(privateSignetCheckpointEnv());
+    expect(override).toEqual(PRIVATE_SIGNET_GENESIS_DIFFICULTY_CHECKPOINT);
+    expect(signetLaunchCheckpointId(override!)).toBe(
+      "signet:0:00000008819873e925422c1ff0f99f7cc9bbb232af63a077a480a3633bee1ef6",
+    );
+  });
+
+  it("fails closed for partial or malformed signet launch checkpoint overrides", () => {
+    expect(() => readSignetLaunchDifficultyCheckpointOverride({
+      [SIGNET_LAUNCH_CHECKPOINT_ENV.height]: "0",
+    })).toThrow(/partial signet launch checkpoint override/);
+    expect(() => readSignetLaunchDifficultyCheckpointOverride({
+      ...privateSignetCheckpointEnv(),
+      [SIGNET_LAUNCH_CHECKPOINT_ENV.hashHex]: "00000008819873E925422C1FF0F99F7CC9BBB232AF63A077A480A3633BEE1EF6",
+    })).toThrow(/ONT_LAUNCH_CHECKPOINT_HASH/);
+    expect(() => readSignetLaunchDifficultyCheckpointOverride({
+      ...privateSignetCheckpointEnv(),
+      [SIGNET_LAUNCH_CHECKPOINT_ENV.bits]: "1E0377AE",
+    })).toThrow(/ONT_LAUNCH_CHECKPOINT_BITS/);
+  });
+
+  it("derives the private-signet genesis-forward range when a checkpoint is injected", async () => {
+    expect(signetLaunchHeaderRange({
+      anchorHeight: 141,
+      checkpoint: PRIVATE_SIGNET_GENESIS_DIFFICULTY_CHECKPOINT,
+    })).toEqual({
+      ok: true,
+      checkpointHeight: 0,
+      startHeight: 1,
+      count: 147,
+      anchorHeight: 141,
+      requiredHeight: 147,
+      confirmationDepth: 6,
+    });
+
+    const calls: Array<readonly [number, number]> = [];
+    const source = await fetchSignetLaunchHeaderSource({
+      anchorHeight: 141,
+      checkpoint: PRIVATE_SIGNET_GENESIS_DIFFICULTY_CHECKPOINT,
+      provider: {
+        fetchHeaderHex: async (startHeight, count) => {
+          calls.push([startHeight, count]);
+          return null;
+        },
+      },
+    });
+
+    expect(calls).toEqual([[1, 147]]);
+    expect(source).toEqual({ ok: false, reason: "header-provider-unavailable" });
+  });
+
+  it("validates the real private-signet launch header range from the genesis checkpoint", async () => {
+    const fixture = await loadPrivateSignetHeaderRange();
+    expect(fixture.startHeight).toBe(1);
+    expect(fixture.anchorHeight).toBe(141);
+    expect(fixture.requiredHeight).toBe(147);
+    expect(fixture.endHeight).toBe(148);
+    expect(fixture.checkpoint).toMatchObject({
+      height: PRIVATE_SIGNET_GENESIS_DIFFICULTY_CHECKPOINT.height,
+      hashHex: PRIVATE_SIGNET_GENESIS_DIFFICULTY_CHECKPOINT.hashHex,
+      bits: "1e0377ae",
+      time: PRIVATE_SIGNET_GENESIS_DIFFICULTY_CHECKPOINT.time,
+      epochStartTime: PRIVATE_SIGNET_GENESIS_DIFFICULTY_CHECKPOINT.epochStartTime,
+      cumulativeWorkHex: PRIVATE_SIGNET_GENESIS_DIFFICULTY_CHECKPOINT.cumulativeWorkHex,
+    });
+
+    const launchHeaders = fixture.headers.filter(
+      (header) => header.height >= fixture.startHeight && header.height <= fixture.requiredHeight,
+    );
+    const launchCount = fixture.requiredHeight - PRIVATE_SIGNET_GENESIS_DIFFICULTY_CHECKPOINT.height;
+    expect(launchHeaders).toHaveLength(launchCount);
+
+    expect(buildSignetLaunchHeaderSourceFromHeaders({
+      headersHex: launchHeaders.map((header) => header.headerHex),
+      anchorHeight: fixture.anchorHeight,
+    })).toEqual({ ok: false, reason: "header-range-malformed" });
+
+    const source = buildSignetLaunchHeaderSourceFromHeaders({
+      headersHex: launchHeaders.map((header) => header.headerHex),
+      anchorHeight: fixture.anchorHeight,
+      checkpoint: PRIVATE_SIGNET_GENESIS_DIFFICULTY_CHECKPOINT,
+    });
+    expect(source.ok).toBe(true);
+    if (!source.ok) return;
+    expect(source.tipHeight).toBe(fixture.requiredHeight);
+    expect(source.headerSource.headerHexAtHeight(fixture.anchorHeight)).toBe(
+      fixture.headers.find((header) => header.height === fixture.anchorHeight)?.headerHex,
+    );
+    expect(source.headerSource.headerHexAtHeight(fixture.requiredHeight)).toBe(launchHeaders.at(-1)?.headerHex);
+    expect(source.headerSource.headerHexAtHeight(fixture.endHeight)).toBeNull();
+
+    const calls: Array<readonly [number, number]> = [];
+    const fetched = await fetchSignetLaunchHeaderSource({
+      anchorHeight: fixture.anchorHeight,
+      checkpoint: PRIVATE_SIGNET_GENESIS_DIFFICULTY_CHECKPOINT,
+      provider: {
+        fetchHeaderHex: async (startHeight, count) => {
+          calls.push([startHeight, count]);
+          return launchHeaders.map((header) => header.headerHex);
+        },
+      },
+    });
+    expect(calls).toEqual([[fixture.startHeight, launchCount]]);
+    expect(fetched.ok).toBe(true);
+    if (fetched.ok) expect(fetched.headerSource.headerHexAtHeight(fixture.requiredHeight)).toBe(launchHeaders.at(-1)?.headerHex);
   });
 
   it("validates a real signet range and verifies a real signet inclusion bundle", async () => {
@@ -299,6 +426,23 @@ async function loadSignetHeaderRange(): Promise<SignetHeaderFixture> {
   const fixtureUrl = new URL("../../../fixtures/bitcoin/signet-launch-header-range-311446-311452.json", import.meta.url);
   const raw = await readFile(fixtureUrl, "utf8");
   return JSON.parse(raw) as SignetHeaderFixture;
+}
+
+async function loadPrivateSignetHeaderRange(): Promise<SignetHeaderFixture> {
+  const fixtureUrl = new URL("../../../fixtures/bitcoin/private-signet-launch-header-range-1-148.json", import.meta.url);
+  const raw = await readFile(fixtureUrl, "utf8");
+  return JSON.parse(raw) as SignetHeaderFixture;
+}
+
+function privateSignetCheckpointEnv(): Record<string, string> {
+  return {
+    [SIGNET_LAUNCH_CHECKPOINT_ENV.height]: "0",
+    [SIGNET_LAUNCH_CHECKPOINT_ENV.hashHex]: PRIVATE_SIGNET_GENESIS_DIFFICULTY_CHECKPOINT.hashHex,
+    [SIGNET_LAUNCH_CHECKPOINT_ENV.bits]: "0x1e0377ae",
+    [SIGNET_LAUNCH_CHECKPOINT_ENV.time]: "1598918400",
+    [SIGNET_LAUNCH_CHECKPOINT_ENV.epochStartTime]: "1598918400",
+    [SIGNET_LAUNCH_CHECKPOINT_ENV.cumulativeWorkHex]: "49d414",
+  };
 }
 
 function overwriteNonce(headerHex: string, nonce: number): string {

@@ -13,7 +13,7 @@ import { availabilityFromRecord } from "../wallet/availability";
 import { useWallet } from "../wallet/WalletContext";
 import { eventTone, nameStatusTone } from "../status";
 import { colors, font, spacing } from "../theme";
-import { API_BASE, HEADER_PROVIDER, HEADER_PROVIDER_ESPLORA_URL } from "../config";
+import { API_BASE, HEADER_PROVIDER, HEADER_PROVIDER_ESPLORA_URL, SIGNET_LAUNCH_CHECKPOINT } from "../config";
 import {
   createMobileSignetHeaderRangeProvider,
   fetchMobileSignetLaunchHeaderSource,
@@ -88,12 +88,15 @@ async function loadBitcoinVerification(
   const headerSource = await fetchMobileSignetLaunchHeaderSource({
     anchorHeight,
     provider: mobileHeaderProvider,
+    checkpoint: SIGNET_LAUNCH_CHECKPOINT ?? undefined,
   });
 
   return mobileBitcoinVerificationState({
     proofBundle: served.proofBundle,
     headerSource: headerSource.ok ? headerSource.headerSource : null,
     ownerPubkeyHex: servedOwnerPubkeyHex,
+    checkpointId: headerSource.ok ? headerSource.checkpointId : undefined,
+    network: headerSource.ok ? headerSource.network : undefined,
   });
 }
 

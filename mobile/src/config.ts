@@ -1,3 +1,5 @@
+import { PRIVATE_SIGNET_GENESIS_DIFFICULTY_CHECKPOINT, type LaunchBitcoinDifficultyCheckpoint } from "@ont/launch-config";
+
 /**
  * App configuration, keyed by network so flipping to mainnet is one change.
  *
@@ -47,6 +49,8 @@ export const HEADER_PROVIDER_ESPLORA_URL = ESPLORA_BASE;
 /** Owner keys are x-only Schnorr; funding addresses are bech32 (tb1q… on signet). */
 export const NETWORK = active.network;
 export const NETWORK_LABEL = active.label;
+export const SIGNET_LAUNCH_CHECKPOINT: LaunchBitcoinDifficultyCheckpoint | null =
+  NETWORK === "signet" ? PRIVATE_SIGNET_GENESIS_DIFFICULTY_CHECKPOINT : null;
 
 /**
  * Bitcoin-first display convention. Amounts come off the wire as integer base

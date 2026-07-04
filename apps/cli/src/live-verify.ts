@@ -1,7 +1,10 @@
 import { isCanonicalName } from "@ont/wire";
 import {
   LAUNCH_CONFIRMATION_DEPTH,
-  SIGNET_LAUNCH_CHECKPOINT_ID,
+  SIGNET_BITCOIN_DIFFICULTY_CHECKPOINT,
+  selectSignetLaunchDifficultyCheckpoint,
+  signetLaunchCheckpointId,
+  type LaunchBitcoinDifficultyCheckpoint,
 } from "@ont/launch-config";
 import {
   checkProofBundleHeaderDepthCoverage,
@@ -48,6 +51,7 @@ export interface VerifyNameAgainstResolverInput {
   readonly name: string;
   readonly proofBundleSource: ResolverNameProofBundleSource;
   readonly headerProvider?: HeaderRangeProvider | null | undefined;
+  readonly launchCheckpoint?: LaunchBitcoinDifficultyCheckpoint | undefined;
 }
 
 export function selectCliVerifyResolverUrl(env: Record<string, string | undefined>): string | null {
@@ -82,6 +86,12 @@ export function selectCliVerifyHeaderProvider(
   return source === null ? null : createResolverHeaderRangeProvider({ resolverUrl: source.resolverUrl, fetchImpl });
 }
 
+export function selectCliVerifyLaunchCheckpoint(
+  env: Record<string, string | undefined>,
+): LaunchBitcoinDifficultyCheckpoint {
+  return selectSignetLaunchDifficultyCheckpoint(env);
+}
+
 export function createResolverNameProofBundleSource(
   resolverUrl: string,
   fetchImpl: typeof fetch = fetch,
@@ -106,6 +116,7 @@ export function createResolverNameProofBundleSource(
 
 export async function verifyNameAgainstResolver(input: VerifyNameAgainstResolverInput): Promise<CliVerifyNameResult> {
   const { name } = input;
+  const launchCheckpoint = input.launchCheckpoint ?? SIGNET_BITCOIN_DIFFICULTY_CHECKPOINT;
   if (!isCanonicalName(name)) return { ok: false, state: "unavailable", name, reason: "invalid-name" };
   let proofBundle: unknown | null;
   try {
@@ -115,7 +126,7 @@ export async function verifyNameAgainstResolver(input: VerifyNameAgainstResolver
   }
   if (proofBundle === null) return { ok: false, state: "unavailable", name, reason: "name-not-served" };
 
-  const headerSource = await fetchHeaderSourceForProofBundle(proofBundle, input.headerProvider ?? null);
+  const headerSource = await fetchHeaderSourceForProofBundle(proofBundle, input.headerProvider ?? null, launchCheckpoint);
   const verification = runVerifyProofBundleAgainstBitcoin({ bundle: proofBundle, headerSource });
   if (!verification.ok) return { ok: false, state: "resolver-mirror", name, reason: verification.reason };
 
@@ -132,7 +143,7 @@ export async function verifyNameAgainstResolver(input: VerifyNameAgainstResolver
     name,
     anchorHeight: coverage.anchorHeight,
     requiredHeight: coverage.requiredHeight,
-    checkpointId: SIGNET_LAUNCH_CHECKPOINT_ID,
+    checkpointId: signetLaunchCheckpointId(launchCheckpoint),
     network: "signet",
     signetHeaderAuthenticity: "provider-trusted",
   };
@@ -175,9 +186,11 @@ export async function runOntCli(
   const name = argv[1]!;
   let resolverUrl: string | null;
   let headerProvider: HeaderRangeProvider | null;
+  let launchCheckpoint: LaunchBitcoinDifficultyCheckpoint;
   try {
     resolverUrl = selectCliVerifyResolverUrl(env);
     headerProvider = selectCliVerifyHeaderProvider(env, fetchImpl);
+    launchCheckpoint = selectCliVerifyLaunchCheckpoint(env);
   } catch (error) {
     io.stderr(error instanceof Error ? error.message : String(error));
     return 2;
@@ -191,6 +204,7 @@ export async function runOntCli(
     name,
     proofBundleSource: createResolverNameProofBundleSource(resolverUrl, fetchImpl),
     headerProvider,
+    launchCheckpoint,
   });
   io.stdout(renderCliVerifyNameResult(result));
   return result.ok ? 0 : 1;
@@ -199,11 +213,12 @@ export async function runOntCli(
 async function fetchHeaderSourceForProofBundle(
   proofBundle: unknown,
   provider: HeaderRangeProvider | null,
+  checkpoint: LaunchBitcoinDifficultyCheckpoint,
 ) {
   if (provider === null) return null;
   const anchorHeight = proofBundleMaxAnchorHeight(proofBundle);
   if (anchorHeight === null) return null;
-  const source = await fetchSignetLaunchHeaderSource({ anchorHeight, provider });
+  const source = await fetchSignetLaunchHeaderSource({ anchorHeight, checkpoint, provider });
   return source.ok ? source.headerSource : null;
 }
 

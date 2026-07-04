@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { handleWebRequest, type WebServiceOptions } from "./server.js";
-import type { WebReadPort } from "./web-read-port.js";
+import type { WebReadPort, ServedNameStateResult } from "./web-read-port.js";
+import type { HeaderRangeProvider } from "@ont/light-client";
+import { PRIVATE_SIGNET_GENESIS_DIFFICULTY_CHECKPOINT } from "@ont/launch-config";
 
 // Clean runnable web-server red battery. The server is an HTTP shell around existing SSR renderers. It owns no
 // resolver/indexer rules: it only maps GET routes to renderLanding/route/renderNameView/renderTxView and consumes
@@ -94,6 +96,27 @@ describe("web server — route dispatch", () => {
     expect(r.text).not.toContain("Name:");
     expect(r.text).not.toContain("Transaction:");
   });
+
+  it("uses an injected launch checkpoint when deriving the live name header range", async () => {
+    const calls: Array<readonly [number, number]> = [];
+    const provider: HeaderRangeProvider = {
+      fetchHeaderHex: async (startHeight, count) => {
+        calls.push([startHeight, count]);
+        return null;
+      },
+    };
+
+    const r = await request("/names/alice", {
+      port: nullPort,
+      nameStateSource: async () => privateSignetServedNameState(),
+      bitcoinHeaderProvider: provider,
+      bitcoinLaunchCheckpoint: PRIVATE_SIGNET_GENESIS_DIFFICULTY_CHECKPOINT,
+    });
+
+    expect(r.status).toBe(200);
+    expect(r.text).toContain("Resolver mirror - not yet Bitcoin-verified");
+    expect(calls).toEqual([[1, 147]]);
+  });
 });
 
 describe("web server — HTTP shell totality", () => {
@@ -117,3 +140,24 @@ describe("web server — HTTP shell totality", () => {
     expect(tx.text).toContain("not currently served");
   });
 });
+
+function privateSignetServedNameState(): Extract<ServedNameStateResult, { readonly ok: true }> {
+  const txid = "c8".repeat(32);
+  return {
+    ok: true,
+    canonicalName: "alice",
+    owner: { kind: "owner-key", ownerPubkeyHex: "11".repeat(32) },
+    leafKeyHex: "22".repeat(32),
+    batchLocalIndex: 0,
+    anchoredRoot: "33".repeat(32),
+    anchor: { txid, minedHeight: 141, txIndex: 0, vout: 0 },
+    firstServableHeight: 141,
+    trace: [],
+    proofBundle: { bitcoinInclusion: { anchors: [{ txid, height: 141, pos: 0 }] } } as Extract<
+      ServedNameStateResult,
+      { readonly ok: true }
+    >["proofBundle"],
+    provenance: "resolver-indexed-mirror",
+    authority: "not-ownership-authority",
+  };
+}

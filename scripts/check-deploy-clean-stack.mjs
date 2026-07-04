@@ -11,7 +11,8 @@
 //
 // The clean runtime contract (verified against the app entrypoints):
 //   resolver  apps/resolver/src/index.ts   PORT (4174), ONT_STORE, ONT_STORE_DIR; serves /health, /tx/:txid
-//   web       apps/web/src/index.ts        PORT (4175), ONT_RESOLVER_URL; serves /health
+//   web       apps/web/src/index.ts        PORT (4175), ONT_RESOLVER_URL, ONT_HEADER_PROVIDER,
+//                                          ONT_LAUNCH_CHECKPOINT_*; serves /health
 //   indexer   apps/indexer/src/main.ts     ONT_SOURCE=node, ONT_CHAIN, ONT_RPC_URL[/_USER/_PASSWORD],
 //                                          ONT_STORE=file, ONT_STORE_DIR, INDEXER_POLL_MS; chain-gated daemon
 //   publisher apps/publisher/src/index.ts  PORT (4176), ONT_SOURCE=node, ONT_CHAIN, ONT_RPC_URL[/_USER/_PASSWORD];
@@ -68,6 +69,8 @@ const REQUIRE_COMPOSE = [
   { token: "-signetchallenge=${ONT_SIGNET_CHALLENGE:-51}", why: "bitcoind must run private signet, not public default signet" },
   { token: "-dnsseed=0", why: "private signet must not attempt public-signet DNS peer discovery" },
   { token: "ONT_SIGNET_MINER_ADDRESS", why: "miner coinbase must pay the off-box funding/signing wallet" },
+  { token: "ONT_LAUNCH_CHECKPOINT_HEIGHT", why: "private-signet clients must override the public-signet launch checkpoint" },
+  { token: "ONT_HEADER_PROVIDER", why: "web verifier must have an explicit live header provider" },
 ];
 // Clean-stack requirements that need exact shape, not just token presence (CL bar: ONT_STORE=file + nonempty dir).
 const REQUIRE_COMPOSE_RE = [
@@ -76,6 +79,9 @@ const REQUIRE_COMPOSE_RE = [
   { re: /PORT:\s*"4176"/, why: "publisher service must set PORT=4176 (its HTTP listen port — index.ts default)" },
   { re: /ONT_SIGNET_BOOTSTRAP_BLOCKS:\s*"\$\{ONT_SIGNET_BOOTSTRAP_BLOCKS:-110\}"/, why: "miner must bootstrap 110 blocks by default so coinbase matures" },
   { re: /ONT_SIGNET_MINE_INTERVAL_SECONDS:\s*"\$\{ONT_SIGNET_MINE_INTERVAL_SECONDS:-45\}"/, why: "miner must keep producing low-rate blocks for confirmations" },
+  { re: /ONT_HEADER_PROVIDER:\s*"\$\{ONT_HEADER_PROVIDER:-resolver\}"/, why: "web verifier must default to resolver-served private-signet headers" },
+  { re: /ONT_LAUNCH_CHECKPOINT_HASH:\s*"\$\{ONT_LAUNCH_CHECKPOINT_HASH:-00000008819873e925422c1ff0f99f7cc9bbb232af63a077a480a3633bee1ef6\}"/, why: "compose must default clients to the private-signet genesis checkpoint hash" },
+  { re: /ONT_LAUNCH_CHECKPOINT_BITS:\s*"\$\{ONT_LAUNCH_CHECKPOINT_BITS:-0x1e0377ae\}"/, why: "compose must default clients to the private-signet compact target" },
 ];
 
 // Clean-stack requirements for the entrypoint dispatch.
@@ -93,6 +99,8 @@ const REQUIRE_RUNBOOK_RE = [
   { re: /\|\s*\*\*publisher\*\*/, why: "runbook needs a per-service row for the publisher write service" },
   { re: /\|\s*\*\*private-signet-miner\*\*/, why: "runbook needs a per-service row for the private-signet miner" },
   { re: /ONT_SIGNET_MINER_WALLET=ont_miner/, why: "runbook must document the helper wallet as scriptPubKey-resolution context only" },
+  { re: /ONT_LAUNCH_CHECKPOINT_HASH=00000008819873e925422c1ff0f99f7cc9bbb232af63a077a480a3633bee1ef6/, why: "runbook must document the private-signet client checkpoint override" },
+  { re: /ONT_HEADER_PROVIDER=resolver/, why: "runbook must document resolver-served headers for client verification" },
   { re: /repo-prep/i, why: "runbook must label the non-destructive repo-prep steps" },
   { re: /destructive/i, why: "runbook must call out the destructive teardown explicitly" },
   { re: /DK-owned/i, why: "destructive VPS teardown must be marked DK-owned, separated from repo-prep" },
@@ -103,6 +111,11 @@ const REQUIRE_ENV = [
   { token: "ONT_SIGNET_MINER_ADDRESS=replace-with-off-box-legacy-signet-address", why: ".env.example must require the off-box funding wallet address" },
   { token: "ONT_SIGNET_MINER_WALLET=ont_miner", why: ".env.example must document the helper wallet used only for signet miner getaddressinfo" },
   { token: "ONT_SIGNET_BOOTSTRAP_BLOCKS=110", why: ".env.example must pin the 110-block coinbase-maturity bootstrap default" },
+  { token: "ONT_LAUNCH_CHECKPOINT_HEIGHT=0", why: ".env.example must document the private-signet genesis checkpoint height" },
+  { token: "ONT_LAUNCH_CHECKPOINT_HASH=00000008819873e925422c1ff0f99f7cc9bbb232af63a077a480a3633bee1ef6", why: ".env.example must document the private-signet genesis checkpoint hash" },
+  { token: "ONT_LAUNCH_CHECKPOINT_BITS=0x1e0377ae", why: ".env.example must document the private-signet compact target" },
+  { token: "ONT_LAUNCH_CHECKPOINT_WORK=49d414", why: ".env.example must document the private-signet genesis chainwork" },
+  { token: "ONT_HEADER_PROVIDER=resolver", why: ".env.example must default web/CLI verification to resolver-served private-signet headers" },
 ];
 
 const REQUIRE_MINER_DOCKERFILE = [

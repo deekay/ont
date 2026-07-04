@@ -2,7 +2,7 @@
 //
 // main.ts calls this once at startup, then hands the result to runIndexerLoop. Tests can inject a fixture
 // block-source/confirm while still exercising the same store + enforcement selection path the daemon uses.
-import { SIGNET_BITCOIN_DIFFICULTY_CHECKPOINT } from "@ont/launch-config";
+import { selectSignetLaunchDifficultyCheckpoint } from "@ont/launch-config";
 import {
   selectIndexerBlockSourceWithHeaders,
   type IndexerHeaderSource,
@@ -23,6 +23,7 @@ export async function selectIndexerRunnerDeps(
   env: Record<string, string | undefined>,
   options: SelectIndexerRunnerDepsOptions = {},
 ): Promise<IndexerRunnerDeps> {
+  const launchCheckpoint = selectSignetLaunchDifficultyCheckpoint(env);
   const selected: SelectedIndexerBlockSource = options.blockSource === undefined
     ? await selectIndexerBlockSourceWithHeaders(env)
     : { blockSource: options.blockSource };
@@ -32,7 +33,7 @@ export async function selectIndexerRunnerDeps(
       cursorStore,
       headerStore,
       headerSource: selected.headerSource,
-      startHeight: SIGNET_BITCOIN_DIFFICULTY_CHECKPOINT.height + 1,
+      startHeight: launchCheckpoint.height + 1,
     });
   }
   const enforcement = await selectIndexerEnforcement(env);

@@ -6,6 +6,10 @@ import {
   type HeaderRangeProvider,
   type ResolverHeaderRangeProviderOptions,
 } from "@ont/light-client";
+import {
+  selectSignetLaunchDifficultyCheckpoint,
+  type LaunchBitcoinDifficultyCheckpoint,
+} from "@ont/launch-config";
 
 export { SIGNET_LAUNCH_HEADER_SOURCE_ID };
 
@@ -56,6 +60,12 @@ export function selectBitcoinHeaderProvider(
     return factories.resolver({ resolverUrl });
   }
   throw new Error(`${ONT_WEB_BITCOIN_HEADER_SOURCE_ENV} references unsupported header source '${id}'`);
+}
+
+export function selectBitcoinLaunchCheckpoint(
+  env: Record<string, string | undefined>,
+): LaunchBitcoinDifficultyCheckpoint {
+  return selectSignetLaunchDifficultyCheckpoint(env);
 }
 
 function normalizeFactories(input: BitcoinHeaderProviderFactory | BitcoinHeaderProviderFactories): NormalizedBitcoinHeaderProviderFactories {

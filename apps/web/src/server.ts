@@ -9,6 +9,7 @@ import {
   type BitcoinHeaderSource,
   type HeaderRangeProvider,
 } from "@ont/light-client";
+import { signetLaunchCheckpointId, type LaunchBitcoinDifficultyCheckpoint } from "@ont/launch-config";
 import type { ResolverTxSource } from "./live/resolver-tx-source.js";
 import type { ResolverNameStateSource } from "./live/resolver-name-state-source.js";
 
@@ -23,6 +24,7 @@ export interface WebServiceOptions {
   readonly txSource?: ResolverTxSource | undefined;
   readonly nameStateSource?: ResolverNameStateSource | undefined;
   readonly bitcoinHeaderProvider?: HeaderRangeProvider | undefined;
+  readonly bitcoinLaunchCheckpoint?: LaunchBitcoinDifficultyCheckpoint | undefined;
   readonly verificationCheckpointId?: string | undefined;
   readonly verificationNetwork?: string | undefined;
 }
@@ -143,7 +145,7 @@ async function liveNameResponse(name: string, options: WebServiceOptions): Promi
   }
   try {
     const served = await options.nameStateSource(name);
-    const liveHeaderSource = await liveHeaderSourceForServed(served, options.bitcoinHeaderProvider);
+    const liveHeaderSource = await liveHeaderSourceForServed(served, options.bitcoinHeaderProvider, options.bitcoinLaunchCheckpoint);
     return html(
       renderNameView({
         name,
@@ -186,11 +188,12 @@ function withNameState(port: WebReadPort, served: ServedNameStateResult | null):
 async function liveHeaderSourceForServed(
   served: ServedNameStateResult | null,
   provider: HeaderRangeProvider | undefined,
+  checkpoint: LaunchBitcoinDifficultyCheckpoint | undefined,
 ): Promise<BitcoinHeaderSource | undefined> {
   if (provider === undefined || served === null || !served.ok) return undefined;
   const anchorHeight = proofBundleMaxAnchorHeight(served.proofBundle);
   if (anchorHeight === null) return undefined;
-  const source = await fetchSignetLaunchHeaderSource({ anchorHeight, provider });
+  const source = await fetchSignetLaunchHeaderSource({ anchorHeight, provider, checkpoint });
   return source.ok ? source.headerSource : undefined;
 }
 
@@ -200,9 +203,13 @@ function bitcoinVerificationOptions(
 ): BitcoinVerificationRenderOptions {
   return {
     headerSource: headerSource ?? null,
-    checkpointId: options.verificationCheckpointId,
+    checkpointId: options.verificationCheckpointId ?? checkpointIdForOptions(options),
     network: options.verificationNetwork,
   };
+}
+
+function checkpointIdForOptions(options: WebServiceOptions): string | undefined {
+  return options.bitcoinLaunchCheckpoint === undefined ? undefined : signetLaunchCheckpointId(options.bitcoinLaunchCheckpoint);
 }
 
 function pathSegments(url: URL): string[] {

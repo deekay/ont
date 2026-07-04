@@ -8,6 +8,7 @@ import { verifyProofBundleAgainstBitcoin, verifyProofBundleStructure } from "@on
 import type { BitcoinHeaderSource, ProofBundleVerificationReport } from "@ont/consensus";
 import {
   LAUNCH_CONFIRMATION_DEPTH,
+  type LaunchBitcoinDifficultyCheckpoint,
   SIGNET_BITCOIN_DIFFICULTY_CHECKPOINT,
   SIGNET_BITCOIN_NETWORK_PARAMS,
 } from "@ont/launch-config";
@@ -66,6 +67,7 @@ export type SignetLaunchHeaderRangeResult =
 export interface SignetLaunchHeaderRangeInput {
   readonly anchorHeight: number;
   readonly confirmationDepth?: number | undefined;
+  readonly checkpoint?: LaunchBitcoinDifficultyCheckpoint | undefined;
 }
 
 export interface BuildSignetLaunchHeaderSourceInput extends SignetLaunchHeaderRangeInput {
@@ -95,7 +97,9 @@ export function signetLaunchHeaderRange(input: SignetLaunchHeaderRangeInput): Si
     if (!isRecord(input)) return { ok: false, reason: "header-range-malformed" };
     const anchorHeight = input.anchorHeight;
     const confirmationDepth = input.confirmationDepth ?? LAUNCH_CONFIRMATION_DEPTH;
-    if (!Number.isInteger(anchorHeight) || anchorHeight <= SIGNET_BITCOIN_DIFFICULTY_CHECKPOINT.height) {
+    const checkpoint = input.checkpoint ?? SIGNET_BITCOIN_DIFFICULTY_CHECKPOINT;
+    if (!isDifficultyCheckpoint(checkpoint)) return { ok: false, reason: "header-range-malformed" };
+    if (!Number.isInteger(anchorHeight) || anchorHeight <= checkpoint.height) {
       return { ok: false, reason: "header-range-malformed" };
     }
     if (!Number.isInteger(confirmationDepth) || confirmationDepth < 0) {
@@ -103,12 +107,12 @@ export function signetLaunchHeaderRange(input: SignetLaunchHeaderRangeInput): Si
     }
     const requiredHeight = anchorHeight + confirmationDepth;
     if (!Number.isSafeInteger(requiredHeight)) return { ok: false, reason: "header-range-malformed" };
-    const startHeight = SIGNET_BITCOIN_DIFFICULTY_CHECKPOINT.height + 1;
-    const count = requiredHeight - SIGNET_BITCOIN_DIFFICULTY_CHECKPOINT.height;
+    const startHeight = checkpoint.height + 1;
+    const count = requiredHeight - checkpoint.height;
     if (!Number.isInteger(count) || count < 1) return { ok: false, reason: "header-range-malformed" };
     return {
       ok: true,
-      checkpointHeight: SIGNET_BITCOIN_DIFFICULTY_CHECKPOINT.height,
+      checkpointHeight: checkpoint.height,
       startHeight,
       count,
       anchorHeight,
@@ -128,11 +132,12 @@ export function proofBundleMaxAnchorHeight(bundle: unknown): number | null {
 export function buildSignetLaunchHeaderSourceFromHeaders(input: BuildSignetLaunchHeaderSourceInput): CanonicalHeaderResult {
   const range = signetLaunchHeaderRange(input);
   if (!range.ok) return range;
+  const checkpoint = input.checkpoint ?? SIGNET_BITCOIN_DIFFICULTY_CHECKPOINT;
   return buildCanonicalHeaderSourceFromHeaders(
     input.headersHex,
     range.startHeight,
     range.count,
-    SIGNET_BITCOIN_DIFFICULTY_CHECKPOINT,
+    checkpoint,
     SIGNET_BITCOIN_NETWORK_PARAMS,
   );
 }
@@ -144,7 +149,7 @@ export async function fetchSignetLaunchHeaderSource(input: FetchSignetLaunchHead
     provider: input.provider,
     startHeight: range.startHeight,
     count: range.count,
-    checkpoint: SIGNET_BITCOIN_DIFFICULTY_CHECKPOINT,
+    checkpoint: input.checkpoint ?? SIGNET_BITCOIN_DIFFICULTY_CHECKPOINT,
     params: SIGNET_BITCOIN_NETWORK_PARAMS,
   });
 }
@@ -259,6 +264,29 @@ function proofBundleAnchorHeights(bundle: unknown): number[] {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isDifficultyCheckpoint(value: unknown): value is LaunchBitcoinDifficultyCheckpoint {
+  if (!isRecord(value)) return false;
+  const { height, hashHex, bits, time, epochStartTime, cumulativeWorkHex } = value;
+  return (
+    typeof height === "number" &&
+    Number.isSafeInteger(height) &&
+    height >= 0 &&
+    typeof hashHex === "string" &&
+    /^[0-9a-f]{64}$/.test(hashHex) &&
+    typeof bits === "number" &&
+    Number.isSafeInteger(bits) &&
+    bits >= 0 &&
+    typeof time === "number" &&
+    Number.isSafeInteger(time) &&
+    time >= 0 &&
+    typeof epochStartTime === "number" &&
+    Number.isSafeInteger(epochStartTime) &&
+    epochStartTime >= 0 &&
+    typeof cumulativeWorkHex === "string" &&
+    /^[0-9a-f]+$/.test(cumulativeWorkHex)
+  );
 }
 
 function isWellFormedHeaderRange(startHeight: number, count: number): boolean {

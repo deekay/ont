@@ -3,9 +3,14 @@ import { describe, expect, it } from "vitest";
 import {
   runOntCli,
   selectCliVerifyHeaderProvider,
+  selectCliVerifyLaunchCheckpoint,
   selectCliVerifyResolverUrl,
   verifyNameAgainstResolver,
 } from "./live-verify.js";
+import {
+  PRIVATE_SIGNET_GENESIS_DIFFICULTY_CHECKPOINT,
+  SIGNET_LAUNCH_CHECKPOINT_ENV,
+} from "@ont/launch-config";
 
 interface SignetHeaderFixture {
   readonly anchorHeight: number;
@@ -133,6 +138,27 @@ describe("ont verify <name>", () => {
     expect(exit).toBe(2);
     expect(stderr.join("\n")).toContain("ONT_BITCOIN_HEADER_SOURCE must be resolver:<url>");
   });
+
+  it("fails closed before resolver I/O when the launch checkpoint override is partial", async () => {
+    const stderr: string[] = [];
+    const requests: string[] = [];
+    const exit = await runOntCli(
+      ["verify", "alice"],
+      {
+        ONT_BITCOIN_HEADER_SOURCE: "resolver:http://resolver.test",
+        [SIGNET_LAUNCH_CHECKPOINT_ENV.height]: "0",
+      },
+      { stdout: () => undefined, stderr: (text) => stderr.push(text) },
+      async (url) => {
+        requests.push(String(url));
+        return new Response("{}", { status: 500 });
+      },
+    );
+
+    expect(exit).toBe(2);
+    expect(requests).toEqual([]);
+    expect(stderr.join("\n")).toContain("partial signet launch checkpoint override");
+  });
 });
 
 describe("verifyNameAgainstResolver", () => {
@@ -153,6 +179,10 @@ describe("verifyNameAgainstResolver", () => {
     expect(() => selectCliVerifyHeaderProvider({ ONT_HEADER_PROVIDER: "unknown" })).toThrow(/ONT_HEADER_PROVIDER/);
     expect(() => selectCliVerifyHeaderProvider({ ONT_HEADER_PROVIDER: "node" })).toThrow(/deferred/);
   });
+
+  it("selects the private-signet launch checkpoint from a complete override env", () => {
+    expect(selectCliVerifyLaunchCheckpoint(privateSignetCheckpointEnv())).toEqual(PRIVATE_SIGNET_GENESIS_DIFFICULTY_CHECKPOINT);
+  });
 });
 
 async function loadSignetHeaderRange(): Promise<SignetHeaderFixture> {
@@ -167,4 +197,15 @@ async function loadSignetAnchoredBundle(): Promise<Record<string, unknown>> {
 
 function headerHash(index: number): string {
   return index.toString(16).padStart(64, "0");
+}
+
+function privateSignetCheckpointEnv(): Record<string, string> {
+  return {
+    [SIGNET_LAUNCH_CHECKPOINT_ENV.height]: "0",
+    [SIGNET_LAUNCH_CHECKPOINT_ENV.hashHex]: PRIVATE_SIGNET_GENESIS_DIFFICULTY_CHECKPOINT.hashHex,
+    [SIGNET_LAUNCH_CHECKPOINT_ENV.bits]: "0x1e0377ae",
+    [SIGNET_LAUNCH_CHECKPOINT_ENV.time]: "1598918400",
+    [SIGNET_LAUNCH_CHECKPOINT_ENV.epochStartTime]: "1598918400",
+    [SIGNET_LAUNCH_CHECKPOINT_ENV.cumulativeWorkHex]: "49d414",
+  };
 }

@@ -1,10 +1,15 @@
 import { describe, expect, it } from "vitest";
 import type { HeaderRangeProvider } from "@ont/light-client";
 import {
+  PRIVATE_SIGNET_GENESIS_DIFFICULTY_CHECKPOINT,
+  SIGNET_LAUNCH_CHECKPOINT_ENV,
+} from "@ont/launch-config";
+import {
   ONT_ESPLORA_URL_ENV,
   ONT_HEADER_PROVIDER_ENV,
   ONT_RESOLVER_URL_ENV,
   ONT_WEB_BITCOIN_HEADER_SOURCE_ENV,
+  selectBitcoinLaunchCheckpoint,
   selectBitcoinHeaderProvider,
 } from "./select-bitcoin-header-source.js";
 
@@ -76,3 +81,25 @@ describe("selectBitcoinHeaderProvider", () => {
     expect(() => selectBitcoinHeaderProvider({ [ONT_WEB_BITCOIN_HEADER_SOURCE_ENV]: "fixture:block-170" })).toThrow(/unsupported header source/);
   });
 });
+
+describe("selectBitcoinLaunchCheckpoint", () => {
+  it("defaults to the bundled public-signet checkpoint", () => {
+    expect(selectBitcoinLaunchCheckpoint({})).not.toEqual(PRIVATE_SIGNET_GENESIS_DIFFICULTY_CHECKPOINT);
+  });
+
+  it("selects the private-signet checkpoint from complete env and fails closed on partial env", () => {
+    expect(selectBitcoinLaunchCheckpoint(privateSignetCheckpointEnv())).toEqual(PRIVATE_SIGNET_GENESIS_DIFFICULTY_CHECKPOINT);
+    expect(() => selectBitcoinLaunchCheckpoint({ [SIGNET_LAUNCH_CHECKPOINT_ENV.height]: "0" })).toThrow(/partial signet launch checkpoint override/);
+  });
+});
+
+function privateSignetCheckpointEnv(): Record<string, string> {
+  return {
+    [SIGNET_LAUNCH_CHECKPOINT_ENV.height]: "0",
+    [SIGNET_LAUNCH_CHECKPOINT_ENV.hashHex]: PRIVATE_SIGNET_GENESIS_DIFFICULTY_CHECKPOINT.hashHex,
+    [SIGNET_LAUNCH_CHECKPOINT_ENV.bits]: "0x1e0377ae",
+    [SIGNET_LAUNCH_CHECKPOINT_ENV.time]: "1598918400",
+    [SIGNET_LAUNCH_CHECKPOINT_ENV.epochStartTime]: "1598918400",
+    [SIGNET_LAUNCH_CHECKPOINT_ENV.cumulativeWorkHex]: "49d414",
+  };
+}

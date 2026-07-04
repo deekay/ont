@@ -1,6 +1,7 @@
 import type { BitcoinDifficultyCheckpoint, BitcoinNetworkParams } from "@ont/bitcoin";
 
 export type LaunchBitcoinNetwork = "signet";
+export type LaunchBitcoinDifficultyCheckpoint = BitcoinDifficultyCheckpoint;
 
 export const LAUNCH_BITCOIN_NETWORKS = ["signet"] as const satisfies readonly LaunchBitcoinNetwork[];
 
@@ -27,8 +28,64 @@ export const SIGNET_BITCOIN_DIFFICULTY_CHECKPOINT = {
   cumulativeWorkHex: "eafb567b00e",
 } as const satisfies BitcoinDifficultyCheckpoint;
 
-export const SIGNET_LAUNCH_CHECKPOINT_ID =
-  `signet:${SIGNET_BITCOIN_DIFFICULTY_CHECKPOINT.height}:${SIGNET_BITCOIN_DIFFICULTY_CHECKPOINT.hashHex}`;
+export const PRIVATE_SIGNET_GENESIS_DIFFICULTY_CHECKPOINT = {
+  height: 0,
+  hashHex: "00000008819873e925422c1ff0f99f7cc9bbb232af63a077a480a3633bee1ef6",
+  bits: 0x1e0377ae,
+  time: 1_598_918_400,
+  epochStartTime: 1_598_918_400,
+  cumulativeWorkHex: "49d414",
+} as const satisfies BitcoinDifficultyCheckpoint;
+
+export const SIGNET_LAUNCH_CHECKPOINT_ENV = {
+  height: "ONT_LAUNCH_CHECKPOINT_HEIGHT",
+  hashHex: "ONT_LAUNCH_CHECKPOINT_HASH",
+  bits: "ONT_LAUNCH_CHECKPOINT_BITS",
+  time: "ONT_LAUNCH_CHECKPOINT_TIME",
+  epochStartTime: "ONT_LAUNCH_CHECKPOINT_EPOCH_START",
+  cumulativeWorkHex: "ONT_LAUNCH_CHECKPOINT_WORK",
+} as const;
+
+export const SIGNET_LAUNCH_CHECKPOINT_ENV_KEYS = [
+  SIGNET_LAUNCH_CHECKPOINT_ENV.height,
+  SIGNET_LAUNCH_CHECKPOINT_ENV.hashHex,
+  SIGNET_LAUNCH_CHECKPOINT_ENV.bits,
+  SIGNET_LAUNCH_CHECKPOINT_ENV.time,
+  SIGNET_LAUNCH_CHECKPOINT_ENV.epochStartTime,
+  SIGNET_LAUNCH_CHECKPOINT_ENV.cumulativeWorkHex,
+] as const;
+
+export type SignetLaunchCheckpointEnv = Record<string, string | undefined>;
+
+export function signetLaunchCheckpointId(checkpoint: BitcoinDifficultyCheckpoint): string {
+  return `signet:${checkpoint.height}:${checkpoint.hashHex}`;
+}
+
+export const SIGNET_LAUNCH_CHECKPOINT_ID = signetLaunchCheckpointId(SIGNET_BITCOIN_DIFFICULTY_CHECKPOINT);
+
+export function readSignetLaunchDifficultyCheckpointOverride(
+  env: SignetLaunchCheckpointEnv,
+): BitcoinDifficultyCheckpoint | null {
+  const present = SIGNET_LAUNCH_CHECKPOINT_ENV_KEYS.filter((key) => env[key] !== undefined);
+  if (present.length === 0) return null;
+  if (present.length !== SIGNET_LAUNCH_CHECKPOINT_ENV_KEYS.length) {
+    const missing = SIGNET_LAUNCH_CHECKPOINT_ENV_KEYS.filter((key) => env[key] === undefined);
+    throw new Error(`partial signet launch checkpoint override: missing ${missing.join(", ")}`);
+  }
+
+  return {
+    height: readNonNegativeSafeInteger(env, SIGNET_LAUNCH_CHECKPOINT_ENV.height),
+    hashHex: readLowerHex(env, SIGNET_LAUNCH_CHECKPOINT_ENV.hashHex, 64),
+    bits: readCompactBits(env, SIGNET_LAUNCH_CHECKPOINT_ENV.bits),
+    time: readNonNegativeSafeInteger(env, SIGNET_LAUNCH_CHECKPOINT_ENV.time),
+    epochStartTime: readNonNegativeSafeInteger(env, SIGNET_LAUNCH_CHECKPOINT_ENV.epochStartTime),
+    cumulativeWorkHex: readLowerHex(env, SIGNET_LAUNCH_CHECKPOINT_ENV.cumulativeWorkHex),
+  };
+}
+
+export function selectSignetLaunchDifficultyCheckpoint(env: SignetLaunchCheckpointEnv): BitcoinDifficultyCheckpoint {
+  return readSignetLaunchDifficultyCheckpointOverride(env) ?? SIGNET_BITCOIN_DIFFICULTY_CHECKPOINT;
+}
 
 // BIP325 default signet challenge scriptPubKey. Header validation does not
 // consume this yet; GA-SIGNET-SOLUTION will validate block solution material
@@ -47,3 +104,36 @@ export const BITCOIN_DIFFICULTY_CHECKPOINT_BY_NETWORK = {
 export const SIGNET_CHALLENGE_SCRIPT_PUBKEY_BY_NETWORK = {
   signet: SIGNET_CHALLENGE_SCRIPT_PUBKEY_HEX,
 } as const satisfies Record<LaunchBitcoinNetwork, string>;
+
+function readRequired(env: SignetLaunchCheckpointEnv, key: string): string {
+  const raw = env[key];
+  if (raw === undefined) throw new Error(`${key} is required`);
+  const value = raw.trim();
+  if (value === "") throw new Error(`${key} is set but empty`);
+  return value;
+}
+
+function readNonNegativeSafeInteger(env: SignetLaunchCheckpointEnv, key: string): number {
+  const value = readRequired(env, key);
+  if (!/^(0|[1-9][0-9]*)$/.test(value)) throw new Error(`${key} must be a non-negative integer`);
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isSafeInteger(parsed)) throw new Error(`${key} must be a safe integer`);
+  return parsed;
+}
+
+function readLowerHex(env: SignetLaunchCheckpointEnv, key: string, length?: number): string {
+  const value = readRequired(env, key);
+  const pattern = length === undefined ? /^[0-9a-f]+$/ : new RegExp(`^[0-9a-f]{${length}}$`);
+  if (!pattern.test(value)) {
+    const suffix = length === undefined ? "lowercase hex" : `${length} lowercase hex chars`;
+    throw new Error(`${key} must be ${suffix}`);
+  }
+  return value;
+}
+
+function readCompactBits(env: SignetLaunchCheckpointEnv, key: string): number {
+  const value = readRequired(env, key);
+  const hex = value.startsWith("0x") ? value.slice(2) : value;
+  if (!/^[0-9a-f]{8}$/.test(hex)) throw new Error(`${key} must be an 8-digit lowercase hex compact target`);
+  return Number.parseInt(hex, 16);
+}
