@@ -4,31 +4,43 @@
 If the README, one-pager, design brief, or the website disagree with this file, **this file
 wins** — fix the others. (It exists because those numbers drifted apart once; don't let them again.)
 
-Last updated: 2026-06-29.
+Last updated: 2026-07-09.
 
-## Where the project is (2026-06-26)
+## Where the project is (2026-07-09)
 
 ONT was rebuilt from canon under clean-build (#46) — a blank-page rewrite of all software, with the
-old code quarantined. That rewrite is **feature-complete and green, but hermetic**: the full suite is
-**1,415 passing / 12 skipped / 0 failing** (sweep 2026-06-26), all over in-memory ports and regtest.
-**Nothing is on a live network** — the old signet stack was decommissioned 2026-06-11 (notice below)
-and the new stack is deploy-ready (infra-as-code) but not yet stood up.
+old code quarantined. The rebuild has strong local predicate coverage and several live-stack slices
+now wired, but it is **not** a composed product state machine and is **not** mainnet-ready.
 
-`main` is at `d884f959`. Phase ledger, all merged to `main`:
+Current `main` is at `d3d34d35` (`Land private-signet client launch checkpoint override —
+CLI/web/mobile verify our chain (#36)`). The latest full review sweep at that snapshot reported
+**1,541 passing / 5 skipped / 0 failing**; a follow-up Codex check on 2026-07-09 re-ran
+`npm test` and `npm run typecheck` successfully in a fresh worktree and confirmed the same
+1,541/5/0 count.
+
+The old public signet stack remains decommissioned (notice below). The current public
+`opennametags.org` root is a static web surface; as of 2026-07-09, `/api/health`,
+`/ont-private/api/health`, and `/ont-private/` returned 404. The clean stack is wired for controlled
+private-signet integration, not a public durable deployment.
+
+Phase ledger, all merged to `main`:
 
 | Phase | What it delivered | State |
 | --- | --- | --- |
-| **B1–B5** | wire (`@ont/wire`) → audited kernel (`@ont/consensus`) → evidence (`@ont/evidence`) → pure adapters (`@ont/adapter-*`) → surfaces (`apps/*`) | feature-complete, hermetic |
+| **B1–B5** | wire (`@ont/wire`) → consensus predicates (`@ont/consensus`) → evidence (`@ont/evidence`) → pure adapters (`@ont/adapter-*`) → surfaces (`apps/*`) | strong hermetic predicate/surface coverage; no composed product reducer yet |
 | **go-live G1** | live bitcoind RPC behind the ports + a regtest end-to-end claim loop (assemble → sign → broadcast → mine → ingest → serve → render), chain-gated against mainnet | green on regtest |
 | **go-live G2** | restart-safe persistence: durable confirmed-anchor read path survives a process restart (file store) | green, hermetic |
-| **go-live G3** | clean deploy stack: Docker/compose + VPS runbook + signet bitcoind boot + non-signing publisher write service + a fail-closed write-smoke recipe | infra-as-code ready; not deployed |
-| **live-enforcement** (LE-INDEX + LE-RESOLVE) | the audited enforcement runs over *ingested* anchors and writes per-name state, and the resolver serves that enforced state + the evidence trace — **proven in the hermetic e2e; the indexer daemon (`main.ts`) does not yet wire the live enforcement selectors** (A1b) | green in e2e; daemon not wired |
+| **go-live G3 + private-signet 4b** | clean deploy stack plus private signet re-point: custom signet challenge, miner sidecar, self-mined mature funds, non-signing publisher, resolver/web health checks, and private-signet checkpoint override | wired for controlled private-signet demo; not public or independently operated |
+| **G-A / G-C client verification** | resolver-served header ranges, resolver/esplora header providers, CLI/web/mobile verification cores, provider-trusted private-signet labels | wired enough for the private-signet demo; signet header authenticity remains provider-trusted |
+| **G-B / LE-DA-SERVE** | publisher `/da/{root}` full-material record, `http-da` indexer mode, and two-operator hermetic e2e for fetch/recompute/fail-closed behavior | green hermetically; runtime root discovery and durable retry are follow-up |
+| **live-enforcement** (LE-INDEX + LE-RESOLVE) | daemon-selected enforcement (`off` / `fixture-file` / `http-da`) runs over ingested anchors, writes accepted committed entries to `@ont/name-state-store`, and resolver serves enforced state + trace | wired; still a vertical slice, not the full acquisition lifecycle |
 
-**Still ahead:** LE-DA-SERVE (the network DA transport), LE-INVOKE / LE-CONTESTED (recovery + contested→L1
-live wiring), G4 (point the web + mobile surfaces at deployed endpoints and walk the story on a live
-signet), and — once ratified — the bootstrap-operator launch gates (see the last section). A live
-deployment is hard-gated behind an **external audit** before any mainnet (clean-build (#46) ruled call 6;
-signet may proceed without it).
+**Still ahead:** a single composed reducer for authoritative name state; LE-INVOKE / LE-CONTESTED
+live wiring; runtime DA discovery/retry/durability; production claimant/publisher payment and
+receipt paths; a clean two-node/private-signet exit demo with contention and reorg; and all
+bootstrap-operator launch gates. A live deployment remains hard-gated behind an **external audit**
+before any mainnet (clean-build (#46) ruled call 6; signet may proceed without it when honestly
+labeled).
 
 ## DECOMMISSION NOTICE — 2026-06-11
 
@@ -59,30 +71,38 @@ its auction lot/bidder commitments now use W16 full-width 32-byte renderings.
 
 ## What the audited kernel decides (honest boundary)
 
-The pure, audited ownership kernel is **`@ont/consensus`** (SOFTWARE_CANON layer 2). It owns **every
-rule that can change who owns a name**: anchor acceptance, data-availability eligibility, gate-fee
-validation, transcript completeness, batched-path lifecycle, **auction settlement (winner-becomes-owner)**,
-bond continuity + maturity, transfer authority, recovery authority, value-record authority, and winner
-selection. It is deterministic and replayable — ordered event bytes + prior kernel state + witnessed
-chain facts + witnessed evidence in; name-state + verdicts out. No database, network, wall clock, UI,
-adapter judgment, or evidence-layer override may enter a verdict (`packages/consensus/PURPOSE.md`).
+The pure, audited predicate layer is **`@ont/consensus`** (SOFTWARE_CANON layer 2). It contains the
+rules and verdict functions that must decide ownership-affecting facts: data-availability
+eligibility, gate-fee validation, batch completeness, auction bid/winner predicates, bond
+continuity + maturity, transfer authority, recovery authority, value-record authority, and related
+parameter checks. These predicates are pure and covered by the boundary manifest; no database,
+network, wall clock, UI, adapter judgment, or evidence-layer override may enter a verdict
+(`packages/consensus/PURPOSE.md`).
 
-- The B3 orchestrator **`@ont/claim-path`** (`enforceBatchedClaim` / `enforceContestedBatch` / recovery)
-  only **sequences** the audited predicates and fails closed in a fixed precedence; it adds no new law
-  and returns a **verdict + name-state delta, never a bare mutation**.
-- The B4 **`@ont/adapter-*`** packages witness facts (recompute-don't-trust) and feed the kernel;
-  live-enforcement wires them into the app shells.
+The missing piece is composition. There is **no single `reduceBlock`-style reducer yet** that consumes
+verified block facts + verified external evidence + frozen parameters and emits the authoritative
+next name state for anchors, batched acquisition, notice windows, collisions, bonds, auctions,
+transfer, recovery, height transitions, and reorgs.
 
-**This supersedes the pre-rewrite statement that "auction settlement lives outside the audited core."**
-In the clean-build, settlement-into-core (#42) is **born-in**: settlement is a kernel rule
-(`packages/consensus/src/auction-resolution.ts`), tested as a pure predicate. What remains is *proving it
-over a live adversarial chain*, not moving it inside.
+- `packages/consensus/src/engine.ts` currently applies transfer / auction-bid provenance /
+  recovery-owner events and bond-continuity invalidation; it explicitly skips `RootAnchor`.
+- `packages/consensus/src/auction-resolution.ts` contains pure auction acceptance and winner-selection
+  predicates, but those predicates are not yet composed by `engine.ts` into auction lot settlement and
+  name ownership.
+- `@ont/claim-path` (`enforceBatchedClaim`) sequences verified batched-claim predicates and returns a
+  verdict plus `{ anchoredRoot, firstServableHeight }`. The current live indexer then persists one
+  `NameStateRecord` per committed entry for an accepted batch. That is a useful enforcement slice,
+  not the canonical acquisition state machine.
+- The B4 **`@ont/adapter-*`** packages witness facts (recompute-don't-trust) and feed the predicates;
+  they must remain non-deciding.
 
 ## Status legend
 - **Built (hermetic)** — implemented + unit/conformance-tested over in-memory ports / regtest; **not**
   on a live network.
 - **Wired (hermetic)** — composed into the live app shells and proven by an end-to-end hermetic/regtest
   test; not deployed.
+- **Wired (private-signet demo)** — wired into the clean deploy stack or client surfaces for the
+  controlled private-signet environment; provider-trusted unless otherwise stated.
 - **Designed** — specified, not yet built.
 - **Decommissioned (2026-06-11)** — the OLD signet stack; taken down at clean-build B1 start, kept as
   mining reference only.
@@ -91,20 +111,21 @@ over a live adversarial chain*, not moving it inside.
 
 | Component | Status | Notes |
 | --- | --- | --- |
-| Audited ownership kernel (`@ont/consensus`) | **Built (hermetic)** | Decides all ownership-changing rules incl. auction settlement, DA eligibility, gate-fee, completeness, transfer/recovery/value authority, winner selection. Pure + replayable. |
+| Audited predicate layer (`@ont/consensus`) | **Built (hermetic)** | Pure predicates for DA eligibility, gate-fee, batch completeness, auction bid/winner selection, transfer/recovery/value authority, bond continuity, and related verdicts. **No single composed reducer yet**; `engine.ts` skips `RootAnchor`, and auction winner predicates are not yet integrated into name-state settlement. |
 | Wire codec (`@ont/wire`) | **Built (hermetic)** | Event registry + frame + Schnorr digests; size envelope pinned ≤184 B (max-name AuctionBid); conformance-locked across engine/web/mobile/claim-site. |
 | Evidence layer (`@ont/evidence`) | **Built (hermetic)** | Builds inclusion / canonical-root / availability / completeness witnesses; non-deciding (a hostile data source cannot move a verdict). |
-| Batched-claim enforcement (`@ont/claim-path`) | **Built (hermetic)** | `enforceBatchedClaim` + contested-auction / gate-fee / recovery enforcers; fail-closed precedence; verdict + delta out. |
+| Batched-claim enforcement (`@ont/claim-path`) | **Built (hermetic)** | `enforceBatchedClaim` sequences inclusion, gate-fee, availability, and completeness; fail-closed precedence; verdict + `{ anchoredRoot, firstServableHeight }` delta out. Contested distinct-owner / full acquisition lifecycle remains follow-up composition. |
 | Pure adapters (`@ont/adapter-{header,indexer,da,publisher,resolver}`) | **Built (hermetic)** | Witness-minting seams the live shells consume; recompute-don't-trust. |
-| Live enforcement loop (LE-INDEX + LE-RESOLVE) | **Proven in e2e; daemon not wired** | `enforceBatchedClaim` runs over ingested anchors → per-name `@ont/name-state-store` and the resolver serves the enforced state + trace (stamped not-ownership-authority) **in the hermetic e2e**. The indexer daemon (`apps/indexer/src/main.ts`) has **no live enforcement selector** — `EnforceBatchedClaimsDeps` (`batchMaterial`/`nameStateStore`/`policy`, `enforce-batched-claims.ts:39-44`) is unwired, so a live daemon writes no names yet (A1b; guard the null-`batchMaterial` silent-skip). Not on a live network. |
-| Live Bitcoin wiring + regtest e2e (`@ont/node-live`, `@ont/regtest-e2e`) | **Wired (hermetic)** | bitcoind RPC behind the ports; full claim loop green on regtest; `ONT_CHAIN` gate refuses mainnet. |
-| Durable read path (`@ont/anchor-store`) | **Wired (hermetic)** | Restart-safe confirmed-anchor read across indexer→resolver→web (file store; no resolver→indexer edge). Postgres deferred. |
-| Clean deploy stack (Docker/compose + runbook + signet bitcoind + non-signing publisher) | **Designed → infra-as-code ready** | Boots; the write-smoke recipe fails closed. VPS stand-up + funded-signet smoke is an operator (DK) action. See [../operate/G3_CLEAN_SLATE_VPS.md](../operate/G3_CLEAN_SLATE_VPS.md). |
-| Surfaces (`apps/{web,claim,wallet,cli,resolver,indexer,publisher}`) | **Built (hermetic)** | Rebuilt under the B5 import-boundary gate (consume published `@ont/*`, reimplement no rules; signing lives only in `apps/wallet`). Not yet pointed at a live deployment (G4). |
+| Live enforcement loop (LE-INDEX + LE-RESOLVE) | **Wired (hermetic + private-signet demo)** | `selectIndexerRunnerDeps` now selects enforcement at daemon startup. Modes: `off` (default RootAnchor read path), `fixture-file`, and `http-da`. On accept, `apps/indexer/src/enforce-batched-claims.ts` writes all committed entries directly to `@ont/name-state-store`; resolver serves `/names/:name/state` with the trace. This is deliberately additive and not yet the composed reducer. |
+| DA network transport (G-B / LE-DA-SERVE) | **Wired (hermetic)** | Publisher can serve full material at `GET /da/{root}`; indexer `ONT_ENFORCEMENT=http-da` prefetches declared `ONT_DA_ROOTS` at boot and runs the same `enforceBatchedClaim`; two-operator e2e proves good/tampered/withheld behavior. Runtime root discovery, retry queues, and archive reconciliation remain follow-up. |
+| Live Bitcoin wiring + regtest/private-signet e2e (`@ont/node-live`, `@ont/regtest-e2e`) | **Wired (hermetic + private-signet demo)** | bitcoind RPC behind ports; `ONT_CHAIN` gate refuses mainnet. Compose now targets a private signet challenge with a miner sidecar and self-mined funding for the controlled demo. |
+| Durable read path (`@ont/anchor-store`, `@ont/header-store`, `@ont/name-state-store`) | **Wired (hermetic + private-signet demo)** | Restart-safe confirmed-anchor, header-range, and enforced-name read paths over file stores; resolver reads fresh per request. Postgres deferred. |
+| Clean deploy stack (Docker/compose + runbook + private signet + non-signing publisher) | **Wired (private-signet demo)** | Compose boots bitcoind with a custom signet challenge, miner sidecar, indexer/resolver/web/publisher, and provider-trusted private-signet checkpoint overrides. Not a public deployment; production image hardening remains open. See [../operate/G3_CLEAN_SLATE_VPS.md](../operate/G3_CLEAN_SLATE_VPS.md). |
+| Surfaces (`apps/{web,claim,wallet,cli,resolver,indexer,publisher}`) | **Built / partially wired** | Rebuilt under the B5 import-boundary gate (consume published `@ont/*`, reimplement no rules; signing lives only in `apps/wallet`). CLI/web/mobile can run proof-bundle + header-range verification for the private-signet demo. Product assurance vocabulary is still binary-ish (`bitcoin-verified` / `resolver-mirror`) and needs the typed ladder. |
 | Publisher payment / onboarding | **Designed** | Provider-neutral operator path (publisher-onboarding-neutrality (#88)); payment-intake / signing / broadcast adapters + setup recipes not built. Real Lightning still stubbed. See [../operate/PUBLISHER_ONBOARDING.md](../operate/PUBLISHER_ONBOARDING.md). |
 | Discovery (resolver / publisher) | **Designed** | Config-seeded; registry-free on-chain scan designed, not built. |
-| Light-client inclusion (Merkle + PoW verifier) | **Built (verifier); not wired end-to-end** | Verifier tested vs a real mainnet block, but producers don't emit `bitcoinInclusion` and clients don't yet require `verifyProofBundleAgainstBitcoin` against an independent header source — see Known-incomplete + da-trust-model (#82). |
-| Mobile iOS app | **Prototype (signet demo)** | Feature-complete walkable demo; not rebuilt under clean-build; mainnet host placeholder. Not release-ready. |
+| Light-client inclusion (Merkle + PoW verifier) | **Built and wired for private-signet demo** | Verifier tested vs a real mainnet block; resolver/header-provider paths now feed CLI/web/mobile. Private-signet header authenticity is provider-trusted (#95/#36); mainnet-grade independent best-chain verification and current-tip proofs remain launch gates. |
+| Mobile iOS app | **Prototype / private-signet demo path** | Verification core and provider selection exist; mainnet host placeholder, `PUBLISHER_BASE = null`, and `DEMO_MODE_DEFAULT = true`. Not release-ready. |
 | Web explainer (opennametags.org) | **Live (static)** | Marketing/docs static pages may stay up (DK hosting call); the explorer/read tooling is down with the old resolver. |
 | Old signet stack (claim site / explorer / publisher / indexer / resolver) | **Decommissioned (2026-06-11)** | See notice above; quarantined under `legacy/`. |
 | Unified wallet secret (12 words everywhere) | **Conformance-locked** | The same 12-word phrase derives identical keys across the engine, web tools, mobile app, and claim site — locked by shared conformance vectors. |
@@ -147,25 +168,36 @@ design choice, the numbers are calibration.
 
 ## Known-incomplete (disclosed, on the roadmap)
 
-- **Light-client inclusion is the sharpest open item.** The Merkle + PoW verifier exists and is tested
-  against a real mainnet block, but producers don't emit `bitcoinInclusion` end-to-end and launch
-  clients don't yet enforce `verifyProofBundleAgainstBitcoin` against an independent canonical
-  best-chain header source — so "verify against Bitcoin" is the verifier's *capability*, not yet the
-  live app/resolver path. da-trust-model (#82) makes closing this a **hard launch gate** (RC-1 of the
+- **Composed reducer is the sharpest architecture gap.** There is no single pure, deterministic,
+  reorg-aware reducer that applies RootAnchors, batched entries, notice windows, cheap collisions,
+  bonds, auctions, transfer, recovery, height transitions, and reorg replay into one authoritative
+  name state. Today the pieces are split: `engine.ts` skips `RootAnchor`; auction settlement predicates
+  exist separately; live batched enforcement accepts a batch and writes committed entries directly to
+  `@ont/name-state-store`. This is the main reason the project is ready for controlled integration
+  but not a finished ownership-state product.
+- **Assurance semantics are too coarse.** CLI/web/mobile now distinguish `bitcoin-verified` from
+  `resolver-mirror` for the private-signet demo, but that is still not the full ladder a product needs:
+  anchor included, batch member, provisional claim, finalized ownership at block X, and current through
+  tip Y. Until typed assurance states exist in the API and clients, copy must not imply complete
+  current ownership from proof-bundle/header checks alone.
+- **Light-client inclusion is wired for the demo, not closed for launch.** The Merkle + PoW verifier
+  exists and is tested against a real mainnet block, and resolver/header-range providers now feed
+  CLI/web/mobile paths. But private signet remains provider-trusted, and mainnet launch still needs
+  enforced `verifyProofBundleAgainstBitcoin` against an independent canonical best-chain header source
+  on every relevant path. da-trust-model (#82) makes closing this a **hard launch gate** (RC-1 of the
   ratified bootstrap-operator launch mode (#89)). The header-source mechanism is decided:
   **bundled-checkpoint headers + proof-of-work-validate-forward** by default, own-node opt-in, mobile in
-  scope. Until the gate is closed (mobile included), a client trusts the resolver it queries for
-  liveness, though never for ownership once it lands.
-- **DA fail-closed enforcement: built + wired hermetically, not yet proven on a live chain.** *(Was
-  "design + simulation only.")* The window algebra is ratified — da-windows (#49) (one clock, inclusive
-  boundaries, `K ≥ W + C`), availability-height (#84) (`firstServableHeight = h`), batch-completeness
-  (#83) — and the predicate is built in the kernel and runs in the live loop (LE-INDEX) over a hermetic
-  source: a withheld or absent batch fails closed and mutates no name-state; late material does not
-  revive cheap-path priority. The separate `AvailabilityMarker` event (0x0d) is retired
-  (marker-fold (#47)); all deadlines key off the anchor's mined height. **Remaining:** the network DA
-  transport (LE-DA-SERVE — publisher serves `/da/{root}`, indexer fetches), and proving the
-  withhold-then-reveal defense over a real adversarial chain. Window *values* stay launch-freeze
-  placeholders.
+  scope.
+- **DA fail-closed enforcement and transport are built, but historical DA semantics remain a review
+  fork.** The ratified rule is da-windows (#49) + batch-completeness (#83) + availability-height (#84):
+  presenting bytes that reconstruct the anchored commitment mints `firstServableHeight = h`; absent,
+  malformed, tampered, or withheld bytes fail closed and mutate no name-state. LE-DA-SERVE now exists
+  (`GET /da/{root}` full material + `http-da` selector + two-operator e2e). **Remaining:** decide
+  whether #84's "present content at verification time mints h" is acceptable for mainnet, or whether to
+  reopen toward L1-authoritative acquisition or a witnessed/two-phase activation model; prove the
+  withhold-then-reveal and clean-node behavior over an adversarial chain; add runtime discovery,
+  durable retries, multiple origins, archive reconciliation, and restart-safe progress. Window *values*
+  stay launch-freeze placeholders.
 - **Aggregate gate-fee enforcement: built + wired hermetically.** *(Was "designed, not implemented.")*
   The rule that a batch anchor counts only if its Bitcoin tx fee is **≥ Σ per-name gates** (what stops
   the ₿1,000 being batched away) is a kernel predicate (the F\* family) exercised by the live loop via
@@ -177,6 +209,14 @@ design choice, the numbers are calibration.
   a producer that omits a genuinely higher bid still passes structural verification. Closing it requires
   independently enumerating the auction's L1 bid transactions: the same `bitcoinInclusion` light-client
   work above.
+- **Private signet is an integration environment, not mainnet-grade security.** The custom private
+  signet challenge and miner sidecar remove public-signet IBD/faucet friction and make the demo
+  deterministic, but the operator controls the chain. Client labels must keep saying provider-trusted
+  for signet header authenticity.
+- **Production operations are still rough.** The Docker image is still a broad build/runtime image
+  without a non-root runtime stage; mobile defaults remain demo-oriented (`PUBLISHER_BASE = null`,
+  demo mode on); browser smoke is allowed to skip when Chromium install fails; and public
+  `opennametags.org` exposes the static site but not the tested live API/private paths.
 - **Launch parameters above are placeholders** and must be frozen before launch — until then,
   user-facing copy must not call the rules "frozen."
 
@@ -186,9 +226,12 @@ The launch posture is an **auditable single-operator launch mode with mandatory 
 written decentralization ladder** — bootstrap-operator (#89), **ratified** (DK, 2026-06-29; paper
 [`../research/BOOTSTRAP_OPERATOR.md`](../research/BOOTSTRAP_OPERATOR.md)). It adds **no new consensus
 law**; it rests on the already-ratified da-trust-model (#82), batch-completeness (#83), and
-availability-height (#84). One honest operator runs indexer + resolver + publisher + archive; all
-name-state derives deterministically from Bitcoin + a public, content-addressed archive; the worst a
-bad operator can do is go down or censor — never forge or steal.
+availability-height (#84). The intended launch mode is one honest operator running indexer, resolver,
+publisher, and archive, with name-state re-derived deterministically from Bitcoin + a public,
+content-addressed archive. That promise depends on the open gates above: composed reducer /
+re-derive-from-scratch verifier, enforced light-client verification, portable material, DA deadline
+tests, and honest copy. Until those gates close, the current private-signet stack is a controlled
+integration demo, not the finished bootstrap-operator launch.
 
 Its five must-ship gates are the go-live work-list:
 
