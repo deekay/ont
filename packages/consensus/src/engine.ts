@@ -439,7 +439,9 @@ function applySingleBlockTransactions(
 
     const spentImmatureBonds = collectSpentImmatureBonds(state, transaction);
 
-    for (const event of extractOntEvents(transaction, { includeRootAnchors: options.rootAnchorEvidence !== undefined })) {
+    for (const event of extractOntEvents(transaction, {
+      includeRootAnchors: options.rootAnchorEvidence !== undefined || options.availabilityMode !== undefined
+    })) {
       txProvenance.events.push(createProvenanceEventRecord(event, applyEvent(state, event, options)));
     }
 
