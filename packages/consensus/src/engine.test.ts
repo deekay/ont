@@ -56,6 +56,7 @@ import {
   applyBlockTransactionsWithProvenance,
   createEmptyState,
   reduceBlock,
+  refreshDerivedState,
   type BondBackedNameRecord,
   type NameRecord,
   type OntState,
@@ -184,6 +185,40 @@ describe("reduceBlock — composed reducer entry", () => {
     expect(result.provenance).toEqual([]);
     expect(result.state.names.get("alice")?.pendingRecovery).toBeUndefined();
     expect(result.state.names.get("alice")?.currentOwnerPubkey).toBe(NEW_OWNER_PUB);
+  });
+
+  it("is behavior-neutral against the pre-seam recompute path under today's constant mode", () => {
+    const reduced = createEmptyState();
+    const baseline = createEmptyState();
+    const seed = {
+      name: "alice",
+      pendingRecovery: {
+        requestedTxid: "e0".repeat(32),
+        requestedHeight: 120,
+        finalizeHeight: 144,
+        proposedOwnerPubkey: NEW_OWNER_PUB,
+        predecessorStateTxid: OLD_HEAD_TXID,
+        recoveryDescriptorHash: "ef".repeat(32),
+        challengeWindowBlocks: 24,
+      },
+    };
+    seedOwnedName(reduced, seed);
+    seedOwnedName(baseline, seed);
+
+    const block = { height: 144, txs: [] };
+    const params = { launchHeight: 0, daWindow: { K: 3, W: 1, C: 1 }, availabilityMode: "O1-collapsed" } as const;
+    const baselineProvenance = applyBlockTransactionsWithProvenance(baseline, block.txs, params.launchHeight);
+    refreshDerivedState(baseline, block.height);
+
+    const result = reduceBlock(
+      reduced,
+      block,
+      { batchMaterialByAnchor: new Map(), availabilityByAnchor: new Map() },
+      params
+    );
+
+    expect(result.provenance).toEqual(baselineProvenance);
+    expect(result.state.names).toEqual(baseline.names);
   });
 });
 

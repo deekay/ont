@@ -1,11 +1,12 @@
-// B2 consensus-parameter surface — the data-availability window triple (K, W, C).
+// B2 consensus-parameter surface — data-availability windows and availability mode.
 //
 // Per canon Item 5 ("ChatLunatique signs the CONSENSUS_PARAMS surface") and the
 // boundary manifest (Decision #44), the audited core is parameterized, never
-// hard-coded: K (confirmation depth), W (availability window), and C (challenge
-// window) enter the kernel as explicit inputs, and @ont/consensus holds none of
-// their values as a constant (G9 / D12). This module is the REQUIRED-tier slice
-// of that surface — the DA-window triple that rules D9 / D12 / G9 govern.
+// hard-coded: K (confirmation depth), W (availability window), C (challenge
+// window), and the launch availability mode enter the kernel as explicit inputs,
+// and @ont/consensus holds none of their values as a constant (G9 / D12). This
+// module is the REQUIRED-tier slice of that surface — the DA-window triple that
+// rules D9 / D12 / G9 govern, plus the §6 height-keyed availability-mode seam.
 //
 // The broader closed CONSENSUS_PARAMS set (G10: W_NOTICE, AUCTION_WINDOW,
 // SOFT_CLOSE_WINDOW, the gate schedule, opening floors, qualifying-bond minimum,
@@ -47,6 +48,14 @@ export interface DaWindowParams {
    * deadline is `h+W+C`. `C ≥ 1`.
    */
   readonly C: number;
+}
+
+export type AvailabilityMode = "O1-collapsed" | "O2-in-band";
+
+export interface LaunchParams {
+  readonly launchHeight: number;
+  readonly daWindow: DaWindowParams;
+  readonly availabilityMode: AvailabilityMode;
 }
 
 /** Thrown when a `(K, W, C)` triple is not a valid DA-window parameterization. */
@@ -102,6 +111,15 @@ export function createDaWindowParams(input: { readonly K: number; readonly W: nu
   }
 
   return Object.freeze({ K: input.K, W: input.W, C: input.C });
+}
+
+/**
+ * Resolve the consensus availability mode at a block height from frozen launch
+ * params. Today the mode is constant across heights; future activation logic must
+ * enter here so reducers never read a global/tip mode.
+ */
+export function modeAt(_height: number, params: LaunchParams): AvailabilityMode {
+  return params.availabilityMode;
 }
 
 /**

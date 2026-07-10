@@ -17,7 +17,7 @@ import {
 
 import { getClaimedNameStatus } from "./state.js";
 import type { ServedEvidence } from "./da-verdict.js";
-import type { DaWindowParams } from "./params.js";
+import { modeAt, type AvailabilityMode, type LaunchParams } from "./params.js";
 import {
   acceptRecoverOwner,
   type RecoveryDescriptorEvidence,
@@ -27,7 +27,6 @@ import {
 const RECOVER_OWNER_FLAG_CANCEL = 0x01;
 
 export type AcquisitionKind = "accumulator-batched" | "bonded" | "auction";
-export type AvailabilityMode = "O1-collapsed" | "O2-in-band";
 
 interface BaseNameRecord {
   readonly name: string;
@@ -144,12 +143,6 @@ export interface ConfirmedBlock {
   readonly txs: readonly BitcoinTransactionInBlock[];
 }
 
-export interface LaunchParams {
-  readonly launchHeight: number;
-  readonly daWindow: DaWindowParams;
-  readonly availabilityMode: AvailabilityMode;
-}
-
 export interface ReduceResult {
   readonly state: OntState;
   readonly provenance: readonly TransactionProvenanceRecord[];
@@ -197,6 +190,17 @@ export function reduceBlock(
   block: ConfirmedBlock,
   evidence: ResolvedBlockEvidence,
   params: LaunchParams
+): ReduceResult {
+  const availabilityMode = modeAt(block.height, params);
+  return reduceBlockAtMode(prior, block, evidence, params, availabilityMode);
+}
+
+function reduceBlockAtMode(
+  prior: OntState,
+  block: ConfirmedBlock,
+  evidence: ResolvedBlockEvidence,
+  params: LaunchParams,
+  _availabilityMode: AvailabilityMode
 ): ReduceResult {
   const options: OntEventApplicationOptions = evidence.recovery === undefined
     ? {}

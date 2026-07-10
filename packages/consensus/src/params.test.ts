@@ -13,7 +13,9 @@ import {
   confirmedRootEligible,
   ConsensusParamsError,
   createDaWindowParams,
+  modeAt,
   type DaWindowParams,
+  type LaunchParams,
 } from "./params.js";
 
 // A spread of structurally valid triples (each satisfies K >= W + C, all >= 1).
@@ -117,5 +119,28 @@ describe("DA-deadline derivations — D9/G9 parametric over the whole triple", (
     expect(challengeDeadlineHeight(h, a)).toBe(h + 5);
     expect(challengeDeadlineHeight(h, b)).toBe(h + 7);
     expect(challengeDeadlineHeight(h, a)).not.toBe(challengeDeadlineHeight(h, b));
+  });
+});
+
+describe("modeAt — §6 availability-mode seam", () => {
+  it("resolves from frozen LaunchParams and is constant-mode today", () => {
+    const params: LaunchParams = Object.freeze({
+      launchHeight: 0,
+      daWindow: createDaWindowParams({ K: 3, W: 1, C: 1 }),
+      availabilityMode: "O1-collapsed",
+    });
+
+    expect(modeAt(0, params)).toBe("O1-collapsed");
+    expect(modeAt(144, params)).toBe("O1-collapsed");
+  });
+
+  it("has no production activation schedule field on LaunchParams in slice 2", () => {
+    const params: LaunchParams = {
+      launchHeight: 0,
+      daWindow: createDaWindowParams({ K: 3, W: 1, C: 1 }),
+      availabilityMode: "O2-in-band",
+    };
+
+    expect(Object.keys(params).sort()).toEqual(["availabilityMode", "daWindow", "launchHeight"]);
   });
 });
