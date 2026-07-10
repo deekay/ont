@@ -497,6 +497,13 @@ describe("recovery invoke (engine B) — acceptRecoverOwner admission + PR-34 bo
       firstServableHeight: 100,
       anchoredRoot: "aa".repeat(32),
       leafKeyHex: "bb".repeat(32),
+      assuranceProvenance: {
+        tier: "accumulator-batched",
+        availabilityMode: "O1-collapsed",
+        priorityBearing: false,
+        finalizedAtHeight: 100,
+        anchorHeight: 100,
+      },
       lastStateTxid: INVOKE_HEAD,
       lastStateHeight: 100,
       winningCommitBlockHeight: 100,

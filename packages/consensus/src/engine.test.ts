@@ -550,6 +550,13 @@ describe("§2.1 acquisition-kind guard — accumulator records never enter bond-
       firstServableHeight: 100,
       anchoredRoot: "aa".repeat(32),
       leafKeyHex: "bb".repeat(32),
+      assuranceProvenance: {
+        tier: "accumulator-batched",
+        availabilityMode: "O1-collapsed",
+        priorityBearing: false,
+        finalizedAtHeight: 100,
+        anchorHeight: 100,
+      },
       lastStateTxid: OLD_HEAD_TXID,
       lastStateHeight: 100,
       winningCommitBlockHeight: 100,

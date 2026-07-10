@@ -3,10 +3,12 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import type { BitcoinTransactionInBlock } from "@ont/bitcoin";
+import { sha256Hex, utf8ToBytes } from "@ont/protocol";
 import { bytesToHex, encodeEvent, EventType, type RootAnchorEvent } from "@ont/wire";
 import { describe, expect, it } from "vitest";
 
 import {
+  ASSURANCE_TIERS,
   applyBlockTransactionsWithProvenance,
   createEmptyState,
   reduceBlock,
@@ -99,6 +101,15 @@ function firstRootAnchorEvent(result: ReturnType<typeof reduceBlock>) {
 }
 
 describe("reduceBlock Delta A.0 — RootAnchor creation seam", () => {
+  it("declares the full consensus assurance ladder and emits only the accumulator arm in A.1", () => {
+    expect(ASSURANCE_TIERS).toEqual([
+      "receipt-only",
+      "accumulator-batched",
+      "checkpointed",
+      "bitcoin-anchored-priority",
+    ]);
+  });
+
   it("keeps @ont/consensus deps deep-equal to the audited three-package set", () => {
     const pkg = JSON.parse(readFileSync(resolve(packageRoot, "package.json"), "utf8")) as {
       readonly dependencies: Readonly<Record<string, string>>;
@@ -196,7 +207,7 @@ describe("reduceBlock Delta A.0 — RootAnchor creation seam", () => {
     expect(state.names.size).toBe(0);
   });
 
-  it("records an accepted RootAnchor creation candidate without minting accumulator state", () => {
+  it("mints an accepted RootAnchor batch into OntState with accumulator assurance provenance", () => {
     const state = createEmptyState();
     const result = reduceBlock(
       state,
@@ -208,8 +219,100 @@ describe("reduceBlock Delta A.0 — RootAnchor creation seam", () => {
     expect(firstRootAnchorEvent(result)).toMatchObject({
       typeName: "ROOT_ANCHOR",
       validationStatus: "applied",
-      reason: "root_anchor_creation_candidate",
+      reason: "root_anchor_batch_minted",
       affectedName: null,
+    });
+    expect(state.names.size).toBe(1);
+    expect(state.names.get("alice")).toMatchObject({
+      name: "alice",
+      status: "mature",
+      currentOwnerPubkey: OWNER,
+      acquisitionKind: "accumulator-batched",
+      firstServableHeight: 300,
+      anchoredRoot: ROOT,
+      leafKeyHex: sha256Hex(utf8ToBytes("alice")),
+      lastStateHeight: 300,
+      winningCommitBlockHeight: 300,
+      winningCommitTxIndex: 0,
+      assuranceProvenance: {
+        tier: "accumulator-batched",
+        availabilityMode: "O1-collapsed",
+        priorityBearing: false,
+        finalizedAtHeight: 300,
+        anchorHeight: 300,
+      },
+    });
+    expect(state.names.get("alice")?.lastStateTxid).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  it("rejects a whole batch before minting when any committed name already exists", () => {
+    const state = createEmptyState();
+    const incumbent = {
+      name: "bob",
+      status: "mature" as const,
+      currentOwnerPubkey: h32("22"),
+      acquisitionKind: "bonded" as const,
+      claimCommitTxid: h32("23"),
+      claimRevealTxid: h32("24"),
+      claimHeight: 100,
+      maturityHeight: 200,
+      requiredBondSats: 50_000n,
+      currentBondTxid: h32("25"),
+      currentBondVout: 0,
+      currentBondValueSats: 50_000n,
+      lastStateTxid: h32("26"),
+      lastStateHeight: 200,
+      winningCommitBlockHeight: 100,
+      winningCommitTxIndex: 0,
+    };
+    state.names.set("bob", incumbent);
+
+    const result = reduceBlock(
+      state,
+      { height: 300, txs: [rootAnchorTx({ batchSize: 2 })] },
+      evidence({
+        batchSize: 2,
+        material: {
+          committedEntries: [
+            { name: "alice", ownerPubkey: OWNER },
+            { name: "bob", ownerPubkey: h32("33") },
+          ],
+        },
+      }),
+      PARAMS
+    );
+
+    expect(firstRootAnchorEvent(result)).toMatchObject({
+      validationStatus: "ignored",
+      reason: "root_anchor_name_already_claimed",
+      affectedName: "bob",
+    });
+    expect(state.names.get("bob")).toEqual(incumbent);
+    expect(state.names.has("alice")).toBe(false);
+    expect(state.names.size).toBe(1);
+  });
+
+  it("rejects duplicate committed names as an all-or-none batch", () => {
+    const state = createEmptyState();
+    const result = reduceBlock(
+      state,
+      { height: 300, txs: [rootAnchorTx({ batchSize: 2 })] },
+      evidence({
+        batchSize: 2,
+        material: {
+          committedEntries: [
+            { name: "alice", ownerPubkey: OWNER },
+            { name: "alice", ownerPubkey: h32("33") },
+          ],
+        },
+      }),
+      PARAMS
+    );
+
+    expect(firstRootAnchorEvent(result)).toMatchObject({
+      validationStatus: "ignored",
+      reason: "root_anchor_duplicate_committed_name",
+      affectedName: "alice",
     });
     expect(state.names.size).toBe(0);
   });

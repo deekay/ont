@@ -5,6 +5,10 @@ import {
   getOpReturnPayloads
 } from "@ont/bitcoin";
 import {
+  sha256Hex,
+  utf8ToBytes,
+} from "@ont/protocol";
+import {
   type AuctionBidEvent,
   EventType,
   type RecoverOwnerEvent,
@@ -29,6 +33,21 @@ const RECOVER_OWNER_FLAG_CANCEL = 0x01;
 const RAW_BATCH_MATERIAL_KEYS = ["baseLeaves", "servedLeaves"] as const;
 
 export type AcquisitionKind = "accumulator-batched" | "bonded" | "auction";
+export const ASSURANCE_TIERS = [
+  "receipt-only",
+  "accumulator-batched",
+  "checkpointed",
+  "bitcoin-anchored-priority",
+] as const;
+export type AssuranceTier = (typeof ASSURANCE_TIERS)[number];
+
+export interface AssuranceProvenance {
+  readonly tier: AssuranceTier;
+  readonly availabilityMode: AvailabilityMode;
+  readonly priorityBearing: boolean;
+  readonly finalizedAtHeight: number | null;
+  readonly anchorHeight: number;
+}
 
 interface BaseNameRecord {
   readonly name: string;
@@ -47,6 +66,7 @@ export interface AccumulatorBatchedNameRecord extends BaseNameRecord {
   readonly firstServableHeight: number;
   readonly anchoredRoot: string;
   readonly leafKeyHex: string;
+  readonly assuranceProvenance: AssuranceProvenance;
 }
 
 export interface BondBackedNameRecord extends BaseNameRecord {
@@ -188,6 +208,11 @@ export interface OntEventApplicationOptions {
    * and never reaches back to raw BatchMaterial leaf maps.
    */
   readonly rootAnchorEvidence?: ResolvedBlockEvidence;
+  /**
+   * The consensus availability mode resolved for the block being reduced. Direct
+   * apply callers that do not provide it cannot mint RootAnchor name state.
+   */
+  readonly availabilityMode?: AvailabilityMode;
 }
 
 export function createEmptyState(): OntState {
@@ -214,8 +239,8 @@ function reduceBlockAtMode(
   _availabilityMode: AvailabilityMode
 ): ReduceResult {
   const options: OntEventApplicationOptions = evidence.recovery === undefined
-    ? { rootAnchorEvidence: evidence }
-    : { recoveryEvidence: evidence.recovery, rootAnchorEvidence: evidence };
+    ? { rootAnchorEvidence: evidence, availabilityMode: _availabilityMode }
+    : { recoveryEvidence: evidence.recovery, rootAnchorEvidence: evidence, availabilityMode: _availabilityMode };
   const provenance = applyBlockTransactionsWithProvenance(prior, block.txs, params.launchHeight, options);
   refreshDerivedState(prior, block.height);
   return { state: prior, provenance };
@@ -291,11 +316,18 @@ export function applyBlockTransactionsWithProvenance(
 export function refreshDerivedState(state: OntState, currentHeight: number): OntState {
   for (const [name, record] of state.names.entries()) {
     if (!isBondBackedRecord(record)) {
+      const finalizedAtHeight = currentHeight >= record.firstServableHeight
+        ? record.firstServableHeight
+        : null;
       state.names.set(name, {
         ...record,
         status: record.status === "invalid"
           ? "invalid"
-          : currentHeight >= record.firstServableHeight ? "mature" : "pending"
+          : finalizedAtHeight !== null ? "mature" : "pending",
+        assuranceProvenance: {
+          ...record.assuranceProvenance,
+          finalizedAtHeight,
+        },
       });
       continue;
     }
@@ -365,11 +397,13 @@ function applyEvent(
       );
     case EventType.RootAnchor:
       return applyRootAnchorCandidate(
+        state,
         event as ParsedOntEvent & {
           readonly type: EventType.RootAnchor;
           readonly payload: RootAnchorEvent;
         },
-        options.rootAnchorEvidence
+        options.rootAnchorEvidence,
+        options.availabilityMode
       );
   }
 
@@ -440,13 +474,31 @@ function evidenceCarriesRawBatchMaterial(evidence: ResolvedBlockEvidence): boole
 }
 
 function applyRootAnchorCandidate(
+  state: OntState,
   event: ParsedOntEvent & { readonly type: EventType.RootAnchor; readonly payload: RootAnchorEvent },
-  evidence: ResolvedBlockEvidence | undefined
+  evidence: ResolvedBlockEvidence | undefined,
+  availabilityMode: AvailabilityMode | undefined
 ): EventApplicationResult {
   if (evidence === undefined) {
     return {
       validationStatus: "ignored",
       reason: "root_anchor_no_resolved_evidence",
+      affectedName: null
+    };
+  }
+
+  if (availabilityMode === undefined) {
+    return {
+      validationStatus: "ignored",
+      reason: "root_anchor_no_availability_mode",
+      affectedName: null
+    };
+  }
+
+  if (availabilityMode !== "O1-collapsed") {
+    return {
+      validationStatus: "ignored",
+      reason: "root_anchor_availability_mode_unimplemented",
       affectedName: null
     };
   }
@@ -507,11 +559,70 @@ function applyRootAnchorCandidate(
     };
   }
 
+  if (availability.firstServableHeight !== anchor.minedHeight) {
+    return {
+      validationStatus: "ignored",
+      reason: "root_anchor_o1_first_servable_height_mismatch",
+      affectedName: null
+    };
+  }
+
+  const records = material.committedEntries.map((entry) => {
+    const leafKeyHex = sha256Hex(utf8ToBytes(entry.name));
+    return {
+      name: entry.name,
+      status: "pending" as const,
+      currentOwnerPubkey: entry.ownerPubkey,
+      acquisitionKind: "accumulator-batched" as const,
+      firstServableHeight: availability.firstServableHeight,
+      anchoredRoot: anchor.anchoredRoot,
+      leafKeyHex,
+      assuranceProvenance: {
+        tier: "accumulator-batched",
+        availabilityMode,
+        priorityBearing: false,
+        finalizedAtHeight: null,
+        anchorHeight: anchor.minedHeight,
+      },
+      lastStateTxid: initialAccumulatorHeadTxid(event.txid, leafKeyHex),
+      lastStateHeight: event.blockHeight,
+      winningCommitBlockHeight: event.blockHeight,
+      winningCommitTxIndex: event.txIndex,
+    } satisfies AccumulatorBatchedNameRecord;
+  });
+  const seenNames = new Set<string>();
+  for (const record of records) {
+    if (seenNames.has(record.name)) {
+      return {
+        validationStatus: "ignored",
+        reason: "root_anchor_duplicate_committed_name",
+        affectedName: record.name
+      };
+    }
+    seenNames.add(record.name);
+
+    if (state.names.has(record.name)) {
+      return {
+        validationStatus: "ignored",
+        reason: "root_anchor_name_already_claimed",
+        affectedName: record.name
+      };
+    }
+  }
+
+  for (const record of records) {
+    state.names.set(record.name, record);
+  }
+
   return {
     validationStatus: "applied",
-    reason: "root_anchor_creation_candidate",
+    reason: "root_anchor_batch_minted",
     affectedName: null
   };
+}
+
+function initialAccumulatorHeadTxid(anchorTxid: string, leafKeyHex: string): string {
+  return sha256Hex(utf8ToBytes(`${anchorTxid}:${leafKeyHex}`));
 }
 
 function applyAuctionBid(
