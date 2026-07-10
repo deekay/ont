@@ -132,3 +132,101 @@ exist over a hermetic source).
 **Net-new design from this round (for CL re-glance):** §2a `NameStateRecord` payload (the per-name
 projection the store holds) + the §2 proof-bundle seam row. The split-point + battery folds apply CL's
 verbatim rulings.
+
+## 7. Availability-mode DA-fork closure — the `reduceBlock` §6 `modeAt` evidence contract
+
+> **Status: DESIGN increment (2026-07-10). Writer: ClaudeleLunatique. Adversarial review: Fabilist
+> (third-frame, events `932adaac` + `7b116ff2`) — DUE on this section before the §6 `modeAt` deltas
+> are cut. Builder: ChatLunatique. Grounds the availability-mode arm of the composed `reduceBlock`
+> reducer (the §6 `modeAt` height-keyed seam landed behavior-neutral @ `da7aa192`).** No new consensus
+> law: this is imperative-shell (indexer fetch/finalize) policy; `consensus/src` stays zero-diff.
+
+### 7.1 The defect (verified in code + confirmed from three frames)
+
+Skip-and-advance over an **FCFS unique namespace** is a **cross-operator safety fork, not downtime.**
+An operator that never received a withheld batch's bytes awards the name to a *later* claim while an
+operator that did receive them reserves/nullifies it (owned-vs-nullified under #37) — a *permanent*
+divergence once finalize-once (#82 invariant 3) settles it. Three independent frames converged: the
+senior-architect review (2026-07-09 — "full canonical DA record, not publisher verdict"), the DA memo
+(`RESEARCH/ONT_DA_VS_BITCOIN_DA_20260710.md` §1/§7), and Fabilist's third-frame adversarial read.
+
+**Wired state today (severity = LOW — do not over-alarm):** the two live enforcement modes behave
+*oppositely* —
+- `fixture-file` (`select-enforcement.ts:52-55`) **throws** on missing material ⇒ tick throws ⇒ cursor
+  **holds** ⇒ stalls (already the safe path).
+- `http-da` (`select-enforcement.ts:74`) returns `?? null` ⇒ `enforce-batched-claims.ts:93-96`
+  `skipped.push; continue` ⇒ `runner.ts:77` `cursorStore.save` advances the cursor **anyway** ⇒ skip.
+
+And `http-da` is only a **boot-time one-shot prefetch** of a static `ONT_DA_ROOTS` list
+(`loadHttpDaMaterials` silently drops unfetchable roots) — **no dynamic fetch-on-anchor, no window, no
+retry.** So there is **no running multi-operator live DA loop to fork with yet**; the skip path is a
+demo shim. Severity is low *today*; the reducer must close it before any second operator runs live.
+
+### 7.2 The closure — two moves, kernel untouched
+
+The window is NOT the fix by itself. #49's window has an **objective clock** (S1: all deadlines are
+block heights from the anchor's mined height `h`) but an **operator-local predicate** —
+`includable(anchor, evidence, W, C)` (#83) is a function of the *served-bytes witness a given operator
+holds* (#49 S4). Withhold-then-reveal-to-*some*-within-window ⇒ divergent `includable` verdicts ⇒
+finalize-once locks the split permanently. Wiring the window's *clock* without an observer-independent
+*evidence source* just puts a clock on the fork.
+
+- **Move A — `http-da` stall-not-skip (parity with `fixture-file`).** An anchored-but-unresolved batch
+  must **hold the cursor** (throw/pend), never `?? null`-skip. Cheapest, highest-value. But stall
+  alone does **not** close the fork: the operators that *did* see bytes still finalize — it converts
+  selective-withhold from "fork" to "some operators stall."
+- **Move B (LOAD-BEARING) — finalize `includable` against the canonical content-addressed archive as
+  THE evidence input,** not live-fetch and not operator-local served-bytes. This is what makes the
+  window's predicate observer-independent across operators. The primitive is already ratified as
+  **#90 archival-floor** (RATIFIED 2026-07-02, event `ce24c1ed`) — the reducer *wires* an owed floor,
+  it does not take on a new dependency.
+
+**Cite the right leg of #90 (Fabilist's precision):** fork-closure rides on #90's **content-addressing
++ hash-reverify-on-serve** leg, **NOT** the owner-retained-portable-proofs leg. #90's own scoping is
+why: owner-proofs preserve *ownership* ("a name's ownership survives even if every archive vanishes;
+only discovery of others' names degrades") — but the withhold-fork is precisely a **discovery** failure
+(operator-B never learns `bob`=alice existed), and owner-proofs cannot help B discover a name it never
+saw. Content-addressing + hash-reverify removes the *"which mirror / which bytes"* degree of freedom —
+**every honest mirror is byte-identical for a given root R** — which is exactly what makes `includable`
+observer-independent.
+
+**Kernel boundary (Fabilist confirmed):** archive-as-evidence lives in the **imperative shell** (the
+indexer's fetch/finalize orchestration), not the kernel. #49 S4 keeps the kernel a pure function of the
+*presented* witness that never does I/O (§5 boundary guard: "shells/adapters do I/O … never reopen a
+consensus call"). So `consensus/src` zero-diff holds — **no new consensus law.**
+
+### 7.3 The residual — a 1-of-N archive-reachability LIVENESS floor, NOT a safety hole
+
+After Move B what remains is a **clean 1-of-N mirror-reachability liveness assumption**, bounded at
+`h+W+C`: *"were root R's bytes reachable from ≥1 honest content-addressed mirror by every operator's
+`h+W+C` deadline?"* That is an **eclipse-resistance property in the standard gossip class** (early-
+Bitcoin's posture, #82) — **not a novel trust hole.** The whole win is the reduction
+**novel-DA-safety-fork → standard-network-reachability-liveness**, and it must be **legible** in the
+reducer, never silently rendered "safety-closed." This is the already-flagged residual: #49's
+ratification (DECISIONS L1066-1069) names the 1-of-N archive as *the DA residual, external-review
+priority #1*, and #84 (L2263-2265) writes *"Fork preserved."* #90 archival-floor (operator-funded
+public archive + deterministic mirror instructions = the 1-of-N floor) is the owed delivery.
+
+### 7.4 Build increments — the four §6 `modeAt` deltas (priority order)
+
+1. **`http-da` stall-not-skip** — Move A. Anchored-but-unresolved material holds the cursor
+   (throw/pend), never `?? null`. Align to `fixture-file`.
+2. **`includable` against #90's content-addressed archive as THE evidence input** — Move B, the
+   load-bearing delta. Content-addressing + hash-reverify-on-serve; not live-fetch, not operator-local
+   served-bytes. Everything else is a clock on the fork without this.
+3. **Model `reserved-pending-material` explicitly** — an anchored batch **reserves the name** (blocks
+   later same-name claims) until it either reconstructs-in-window **against the archive** (→ mint) or
+   passes `h+W+C` unreconstructed **against the archive** (→ excluded, name free). Never let an
+   anchored-but-unresolved batch reserve **nothing** while the cursor moves past it — the precise
+   defect today (`runner.ts:77`).
+4. **Encode #11 ≤4-char mandatory-bond-first pre-routing** in the reducer (pre-hoc-safe, length-
+   objective, quarantined straight to L1 — never touches the withhold-able path), and **mark LOUDLY**
+   that 5+ char (#7 gate + contention) contention-detection is **archive-dependent liveness, not
+   self-closing safety** (per §7.3; the "deferral must be visible, never silent" discipline). #84's O3
+   does NOT self-quarantine the tail — detection is itself DA-gated (circular, same shape #100 was
+   found circular).
+
+**Guardrails + acceptance:** `consensus/src` zero-diff (shell/driver only); hermetic-first per §5. The
+§3 slice-battery (accept writes records / withheld → no mutation / bad bundle → reject / bare anchor →
+read-path-only) extends with a **two-operator selective-withhold** case proving both operators reach
+the *same* `includable` verdict once evidence is the shared archive — the fork-closure regression test.
