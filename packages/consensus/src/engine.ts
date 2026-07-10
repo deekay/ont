@@ -41,13 +41,15 @@ export const ASSURANCE_TIERS = [
 ] as const;
 export type AssuranceTier = (typeof ASSURANCE_TIERS)[number];
 
-export interface AssuranceProvenance {
-  readonly tier: AssuranceTier;
+export interface AccumulatorBatchedAssuranceProvenance {
+  readonly tier: "accumulator-batched";
   readonly availabilityMode: AvailabilityMode;
-  readonly priorityBearing: boolean;
+  readonly priorityBearing: false;
   readonly finalizedAtHeight: number | null;
   readonly anchorHeight: number;
 }
+export type AssuranceProvenance =
+  | AccumulatorBatchedAssuranceProvenance;
 
 interface BaseNameRecord {
   readonly name: string;
@@ -66,7 +68,7 @@ export interface AccumulatorBatchedNameRecord extends BaseNameRecord {
   readonly firstServableHeight: number;
   readonly anchoredRoot: string;
   readonly leafKeyHex: string;
-  readonly assuranceProvenance: AssuranceProvenance;
+  readonly assuranceProvenance: AccumulatorBatchedAssuranceProvenance;
 }
 
 export interface BondBackedNameRecord extends BaseNameRecord {
