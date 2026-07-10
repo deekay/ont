@@ -112,6 +112,7 @@ import {
   applyBlockTransactionsWithProvenance,
   createEmptyState,
   refreshDerivedState,
+  type BondBackedNameRecord,
   type NameRecord,
   type OntState,
 } from "./engine.js";
@@ -921,10 +922,14 @@ const ET_OLD_BOND_TXID = "cc".repeat(32);
 const ET_OLD_BOND_VOUT = 0;
 const ET_OLD_HEAD_TXID = "dd".repeat(32);
 
-function etSeed(state: OntState, overrides: Partial<NameRecord> & { name: string }): NameRecord {
-  const record: NameRecord = {
+function etSeed(
+  state: OntState,
+  overrides: Partial<BondBackedNameRecord> & { name: string }
+): BondBackedNameRecord {
+  const record: BondBackedNameRecord = {
     status: "immature",
     currentOwnerPubkey: ET_OWNER_PUB,
+    acquisitionKind: "bonded",
     claimCommitTxid: "a1".repeat(32),
     claimRevealTxid: "b1".repeat(32),
     claimHeight: 100,
@@ -941,6 +946,10 @@ function etSeed(state: OntState, overrides: Partial<NameRecord> & { name: string
   };
   state.names.set(record.name, record);
   return record;
+}
+function etBondBacked(record: NameRecord | undefined): BondBackedNameRecord {
+  expect(record?.acquisitionKind).toBe("bonded");
+  return record as BondBackedNameRecord;
 }
 const etOpReturn = (payload: TransferEvent): BitcoinTransactionOutput => ({
   valueSats: 0n,
@@ -1073,7 +1082,7 @@ describe("B2 vector bindings — engine-transfer family (applyBlockTransactions)
         payload: etSignedTransfer({ ...baseFields, successorBondVout: 255 }, ET_OWNER_PRIV),
       })) === "applied";
     expect(applied).toBe(accepts(vector)); // accepts=true -> applied
-    expect(state.names.get("alice")?.currentBondTxid).toBe(ET_OLD_BOND_TXID); // companion: bond fields untouched on the mature path
+    expect(etBondBacked(state.names.get("alice")).currentBondTxid).toBe(ET_OLD_BOND_TXID); // companion: bond fields untouched on the mature path
   });
 
   it("S12-pos-01: a pre-maturity transfer chain preserves maturityHeight byte-identical across every hop (no reset/extend)", () => {
@@ -1097,7 +1106,7 @@ describe("B2 vector bindings — engine-transfer family (applyBlockTransactions)
         extraOutputs: [etPayment(50_000n)],
       })) === "applied";
     expect(hop1Applied).toBe(accepts(vector)); // true === accept
-    expect(state.names.get("alice")?.maturityHeight).toBe(ORIGINAL_MATURITY); // inherited unchanged after hop 1
+    expect(etBondBacked(state.names.get("alice")).maturityHeight).toBe(ORIGINAL_MATURITY); // inherited unchanged after hop 1
 
     // hop B -> C: signed by B (the owner after hop 1), spends hop-1's successor bond outpoint.
     const hop2Applied =
@@ -1110,7 +1119,7 @@ describe("B2 vector bindings — engine-transfer family (applyBlockTransactions)
       })) === "applied";
     expect(hop2Applied).toBe(true);
     // the equality IS the negative companion: any reset / extend / shorten would fail this assertion.
-    expect(state.names.get("alice")?.maturityHeight).toBe(ORIGINAL_MATURITY); // byte-identical after hop 2
+    expect(etBondBacked(state.names.get("alice")).maturityHeight).toBe(ORIGINAL_MATURITY); // byte-identical after hop 2
     expect(state.names.get("alice")?.currentOwnerPubkey).toBe(C_PUB); // the chain advanced to C
   });
 });
@@ -2096,6 +2105,7 @@ describe("B2 vector bindings — recovery completion (R18, via refreshDerivedSta
         name: "alice",
         status: "immature",
         currentOwnerPubkey: "11".repeat(32),
+        acquisitionKind: "bonded",
         claimCommitTxid: "a1".repeat(32),
         claimRevealTxid: "b1".repeat(32),
         claimHeight: 100,

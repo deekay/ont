@@ -55,6 +55,8 @@ import { EventType, encodeEvent, transferAuthDigest, type TransferEvent } from "
 import {
   applyBlockTransactionsWithProvenance,
   createEmptyState,
+  reduceBlock,
+  type BondBackedNameRecord,
   type NameRecord,
   type OntState,
 } from "./engine.js";
@@ -76,10 +78,14 @@ const OLD_HEAD_TXID = "dd".repeat(32);
 // ---------------------------------------------------------------------------
 // Fixtures
 // ---------------------------------------------------------------------------
-function seedOwnedName(state: OntState, overrides: Partial<NameRecord> & { name: string }): NameRecord {
-  const record: NameRecord = {
+function seedOwnedName(
+  state: OntState,
+  overrides: Partial<BondBackedNameRecord> & { name: string }
+): BondBackedNameRecord {
+  const record: BondBackedNameRecord = {
     status: "immature",
     currentOwnerPubkey: OWNER_PUB,
+    acquisitionKind: "bonded",
     claimCommitTxid: "a1".repeat(32),
     claimRevealTxid: "b1".repeat(32),
     claimHeight: 100,
@@ -96,6 +102,11 @@ function seedOwnedName(state: OntState, overrides: Partial<NameRecord> & { name:
   };
   state.names.set(record.name, record);
   return record;
+}
+
+function expectBondBacked(record: NameRecord | undefined): BondBackedNameRecord {
+  expect(record?.acquisitionKind).toBe("bonded");
+  return record as BondBackedNameRecord;
 }
 
 function opReturn(payload: TransferEvent): BitcoinTransactionOutput {
@@ -146,6 +157,35 @@ function apply(state: OntState, tx: BitcoinTransactionInBlock) {
   const events = provenance.flatMap((record) => record.events);
   return { provenance, events };
 }
+
+describe("reduceBlock — composed reducer entry", () => {
+  it("applies block transitions and recomputes derived finalization at the block height", () => {
+    const state = createEmptyState();
+    seedOwnedName(state, {
+      name: "alice",
+      pendingRecovery: {
+        requestedTxid: "e0".repeat(32),
+        requestedHeight: 120,
+        finalizeHeight: 144,
+        proposedOwnerPubkey: NEW_OWNER_PUB,
+        predecessorStateTxid: OLD_HEAD_TXID,
+        recoveryDescriptorHash: "ef".repeat(32),
+        challengeWindowBlocks: 24,
+      },
+    });
+
+    const result = reduceBlock(
+      state,
+      { height: 144, txs: [] },
+      { batchMaterialByAnchor: new Map(), availabilityByAnchor: new Map() },
+      { launchHeight: 0, daWindow: { K: 3, W: 1, C: 1 }, availabilityMode: "O1-collapsed" }
+    );
+
+    expect(result.provenance).toEqual([]);
+    expect(result.state.names.get("alice")?.pendingRecovery).toBeUndefined();
+    expect(result.state.names.get("alice")?.currentOwnerPubkey).toBe(NEW_OWNER_PUB);
+  });
+});
 
 // ===========================================================================
 // X2 — §5 transfer-digest equivalence pin (the tier justification)
@@ -324,7 +364,7 @@ describe("X6 — pre-maturity transfer requires a bond spend and an adequate suc
     }));
     expect(events[0]?.validationStatus).toBe("applied");
     expect(events[0]?.reason).toBe("transfer_applied_immature");
-    const after = state.names.get("alice");
+    const after = expectBondBacked(state.names.get("alice"));
     expect(after?.status).toBe("immature");
     expect(after?.currentOwnerPubkey).toBe(NEW_OWNER_PUB);
     expect(after?.currentBondTxid).toBe(TXID);
@@ -419,7 +459,7 @@ describe("X7 (base) — successor outpoint already reserved by another live name
     // #5 continuity: alice's immature bond was spent but no successor took effect
     // (the outpoint was reserved) → alice is invalidated, same interaction as X6.
     expect(state.names.get("alice")?.status).toBe("invalid");
-    expect(state.names.get("bob")?.currentBondTxid).toBe(TXID); // bob's reservation untouched
+    expect(expectBondBacked(state.names.get("bob")).currentBondTxid).toBe(TXID); // bob's reservation untouched
     expect(state.names.get("bob")?.status).not.toBe("invalid"); // bob's bond was not spent
   });
 });
@@ -438,7 +478,7 @@ describe("X8 — mature transfer requires no bond spend or successor bond", () =
     const { events } = apply(state, block({ txid: TXID, blockHeight: 2000, payload: signedTransfer(fields, OWNER_PRIV) }));
     expect(events[0]?.validationStatus).toBe("applied");
     expect(events[0]?.reason).toBe("transfer_applied_mature");
-    const after = state.names.get("alice");
+    const after = expectBondBacked(state.names.get("alice"));
     expect(after?.currentOwnerPubkey).toBe(NEW_OWNER_PUB);
     expect(after?.lastStateTxid).toBe(TXID); // head advanced to the carrying tx
     expect(after?.currentBondTxid).toBe(OLD_BOND_TXID); // bond fields untouched on the mature path
@@ -464,6 +504,44 @@ describe("X8 — mature transfer requires no bond spend or successor bond", () =
   });
 });
 
+describe("§2.1 acquisition-kind guard — accumulator records never enter bond-transfer logic", () => {
+  it("returns a typed inapplicable verdict before any maturity compare can route to the mature branch", () => {
+    const state = createEmptyState();
+    const accumulatorRecord: NameRecord = {
+      name: "alice",
+      status: "mature",
+      currentOwnerPubkey: OWNER_PUB,
+      acquisitionKind: "accumulator-batched",
+      firstServableHeight: 100,
+      anchoredRoot: "aa".repeat(32),
+      leafKeyHex: "bb".repeat(32),
+      lastStateTxid: OLD_HEAD_TXID,
+      lastStateHeight: 100,
+      winningCommitBlockHeight: 100,
+      winningCommitTxIndex: 0,
+    };
+    state.names.set("alice", accumulatorRecord);
+
+    const fields: TransferAuthorizationFields = {
+      prevStateTxid: OLD_HEAD_TXID,
+      newOwnerPubkey: NEW_OWNER_PUB,
+      flags: 0,
+      successorBondVout: 0,
+    };
+    const { events } = apply(state, block({
+      txid: "62".repeat(32),
+      blockHeight: 2000,
+      payload: signedTransfer(fields, OWNER_PRIV),
+    }));
+
+    expect("maturityHeight" in accumulatorRecord).toBe(false);
+    expect(events[0]?.validationStatus).toBe("ignored");
+    expect(events[0]?.reason).toBe("transfer_inapplicable_for_accumulator");
+    expect(events[0]?.reason).not.toBe("transfer_name_not_found_or_invalid");
+    expect(state.names.get("alice")).toEqual(accumulatorRecord);
+  });
+});
+
 // ===========================================================================
 // X9 — transfers never move the maturity anchor
 // ===========================================================================
@@ -480,7 +558,7 @@ describe("X9 — a transfer does not reset the maturity clock", () => {
       txid: TXID1, blockHeight: 400, payload: signedTransfer(fields1, OWNER_PRIV),
       inputs: [bondInput(OLD_BOND_TXID, OLD_BOND_VOUT)], extraOutputs: [payment(50_000n)],
     }));
-    expect(state.names.get("alice")?.maturityHeight).toBe(1000);
+    expect(expectBondBacked(state.names.get("alice")).maturityHeight).toBe(1000);
 
     // Second transfer by the new owner against the advanced head (TXID1).
     const TXID2 = "71".repeat(32);
@@ -491,7 +569,7 @@ describe("X9 — a transfer does not reset the maturity clock", () => {
       txid: TXID2, blockHeight: 800, payload: signedTransfer(fields2, NEW_OWNER_PRIV),
       inputs: [bondInput(TXID1, 1)], extraOutputs: [payment(50_000n)],
     }));
-    const after = state.names.get("alice");
+    const after = expectBondBacked(state.names.get("alice"));
     expect(after?.currentOwnerPubkey).toBe(OWNER_PUB);
     expect(after?.maturityHeight).toBe(1000); // still the original anchor after two transfers
   });

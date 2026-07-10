@@ -69,6 +69,7 @@ import {
   applyBlockTransactionsWithProvenance,
   createEmptyState,
   refreshDerivedState,
+  type BondBackedNameRecord,
   type NameRecord,
   type OntEventApplicationOptions,
   type OntState,
@@ -95,11 +96,15 @@ const FINALIZE_HEIGHT = REQUEST_HEIGHT + CHALLENGE_WINDOW; // 644
 // function of (event, prior state), so the pending state is an INPUT, exactly as the
 // X-transfer tests seeded owned names. This deliberately avoids the parked legacy
 // invoke path.
-function seedNameWithPendingRecovery(state: OntState, overrides: Partial<NameRecord> = {}): NameRecord {
-  const record: NameRecord = {
+function seedNameWithPendingRecovery(
+  state: OntState,
+  overrides: Partial<BondBackedNameRecord> = {}
+): BondBackedNameRecord {
+  const record: BondBackedNameRecord = {
     name: "alice",
     status: "immature",
     currentOwnerPubkey: OWNER_PUB,
+    acquisitionKind: "bonded",
     claimCommitTxid: "a1".repeat(32),
     claimRevealTxid: "b1".repeat(32),
     claimHeight: 100,
@@ -360,6 +365,7 @@ function seedInvokableName(state: OntState): void {
     name: "alice",
     status: "immature",
     currentOwnerPubkey: OWNER_PUB,
+    acquisitionKind: "bonded",
     claimCommitTxid: "a1".repeat(32),
     claimRevealTxid: "b1".repeat(32),
     claimHeight: 100,
@@ -479,6 +485,36 @@ describe("recovery invoke (engine B) — acceptRecoverOwner admission + PR-34 bo
     const { events } = apply(state, invokeTx({ txid: "f5".repeat(32), blockHeight: INVOKE_HEIGHT, successorAddress: RECOVERY_ADDR }), recoveryOptions(INVOKE_HEIGHT + W_R + 1));
     expect(events[0]?.reason).toBe("recovery_unauthorized");
     expect(state.names.get("alice")?.pendingRecovery).toBeUndefined();
+  });
+
+  it("(−) §2.1: RecoverOwner invoke aimed at an accumulator-batched record is typed-inapplicable before maturity or bond checks", () => {
+    const state = createEmptyState();
+    const accumulatorRecord: NameRecord = {
+      name: "alice",
+      status: "mature",
+      currentOwnerPubkey: OWNER_PUB,
+      acquisitionKind: "accumulator-batched",
+      firstServableHeight: 100,
+      anchoredRoot: "aa".repeat(32),
+      leafKeyHex: "bb".repeat(32),
+      lastStateTxid: INVOKE_HEAD,
+      lastStateHeight: 100,
+      winningCommitBlockHeight: 100,
+      winningCommitTxIndex: 0,
+    };
+    state.names.set("alice", accumulatorRecord);
+
+    const { events } = apply(
+      state,
+      invokeTx({ txid: "f7".repeat(32), blockHeight: INVOKE_HEIGHT, successorAddress: RECOVERY_ADDR }),
+      recoveryOptions(INVOKE_HEIGHT + W_R)
+    );
+
+    expect("maturityHeight" in accumulatorRecord).toBe(false);
+    expect(events[0]?.validationStatus).toBe("ignored");
+    expect(events[0]?.reason).toBe("recovery_inapplicable_for_accumulator");
+    expect(events[0]?.reason).not.toBe("recovery_name_not_found_or_invalid");
+    expect(state.names.get("alice")).toEqual(accumulatorRecord);
   });
 });
 

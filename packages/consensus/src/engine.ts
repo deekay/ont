@@ -16,6 +16,8 @@ import {
 } from "@ont/wire";
 
 import { getClaimedNameStatus } from "./state.js";
+import type { ServedEvidence } from "./da-verdict.js";
+import type { DaWindowParams } from "./params.js";
 import {
   acceptRecoverOwner,
   type RecoveryDescriptorEvidence,
@@ -24,12 +26,30 @@ import {
 
 const RECOVER_OWNER_FLAG_CANCEL = 0x01;
 
-export interface NameRecord {
+export type AcquisitionKind = "accumulator-batched" | "bonded" | "auction";
+export type AvailabilityMode = "O1-collapsed" | "O2-in-band";
+
+interface BaseNameRecord {
   readonly name: string;
   readonly status: "pending" | "immature" | "mature" | "invalid";
   readonly currentOwnerPubkey: string;
   readonly pendingRecovery?: PendingRecoveryRecord;
-  readonly acquisitionKind?: "auction";
+  readonly acquisitionKind: AcquisitionKind;
+  readonly lastStateTxid: string;
+  readonly lastStateHeight: number;
+  readonly winningCommitBlockHeight: number;
+  readonly winningCommitTxIndex: number;
+}
+
+export interface AccumulatorBatchedNameRecord extends BaseNameRecord {
+  readonly acquisitionKind: "accumulator-batched";
+  readonly firstServableHeight: number;
+  readonly anchoredRoot: string;
+  readonly leafKeyHex: string;
+}
+
+export interface BondBackedNameRecord extends BaseNameRecord {
+  readonly acquisitionKind: "bonded" | "auction";
   readonly acquisitionAuctionId?: string;
   readonly acquisitionAuctionLotCommitment?: string;
   readonly acquisitionAuctionBidTxid?: string;
@@ -43,11 +63,9 @@ export interface NameRecord {
   readonly currentBondTxid: string;
   readonly currentBondVout: number;
   readonly currentBondValueSats: bigint;
-  readonly lastStateTxid: string;
-  readonly lastStateHeight: number;
-  readonly winningCommitBlockHeight: number;
-  readonly winningCommitTxIndex: number;
 }
+
+export type NameRecord = AccumulatorBatchedNameRecord | BondBackedNameRecord;
 
 export interface PendingRecoveryRecord {
   readonly requestedTxid: string;
@@ -103,6 +121,40 @@ export interface OntState {
   readonly names: Map<string, NameRecord>;
 }
 
+export interface ResolvedBatchEntry {
+  readonly name: string;
+  readonly ownerPubkey: string;
+}
+
+export interface ResolvedBatchMaterial {
+  readonly committedEntries: readonly ResolvedBatchEntry[];
+}
+
+export interface ResolvedBlockEvidence {
+  readonly batchMaterialByAnchor: ReadonlyMap<string, ResolvedBatchMaterial>;
+  readonly availabilityByAnchor: ReadonlyMap<string, ServedEvidence>;
+  readonly recovery?: {
+    readonly byName: ReadonlyMap<string, ResolvedRecoveryDescriptorState>;
+    readonly params: RecoveryParams;
+  };
+}
+
+export interface ConfirmedBlock {
+  readonly height: number;
+  readonly txs: readonly BitcoinTransactionInBlock[];
+}
+
+export interface LaunchParams {
+  readonly launchHeight: number;
+  readonly daWindow: DaWindowParams;
+  readonly availabilityMode: AvailabilityMode;
+}
+
+export interface ReduceResult {
+  readonly state: OntState;
+  readonly provenance: readonly TransactionProvenanceRecord[];
+}
+
 /**
  * Verifier-resolved recovery descriptor-chain facts for a name — descriptor-chain EVIDENCE, NOT
  * kernel state (the kernel never tracks an armed head / interval; #50-b1 + §3c). The evidence layer
@@ -138,6 +190,20 @@ export function createEmptyState(): OntState {
   return {
     names: new Map()
   };
+}
+
+export function reduceBlock(
+  prior: OntState,
+  block: ConfirmedBlock,
+  evidence: ResolvedBlockEvidence,
+  params: LaunchParams
+): ReduceResult {
+  const options: OntEventApplicationOptions = evidence.recovery === undefined
+    ? {}
+    : { recoveryEvidence: evidence.recovery };
+  const provenance = applyBlockTransactionsWithProvenance(prior, block.txs, params.launchHeight, options);
+  refreshDerivedState(prior, block.height);
+  return { state: prior, provenance };
 }
 
 export function extractOntEvents(transaction: BitcoinTransactionInBlock): ParsedOntEvent[] {
@@ -206,6 +272,16 @@ export function applyBlockTransactionsWithProvenance(
 
 export function refreshDerivedState(state: OntState, currentHeight: number): OntState {
   for (const [name, record] of state.names.entries()) {
+    if (!isBondBackedRecord(record)) {
+      state.names.set(name, {
+        ...record,
+        status: record.status === "invalid"
+          ? "invalid"
+          : currentHeight >= record.firstServableHeight ? "mature" : "pending"
+      });
+      continue;
+    }
+
     const continuityIntact = record.status !== "invalid";
     const finalizedRecovery =
       continuityIntact && record.pendingRecovery !== undefined && currentHeight >= record.pendingRecovery.finalizeHeight
@@ -420,6 +496,14 @@ function applyTransfer(state: OntState, event: ParsedOntEvent): EventApplication
     };
   }
 
+  if (!isBondBackedRecord(record)) {
+    return {
+      validationStatus: "ignored",
+      reason: "transfer_inapplicable_for_accumulator",
+      affectedName: record.name
+    };
+  }
+
   // X13 (PR-34): while a recovery is pending, an owner-key Transfer is BLOCKED — it mutates
   // nothing. The owner's only in-window veto is the explicit RecoverOwner CANCEL bit. This fires
   // on pendingRecovery presence regardless of transfer signature validity (prevents a stolen owner
@@ -550,6 +634,14 @@ function applyRecoverOwnerRequest(
       validationStatus: "ignored",
       reason: "recovery_name_not_found_or_invalid",
       affectedName: null
+    };
+  }
+
+  if (!isBondBackedRecord(record)) {
+    return {
+      validationStatus: "ignored",
+      reason: "recovery_inapplicable_for_accumulator",
+      affectedName: record.name
     };
   }
 
@@ -700,6 +792,14 @@ function applyRecoverOwnerCancel(
     };
   }
 
+  if (!isBondBackedRecord(record)) {
+    return {
+      validationStatus: "ignored",
+      reason: "recovery_inapplicable_for_accumulator",
+      affectedName: record.name
+    };
+  }
+
   // PR-35: a valid CANCEL at the EXACT finalize height is IN-WINDOW (finalization is evaluated
   // after all events in the finalize-height block apply — refreshDerivedState runs after the
   // block's transactions, so a same-height CANCEL clears pendingRecovery before finalization
@@ -759,9 +859,10 @@ function applyRecoverOwnerCancel(
 function collectSpentImmatureBonds(
   state: OntState,
   transaction: BitcoinTransactionInBlock
-): NameRecord[] {
+): BondBackedNameRecord[] {
   return [...state.names.values()].filter(
-    (record) =>
+    (record): record is BondBackedNameRecord =>
+      isBondBackedRecord(record) &&
       record.status !== "invalid" &&
       transaction.blockHeight < record.maturityHeight &&
       spendsOutpoint(transaction.tx.inputs, record.currentBondTxid, record.currentBondVout)
@@ -771,14 +872,18 @@ function collectSpentImmatureBonds(
 function invalidateBrokenBondContinuity(
   state: OntState,
   transaction: BitcoinTransactionInBlock,
-  spentRecords: readonly NameRecord[]
+  spentRecords: readonly BondBackedNameRecord[]
 ): string[] {
   const invalidatedNames: string[] = [];
 
   for (const spentRecord of spentRecords) {
     const currentRecord = state.names.get(spentRecord.name);
 
-    if (currentRecord === undefined || transaction.blockHeight >= spentRecord.maturityHeight) {
+    if (
+      currentRecord === undefined ||
+      !isBondBackedRecord(currentRecord) ||
+      transaction.blockHeight >= spentRecord.maturityHeight
+    ) {
       continue;
     }
 
@@ -824,9 +929,13 @@ function findNameRecordByPendingRecoveryTxid(state: OntState, txid: string): Nam
   return null;
 }
 
-function withoutPendingRecovery(record: NameRecord): Omit<NameRecord, "pendingRecovery"> {
+function withoutPendingRecovery<T extends NameRecord>(record: T): Omit<T, "pendingRecovery"> {
   const { pendingRecovery: _pendingRecovery, ...rest } = record;
   return rest;
+}
+
+function isBondBackedRecord(record: NameRecord): record is BondBackedNameRecord {
+  return record.acquisitionKind === "bonded" || record.acquisitionKind === "auction";
 }
 
 function bondOutpointIsReserved(
@@ -839,10 +948,11 @@ function bondOutpointIsReserved(
 ): boolean {
   for (const record of state.names.values()) {
     if (
-      record.status !== "invalid"
-      && record.name !== options.ignoredName
-      && record.currentBondTxid === txid
-      && record.currentBondVout === vout
+      isBondBackedRecord(record) &&
+      record.status !== "invalid" &&
+      record.name !== options.ignoredName &&
+      record.currentBondTxid === txid &&
+      record.currentBondVout === vout
     ) {
       return true;
     }
