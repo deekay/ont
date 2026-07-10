@@ -8,6 +8,7 @@ import {
   type AuctionBidEvent,
   EventType,
   type RecoverOwnerEvent,
+  type RootAnchorEvent,
   type TransferEvent,
   decodeEvent,
   recoverAuthDigest,
@@ -16,7 +17,7 @@ import {
 } from "@ont/wire";
 
 import { getClaimedNameStatus } from "./state.js";
-import type { ServedEvidence } from "./da-verdict.js";
+import { evidenceBindsToAnchor, type ServedEvidence } from "./da-verdict.js";
 import { modeAt, type AvailabilityMode, type LaunchParams } from "./params.js";
 import {
   acceptRecoverOwner,
@@ -25,6 +26,7 @@ import {
 } from "./recovery-invoke-authority.js";
 
 const RECOVER_OWNER_FLAG_CANCEL = 0x01;
+const RAW_BATCH_MATERIAL_KEYS = ["baseLeaves", "servedLeaves"] as const;
 
 export type AcquisitionKind = "accumulator-batched" | "bonded" | "auction";
 
@@ -83,24 +85,27 @@ export interface ParsedOntEvent {
   readonly vout: number;
   readonly inputs: readonly BitcoinTransactionInput[];
   readonly outputs: readonly BitcoinTransactionOutput[];
-  readonly type: EventType.Transfer | EventType.AuctionBid | EventType.RecoverOwner;
+  readonly type: EventType.Transfer | EventType.AuctionBid | EventType.RecoverOwner | EventType.RootAnchor;
   readonly payload:
     | TransferEvent
     | AuctionBidEvent
-    | RecoverOwnerEvent;
+    | RecoverOwnerEvent
+    | RootAnchorEvent;
 }
 
 export interface ProvenanceEventRecord {
   vout: number;
-  type: EventType.Transfer | EventType.AuctionBid | EventType.RecoverOwner;
+  type: EventType.Transfer | EventType.AuctionBid | EventType.RecoverOwner | EventType.RootAnchor;
   typeName:
     | "TRANSFER"
     | "AUCTION_BID"
-    | "RECOVER_OWNER";
+    | "RECOVER_OWNER"
+    | "ROOT_ANCHOR";
   payload:
     | TransferEvent
     | AuctionBidEvent
-    | RecoverOwnerEvent;
+    | RecoverOwnerEvent
+    | RootAnchorEvent;
   validationStatus: "applied" | "ignored";
   reason: string;
   affectedName: string | null;
@@ -177,6 +182,12 @@ export interface OntEventApplicationOptions {
     readonly byName: ReadonlyMap<string, ResolvedRecoveryDescriptorState>;
     readonly params: RecoveryParams;
   };
+  /**
+   * Reducer-only RootAnchor evidence seam. The evidence/indexer layer has already
+   * accepted the batch and resolved it to deltas; the reducer consumes that data
+   * and never reaches back to raw BatchMaterial leaf maps.
+   */
+  readonly rootAnchorEvidence?: ResolvedBlockEvidence;
 }
 
 export function createEmptyState(): OntState {
@@ -203,19 +214,22 @@ function reduceBlockAtMode(
   _availabilityMode: AvailabilityMode
 ): ReduceResult {
   const options: OntEventApplicationOptions = evidence.recovery === undefined
-    ? {}
-    : { recoveryEvidence: evidence.recovery };
+    ? { rootAnchorEvidence: evidence }
+    : { recoveryEvidence: evidence.recovery, rootAnchorEvidence: evidence };
   const provenance = applyBlockTransactionsWithProvenance(prior, block.txs, params.launchHeight, options);
   refreshDerivedState(prior, block.height);
   return { state: prior, provenance };
 }
 
-export function extractOntEvents(transaction: BitcoinTransactionInBlock): ParsedOntEvent[] {
+export function extractOntEvents(
+  transaction: BitcoinTransactionInBlock,
+  options: { readonly includeRootAnchors?: boolean } = {}
+): ParsedOntEvent[] {
   return getOpReturnPayloads(transaction.tx).flatMap(({ vout, payload }) => {
     try {
       const decoded = decodeEvent(payload);
 
-      if (decoded.type === EventType.RootAnchor) {
+      if (decoded.type === EventType.RootAnchor && options.includeRootAnchors !== true) {
         return [];
       }
 
@@ -227,7 +241,7 @@ export function extractOntEvents(transaction: BitcoinTransactionInBlock): Parsed
           vout,
           inputs: transaction.tx.inputs,
           outputs: transaction.tx.outputs,
-          type: decoded.type,
+          type: decoded.type as ParsedOntEvent["type"],
           payload: decoded
         }
       ];
@@ -349,7 +363,17 @@ function applyEvent(
         },
         options
       );
+    case EventType.RootAnchor:
+      return applyRootAnchorCandidate(
+        event as ParsedOntEvent & {
+          readonly type: EventType.RootAnchor;
+          readonly payload: RootAnchorEvent;
+        },
+        options.rootAnchorEvidence
+      );
   }
+
+  throw new Error("unreachable event type");
 }
 
 function applySingleBlockTransactions(
@@ -379,7 +403,7 @@ function applySingleBlockTransactions(
 
     const spentImmatureBonds = collectSpentImmatureBonds(state, transaction);
 
-    for (const event of extractOntEvents(transaction)) {
+    for (const event of extractOntEvents(transaction, { includeRootAnchors: options.rootAnchorEvidence !== undefined })) {
       txProvenance.events.push(createProvenanceEventRecord(event, applyEvent(state, event, options)));
     }
 
@@ -391,6 +415,103 @@ function applySingleBlockTransactions(
   return provenanceRecords.filter(
     (record) => record.events.length > 0 || record.invalidatedNames.length > 0
   );
+}
+
+function hasForbiddenRawLeafField(value: unknown): boolean {
+  if (value === null || typeof value !== "object") {
+    return false;
+  }
+
+  return RAW_BATCH_MATERIAL_KEYS.some((key) => Object.prototype.hasOwnProperty.call(value, key));
+}
+
+function evidenceCarriesRawBatchMaterial(evidence: ResolvedBlockEvidence): boolean {
+  if (hasForbiddenRawLeafField(evidence)) {
+    return true;
+  }
+
+  for (const material of evidence.batchMaterialByAnchor.values()) {
+    if (hasForbiddenRawLeafField(material)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function applyRootAnchorCandidate(
+  event: ParsedOntEvent & { readonly type: EventType.RootAnchor; readonly payload: RootAnchorEvent },
+  evidence: ResolvedBlockEvidence | undefined
+): EventApplicationResult {
+  if (evidence === undefined) {
+    return {
+      validationStatus: "ignored",
+      reason: "root_anchor_no_resolved_evidence",
+      affectedName: null
+    };
+  }
+
+  if (evidenceCarriesRawBatchMaterial(evidence)) {
+    return {
+      validationStatus: "ignored",
+      reason: "root_anchor_raw_material_rejected",
+      affectedName: null
+    };
+  }
+
+  const anchor = {
+    minedHeight: event.blockHeight,
+    anchoredRoot: event.payload.newRoot,
+    batchSize: event.payload.batchSize
+  };
+  const material = evidence.batchMaterialByAnchor.get(anchor.anchoredRoot);
+
+  if (material === undefined) {
+    return {
+      validationStatus: "ignored",
+      reason: "root_anchor_no_resolved_material",
+      affectedName: null
+    };
+  }
+
+  if (event.payload.batchSize === 0 || material.committedEntries.length === 0) {
+    return {
+      validationStatus: "ignored",
+      reason: "root_anchor_empty_committed_set",
+      affectedName: null
+    };
+  }
+
+  if (material.committedEntries.length !== event.payload.batchSize) {
+    return {
+      validationStatus: "ignored",
+      reason: "root_anchor_batch_size_mismatch",
+      affectedName: null
+    };
+  }
+
+  const availability = evidence.availabilityByAnchor.get(anchor.anchoredRoot);
+  if (availability === undefined) {
+    return {
+      validationStatus: "ignored",
+      reason: "root_anchor_no_availability_evidence",
+      affectedName: null
+    };
+  }
+
+  if (!evidenceBindsToAnchor(anchor, availability)) {
+    return {
+      validationStatus: "ignored",
+      reason: "root_anchor_availability_mismatch",
+      affectedName: null
+    };
+  }
+
+  return {
+    validationStatus: "applied",
+    reason: "root_anchor_creation_candidate",
+    affectedName: null
+  };
 }
 
 function applyAuctionBid(
@@ -1011,8 +1132,8 @@ function createProvenanceEventRecord(
 }
 
 function getEventTypeName(
-  type: EventType.Transfer | EventType.AuctionBid | EventType.RecoverOwner
-): "TRANSFER" | "AUCTION_BID" | "RECOVER_OWNER" {
+  type: EventType.Transfer | EventType.AuctionBid | EventType.RecoverOwner | EventType.RootAnchor
+): "TRANSFER" | "AUCTION_BID" | "RECOVER_OWNER" | "ROOT_ANCHOR" {
   switch (type) {
     case EventType.Transfer:
       return "TRANSFER";
@@ -1020,5 +1141,9 @@ function getEventTypeName(
       return "AUCTION_BID";
     case EventType.RecoverOwner:
       return "RECOVER_OWNER";
+    case EventType.RootAnchor:
+      return "ROOT_ANCHOR";
   }
+
+  throw new Error("unreachable event type");
 }
