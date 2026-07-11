@@ -92,9 +92,11 @@ are `engine.ts` (`OntState`) and the live `apps/indexer/src/enforce-batched-clai
 
 - `packages/consensus/src/engine.ts` now applies `RootAnchor` through `reduceBlock` and mints
   **`accumulator-batched`** name-state, alongside its existing transfer / auction-bid provenance /
-  recovery-owner / bond-continuity handling. **`bonded` and `auction` acquisition minting are
-  deliberately deferred to the cutover** (locked by the N1 test), so the reducer cannot yet subsume
-  the live authority.
+  recovery-owner / bond-continuity handling. `bonded` and `auction` acquisition minting are deferred
+  (locked by the N1 test) — but the **live authority also mints only `accumulator-batched`**
+  (`enforce-batched-claims.ts:134`; short names drop because "they require the bonded path"), so the
+  two sinks are already at accumulator-batched *parity*. Bonded/auction is greenfield for **both**
+  sinks, not a reducer-vs-live gap.
 - `packages/consensus/src/auction-resolution.ts` contains pure auction acceptance and winner-selection
   predicates, but those predicates are **still not composed by `engine.ts`** into auction lot settlement
   and name ownership.
@@ -181,12 +183,17 @@ design choice, the numbers are calibration.
 
 - **Reducer→sole-sink cutover is the sharpest architecture gap.** A `reduceBlock` reducer now exists
   and applies `RootAnchor` additively, minting `accumulator-batched` name-state — but it is not yet the
-  single authoritative sink and does not yet cover the whole lifecycle. Still owed for cutover:
-  `bonded` + `auction` acquisition minting through the reducer (deferred by the N1 test); auction-lot
-  settlement composed from `auction-resolution.ts`; reorg-symmetric replay across all paths; and
-  retiring the live direct writer (`apps/indexer/src/enforce-batched-claims.ts` → `@ont/name-state-store`)
-  so the reducer is the only name-state sink. That last step is DK-gated. This is the main reason the
-  project is ready for controlled integration but not a finished ownership-state product.
+  single authoritative sink. **Owed for the cutover** (making the reducer the only sink at the scope
+  that is actually live): `accumulator-batched` mint parity between the reducer and the live authority,
+  reorg-symmetric replay across paths (N1), the resolver trace/provenance the live path serves, and
+  then retiring the live direct writer (`apps/indexer/src/enforce-batched-claims.ts` →
+  `@ont/name-state-store`) — a **DK-gated** step. **Separately owed for lifecycle completeness** (not a
+  cutover blocker — the live authority mints only `accumulator-batched` too, so bonded/auction is
+  greenfield for *both* sinks): `auction` settlement is composition-only (existing `AuctionBid` wire
+  event + `auction-resolution.ts`, no new wire), whereas `bonded` short-name claims need **new wire
+  event vocabulary** (bond-claim commit/reveal do not exist in `@ont/wire` today) — a wire → consensus
+  → evidence → reducer lift. This split is the main reason the project is ready for controlled
+  integration but not a finished ownership-state product.
 - **Assurance semantics are too coarse.** CLI/web/mobile now distinguish `bitcoin-verified` from
   `resolver-mirror` for the private-signet demo, but that is still not the full ladder a product needs:
   anchor included, batch member, provisional claim, finalized ownership at block X, and current through
