@@ -12,7 +12,9 @@ import {
   applyBlockTransactionsWithProvenance,
   createEmptyState,
   reduceBlock,
+  type ResolvedAccumulatorBatchedAcquisitionFacts,
   type ResolvedBatchEntry,
+  type ResolvedBondedAcquisitionFacts,
   type ResolvedBatchMaterial,
   type ResolvedBlockEvidence,
 } from "./engine.js";
@@ -30,6 +32,25 @@ const resolvedBatchMaterialKeysAreClosed: Assert<
 > = true;
 const resolvedBatchEntryKeysAreClosed: Assert<
   Equal<keyof ResolvedBatchEntry, "acquisition" | "name" | "ownerPubkey">
+> = true;
+const resolvedAccumulatorBatchedAcquisitionFactsKeysAreClosed: Assert<
+  Equal<keyof ResolvedAccumulatorBatchedAcquisitionFacts, "acquisitionKind">
+> = true;
+const resolvedBondedAcquisitionFactsKeysAreClosed: Assert<
+  Equal<
+    keyof ResolvedBondedAcquisitionFacts,
+    | "acquisitionKind"
+    | "claimCommitTxid"
+    | "claimRevealTxid"
+    | "claimHeight"
+    | "winningCommitBlockHeight"
+    | "winningCommitTxIndex"
+    | "bondOutpointTxid"
+    | "bondOutpointVout"
+    | "bondValueSats"
+    | "bondFloorSats"
+    | "maturityHeight"
+  >
 > = true;
 const resolvedBlockEvidenceKeysAreClosed: Assert<
   Equal<keyof ResolvedBlockEvidence, "availabilityByAnchor" | "batchMaterialByAnchor" | "recovery">
@@ -130,6 +151,8 @@ describe("reduceBlock Delta A.0 — RootAnchor creation seam", () => {
   it("keeps resolved evidence types closed to raw batch leaves", () => {
     expect(resolvedBatchMaterialKeysAreClosed).toBe(true);
     expect(resolvedBatchEntryKeysAreClosed).toBe(true);
+    expect(resolvedAccumulatorBatchedAcquisitionFactsKeysAreClosed).toBe(true);
+    expect(resolvedBondedAcquisitionFactsKeysAreClosed).toBe(true);
     expect(resolvedBlockEvidenceKeysAreClosed).toBe(true);
   });
 

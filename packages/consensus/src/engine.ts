@@ -159,12 +159,19 @@ export interface ResolvedBatchMaterial {
   readonly committedEntries: readonly ResolvedBatchEntry[];
 }
 
+export interface ResolvedAccumulatorBatchedAcquisitionFacts {
+  readonly acquisitionKind: "accumulator-batched";
+}
+
 // Verifier-resolved acquisition facts for future bonded/auction minting. This
 // is evidence-layer data consumed by reducer composition, not producer authority.
 export interface ResolvedBondedAcquisitionFacts {
   readonly acquisitionKind: "bonded";
   readonly claimCommitTxid: string;
   readonly claimRevealTxid: string;
+  readonly claimHeight: number;
+  readonly winningCommitBlockHeight: number;
+  readonly winningCommitTxIndex: number;
   readonly bondOutpointTxid: string;
   readonly bondOutpointVout: number;
   readonly bondValueSats: bigint;
@@ -189,6 +196,7 @@ export interface ResolvedAuctionAcquisitionFacts {
 }
 
 export type ResolvedAcquisitionFacts =
+  | ResolvedAccumulatorBatchedAcquisitionFacts
   | ResolvedBondedAcquisitionFacts
   | ResolvedAuctionAcquisitionFacts;
 
@@ -611,8 +619,47 @@ function applyRootAnchorCandidate(
     };
   }
 
-  const records = material.committedEntries.map((entry) => {
+  const unsupportedAcquisition = material.committedEntries.find(
+    (entry) => entry.acquisition?.acquisitionKind === "auction"
+  );
+  if (unsupportedAcquisition !== undefined) {
+    return {
+      validationStatus: "ignored",
+      reason: "root_anchor_unsupported_acquisition_kind",
+      affectedName: unsupportedAcquisition.name
+    };
+  }
+
+  const records = material.committedEntries.map((entry): NameRecord => {
     const leafKeyHex = sha256Hex(utf8ToBytes(entry.name));
+    const acquisition = entry.acquisition;
+
+    if (acquisition?.acquisitionKind === "bonded") {
+      return {
+        name: entry.name,
+        status: getClaimedNameStatus({
+          isRevealConfirmed: true,
+          continuityIntact: true,
+          currentHeight: event.blockHeight,
+          maturityHeight: acquisition.maturityHeight
+        }),
+        currentOwnerPubkey: entry.ownerPubkey,
+        acquisitionKind: "bonded",
+        claimCommitTxid: acquisition.claimCommitTxid,
+        claimRevealTxid: acquisition.claimRevealTxid,
+        claimHeight: acquisition.claimHeight,
+        maturityHeight: acquisition.maturityHeight,
+        requiredBondSats: acquisition.bondFloorSats,
+        currentBondTxid: acquisition.bondOutpointTxid,
+        currentBondVout: acquisition.bondOutpointVout,
+        currentBondValueSats: acquisition.bondValueSats,
+        lastStateTxid: acquisition.claimRevealTxid,
+        lastStateHeight: acquisition.claimHeight,
+        winningCommitBlockHeight: acquisition.winningCommitBlockHeight,
+        winningCommitTxIndex: acquisition.winningCommitTxIndex,
+      } satisfies BondBackedNameRecord;
+    }
+
     return {
       name: entry.name,
       status: "pending" as const,
@@ -654,9 +701,10 @@ function applyRootAnchorCandidate(
     }
   }
 
-  const accumulatorWriteSet = records.filter((record) => canWriteAccumulatorBatchedName(record.name));
-  for (const record of accumulatorWriteSet) {
-    state.names.set(record.name, record);
+  for (const record of records) {
+    if (isBondBackedRecord(record) || canWriteAccumulatorBatchedName(record.name)) {
+      state.names.set(record.name, record);
+    }
   }
 
   return {

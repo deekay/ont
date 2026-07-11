@@ -28,15 +28,36 @@ const PARAMS: LaunchParams = {
   daWindow: { K: 3, W: 1, C: 1 },
   availabilityMode: "O1-collapsed",
 };
+const ACCUMULATOR_ACQUISITION: ResolvedAcquisitionFacts = {
+  acquisitionKind: "accumulator-batched",
+};
 const BONDED_ACQUISITION: ResolvedAcquisitionFacts = {
   acquisitionKind: "bonded",
   claimCommitTxid: h32("b1"),
   claimRevealTxid: h32("b2"),
+  claimHeight: 240,
+  winningCommitBlockHeight: 200,
+  winningCommitTxIndex: 3,
   bondOutpointTxid: h32("b3"),
   bondOutpointVout: 1,
   bondValueSats: 150_000n,
   bondFloorSats: 100_000n,
   maturityHeight: 400,
+};
+const AUCTION_ACQUISITION: ResolvedAcquisitionFacts = {
+  acquisitionKind: "auction",
+  claimCommitTxid: h32("c1"),
+  claimRevealTxid: h32("c2"),
+  bondOutpointTxid: h32("c3"),
+  bondOutpointVout: 2,
+  bondValueSats: 200_000n,
+  bondFloorSats: 100_000n,
+  maturityHeight: 500,
+  auctionId: h32("c4"),
+  auctionLotCommitment: h32("c5"),
+  winningBidderCommitment: h32("c6"),
+  winningBidTxid: h32("c7"),
+  bondReleaseHeight: 10_000,
 };
 
 function rootAnchorTx(input: {
@@ -221,15 +242,52 @@ describe("reduceBlock Delta B.0 - accumulator write eligibility and acquisition 
     expect(state.names.size).toBe(1);
   });
 
-  it("leaves reducer output byte-identical when per-entry acquisition facts are present but unread", () => {
+  it("leaves explicit accumulator acquisition facts byte-identical to the absent acquisition path", () => {
     const withoutFacts = reduceRootAnchor({
       material: material([{ name: "david", ownerPubkey: OWNER }]),
     });
     const withFacts = reduceRootAnchor({
-      material: material([{ name: "david", ownerPubkey: OWNER, acquisition: BONDED_ACQUISITION }]),
+      material: material([{ name: "david", ownerPubkey: OWNER, acquisition: ACCUMULATOR_ACQUISITION }]),
     });
 
     expect(withFacts.result.provenance).toEqual(withoutFacts.result.provenance);
     expect(withFacts.state.names).toEqual(withoutFacts.state.names);
+  });
+
+  it("now reads bonded acquisition facts and mints a bonded name record", () => {
+    const { state, event } = reduceRootAnchor({
+      material: material([{ name: "david", ownerPubkey: OWNER, acquisition: BONDED_ACQUISITION }]),
+    });
+
+    expect(event).toMatchObject({
+      validationStatus: "applied",
+      reason: "root_anchor_batch_minted",
+    });
+    expect(state.names.get("david")).toMatchObject({
+      acquisitionKind: "bonded",
+      currentOwnerPubkey: OWNER,
+      claimCommitTxid: BONDED_ACQUISITION.claimCommitTxid,
+      claimRevealTxid: BONDED_ACQUISITION.claimRevealTxid,
+      currentBondTxid: BONDED_ACQUISITION.bondOutpointTxid,
+      requiredBondSats: BONDED_ACQUISITION.bondFloorSats,
+    });
+    expect(state.names.get("david")).not.toHaveProperty("assuranceProvenance");
+  });
+
+  it("keeps auction acquisition facts as an explicit unsupported B2 slot", () => {
+    const state = createEmptyState();
+    const before = new Map(state.names);
+    const { event } = reduceRootAnchor({
+      state,
+      material: material([{ name: "david", ownerPubkey: OWNER, acquisition: AUCTION_ACQUISITION }]),
+    });
+
+    expect(event).toMatchObject({
+      typeName: "ROOT_ANCHOR",
+      validationStatus: "ignored",
+      reason: "root_anchor_unsupported_acquisition_kind",
+      affectedName: "david",
+    });
+    expect(state.names).toEqual(before);
   });
 });

@@ -19,6 +19,7 @@ import {
   type OntEventApplicationOptions,
   type OntState,
   type ProvenanceEventRecord,
+  type ResolvedAcquisitionFacts,
   type ResolvedBatchMaterial,
   type ResolvedBlockEvidence,
 } from "./engine.js";
@@ -60,6 +61,7 @@ const ROOT_ANCHOR_REASONS = [
   "root_anchor_no_availability_evidence",
   "root_anchor_availability_mismatch",
   "root_anchor_o1_first_servable_height_mismatch",
+  "root_anchor_unsupported_acquisition_kind",
   "root_anchor_duplicate_committed_name",
   "root_anchor_name_already_claimed",
   "root_anchor_batch_minted",
@@ -253,7 +255,7 @@ function expectAccumulatorFinalizationOnlyChanged(
 }
 
 describe("reduceBlock Delta A.2b - RootAnchor acceptance matrix", () => {
-  it("keeps the source verdict inventory to the locked 13 RootAnchor reasons", () => {
+  it("keeps the source verdict inventory to the locked 14 RootAnchor reasons", () => {
     const source = readFileSync(resolve(packageSrc, "engine.ts"), "utf8");
     const reasons = new Set(
       [...source.matchAll(/reason: "(root_anchor_[^"]+)"/g)].map((match) => match[1])
@@ -344,6 +346,33 @@ describe("reduceBlock Delta A.2b - RootAnchor acceptance matrix", () => {
       rootAnchorEvidence: evidence({ firstServableHeight: ANCHOR_HEIGHT + 1 }),
       availabilityMode: "O1-collapsed",
       reason: "root_anchor_o1_first_servable_height_mismatch",
+    });
+  });
+
+  it("R10b ignores auction acquisition facts as the explicit B2 unsupported slot", () => {
+    const auctionAcquisition = {
+      acquisitionKind: "auction",
+      claimCommitTxid: h32("c1"),
+      claimRevealTxid: h32("c2"),
+      bondOutpointTxid: h32("c3"),
+      bondOutpointVout: 2,
+      bondValueSats: 200_000n,
+      bondFloorSats: 100_000n,
+      maturityHeight: 500,
+      auctionId: h32("c4"),
+      auctionLotCommitment: h32("c5"),
+      winningBidderCommitment: h32("c6"),
+      winningBidTxid: h32("c7"),
+      bondReleaseHeight: 10_000,
+    } satisfies ResolvedAcquisitionFacts;
+
+    expectIgnoredNoWrites({
+      rootAnchorEvidence: evidence({
+        material: material([{ name: "alice", ownerPubkey: OWNER, acquisition: auctionAcquisition }]),
+      }),
+      availabilityMode: "O1-collapsed",
+      reason: "root_anchor_unsupported_acquisition_kind",
+      affectedName: "alice",
     });
   });
 
@@ -517,12 +546,13 @@ describe("reduceBlock Delta A.2b - RootAnchor acceptance matrix", () => {
     expect((record as AccumulatorBatchedNameRecord).assuranceProvenance.priorityBearing).toBe(false);
   });
 
-  it("N1 keeps cross-path reorg-symmetric unblocking explicit as a cutover deferral", () => {
+  it("N1 pins bonded priority minting as live while auction settlement remains deferred", () => {
     const source = readFileSync(resolve(packageSrc, "engine.ts"), "utf8");
 
     expect(source).toMatch(/^\s+acquisitionKind: "accumulator-batched"/m);
-    expect(source).not.toMatch(/^\s+acquisitionKind: "bonded"/m);
-    expect(source).not.toMatch(/^\s+acquisitionKind: "auction"/m);
+    expect(source).toMatch(/^\s+acquisitionKind: "bonded"/m);
+    expect(source).toContain('reason: "root_anchor_unsupported_acquisition_kind"');
+    expect(source).not.toContain('acquisitionKind: "auction" as const');
     expect(source).toContain('reason: "root_anchor_name_already_claimed"');
   });
 });

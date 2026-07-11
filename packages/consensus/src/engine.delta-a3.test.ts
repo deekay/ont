@@ -30,6 +30,7 @@ import {
   type ProvenanceEventRecord,
   type ResolvedBatchMaterial,
   type ResolvedBlockEvidence,
+  type ResolvedBondedAcquisitionFacts,
 } from "./engine.js";
 import type { LaunchParams } from "./params.js";
 
@@ -37,6 +38,7 @@ const h32 = (fill: string): string => fill.repeat(32);
 
 const PREV_ROOT = h32("00");
 const ROOT = h32("ab");
+const PRIORITY_ROOT = h32("bc");
 const OWNER_PRIV = h32("01");
 const OWNER = deriveOwnerPubkey(OWNER_PRIV);
 const OTHER_OWNER = deriveOwnerPubkey(h32("02"));
@@ -168,6 +170,25 @@ function priorityRecord(input: {
   };
 }
 
+function bondedAcquisition(
+  overrides: Partial<ResolvedBondedAcquisitionFacts> = {}
+): ResolvedBondedAcquisitionFacts {
+  return {
+    acquisitionKind: "bonded",
+    claimCommitTxid: h32("b1"),
+    claimRevealTxid: h32("b2"),
+    claimHeight: 240,
+    winningCommitBlockHeight: 200,
+    winningCommitTxIndex: 3,
+    bondOutpointTxid: h32("b3"),
+    bondOutpointVout: 1,
+    bondValueSats: 150_000n,
+    bondFloorSats: 100_000n,
+    maturityHeight: ANCHOR_HEIGHT + 100,
+    ...overrides,
+  };
+}
+
 function onlyRootAnchorEvent(result: ReturnType<typeof reduceBlock>): ProvenanceEventRecord {
   const rootAnchorEvents = result.provenance.flatMap((record) =>
     record.events.filter((event) => event.typeName === "ROOT_ANCHOR")
@@ -271,44 +292,70 @@ describe("reduceBlock Delta A.3 - cross-kind RootAnchor precedence", () => {
     expect(state.names.has("bob")).toBe(false);
   });
 
-  it("re-folds a dropped priority incumbent from the shared snapshot so the accumulator claim applies", () => {
+  it("replays a bonded-priority branch and lets the accumulator claim apply when that branch drops", () => {
     const sharedSnapshot = createEmptyState();
-    const accumulatorTx = rootAnchorTx();
+    const bondedTx = rootAnchorTx({ txid: h32("a1"), newRoot: PRIORITY_ROOT });
+    const bondedEvidence = evidence({
+      root: PRIORITY_ROOT,
+      availabilityRoot: PRIORITY_ROOT,
+      material: material([
+        {
+          name: "alice",
+          ownerPubkey: PRIORITY_OWNER,
+          acquisition: bondedAcquisition(),
+        },
+      ]),
+    });
+    const accumulatorTx = rootAnchorTx({ txid: h32("a2") });
     const accumulatorEvidence = evidence();
 
-    const withPriorityIncumbent = cloneState(sharedSnapshot);
-    const incumbent = priorityRecord({ acquisitionKind: "auction" });
-    // The reducer cannot yet mint priority records from a block; this is the
-    // test-only stand-in for the branch where that priority anchor remains folded.
-    withPriorityIncumbent.names.set(incumbent.name, incumbent);
+    const withPriorityBranch = cloneState(sharedSnapshot);
+    const priorityMint = reduceBlock(
+      withPriorityBranch,
+      rootAnchorBlock({ tx: bondedTx }),
+      bondedEvidence,
+      PARAMS
+    );
     const blocked = reduceBlock(
-      withPriorityIncumbent,
+      withPriorityBranch,
       rootAnchorBlock({ tx: accumulatorTx }),
       accumulatorEvidence,
       PARAMS
     );
 
-    const withoutPriorityIncumbent = cloneState(sharedSnapshot);
+    const withoutPriorityBranch = cloneState(sharedSnapshot);
     const applied = reduceBlock(
-      withoutPriorityIncumbent,
+      withoutPriorityBranch,
       rootAnchorBlock({ tx: accumulatorTx }),
       accumulatorEvidence,
       PARAMS
     );
 
     expect(sharedSnapshot.names.size).toBe(0);
+    expect(onlyRootAnchorEvent(priorityMint)).toMatchObject({
+      validationStatus: "applied",
+      reason: "root_anchor_batch_minted",
+      affectedName: null,
+    });
+    expect(withPriorityBranch.names.get("alice")).toMatchObject({
+      acquisitionKind: "bonded",
+      currentOwnerPubkey: PRIORITY_OWNER,
+    });
     expect(onlyRootAnchorEvent(blocked)).toMatchObject({
       validationStatus: "ignored",
       reason: "root_anchor_name_already_claimed",
       affectedName: "alice",
     });
-    expect(withPriorityIncumbent.names.get("alice")).toStrictEqual(incumbent);
+    expect(withPriorityBranch.names.get("alice")).toMatchObject({
+      acquisitionKind: "bonded",
+      currentOwnerPubkey: PRIORITY_OWNER,
+    });
     expect(onlyRootAnchorEvent(applied)).toMatchObject({
       validationStatus: "applied",
       reason: "root_anchor_batch_minted",
       affectedName: null,
     });
-    expect(accumulatorRecord(withoutPriorityIncumbent)).toMatchObject({
+    expect(accumulatorRecord(withoutPriorityBranch)).toMatchObject({
       name: "alice",
       status: "mature",
       currentOwnerPubkey: OWNER,
@@ -322,6 +369,75 @@ describe("reduceBlock Delta A.3 - cross-kind RootAnchor precedence", () => {
         finalizedAtHeight: ANCHOR_HEIGHT,
         anchorHeight: ANCHOR_HEIGHT,
       },
+    });
+  });
+
+  it("replays an accumulator branch and lets bonded priority apply when that branch drops", () => {
+    const sharedSnapshot = createEmptyState();
+    const accumulatorTx = rootAnchorTx({ txid: h32("a3") });
+    const accumulatorEvidence = evidence();
+    const bondedTx = rootAnchorTx({ txid: h32("a4"), newRoot: PRIORITY_ROOT });
+    const bondedEvidence = evidence({
+      root: PRIORITY_ROOT,
+      availabilityRoot: PRIORITY_ROOT,
+      material: material([
+        {
+          name: "alice",
+          ownerPubkey: PRIORITY_OWNER,
+          acquisition: bondedAcquisition(),
+        },
+      ]),
+    });
+
+    const withAccumulatorBranch = cloneState(sharedSnapshot);
+    const accumulatorMint = reduceBlock(
+      withAccumulatorBranch,
+      rootAnchorBlock({ tx: accumulatorTx }),
+      accumulatorEvidence,
+      PARAMS
+    );
+    const bondedBlocked = reduceBlock(
+      withAccumulatorBranch,
+      rootAnchorBlock({ tx: bondedTx }),
+      bondedEvidence,
+      PARAMS
+    );
+
+    const withoutAccumulatorBranch = cloneState(sharedSnapshot);
+    const bondedApplied = reduceBlock(
+      withoutAccumulatorBranch,
+      rootAnchorBlock({ tx: bondedTx }),
+      bondedEvidence,
+      PARAMS
+    );
+
+    expect(sharedSnapshot.names.size).toBe(0);
+    expect(onlyRootAnchorEvent(accumulatorMint)).toMatchObject({
+      validationStatus: "applied",
+      reason: "root_anchor_batch_minted",
+      affectedName: null,
+    });
+    expect(accumulatorRecord(withAccumulatorBranch)).toMatchObject({
+      acquisitionKind: "accumulator-batched",
+      currentOwnerPubkey: OWNER,
+    });
+    expect(onlyRootAnchorEvent(bondedBlocked)).toMatchObject({
+      validationStatus: "ignored",
+      reason: "root_anchor_name_already_claimed",
+      affectedName: "alice",
+    });
+    expect(withAccumulatorBranch.names.get("alice")).toMatchObject({
+      acquisitionKind: "accumulator-batched",
+      currentOwnerPubkey: OWNER,
+    });
+    expect(onlyRootAnchorEvent(bondedApplied)).toMatchObject({
+      validationStatus: "applied",
+      reason: "root_anchor_batch_minted",
+      affectedName: null,
+    });
+    expect(withoutAccumulatorBranch.names.get("alice")).toMatchObject({
+      acquisitionKind: "bonded",
+      currentOwnerPubkey: PRIORITY_OWNER,
     });
   });
 
