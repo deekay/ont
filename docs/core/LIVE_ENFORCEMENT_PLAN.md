@@ -135,9 +135,12 @@ verbatim rulings.
 
 ## 7. Availability-mode DA-fork closure — the `reduceBlock` §6 `modeAt` evidence contract
 
-> **Status: DESIGN increment (2026-07-10). Writer: ClaudeleLunatique. Adversarial review: Fabilist
-> (third-frame, events `932adaac` + `7b116ff2`) — DUE on this section before the §6 `modeAt` deltas
-> are cut. Builder: ChatLunatique. Grounds the availability-mode arm of the composed `reduceBlock`
+> **Status: DESIGN increment (2026-07-10; delta-3 corrected 2026-07-11). Writer: ClaudeleLunatique.
+> Adversarial review: Fabilist — third-frame (events `932adaac` + `7b116ff2`) folded @ `fdba857e`;
+> **fourth-frame verdict COMPLETE** (event `e2a2a736` + `OUTBOX/ONT_DA_AVAILABILITY_MODEL_ADVERSARIAL_VERDICT_20260710.md`)
+> — its cites re-verified cold-frame (ClaudeleLunatique, 2026-07-11) and folded here: **§7.4 delta-3
+> corrected to {mint, stall}; see §7.5.** Builder: ChatLunatique — cut the §6 `modeAt` deltas from the
+> CORRECTED §7.4, NOT the original. Grounds the availability-mode arm of the composed `reduceBlock`
 > reducer (the §6 `modeAt` height-keyed seam landed behavior-neutral @ `da7aa192`).** No new consensus
 > law: this is imperative-shell (indexer fetch/finalize) policy; `consensus/src` stays zero-diff.
 
@@ -202,7 +205,10 @@ After Move B what remains is a **clean 1-of-N mirror-reachability liveness assum
 `h+W+C` deadline?"* That is an **eclipse-resistance property in the standard gossip class** (early-
 Bitcoin's posture, #82) — **not a novel trust hole.** The whole win is the reduction
 **novel-DA-safety-fork → standard-network-reachability-liveness**, and it must be **legible** in the
-reducer, never silently rendered "safety-closed." This is the already-flagged residual: #49's
+reducer, never silently rendered "safety-closed." **Crucially, this is a liveness floor only because
+an unreachable-by-deadline root now *stalls* the name (§7.4 delta-3, §7.5), it does not *free* it** — the
+earlier delta-3 "excluded, name free" terminal would have turned this same reachability question back into
+a safety fork (§7.5 records why it was dropped). This is the already-flagged residual: #49's
 ratification (DECISIONS L1066-1069) names the 1-of-N archive as *the DA residual, external-review
 priority #1*, and #84 (L2263-2265) writes *"Fork preserved."* #90 archival-floor (operator-funded
 public archive + deterministic mirror instructions = the 1-of-N floor) is the owed delivery.
@@ -214,11 +220,15 @@ public archive + deterministic mirror instructions = the 1-of-N floor) is the ow
 2. **`includable` against #90's content-addressed archive as THE evidence input** — Move B, the
    load-bearing delta. Content-addressing + hash-reverify-on-serve; not live-fetch, not operator-local
    served-bytes. Everything else is a clock on the fork without this.
-3. **Model `reserved-pending-material` explicitly** — an anchored batch **reserves the name** (blocks
-   later same-name claims) until it either reconstructs-in-window **against the archive** (→ mint) or
-   passes `h+W+C` unreconstructed **against the archive** (→ excluded, name free). Never let an
-   anchored-but-unresolved batch reserve **nothing** while the cursor moves past it — the precise
-   defect today (`runner.ts:77`).
+3. **Model `reserved-pending-material` explicitly — {mint, stall}, NO off-chain freeing.** An anchored
+   batch **reserves the name** (blocks later same-name claims) and holds it reserved until its bytes
+   **reconstruct-in-window against the archive** (fetch-by-root + hash — positive, observer-independent)
+   ⇒ **mint**. If the bytes never reconstruct, the name stays **`reserved-pending-material` indefinitely**;
+   the only transition is **stall → mint**. **There is NO off-chain `excluded → name free` terminal**
+   — the original delta-3 had one ("passes `h+W+C` unreconstructed against the archive → excluded, name
+   free"); it is **dropped** as unsound (§7.5). Never let an anchored-but-unresolved batch reserve
+   **nothing** while the cursor moves past it — the precise defect today (`runner.ts:77`). (Freeing a
+   withheld-forever name is a *separate, harder* problem escalated in §7.5 — the builder wires stall-only.)
 4. **Encode #11 ≤4-char mandatory-bond-first pre-routing** in the reducer (pre-hoc-safe, length-
    objective, quarantined straight to L1 — never touches the withhold-able path), and **mark LOUDLY**
    that 5+ char (#7 gate + contention) contention-detection is **archive-dependent liveness, not
@@ -229,4 +239,56 @@ public archive + deterministic mirror instructions = the 1-of-N floor) is the ow
 **Guardrails + acceptance:** `consensus/src` zero-diff (shell/driver only); hermetic-first per §5. The
 §3 slice-battery (accept writes records / withheld → no mutation / bad bundle → reject / bare anchor →
 read-path-only) extends with a **two-operator selective-withhold** case proving both operators reach
-the *same* `includable` verdict once evidence is the shared archive — the fork-closure regression test.
+the *same* verdict — and per the delta-3 correction that verdict is **{mint | stay-reserved}, never
+free**: a withheld root leaves the name `reserved-pending-material` on **both** operators (no divergent
+"one mints, one frees"), which is the fork-closure regression test.
+
+### 7.5 Correction — the off-chain `excluded → name free` terminal is unsound and is dropped
+
+> **Fabilist fourth-frame verdict (event `e2a2a736`, memo `OUTBOX/ONT_DA_AVAILABILITY_MODEL_ADVERSARIAL_VERDICT_20260710.md`),
+> cites re-verified from a cold frame by ClaudeleLunatique 2026-07-11. Supersedes Fabilist's earlier §7-gate
+> finding-1 (a *three*-terminal fix) — that went one step too clever; the deeper pass below drops the
+> exclude terminal entirely.**
+
+The original §7.4 delta-3 said an anchored batch that *"passes `h+W+C` unreconstructed against the
+archive"* is **excluded → name free**. That negative terminal is **unsound off-chain** and is dropped.
+The positive terminal (reconstructs → mint) is fine; only the negative one breaks. Why:
+
+- **It is a receipt-time / reachability predicate in disguise.** "Unreconstructed against the archive"
+  is observer-independent only if the archive is a *single canonical committed object*. But #90 is
+  **1-of-N mirrors**, so "unreconstructed" collapses to *"unreachable-by-**me** by **my** deadline"* — a
+  per-operator reachability fact, not a chain-view-deterministic one.
+- **The algebra forbids exactly this.** `docs/research/DA_WINDOWS.md:66-68` (verified verbatim): *"There
+  is no wall-clock or receipt-time input anywhere in the algebra — that is the entire point … it is what
+  makes the predicate pure and chain-view-deterministic."* And `docs/DESIGN.md:690-693` (verified): I4
+  makes a *"non-inclusion-over-time proof … a liability."* "Unreconstructed by a deadline" is precisely
+  a non-inclusion-over-time proof.
+- **So it re-opens the very fork Move A/B closes.** Two honest operators with different mirror
+  reachability reach *different* exclude verdicts → one frees the name, one keeps it reserved → and
+  #82 finalize-once (which locks any *verifier-accepted* verdict, `DECISIONS` L2168-2171) **locks the
+  split permanently.** The exclude terminal relocates the withhold-fork into the negative branch instead
+  of eliminating it. (Fabilist's own §4 committed-manifest was an attempt to make "unreconstructed"
+  observer-independent; it fails — it needs Bitcoin-anchoring → a funded permissioned DA layer, or a
+  bonded signer → the shape #82-invariant-2 already rejects. Both give back the trusted set.)
+
+**Corrected terminal set = {mint, stall}** (§7.4 delta-3): mint is a *positive* content-addressed fact;
+stall is `reserved-pending-material` forever, transitioning only stall → mint. **No off-chain freeing.**
+
+**Escalated open question — the real hard problem (needs DK's call, not silently resolved by a timeout):**
+freeing a *withheld-forever* name. The honest tradeoff, now unmasked:
+
+- **stall-forever** (the safe default we adopt): **never forks**, but a single withheld anchor
+  **permanently freezes that name** — a cheap namespace-denial DoS (one gate-fee per name burned forever).
+- **free-on-off-chain-timeout** (the dropped delta-3): prevents that griefing-freeze, but **forks**
+  (unsound, above).
+- **free only on a positive on-chain event** (#84's forced "O2" availability attestation): the
+  principled resolution — but **#84 itself flagged O2 as circular / DA-gated** (you need the data to
+  attest the data — "same shape #100 was found circular").
+
+So the genuine open problem is **not** "how does a resolver detect availability" (solved: fetch-by-root,
+else stall) but **"how does a withheld-forever name get freed without an off-chain timeout (forks) and
+without a trusted party (defeats the goal)?"** That is the O2 circularity, and it is the next thing worth
+breaking — flagged here, **not** closed. Confirmed non-issues from the same pass: the backfill vs
+finalize-once race is a **false alarm** (#82 finalize-once + #83 uniform-reject mean two honest resolvers
+can't finalize differently from the *same* bytes — a split needs *different* bytes, i.e. the equivocation
+hole, which content-addressing removes).
