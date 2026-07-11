@@ -13,6 +13,7 @@ import {
   createEmptyState,
   reduceBlock,
   type ResolvedAccumulatorBatchedAcquisitionFacts,
+  type ResolvedAuctionAcquisitionFacts,
   type ResolvedBatchEntry,
   type ResolvedBondedAcquisitionFacts,
   type ResolvedBatchMaterial,
@@ -50,6 +51,30 @@ const resolvedBondedAcquisitionFactsKeysAreClosed: Assert<
     | "bondValueSats"
     | "bondFloorSats"
     | "maturityHeight"
+  >
+> = true;
+const resolvedAuctionAcquisitionFactsKeysAreClosed: Assert<
+  Equal<
+    keyof ResolvedAuctionAcquisitionFacts,
+    | "acquisitionKind"
+    | "claimCommitTxid"
+    | "claimRevealTxid"
+    | "claimHeight"
+    | "winningCommitBlockHeight"
+    | "winningCommitTxIndex"
+    | "bondOutpointTxid"
+    | "bondOutpointVout"
+    | "bondValueSats"
+    | "bondFloorSats"
+    | "maturityHeight"
+    | "auctionId"
+    | "auctionLotCommitment"
+    | "winningBidderCommitment"
+    | "winningBidTxid"
+    | "winningBidBondVout"
+    | "bondReleaseHeight"
+    | "transcript"
+    | "completeness"
   >
 > = true;
 const resolvedBlockEvidenceKeysAreClosed: Assert<
@@ -153,6 +178,7 @@ describe("reduceBlock Delta A.0 — RootAnchor creation seam", () => {
     expect(resolvedBatchEntryKeysAreClosed).toBe(true);
     expect(resolvedAccumulatorBatchedAcquisitionFactsKeysAreClosed).toBe(true);
     expect(resolvedBondedAcquisitionFactsKeysAreClosed).toBe(true);
+    expect(resolvedAuctionAcquisitionFactsKeysAreClosed).toBe(true);
     expect(resolvedBlockEvidenceKeysAreClosed).toBe(true);
   });
 

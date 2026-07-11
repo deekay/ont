@@ -44,22 +44,6 @@ const BONDED_ACQUISITION: ResolvedAcquisitionFacts = {
   bondFloorSats: 100_000n,
   maturityHeight: 400,
 };
-const AUCTION_ACQUISITION: ResolvedAcquisitionFacts = {
-  acquisitionKind: "auction",
-  claimCommitTxid: h32("c1"),
-  claimRevealTxid: h32("c2"),
-  bondOutpointTxid: h32("c3"),
-  bondOutpointVout: 2,
-  bondValueSats: 200_000n,
-  bondFloorSats: 100_000n,
-  maturityHeight: 500,
-  auctionId: h32("c4"),
-  auctionLotCommitment: h32("c5"),
-  winningBidderCommitment: h32("c6"),
-  winningBidTxid: h32("c7"),
-  bondReleaseHeight: 10_000,
-};
-
 function rootAnchorTx(input: {
   readonly txid?: string;
   readonly blockHeight?: number;
@@ -274,20 +258,4 @@ describe("reduceBlock Delta B.0 - accumulator write eligibility and acquisition 
     expect(state.names.get("david")).not.toHaveProperty("assuranceProvenance");
   });
 
-  it("keeps auction acquisition facts as an explicit unsupported B2 slot", () => {
-    const state = createEmptyState();
-    const before = new Map(state.names);
-    const { event } = reduceRootAnchor({
-      state,
-      material: material([{ name: "david", ownerPubkey: OWNER, acquisition: AUCTION_ACQUISITION }]),
-    });
-
-    expect(event).toMatchObject({
-      typeName: "ROOT_ANCHOR",
-      validationStatus: "ignored",
-      reason: "root_anchor_unsupported_acquisition_kind",
-      affectedName: "david",
-    });
-    expect(state.names).toEqual(before);
-  });
 });

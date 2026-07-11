@@ -61,7 +61,8 @@ const ROOT_ANCHOR_REASONS = [
   "root_anchor_no_availability_evidence",
   "root_anchor_availability_mismatch",
   "root_anchor_o1_first_servable_height_mismatch",
-  "root_anchor_unsupported_acquisition_kind",
+  "root_anchor_auction_winner_not_selected",
+  "root_anchor_auction_winner_owner_mismatch",
   "root_anchor_duplicate_committed_name",
   "root_anchor_name_already_claimed",
   "root_anchor_batch_minted",
@@ -255,7 +256,7 @@ function expectAccumulatorFinalizationOnlyChanged(
 }
 
 describe("reduceBlock Delta A.2b - RootAnchor acceptance matrix", () => {
-  it("keeps the source verdict inventory to the locked 14 RootAnchor reasons", () => {
+  it("keeps the source verdict inventory to the locked 15 RootAnchor reasons", () => {
     const source = readFileSync(resolve(packageSrc, "engine.ts"), "utf8");
     const reasons = new Set(
       [...source.matchAll(/reason: "(root_anchor_[^"]+)"/g)].map((match) => match[1])
@@ -349,11 +350,14 @@ describe("reduceBlock Delta A.2b - RootAnchor acceptance matrix", () => {
     });
   });
 
-  it("R10b ignores auction acquisition facts as the explicit B2 unsupported slot", () => {
+  it("R10b ignores auction acquisition facts whose winner cannot be selected", () => {
     const auctionAcquisition = {
       acquisitionKind: "auction",
       claimCommitTxid: h32("c1"),
       claimRevealTxid: h32("c2"),
+      claimHeight: 240,
+      winningCommitBlockHeight: 200,
+      winningCommitTxIndex: 3,
       bondOutpointTxid: h32("c3"),
       bondOutpointVout: 2,
       bondValueSats: 200_000n,
@@ -363,7 +367,20 @@ describe("reduceBlock Delta A.2b - RootAnchor acceptance matrix", () => {
       auctionLotCommitment: h32("c5"),
       winningBidderCommitment: h32("c6"),
       winningBidTxid: h32("c7"),
+      winningBidBondVout: 2,
       bondReleaseHeight: 10_000,
+      transcript: {
+        bids: [{
+          txid: h32("c7"),
+          bondVout: 2,
+          bidderPubkey: OWNER,
+          bidAmountSats: 200_000n,
+          accepted: true,
+          blockHeight: 210,
+          txIndex: 4,
+        }],
+      },
+      completeness: { complete: false, reason: "incomplete" },
     } satisfies ResolvedAcquisitionFacts;
 
     expectIgnoredNoWrites({
@@ -371,7 +388,7 @@ describe("reduceBlock Delta A.2b - RootAnchor acceptance matrix", () => {
         material: material([{ name: "alice", ownerPubkey: OWNER, acquisition: auctionAcquisition }]),
       }),
       availabilityMode: "O1-collapsed",
-      reason: "root_anchor_unsupported_acquisition_kind",
+      reason: "root_anchor_auction_winner_not_selected",
       affectedName: "alice",
     });
   });
@@ -546,13 +563,14 @@ describe("reduceBlock Delta A.2b - RootAnchor acceptance matrix", () => {
     expect((record as AccumulatorBatchedNameRecord).assuranceProvenance.priorityBearing).toBe(false);
   });
 
-  it("N1 pins bonded priority minting as live while auction settlement remains deferred", () => {
+  it("N1 pins bonded and auction priority minting as live", () => {
     const source = readFileSync(resolve(packageSrc, "engine.ts"), "utf8");
 
     expect(source).toMatch(/^\s+acquisitionKind: "accumulator-batched"/m);
     expect(source).toMatch(/^\s+acquisitionKind: "bonded"/m);
-    expect(source).toContain('reason: "root_anchor_unsupported_acquisition_kind"');
-    expect(source).not.toContain('acquisitionKind: "auction" as const');
+    expect(source).toMatch(/^\s+acquisitionKind: "auction"/m);
+    expect(source).toContain('reason: "root_anchor_auction_winner_not_selected"');
+    expect(source).toContain('reason: "root_anchor_auction_winner_owner_mismatch"');
     expect(source).toContain('reason: "root_anchor_name_already_claimed"');
   });
 });

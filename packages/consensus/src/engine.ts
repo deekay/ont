@@ -25,6 +25,11 @@ import { claimPathEligibility } from "./claim-path-eligibility.js";
 import { evidenceBindsToAnchor, type ServedEvidence } from "./da-verdict.js";
 import { modeAt, type AvailabilityMode, type LaunchParams } from "./params.js";
 import {
+  selectAuctionWinner,
+  type AuctionResolutionTranscript,
+  type AuctionTranscriptCompleteness,
+} from "./auction-resolution.js";
+import {
   acceptRecoverOwner,
   type RecoveryDescriptorEvidence,
   type RecoveryParams,
@@ -183,6 +188,9 @@ export interface ResolvedAuctionAcquisitionFacts {
   readonly acquisitionKind: "auction";
   readonly claimCommitTxid: string;
   readonly claimRevealTxid: string;
+  readonly claimHeight: number;
+  readonly winningCommitBlockHeight: number;
+  readonly winningCommitTxIndex: number;
   readonly bondOutpointTxid: string;
   readonly bondOutpointVout: number;
   readonly bondValueSats: bigint;
@@ -192,7 +200,10 @@ export interface ResolvedAuctionAcquisitionFacts {
   readonly auctionLotCommitment: string;
   readonly winningBidderCommitment: string;
   readonly winningBidTxid: string;
+  readonly winningBidBondVout: number;
   readonly bondReleaseHeight: number;
+  readonly transcript: AuctionResolutionTranscript;
+  readonly completeness: AuctionTranscriptCompleteness;
 }
 
 export type ResolvedAcquisitionFacts =
@@ -619,23 +630,13 @@ function applyRootAnchorCandidate(
     };
   }
 
-  const unsupportedAcquisition = material.committedEntries.find(
-    (entry) => entry.acquisition?.acquisitionKind === "auction"
-  );
-  if (unsupportedAcquisition !== undefined) {
-    return {
-      validationStatus: "ignored",
-      reason: "root_anchor_unsupported_acquisition_kind",
-      affectedName: unsupportedAcquisition.name
-    };
-  }
-
-  const records = material.committedEntries.map((entry): NameRecord => {
+  const records: NameRecord[] = [];
+  for (const entry of material.committedEntries) {
     const leafKeyHex = sha256Hex(utf8ToBytes(entry.name));
     const acquisition = entry.acquisition;
 
     if (acquisition?.acquisitionKind === "bonded") {
-      return {
+      records.push({
         name: entry.name,
         status: getClaimedNameStatus({
           isRevealConfirmed: true,
@@ -657,10 +658,65 @@ function applyRootAnchorCandidate(
         lastStateHeight: acquisition.claimHeight,
         winningCommitBlockHeight: acquisition.winningCommitBlockHeight,
         winningCommitTxIndex: acquisition.winningCommitTxIndex,
-      } satisfies BondBackedNameRecord;
+      } satisfies BondBackedNameRecord);
+      continue;
     }
 
-    return {
+    if (acquisition?.acquisitionKind === "auction") {
+      const winnerVerdict = selectAuctionWinner(
+        acquisition.transcript,
+        acquisition.completeness,
+        { txid: acquisition.winningBidTxid, bondVout: acquisition.winningBidBondVout }
+      );
+
+      if (!winnerVerdict.selected || winnerVerdict.winner === null) {
+        return {
+          validationStatus: "ignored",
+          reason: "root_anchor_auction_winner_not_selected",
+          affectedName: entry.name
+        };
+      }
+
+      if (winnerVerdict.winner.bidderPubkey !== entry.ownerPubkey) {
+        return {
+          validationStatus: "ignored",
+          reason: "root_anchor_auction_winner_owner_mismatch",
+          affectedName: entry.name
+        };
+      }
+
+      records.push({
+        name: entry.name,
+        status: getClaimedNameStatus({
+          isRevealConfirmed: true,
+          continuityIntact: true,
+          currentHeight: event.blockHeight,
+          maturityHeight: acquisition.maturityHeight
+        }),
+        currentOwnerPubkey: entry.ownerPubkey,
+        acquisitionKind: "auction",
+        acquisitionAuctionId: acquisition.auctionId,
+        acquisitionAuctionLotCommitment: acquisition.auctionLotCommitment,
+        acquisitionAuctionBidTxid: acquisition.winningBidTxid,
+        acquisitionAuctionBidderCommitment: acquisition.winningBidderCommitment,
+        acquisitionBondReleaseHeight: acquisition.bondReleaseHeight,
+        claimCommitTxid: acquisition.claimCommitTxid,
+        claimRevealTxid: acquisition.claimRevealTxid,
+        claimHeight: acquisition.claimHeight,
+        maturityHeight: acquisition.maturityHeight,
+        requiredBondSats: acquisition.bondFloorSats,
+        currentBondTxid: acquisition.bondOutpointTxid,
+        currentBondVout: acquisition.bondOutpointVout,
+        currentBondValueSats: acquisition.bondValueSats,
+        lastStateTxid: acquisition.claimRevealTxid,
+        lastStateHeight: acquisition.claimHeight,
+        winningCommitBlockHeight: acquisition.winningCommitBlockHeight,
+        winningCommitTxIndex: acquisition.winningCommitTxIndex,
+      } satisfies BondBackedNameRecord);
+      continue;
+    }
+
+    records.push({
       name: entry.name,
       status: "pending" as const,
       currentOwnerPubkey: entry.ownerPubkey,
@@ -679,8 +735,8 @@ function applyRootAnchorCandidate(
       lastStateHeight: event.blockHeight,
       winningCommitBlockHeight: event.blockHeight,
       winningCommitTxIndex: event.txIndex,
-    } satisfies AccumulatorBatchedNameRecord;
-  });
+    } satisfies AccumulatorBatchedNameRecord);
+  }
   const seenNames = new Set<string>();
   for (const record of records) {
     if (seenNames.has(record.name)) {
