@@ -230,7 +230,17 @@ public archive + deterministic mirror instructions = the 1-of-N floor) is the ow
    **nothing** while the cursor moves past it — the precise defect today (`runner.ts:77`). (Freeing a
    withheld-forever name is a *separate, harder* problem escalated in §7.5 — the builder wires stall-only.)
 4. **Encode #11 ≤4-char mandatory-bond-first pre-routing** in the reducer (pre-hoc-safe, length-
-   objective, quarantined straight to L1 — never touches the withhold-able path), and **mark LOUDLY**
+   objective, quarantined straight to L1 — never touches the withhold-able path). **Disposition is
+   LEAF-DROP, per ratified #52 + #11 — NOT batch-poison.** A ≤4-char committed leaf creates no
+   provisional owner (no name-state write) and is quarantined to the bonded/L1 path, but **the rest of
+   the batch still mints** and **`Σ g` still sums the short leaf** (the batch enforces in FULL — the
+   short name rides the root reconstruction + the gate-fee sum; only the *write-set* excludes it). A
+   whole-batch `reject`/`continue` on the presence of a short leaf is the explicitly-wrong "poison the
+   whole batch" path (#52) and a griefing vector the moment a batch carries >1 name — one short leaf
+   would destroy every honest co-committed claim. Implement as a POST-accept write-filter in the
+   `enforceBatchedClaims` driver (drop ≤4-byte-name entries from the collected records), not a
+   pre-enforcement gate; the drop is non-silent (the leaf stays in the committed batch material, so a
+   claimant can verify its own leaf — the #52 leaf-drop timing invariant). Also **mark LOUDLY**
    that 5+ char (#7 gate + contention) contention-detection is **archive-dependent liveness, not
    self-closing safety** (per §7.3; the "deferral must be visible, never silent" discipline). #84's O3
    does NOT self-quarantine the tail — detection is itself DA-gated (circular, same shape #100 was
