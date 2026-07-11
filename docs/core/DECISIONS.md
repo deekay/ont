@@ -2732,6 +2732,38 @@ imply own-node/Esplora upgrades signet independence (that waits on `GA-SIGNET-SO
 **Reopen trigger.** DK pulls the own-node provider (8c) into the signet demo, or mainnet enters scope (where it
 earns forge-resistance), or a batched-Esplora / alternate transport is needed for range cost.
 
+*(#100 = signet-solution-verify / GA-SIGNET-SOLUTION is intentionally uncanonized — parked/foreclosed on
+private signet per prototype-demo-network (#36); design-of-record lives in `GA_SIGNET_SOLUTION_SPEC.md` and is
+recorded here only if it reopens off a chain we don't control.)*
+
+101. reducer-sole-sink: `reduceBlock` (`@ont/consensus`) becomes the **single authority** that awards durable
+name ownership; the live direct writer `apps/indexer/src/enforce-batched-claims.ts` — which verifies a batch and
+`nameStateStore.putMany`s hand-built records — is retired as a **decider**. `@ont/claim-path`'s
+`enforceBatchedClaim` is **repurposed as the evidence resolver** feeding `ResolvedBlockEvidence`; a **non-deciding
+projection adapter** joins reducer output with a per-name serving side channel (`trace`/`proofBundle`/`vout`/
+`batchLocalIndex`) into `NameStateRecord`s; `@ont/name-state-store` becomes a **projection** of reducer output,
+never an independent writer.
+
+*Status: **DK-ratified** (event "do it", 2026-07-11, off the B2 acquisition-complete milestone). Name-state-**authority**
+change, NOT a trust-model change — `signet-solution-gate` (#95) holds, header chain stays provider-trusted, the
+`@ont/consensus` + `@ont/claim-path` predicate logic is reused unchanged. Governs
+[REDUCER_SOLE_SINK_CUTOVER_SPEC.md](./REDUCER_SOLE_SINK_CUTOVER_SPEC.md); recorded by ClaudeleLunatique.*
+
+**The call.** The audited reducer trusts a pre-resolved evidence seam and runs **no** gate-fee/completeness itself
+(`engine.ts` has no `enforceGateFee` call) — those stages live only in the direct driver's `enforceBatchedClaim`
+today. So the cutover re-homes that verification into the **evidence resolver** (Invariant B: same accepted set,
+no silent gate-fee loss), makes the reducer the sole ownership authority (Invariant A: names written == names the
+reducer minted this block, derived by adapter-side before/after key-diff since the mint is add-only,
+`engine.ts:751-757`), and keeps the store byte-identical for serving (Invariant C). Sliced **C0** differential
+parity (shadow, no prod write, `consensus/src` zero-diff) → **C1** reorg-symmetric replay (N1) + boot/hydration
+model → **C2** flip + retire the direct writer (guard `reduceblock-authority.test.ts` two sinks → one). The
+cutover **adopts the reducer's stricter whole-batch-reject** on duplicate/already-claimed/size-mismatch
+(`engine.ts:600-606,740-757`) as new live behavior (§5a) — flagged to DK, reversible on request.
+
+**Reopen trigger.** DK prefers the direct writer's permissive per-entry write semantics over the reducer's
+whole-batch-reject; or the persistence/boot model (H2 durable-`OntState` vs H3 replay, §8) forces a design change;
+or bonded/auction lifecycle minting (out of scope here) later needs the sink contract widened.
+
 ## Fairness Principles To Carry Into The Launch Rewrite
 
 The rewritten launch draft should explicitly state:

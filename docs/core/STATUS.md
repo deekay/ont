@@ -187,7 +187,10 @@ design choice, the numbers are calibration.
   that is actually live): `accumulator-batched` mint parity between the reducer and the live authority,
   reorg-symmetric replay across paths (N1), the resolver trace/provenance the live path serves, and
   then retiring the live direct writer (`apps/indexer/src/enforce-batched-claims.ts` →
-  `@ont/name-state-store`) — a **DK-gated** step. **Separately owed for lifecycle completeness** (not a
+  `@ont/name-state-store`) — a **DK-gated** step, now ratified + spec'd as reducer-sole-sink
+  (#101): see [REDUCER_SOLE_SINK_CUTOVER_SPEC.md](./REDUCER_SOLE_SINK_CUTOVER_SPEC.md),
+  slices C0 (differential parity) → C1 (reorg-symmetric N1) → C2 (flip + retire).
+  **Separately owed for lifecycle completeness** (not a
   cutover blocker — the live authority mints only `accumulator-batched` too, so bonded/auction is
   greenfield for *both* sinks): both mint through the reducer as consensus composition over a
   **resolved acquisition-evidence seam** (mirroring the existing `ResolvedBlockEvidence.recovery`
