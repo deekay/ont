@@ -189,11 +189,13 @@ design choice, the numbers are calibration.
   then retiring the live direct writer (`apps/indexer/src/enforce-batched-claims.ts` →
   `@ont/name-state-store`) — a **DK-gated** step. **Separately owed for lifecycle completeness** (not a
   cutover blocker — the live authority mints only `accumulator-batched` too, so bonded/auction is
-  greenfield for *both* sinks): `auction` settlement is composition-only (existing `AuctionBid` wire
-  event + `auction-resolution.ts`, no new wire), whereas `bonded` short-name claims need **new wire
-  event vocabulary** (bond-claim commit/reveal do not exist in `@ont/wire` today) — a wire → consensus
-  → evidence → reducer lift. This split is the main reason the project is ready for controlled
-  integration but not a finished ownership-state product.
+  greenfield for *both* sinks): both mint through the reducer as consensus composition over a
+  **resolved acquisition-evidence seam** (mirroring the existing `ResolvedBlockEvidence.recovery`
+  facts, not producer/wire fields — the inert seam being added in B0). `auction` settlement is then
+  composition-only (existing `AuctionBid` event provenance + `auction-resolution.ts` predicates);
+  `bonded` short-name claims additionally need a resolver/adapter path that witnesses the bond-claim
+  commit/reveal from L1 into that seam (no such path exists yet). This split is the main reason the
+  project is ready for controlled integration but not a finished ownership-state product.
 - **Assurance semantics are too coarse.** CLI/web/mobile now distinguish `bitcoin-verified` from
   `resolver-mirror` for the private-signet demo, but that is still not the full ladder a product needs:
   anchor included, batch member, provisional claim, finalized ownership at block X, and current through
