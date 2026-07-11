@@ -12,6 +12,7 @@ import {
   applyBlockTransactionsWithProvenance,
   createEmptyState,
   reduceBlock,
+  type ResolvedBatchEntry,
   type ResolvedBatchMaterial,
   type ResolvedBlockEvidence,
 } from "./engine.js";
@@ -26,6 +27,9 @@ type Assert<T extends true> = T;
 
 const resolvedBatchMaterialKeysAreClosed: Assert<
   Equal<keyof ResolvedBatchMaterial, "committedEntries">
+> = true;
+const resolvedBatchEntryKeysAreClosed: Assert<
+  Equal<keyof ResolvedBatchEntry, "acquisition" | "name" | "ownerPubkey">
 > = true;
 const resolvedBlockEvidenceKeysAreClosed: Assert<
   Equal<keyof ResolvedBlockEvidence, "availabilityByAnchor" | "batchMaterialByAnchor" | "recovery">
@@ -125,6 +129,7 @@ describe("reduceBlock Delta A.0 — RootAnchor creation seam", () => {
 
   it("keeps resolved evidence types closed to raw batch leaves", () => {
     expect(resolvedBatchMaterialKeysAreClosed).toBe(true);
+    expect(resolvedBatchEntryKeysAreClosed).toBe(true);
     expect(resolvedBlockEvidenceKeysAreClosed).toBe(true);
   });
 

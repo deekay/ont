@@ -21,6 +21,7 @@ import {
 } from "@ont/wire";
 
 import { getClaimedNameStatus } from "./state.js";
+import { claimPathEligibility } from "./claim-path-eligibility.js";
 import { evidenceBindsToAnchor, type ServedEvidence } from "./da-verdict.js";
 import { modeAt, type AvailabilityMode, type LaunchParams } from "./params.js";
 import {
@@ -31,6 +32,7 @@ import {
 
 const RECOVER_OWNER_FLAG_CANCEL = 0x01;
 const RAW_BATCH_MATERIAL_KEYS = ["baseLeaves", "servedLeaves"] as const;
+const SHORT_NAME_THRESHOLD_BYTES = 4;
 
 export type AcquisitionKind = "accumulator-batched" | "bonded" | "auction";
 export const ASSURANCE_TIERS = [
@@ -150,11 +152,45 @@ export interface OntState {
 export interface ResolvedBatchEntry {
   readonly name: string;
   readonly ownerPubkey: string;
+  readonly acquisition?: ResolvedAcquisitionFacts;
 }
 
 export interface ResolvedBatchMaterial {
   readonly committedEntries: readonly ResolvedBatchEntry[];
 }
+
+// Verifier-resolved acquisition facts for future bonded/auction minting. This
+// is evidence-layer data consumed by reducer composition, not producer authority.
+export interface ResolvedBondedAcquisitionFacts {
+  readonly acquisitionKind: "bonded";
+  readonly claimCommitTxid: string;
+  readonly claimRevealTxid: string;
+  readonly bondOutpointTxid: string;
+  readonly bondOutpointVout: number;
+  readonly bondValueSats: bigint;
+  readonly bondFloorSats: bigint;
+  readonly maturityHeight: number;
+}
+
+export interface ResolvedAuctionAcquisitionFacts {
+  readonly acquisitionKind: "auction";
+  readonly claimCommitTxid: string;
+  readonly claimRevealTxid: string;
+  readonly bondOutpointTxid: string;
+  readonly bondOutpointVout: number;
+  readonly bondValueSats: bigint;
+  readonly bondFloorSats: bigint;
+  readonly maturityHeight: number;
+  readonly auctionId: string;
+  readonly auctionLotCommitment: string;
+  readonly winningBidderCommitment: string;
+  readonly winningBidTxid: string;
+  readonly bondReleaseHeight: number;
+}
+
+export type ResolvedAcquisitionFacts =
+  | ResolvedBondedAcquisitionFacts
+  | ResolvedAuctionAcquisitionFacts;
 
 export interface ResolvedBlockEvidence {
   readonly batchMaterialByAnchor: ReadonlyMap<string, ResolvedBatchMaterial>;
@@ -477,6 +513,10 @@ function evidenceCarriesRawBatchMaterial(evidence: ResolvedBlockEvidence): boole
   return false;
 }
 
+function canWriteAccumulatorBatchedName(name: string): boolean {
+  return claimPathEligibility(utf8ToBytes(name).length, SHORT_NAME_THRESHOLD_BYTES).cheapClaimAllowed;
+}
+
 function applyRootAnchorCandidate(
   state: OntState,
   event: ParsedOntEvent & { readonly type: EventType.RootAnchor; readonly payload: RootAnchorEvent },
@@ -614,7 +654,8 @@ function applyRootAnchorCandidate(
     }
   }
 
-  for (const record of records) {
+  const accumulatorWriteSet = records.filter((record) => canWriteAccumulatorBatchedName(record.name));
+  for (const record of accumulatorWriteSet) {
     state.names.set(record.name, record);
   }
 

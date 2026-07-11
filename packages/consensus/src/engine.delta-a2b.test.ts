@@ -382,7 +382,7 @@ describe("reduceBlock Delta A.2b - RootAnchor acceptance matrix", () => {
     expect(state.names.get("alice")).toEqual(incumbent);
   });
 
-  it("R13 mints the full accumulator batch with literal non-priority assurance provenance", () => {
+  it("R13 mints write-eligible accumulator names with literal non-priority assurance provenance", () => {
     const tx = rootAnchorTx({ batchSize: 2 });
     const { state, event } = applyRootAnchorSurface({
       tx,
@@ -402,7 +402,7 @@ describe("reduceBlock Delta A.2b - RootAnchor acceptance matrix", () => {
       reason: "root_anchor_batch_minted",
       affectedName: null,
     });
-    expect([...state.names.keys()].sort()).toEqual(["alice", "bob"]);
+    expect([...state.names.keys()].sort()).toEqual(["alice"]);
     expect(state.names.get("alice")).toMatchObject({
       name: "alice",
       status: "pending",
@@ -423,15 +423,7 @@ describe("reduceBlock Delta A.2b - RootAnchor acceptance matrix", () => {
       winningCommitBlockHeight: ANCHOR_HEIGHT,
       winningCommitTxIndex: 0,
     });
-    expect(state.names.get("bob")).toMatchObject({
-      name: "bob",
-      status: "pending",
-      currentOwnerPubkey: OTHER_OWNER,
-      assuranceProvenance: {
-        priorityBearing: false,
-        finalizedAtHeight: null,
-      },
-    });
+    expect(state.names.has("bob")).toBe(false);
   });
 
   it("P1 gives top-level raw-material rejection precedence over batch-size mismatch", () => {
