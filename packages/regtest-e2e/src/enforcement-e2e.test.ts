@@ -10,7 +10,7 @@
 // mutation; (d) a missing fixture material entry in the daemon path THROWS out of the tick so the durable cursor is
 // NOT advanced and NO name-state lands; (e) generated A' fixture material enforces through the same selector path;
 // (f) two operators prove the http-da path: A serves /da/{root}, B fetches via ONT_ENFORCEMENT=http-da, accepts
-// identical state, and fail-closes with no mutation on 404 or tampered served leaves. RED until enforcement-e2e lands.
+// identical state, and holds the cursor with no name-state on 404 or non-reconstructing declared roots.
 import { describe, expect, it } from "vitest";
 import { runEnforcementE2e } from "./enforcement-e2e.js";
 
@@ -81,17 +81,17 @@ describe("runEnforcementE2e (LE-INDEX — daemon-selected enforcement through ru
     expect(r.twoOperatorHttpDa.served.aliceDurable).toEqual(r.accept.aliceDurable);
     expect(r.twoOperatorHttpDa.served.carolDurable).toEqual(r.accept.carolDurable);
 
-    // Operator A withholds the DA record (publisher returns 404): B observes a declared-root miss and writes no names.
-    expect(r.twoOperatorHttpDa.withheld.skippedRoots).toEqual([r.anchoredRoot]);
-    expect(r.twoOperatorHttpDa.withheld.rejectedReason).toBeUndefined();
-    expect(r.twoOperatorHttpDa.withheld.namesWritten).toBe(0);
+    // Operator A withholds the DA record (publisher returns 404): B observes a declared-root miss and holds the cursor.
+    expect(r.twoOperatorHttpDa.withheld.threw).toBe(true);
+    expect(r.twoOperatorHttpDa.withheld.errorMessage).toMatch(/declared DA root unresolved/);
+    expect(r.twoOperatorHttpDa.withheld.cursorHeightAfterRestart).toBe(0);
     expect(r.twoOperatorHttpDa.withheld.anchorInReadPath).toBe(true);
     expect(r.twoOperatorHttpDa.withheld.aliceDurable).toBe(false);
 
-    // Operator A serves tampered DA leaves: B still uses the shared audited core and rejects without mutation.
-    expect(r.twoOperatorHttpDa.tampered.skippedRoots).toEqual([]);
-    expect(r.twoOperatorHttpDa.tampered.rejectedReason).toMatch(/hrns-rejected-at-(availability|completeness)/);
-    expect(r.twoOperatorHttpDa.tampered.namesWritten).toBe(0);
+    // Operator A serves non-reconstructing DA leaves for the declared root: B keeps the root pending, not free/skipped.
+    expect(r.twoOperatorHttpDa.tampered.threw).toBe(true);
+    expect(r.twoOperatorHttpDa.tampered.errorMessage).toMatch(/declared DA root unresolved/);
+    expect(r.twoOperatorHttpDa.tampered.cursorHeightAfterRestart).toBe(0);
     expect(r.twoOperatorHttpDa.tampered.anchorInReadPath).toBe(true);
     expect(r.twoOperatorHttpDa.tampered.aliceDurable).toBe(false);
   }, 15_000);

@@ -108,9 +108,10 @@ parallel impl) to the same verdict.
   `BatchMaterialSource = (anchoredRoot, prevRoot) => BatchMaterial | null` is **synchronous**
   (`apps/indexer/src/enforce-batched-claims.ts:37`, called at line 90), so http-da **pre-fetches
   declared roots at boot into a sync cache** (mirroring fixture-file's boot-load), keyed by
-  `materialKey(anchoredRoot, prevRoot)`; the sync callback reads the cache and returns `null` on a
-  miss (**fail-closed — no mutation**, cleaner than the fixture path's throw, and already permitted
-  by the `| null` return type).
+  `materialKey(anchoredRoot, prevRoot)`. The selector accepts only material fetched by the requested
+  content-addressed root and re-verified to reconstruct that root. A cache miss for a **declared**
+  root throws/pend-stalls the tick (cursor not advanced; `reserved-pending-material`), while an
+  undeclared root still returns `null` as a bare RootAnchor/read-path-only candidate.
   - **Declared roots:** `ONT_DA_ROOTS` (comma-separated `anchoredRoot` list) — the first signet demo
     has exactly one root. **Recommended (7b-A):** keep the seam sync + pre-fetch declared roots.
     **Flagged follow-on (7b-B):** making `BatchMaterialSource` async for runtime root discovery is a
@@ -118,8 +119,9 @@ parallel impl) to the same verdict.
     LE-INVOKE / challenge slice, not here.
 - **Tests** (beside `select-enforcement.test.ts`): a stub HTTP endpoint (or injected fetch) serves a
   known record; the selector pre-fetches + enforces to the **same verdict** as the fixture path for
-  the same material; endpoint-down / 404 / malformed body ⇒ `batchMaterial` returns `null` ⇒ no
-  name-state mutation (fail-closed); `ONT_ENFORCEMENT=http-da` without `ONT_DA_ENDPOINT` ⇒ boot throw.
+  the same material; endpoint-down / 404 / malformed body / non-reconstructing material for a declared
+  root ⇒ `batchMaterial` throws so `runIndexerTick` does **not** advance the cursor; undeclared roots
+  still return `null` and mutate nothing; `ONT_ENFORCEMENT=http-da` without `ONT_DA_ENDPOINT` ⇒ boot throw.
 
 ### 7c — TWO-OPERATOR HERMETIC E2E (regtest-e2e)
 
@@ -129,18 +131,21 @@ parallel impl) to the same verdict.
   fetches, enforces, and writes the **identical** per-name name-state. No bitcoind — reuse the
   faked confirm firewall + the real Bitcoin inclusion verify already in that e2e.
 - **Red/green battery:** (a) record served ⇒ B accepts + mints name-state identical to A's;
-  (b) operator-A withholds (404) ⇒ B rejects at availability, **no mutation**; (c) tampered record
-  (mismatched root, or an underpaid/altered committed name) ⇒ B rejects at completeness/gate-fee,
-  **no mutation** — proving the transport is firewalled, not trusted.
+  (b) operator-A withholds (404) or serves a non-reconstructing body for a declared root ⇒ B
+  **does not advance past the root** and writes no name-state (`reserved-pending-material`, no
+  timeout/free branch); (c) an objectively invalid reconstructed record (for example underpaid
+  anchor fee / altered committed name) rejects with **no mutation** — proving the transport is
+  firewalled, not trusted.
 
 ## 4. Watchpoints (my review gate — CL, hold these)
 
 1. **`consensus/src` zero-diff** — verified by `git diff --stat` on `packages/consensus/src`.
 2. **`HEX_64_LOWER` root guard on both ends** — publisher serve (400 on malformed) and http client
    (validate before fetch). No un-guarded root reaches a lookup or a URL.
-3. **Fail closed at every seam** — malformed / absent / timeout / network error ⇒ `null` ⇒ **no
-   name-state mutation**, never a throw that escapes the seam, never a fabricated record. A 404 and a
-   withheld record are indistinguishable by design.
+3. **Fail closed at every seam** — malformed / absent / timeout / network error remains `null` at
+   the low-level HTTP client. The `http-da` selector must then translate a **declared** unresolved
+   root into a tick-aborting throw/pend (cursor not advanced), while undeclared roots stay `null`
+   and write nothing. No fabricated record; no off-chain timeout/free branch.
 4. **http-da boot guard** — `ONT_ENFORCEMENT=http-da` without `ONT_DA_ENDPOINT` fails closed at boot,
    same as the fixture-file guard.
 5. **One shared enforce core** — operator-B runs the identical `enforceBatchedClaim`; no parallel
@@ -169,8 +174,10 @@ No new DK operator action beyond the existing signet stand-up; two-operator is p
 
 Operator-B, pointed only at operator-A's `GET /da/{root}` over the network (no shared filesystem),
 fetches the DA record, runs the audited `enforceBatchedClaim`, and mints the **same per-name
-name-state** operator-A serves; a withheld (404) or tampered record fails closed with **no
-mutation**; conformance tests pin each path; `consensus/src` is zero-diff. That is
+name-state** operator-A serves; a withheld (404) or non-reconstructing declared root remains
+pending and holds the cursor with **no mutation** and **no timeout/free branch**; objectively
+invalid reconstructed records reject with no mutation; conformance tests pin each path;
+`consensus/src` is zero-diff. That is
 `da-served-transport` satisfied at the availability + full-material tier — independence provable
 across two operators, the censorship-resistance property, claimed honestly.
 

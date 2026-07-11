@@ -2,8 +2,9 @@
 //
 // The ADDITIVE sibling to confirmed-anchor ingest: for each confirmed RootAnchor candidate that carries
 // verified batch-claim material, compose the audited `enforceBatchedClaim` (over the candidate + an injected
-// batch-material seam) and, on accept, write ONE NameStateRecord per committed entry to @ont/name-state-store.
-// A bare RootAnchor (no batch material) writes nothing — the G1/G2/G3 read path is untouched.
+// batch-material seam) and, on accept, write one NameStateRecord per write-eligible committed entry to
+// @ont/name-state-store. A bare RootAnchor (no batch material) writes nothing — the G1/G2/G3 read path is
+// untouched.
 //
 // This is an imperative shell: it RE-DERIVES no consensus rule. `enforceBatchedClaim` decides; the adapters
 // firewall-mint witnesses (recompute-don't-trust); this driver only orchestrates and persists an accept's
@@ -56,7 +57,9 @@ export interface EnforceBatchedClaimsReport {
  * fail-closed, never throwing. The deliberate exceptions are source/persistence failures: a throwing
  * batch-material source and an accept's atomic `putMany` both run OUTSIDE the fail-closed catch, so the tick
  * THROWS OUT (cursor not advanced → retry) rather than silently skipping missing live material or a lost write.
- * On accept it writes ALL committed entries (per LIVE_ENFORCEMENT_PLAN §2a) — never just the bundle's member.
+ * On accept it writes all write-eligible committed entries (per LIVE_ENFORCEMENT_PLAN §2a) — never just the
+ * bundle's member. Short names (≤4 bytes) remain in the committed material / Σg basis, then drop only from
+ * this additive name-state write path because they require the bonded path.
  */
 export async function enforceBatchedClaims(
   candidates: readonly BuildConfirmedBatchAnchorInput[],
@@ -169,9 +172,11 @@ export async function enforceBatchedClaims(
         continue;
       }
 
-      // 7. Accept ⇒ COLLECT one record per committed entry from the VERIFIED committed-entry seam (NOT the
-      //    bundle's single member). The trace is the accepted verdict path; the anchor vout is the decoded one.
-      //    The write is deferred to step 8 so a persistence failure is NOT swallowed by this catch.
+      // 7. Accept ⇒ COLLECT one record per write-eligible committed entry from the VERIFIED committed-entry seam
+      //    (NOT the bundle's single member). Short names (≤4 bytes) are a POST-accept write-filter only: they
+      //    already rode root reconstruction + the Σg gate-fee path above, but create no provisional owner here.
+      //    The trace is the accepted verdict path; the anchor vout is the decoded one. The write is deferred to
+      //    step 8 so a persistence failure is NOT swallowed by this catch.
       const firstServableHeight = verdict.nameStateDelta.firstServableHeight;
       const trace = verdict.trace.map((e) => ({
         step: e.step,
@@ -179,7 +184,10 @@ export async function enforceBatchedClaims(
         reason: e.reason,
         ...(e.evidence === undefined ? {} : { evidence: e.evidence }),
       }));
-      recordsToWrite = material.committedEntries.map((e, batchLocalIndex) => ({
+      const entriesToWrite = material.committedEntries
+        .map((entry, batchLocalIndex) => ({ entry, batchLocalIndex }))
+        .filter(({ entry }) => utf8ToBytes(entry.name).length > 4);
+      recordsToWrite = entriesToWrite.map(({ entry: e, batchLocalIndex }) => ({
         canonicalName: e.name,
         leafKeyHex: sha256Hex(utf8ToBytes(e.name)),
         owner: { kind: "owner-key", ownerPubkeyHex: e.ownerPubkey } as const,
@@ -197,9 +205,10 @@ export async function enforceBatchedClaims(
       continue;
     }
 
-    // 8. ATOMIC persist OUTSIDE the try: write ALL the accepted batch's records in one all-or-nothing putMany.
+    // 8. ATOMIC persist OUTSIDE the try: write the accepted batch's write-eligible records in one
+    //    all-or-nothing putMany.
     //    A persistence failure THROWS OUT of the driver (and runIndexerTick) so the cursor is not advanced and
-    //    the batch retries — never partial or lost name-state ("accept writes all committed entries or none").
+    //    the batch retries — never partial or lost name-state ("accept writes all write-eligible entries or none").
     if (recordsToWrite === null) continue; // only an accept set it; reject/skip/decode-null already `continue`d
     await deps.nameStateStore.putMany(recordsToWrite);
     namesWritten += recordsToWrite.length;

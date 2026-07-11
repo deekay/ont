@@ -9,7 +9,7 @@ import {
   type HttpDaFetch,
   type HttpDaFetchResponse,
 } from "@ont/adapter-da";
-import { deriveOwnerPubkey } from "@ont/protocol";
+import { accumulatorRootOf, deriveOwnerPubkey, sha256Hex, utf8ToBytes } from "@ont/protocol";
 import { describe, expect, it } from "vitest";
 import { selectIndexerEnforcement } from "./select-enforcement.js";
 
@@ -17,15 +17,17 @@ const ROOT = fileURLToPath(new URL("../../../../", import.meta.url));
 const GENERATOR = join(ROOT, "scripts/generate-fixture-batch-material.mjs");
 const OWNER_SECRET = "11".repeat(32);
 const OWNER_PUBKEY = deriveOwnerPubkey(OWNER_SECRET);
-const HTTP_ROOT = "0c".repeat(32);
-const HTTP_PREV_ROOT = "00".repeat(32);
+const HTTP_PREV_ROOT = accumulatorRootOf(new Map());
 const HTTP_OWNER = "22".repeat(32);
-const HTTP_KEY = "33".repeat(32);
-const HTTP_VALUE = "44".repeat(32);
+const HTTP_NAME = "bravo";
+const HTTP_KEY = sha256Hex(utf8ToBytes(HTTP_NAME));
+const HTTP_VALUE = HTTP_OWNER;
+const HTTP_ROOT = accumulatorRootOf(new Map([[HTTP_KEY, HTTP_VALUE]]));
+const OTHER_ROOT = "0d".repeat(32);
 const HTTP_MATERIAL: EncodedBatchMaterial = {
   anchoredRoot: HTTP_ROOT,
   prevRoot: HTTP_PREV_ROOT,
-  committedEntries: [{ name: "bravo", ownerPubkey: HTTP_OWNER }],
+  committedEntries: [{ name: HTTP_NAME, ownerPubkey: HTTP_OWNER }],
   baseLeaves: [],
   servedLeaves: [{ keyHex: HTTP_KEY, valueHex: HTTP_VALUE }],
 };
@@ -107,8 +109,8 @@ describe("selectIndexerEnforcement http-da material reader", () => {
     expect(decoded?.servedLeaves).toEqual(HTTP_MATERIAL.servedLeaves);
   });
 
-  it("caches fetched material under the requested root, then lets enforcement firewall mismatched body roots", async () => {
-    const served = { ...HTTP_MATERIAL, anchoredRoot: "0d".repeat(32) };
+  it("requires the fetched material to bind to the requested content-addressed root", async () => {
+    const served = { ...HTTP_MATERIAL, anchoredRoot: OTHER_ROOT };
     const enforcement = await selectIndexerEnforcement(
       {
         ONT_ENFORCEMENT: "http-da",
@@ -118,15 +120,19 @@ describe("selectIndexerEnforcement http-da material reader", () => {
       { daFetch: fetchReturning([], response(200, encodeEncodedMaterialJson(served))) },
     );
 
-    expect(enforcement!.batchMaterial(HTTP_ROOT, HTTP_PREV_ROOT)).not.toBeNull();
+    expect(() => enforcement!.batchMaterial(HTTP_ROOT, HTTP_PREV_ROOT)).toThrow(/declared DA root unresolved/);
     expect(enforcement!.batchMaterial(served.anchoredRoot, HTTP_PREV_ROOT)).toBeNull();
   });
 
-  it("endpoint-down, 404, and malformed body prefetches fail closed to null material", async () => {
+  it("endpoint-down, 404, malformed body, and non-reconstructing material stall declared roots", async () => {
     for (const daFetch of [
       fetchReturning([], response(404, "")),
       fetchReturning([], response(200, "{")),
       (() => Promise.reject(new Error("down"))) as HttpDaFetch,
+      fetchReturning([], response(200, encodeEncodedMaterialJson({
+        ...HTTP_MATERIAL,
+        servedLeaves: [{ keyHex: HTTP_KEY, valueHex: "44".repeat(32) }],
+      }))),
     ]) {
       const enforcement = await selectIndexerEnforcement(
         {
@@ -136,7 +142,8 @@ describe("selectIndexerEnforcement http-da material reader", () => {
         },
         { daFetch },
       );
-      expect(enforcement!.batchMaterial(HTTP_ROOT, HTTP_PREV_ROOT)).toBeNull();
+      expect(() => enforcement!.batchMaterial(HTTP_ROOT, HTTP_PREV_ROOT)).toThrow(/declared DA root unresolved/);
+      expect(enforcement!.batchMaterial(OTHER_ROOT, HTTP_PREV_ROOT)).toBeNull();
     }
   });
 

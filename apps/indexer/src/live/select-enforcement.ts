@@ -2,10 +2,13 @@
 //
 // ONT_ENFORCEMENT unset/off keeps the daemon on the RootAnchor read path. ONT_ENFORCEMENT=fixture-file wires
 // live enforcement with a file-backed batch-material fixture. ONT_ENFORCEMENT=http-da prefetches declared
-// roots at boot into a sync cache. Both modes select a memory/file name-state store that mirrors ONT_STORE
-// and launch policy params from env/defaults. Unknown modes and missing required env fail closed at boot.
+// roots at boot into a sync cache. Declared-but-unresolved http-da roots throw from the sync material seam
+// so the indexer tick holds its cursor instead of silently skipping past a pending batch. Both modes select a
+// memory/file name-state store that mirrors ONT_STORE and launch policy params from env/defaults. Unknown modes
+// and missing required env fail closed at boot.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { buildCommittedBatchForRoot, createAvailabilitySource } from "@ont/adapter-indexer";
 import {
   createHttpDaRecordSource,
   decodeEncodedMaterialFile,
@@ -68,10 +71,18 @@ async function selectHttpDaEnforcement(
   const endpoint = env.ONT_DA_ENDPOINT;
   if (!endpoint) throw new Error("ONT_ENFORCEMENT=http-da requires ONT_DA_ENDPOINT");
   const roots = readDeclaredDaRoots(env.ONT_DA_ROOTS);
+  const declaredRoots = new Set(roots);
   const source = createHttpDaRecordSource({ endpoint, fetch: options.daFetch, timeoutMs: options.daTimeoutMs });
   const materials = await loadHttpDaMaterials(source, roots);
   return {
-    batchMaterial: (anchoredRoot, prevRoot) => materials.get(materialKey(anchoredRoot, prevRoot)) ?? null,
+    batchMaterial: (anchoredRoot, prevRoot) => {
+      const material = materials.get(materialKey(anchoredRoot, prevRoot));
+      if (material !== undefined) return material;
+      if (declaredRoots.has(anchoredRoot)) {
+        throw new Error(`declared DA root unresolved: ${anchoredRoot}`);
+      }
+      return null;
+    },
     nameStateStore: selectNameStateStore(env),
     policy: selectBatchedClaimPolicy(env),
   };
@@ -161,7 +172,9 @@ async function loadHttpDaMaterials(
   for (const root of roots) {
     const encoded = await source.fetchRecord(root);
     if (encoded === null) continue;
-    out.set(materialKey(root, encoded.prevRoot), materialFromEncoded(encoded));
+    const material = materialFromEncoded(encoded);
+    if (!materialBindsToRoot(root, encoded, material)) continue;
+    out.set(materialKey(root, encoded.prevRoot), material);
   }
   return out;
 }
@@ -172,6 +185,26 @@ function materialFromEncoded(encoded: EncodedBatchMaterial): BatchMaterial {
     baseLeaves: new Map(encoded.baseLeaves.map((leaf) => [leaf.keyHex, leaf.valueHex])),
     servedLeaves: encoded.servedLeaves,
   };
+}
+
+function materialBindsToRoot(root: string, encoded: EncodedBatchMaterial, material: BatchMaterial): boolean {
+  if (encoded.anchoredRoot !== root) return false;
+  const availability = createAvailabilitySource([{
+    prevRoot: encoded.prevRoot,
+    anchoredRoot: root,
+    baseLeaves: material.baseLeaves,
+    presentedServed: material.servedLeaves,
+  }]);
+  const committedBatch = buildCommittedBatchForRoot({
+    anchoredRoot: root,
+    batchSize: encoded.committedEntries.length,
+    baseLeaves: material.baseLeaves,
+    prevRoot: encoded.prevRoot,
+    batchEntries: material.committedEntries,
+  });
+  return committedBatch !== null &&
+    availability.baseLeavesForPrevRoot(encoded.prevRoot) !== null &&
+    availability.servedLeavesForRoot(root) !== null;
 }
 
 function readDeclaredDaRoots(raw: string | undefined): readonly string[] {

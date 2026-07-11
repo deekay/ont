@@ -14,7 +14,7 @@
 //     THROWS out of the tick so the durable cursor is NOT advanced and NO name-state lands on disk;
 //     (e) generated A' fixture material enforces through the same selector path; (f) operator-A serves
 //     /da/{root} over HTTP while operator-B fetches through ONT_ENFORCEMENT=http-da, accepts identical state, and
-//     fail-closes with no mutation on 404 or tampered served leaves.
+//     holds the cursor with no name-state on 404 or non-reconstructing declared roots.
 //
 // HERMETIC by design (mirrors the G2 restart e2e): the ingest firewall `confirm` is FAKED (this slice locks live
 // ENFORCEMENT + durable name-state, not the inclusion firewall — that is slice-1 tested), while ENFORCEMENT
@@ -63,8 +63,12 @@ interface RejectOutcome {
   readonly anchorInReadPath: boolean;
   readonly aliceDurable: boolean;
 }
-interface HttpDaRejectOutcome extends RejectOutcome {
-  readonly skippedRoots: readonly string[];
+interface HttpDaPendingOutcome {
+  readonly threw: boolean;
+  readonly errorMessage: string;
+  readonly cursorHeightAfterRestart: number;
+  readonly anchorInReadPath: boolean;
+  readonly aliceDurable: boolean;
 }
 interface MissingMaterialOutcome {
   readonly threw: boolean;
@@ -82,8 +86,8 @@ interface GeneratedFixtureOutcome {
 }
 interface TwoOperatorHttpDaOutcome {
   readonly served: AcceptOutcome;
-  readonly withheld: HttpDaRejectOutcome;
-  readonly tampered: HttpDaRejectOutcome;
+  readonly withheld: HttpDaPendingOutcome;
+  readonly tampered: HttpDaPendingOutcome;
 }
 export interface EnforcementE2eResult {
   readonly anchorTxid: string;
@@ -468,37 +472,34 @@ async function runTwoOperatorHttpDa(): Promise<TwoOperatorHttpDaOutcome> {
     },
   ));
 
-  const withheld = await withTempDir((dir) => withPublisherDaServer(
-    new Map(),
-    async (endpoint) => {
-      const enf = requireEnforcement(await runTickWithHttpDa({ dir, endpoint }));
-      const back = await restartReads(dir);
-      return {
-        rejectedReason: enf.rejected[0]?.reason,
-        skippedRoots: enf.skipped,
-        namesWritten: enf.namesWritten,
-        anchorInReadPath: back.anchorInReadPath,
-        aliceDurable: back.alice !== null,
-      };
-    },
-  ));
-
-  const tampered = await withTempDir((dir) => withPublisherDaServer(
-    new Map([[ANCHORED_ROOT, materialRecordJson(TAMPERED_SERVED_MATERIAL)]]),
-    async (endpoint) => {
-      const enf = requireEnforcement(await runTickWithHttpDa({ dir, endpoint }));
-      const back = await restartReads(dir);
-      return {
-        rejectedReason: enf.rejected[0]?.reason,
-        skippedRoots: enf.skipped,
-        namesWritten: enf.namesWritten,
-        anchorInReadPath: back.anchorInReadPath,
-        aliceDurable: back.alice !== null,
-      };
-    },
-  ));
+  const withheld = await runPendingHttpDa(new Map());
+  const tampered = await runPendingHttpDa(new Map([[ANCHORED_ROOT, materialRecordJson(TAMPERED_SERVED_MATERIAL)]]));
 
   return { served, withheld, tampered };
+}
+
+async function runPendingHttpDa(records: ReadonlyMap<string, string>): Promise<HttpDaPendingOutcome> {
+  return withTempDir((dir) => withPublisherDaServer(
+    records,
+    async (endpoint) => {
+      let threw = false;
+      let errorMessage = "";
+      try {
+        await runTickWithHttpDa({ dir, endpoint });
+      } catch (error) {
+        threw = true;
+        errorMessage = error instanceof Error ? error.message : String(error);
+      }
+      const back = await restartReads(dir);
+      return {
+        threw,
+        errorMessage,
+        cursorHeightAfterRestart: back.cursorHeight,
+        anchorInReadPath: back.anchorInReadPath,
+        aliceDurable: back.alice !== null,
+      };
+    },
+  ));
 }
 
 export async function runEnforcementE2e(): Promise<EnforcementE2eResult> {

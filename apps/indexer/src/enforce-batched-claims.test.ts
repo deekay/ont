@@ -42,12 +42,20 @@ function opReturn(payload: Uint8Array): string {
 // ---------- a coherent 2-name batch ----------
 const NAME_A = "alice"; // 5 bytes
 const NAME_C = "carol"; // 5 bytes (≥5 ⇒ gate floor 100k each ⇒ Σg 200k ≤ paidFee 1M)
+const NAME_B = "bob"; // 3 bytes (short-name bonded path; must not poison co-committed long names)
+const NAME_D = "david"; // 5 bytes
 const SK_A = "11".repeat(32);
 const SK_C = "22".repeat(32);
+const SK_B = "44".repeat(32);
+const SK_D = "55".repeat(32);
 const OWNER_A = deriveOwnerPubkey(SK_A); // real x-only pubkey (32-byte hex accumulator value)
 const OWNER_C = deriveOwnerPubkey(SK_C);
+const OWNER_B = deriveOwnerPubkey(SK_B);
+const OWNER_D = deriveOwnerPubkey(SK_D);
 const LEAF_A = sha256Hex(utf8ToBytes(normalizeName(NAME_A)));
 const LEAF_C = sha256Hex(utf8ToBytes(normalizeName(NAME_C)));
+const LEAF_B = sha256Hex(utf8ToBytes(normalizeName(NAME_B)));
+const LEAF_D = sha256Hex(utf8ToBytes(normalizeName(NAME_D)));
 const OTHER_KEY = "aa".repeat(32);
 const OTHER_VAL = "33".repeat(32);
 
@@ -63,6 +71,16 @@ const SERVED = [
   { keyHex: LEAF_A, valueHex: OWNER_A },
   { keyHex: LEAF_C, valueHex: OWNER_C },
 ];
+const MIXED_FULL = new Map([
+  [OTHER_KEY, OTHER_VAL],
+  [LEAF_B, OWNER_B],
+  [LEAF_D, OWNER_D],
+]);
+const MIXED_ANCHORED_ROOT = accumulatorRootOf(MIXED_FULL);
+const MIXED_SERVED = [
+  { keyHex: LEAF_B, valueHex: OWNER_B },
+  { keyHex: LEAF_D, valueHex: OWNER_D },
+];
 const BATCH_SIZE = 2;
 
 // Fee-adequate anchor carrying a REAL RootAnchor OP_RETURN: prevouts 5M + 3M, one 7M output ⇒ paidFee 1M.
@@ -76,13 +94,21 @@ const ANCHOR_TX: LegacyTransaction = {
   locktime: 0,
 };
 const ANCHOR_TXID = legacyTxidOf(ANCHOR_TX)!;
+const MIXED_ROOT_ANCHOR_PAYLOAD = encodeEvent({ type: EventType.RootAnchor, prevRoot: PREV_ROOT, newRoot: MIXED_ANCHORED_ROOT, batchSize: BATCH_SIZE });
+const MIXED_ANCHOR_TX: LegacyTransaction = {
+  version: 1,
+  inputs: [PREVOUT_A, PREVOUT_B].map((p) => ({ prevoutTxid: legacyTxidOf(p)!, prevoutVout: 0, scriptSigHex: "", sequence: 0xffffffff })),
+  outputs: [{ valueSats: 7_000_000n, scriptPubKeyHex: opReturn(MIXED_ROOT_ANCHOR_PAYLOAD) }],
+  locktime: 0,
+};
+const MIXED_ANCHOR_TXID = legacyTxidOf(MIXED_ANCHOR_TX)!;
 const ANCHOR_HEIGHT = 170;
 
 // Synthetic 1-tx block header: merkleRoot (internal) = the anchor txid; easy nBits 0x2000ffff + mined nonce.
-function mineAnchorHeader(): string {
+function mineAnchorHeader(txid: string): string {
   const h = new Uint8Array(80);
   h[0] = 1;
-  h.set(reversedBytes(hexToBytes(ANCHOR_TXID)), 36);
+  h.set(reversedBytes(hexToBytes(txid)), 36);
   h[68] = 0x40; h[69] = 0x9c; h[70] = 0x00; h[71] = 0x00;
   h[72] = 0xff; h[73] = 0xff; h[74] = 0x00; h[75] = 0x20; // nBits LE = 0x2000ffff
   for (let nonce = 0; nonce < 5_000_000; nonce++) {
@@ -91,8 +117,10 @@ function mineAnchorHeader(): string {
   }
   throw new Error("mineAnchorHeader: no nonce found");
 }
-const ANCHOR_HEADER = mineAnchorHeader();
+const ANCHOR_HEADER = mineAnchorHeader(ANCHOR_TXID);
+const MIXED_ANCHOR_HEADER = mineAnchorHeader(MIXED_ANCHOR_TXID);
 const HEADER_SOURCE: BitcoinHeaderSource = { headerHexAtHeight: (height) => (height === ANCHOR_HEIGHT ? ANCHOR_HEADER : null) };
+const MIXED_HEADER_SOURCE: BitcoinHeaderSource = { headerHexAtHeight: (height) => (height === ANCHOR_HEIGHT ? MIXED_ANCHOR_HEADER : null) };
 
 function candidate(over: Partial<BuildConfirmedBatchAnchorInput> = {}): BuildConfirmedBatchAnchorInput {
   return {
@@ -112,6 +140,11 @@ const FULL_MATERIAL: BatchMaterial = {
   committedEntries: [{ name: NAME_A, ownerPubkey: OWNER_A }, { name: NAME_C, ownerPubkey: OWNER_C }],
   baseLeaves: BASE,
   servedLeaves: SERVED,
+};
+const MIXED_MATERIAL: BatchMaterial = {
+  committedEntries: [{ name: NAME_B, ownerPubkey: OWNER_B }, { name: NAME_D, ownerPubkey: OWNER_D }],
+  baseLeaves: BASE,
+  servedLeaves: MIXED_SERVED,
 };
 const POLICY = { window: { K: 6, W: 2, C: 3 }, gateFeeSchedule: { gateOneByteSats: 1_000_000n, gateLongNameFloorSats: 100_000n } };
 
@@ -145,6 +178,20 @@ function deps(over: Partial<EnforceBatchedClaimsDeps> = {}): EnforceBatchedClaim
     nameStateStore: store,
     policy: over.policy ?? POLICY,
     store,
+  };
+}
+
+function mixedCandidate(over: Partial<BuildConfirmedBatchAnchorInput> = {}): BuildConfirmedBatchAnchorInput {
+  return {
+    anchorTx: MIXED_ANCHOR_TX,
+    prevoutTxs: [PREVOUT_A, PREVOUT_B],
+    blockHeaderHex: MIXED_ANCHOR_HEADER,
+    minedHeight: ANCHOR_HEIGHT,
+    merkle: [],
+    pos: 0,
+    headerSource: MIXED_HEADER_SOURCE,
+    anchorVout: 0,
+    ...over,
   };
 }
 
@@ -210,6 +257,41 @@ describe("enforceBatchedClaims (LE-INDEX driver)", () => {
     expect(report.accepted).toEqual([]);
     expect(report.namesWritten).toBe(0);
     expect(d.store.all()).toEqual([]);
+  });
+
+  it("unresolved declared material THROWS out so runIndexerTick holds the cursor", async () => {
+    const cursorStore = createInMemoryIndexerCursorStore(0);
+    const blockSource = { nextConfirmedAnchors: () => Promise.resolve({ candidates: [candidate()], cursor: { height: 99 } }) };
+    await expect(
+      runIndexerTick({
+        blockSource,
+        cursorStore,
+        anchorStore: createInMemoryConfirmedAnchorStore(),
+        enforcement: { batchMaterial: () => { throw new Error("declared DA root unresolved"); }, nameStateStore: inMemoryStore(), policy: POLICY },
+      }),
+    ).rejects.toThrow(/declared DA root unresolved/);
+    expect(await cursorStore.load()).toEqual({ height: 0 });
+  });
+
+  it("#11/#52 leaf-drop: a co-committed short name does not poison a long-name mint", async () => {
+    const d = deps({
+      batchMaterial: (r, p) => (r === MIXED_ANCHORED_ROOT && p === PREV_ROOT
+        ? MIXED_MATERIAL
+        : null),
+    });
+    const report = await enforceBatchedClaims([mixedCandidate()], d);
+    expect(report.accepted).toEqual([MIXED_ANCHORED_ROOT]);
+    expect(report.rejected).toEqual([]);
+    expect(report.namesWritten).toBe(1);
+    expect(await d.store.getByName(NAME_B)).toBeNull();
+    const david = await d.store.getByName(NAME_D);
+    expect(david?.owner.ownerPubkeyHex).toBe(OWNER_D);
+    expect(david?.leafKeyHex).toBe(LEAF_D);
+    expect(david?.batchLocalIndex).toBe(1); // original committed-entry index: short leaf stayed in the batch.
+    expect(david?.anchoredRoot).toBe(MIXED_ANCHORED_ROOT);
+    expect(verifyProofBundleAgainstBitcoin(david!.proofBundle, { headerSource: MIXED_HEADER_SOURCE }).valid).toBe(true);
+    expect((david!.proofBundle.accumulatorProof as { root: string; leaf: string }).root).toBe(MIXED_ANCHORED_ROOT);
+    expect((david!.proofBundle.accumulatorProof as { root: string; leaf: string }).leaf).toBe(LEAF_D);
   });
 
   it("atomicity: a name-state write failure THROWS out (accept writes ALL or NONE — no partial durable state)", async () => {
