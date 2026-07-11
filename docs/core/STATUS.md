@@ -4,19 +4,21 @@
 If the README, one-pager, design brief, or the website disagree with this file, **this file
 wins** — fix the others. (It exists because those numbers drifted apart once; don't let them again.)
 
-Last updated: 2026-07-09.
+Last updated: 2026-07-11.
 
-## Where the project is (2026-07-09)
+## Where the project is (2026-07-11)
 
 ONT was rebuilt from canon under clean-build (#46) — a blank-page rewrite of all software, with the
 old code quarantined. The rebuild has strong local predicate coverage and several live-stack slices
 now wired, but it is **not** a composed product state machine and is **not** mainnet-ready.
 
-Current `main` is at `d3d34d35` (`Land private-signet client launch checkpoint override —
-CLI/web/mobile verify our chain (#36)`). The latest full review sweep at that snapshot reported
-**1,541 passing / 5 skipped / 0 failing**; a follow-up Codex check on 2026-07-09 re-ran
-`npm test` and `npm run typecheck` successfully in a fresh worktree and confirmed the same
-1,541/5/0 count.
+Current `main` is at `ccb390d3` (`Land reduceBlock §6 modeAt deltas — http-da declared-root
+stall-only (Δ1-3) + #52/#11 short-name leaf-drop (Δ4)`). A full `npm test` on that snapshot
+(2026-07-11, fresh checkout) reported **1,591 passing / 5 skipped / 0 failing**, exit 0. Since
+`d3d34d35`, the reduceBlock §6 availability-mode fork was closed to the terminal set
+`{mint, stall}` (the unsound off-chain `excluded → free` terminal was dropped, §7.5), and the
+#52/#11 short-name leaf-drop landed (short names ride full-batch enforcement and are filtered only
+from the write-set, never poisoning the batch).
 
 The old public signet stack remains decommissioned (notice below). The current public
 `opennametags.org` root is a static web surface; as of 2026-07-09, `/api/health`,
@@ -35,7 +37,8 @@ Phase ledger, all merged to `main`:
 | **G-B / LE-DA-SERVE** | publisher `/da/{root}` full-material record, `http-da` indexer mode, and two-operator hermetic e2e for fetch/recompute/fail-closed behavior | green hermetically; runtime root discovery and durable retry are follow-up |
 | **live-enforcement** (LE-INDEX + LE-RESOLVE) | daemon-selected enforcement (`off` / `fixture-file` / `http-da`) runs over ingested anchors, writes accepted committed entries to `@ont/name-state-store`, and resolver serves enforced state + trace | wired; still a vertical slice, not the full acquisition lifecycle |
 
-**Still ahead:** a single composed reducer for authoritative name state; LE-INVOKE / LE-CONTESTED
+**Still ahead:** the reducer→sole-sink cutover (making the additive `reduceBlock` the single
+authoritative name-state sink); LE-INVOKE / LE-CONTESTED
 live wiring; runtime DA discovery/retry/durability; production claimant/publisher payment and
 receipt paths; a clean two-node/private-signet exit demo with contention and reorg; and all
 bootstrap-operator launch gates. A live deployment remains hard-gated behind an **external audit**
@@ -79,20 +82,28 @@ parameter checks. These predicates are pure and covered by the boundary manifest
 network, wall clock, UI, adapter judgment, or evidence-layer override may enter a verdict
 (`packages/consensus/PURPOSE.md`).
 
-The missing piece is composition. There is **no single `reduceBlock`-style reducer yet** that consumes
-verified block facts + verified external evidence + frozen parameters and emits the authoritative
-next name state for anchors, batched acquisition, notice windows, collisions, bonds, auctions,
-transfer, recovery, height transitions, and reorgs.
+The missing piece is now **cutover, not existence.** A `reduceBlock` reducer exists and runs
+**additively** (`packages/consensus/src/engine.ts`): it consumes verified block facts + verified
+external evidence (the RootAnchor availability seam) + frozen parameters and emits authoritative
+`OntState.names`. It is **not yet the sole authoritative sink** and does not yet cover the whole
+acquisition lifecycle. Two name-state authorities run in parallel by design, and a guard
+(`reduceblock-authority.test.ts`) fails loudly if any third sink appears — the two sanctioned sinks
+are `engine.ts` (`OntState`) and the live `apps/indexer/src/enforce-batched-claims.ts` (`NameStateStore`).
 
-- `packages/consensus/src/engine.ts` currently applies transfer / auction-bid provenance /
-  recovery-owner events and bond-continuity invalidation; it explicitly skips `RootAnchor`.
+- `packages/consensus/src/engine.ts` now applies `RootAnchor` through `reduceBlock` and mints
+  **`accumulator-batched`** name-state, alongside its existing transfer / auction-bid provenance /
+  recovery-owner / bond-continuity handling. **`bonded` and `auction` acquisition minting are
+  deliberately deferred to the cutover** (locked by the N1 test), so the reducer cannot yet subsume
+  the live authority.
 - `packages/consensus/src/auction-resolution.ts` contains pure auction acceptance and winner-selection
-  predicates, but those predicates are not yet composed by `engine.ts` into auction lot settlement and
-  name ownership.
+  predicates, but those predicates are **still not composed by `engine.ts`** into auction lot settlement
+  and name ownership.
 - `@ont/claim-path` (`enforceBatchedClaim`) sequences verified batched-claim predicates and returns a
-  verdict plus `{ anchoredRoot, firstServableHeight }`. The current live indexer then persists one
-  `NameStateRecord` per committed entry for an accepted batch. That is a useful enforcement slice,
-  not the canonical acquisition state machine.
+  verdict plus `{ anchoredRoot, firstServableHeight }`. The **live** indexer
+  (`apps/indexer/src/enforce-batched-claims.ts`) is the second, currently-authoritative sink: it
+  persists committed entries directly to `@ont/name-state-store` and serves the private-signet demo.
+  Making the reducer the sole sink — retiring this direct writer — is a **DK-gated cutover**, not an
+  additive slice.
 - The B4 **`@ont/adapter-*`** packages witness facts (recompute-don't-trust) and feed the predicates;
   they must remain non-deciding.
 
@@ -111,7 +122,7 @@ transfer, recovery, height transitions, and reorgs.
 
 | Component | Status | Notes |
 | --- | --- | --- |
-| Audited predicate layer (`@ont/consensus`) | **Built (hermetic)** | Pure predicates for DA eligibility, gate-fee, batch completeness, auction bid/winner selection, transfer/recovery/value authority, bond continuity, and related verdicts. **No single composed reducer yet**; `engine.ts` skips `RootAnchor`, and auction winner predicates are not yet integrated into name-state settlement. |
+| Audited predicate layer (`@ont/consensus`) | **Built (hermetic)** | Pure predicates for DA eligibility, gate-fee, batch completeness, auction bid/winner selection, transfer/recovery/value authority, bond continuity, and related verdicts. `engine.ts` now runs a `reduceBlock` reducer that applies `RootAnchor` and mints `accumulator-batched` name-state **additively**; `bonded`/`auction` minting and auction-settlement composition are cutover-deferred, and the reducer is **not yet the sole name-state sink** (see composition note above). |
 | Wire codec (`@ont/wire`) | **Built (hermetic)** | Event registry + frame + Schnorr digests; size envelope pinned ≤184 B (max-name AuctionBid); conformance-locked across engine/web/mobile/claim-site. |
 | Evidence layer (`@ont/evidence`) | **Built (hermetic)** | Builds inclusion / canonical-root / availability / completeness witnesses; non-deciding (a hostile data source cannot move a verdict). |
 | Batched-claim enforcement (`@ont/claim-path`) | **Built (hermetic)** | `enforceBatchedClaim` sequences inclusion, gate-fee, availability, and completeness; fail-closed precedence; verdict + `{ anchoredRoot, firstServableHeight }` delta out. Contested distinct-owner / full acquisition lifecycle remains follow-up composition. |
@@ -168,13 +179,14 @@ design choice, the numbers are calibration.
 
 ## Known-incomplete (disclosed, on the roadmap)
 
-- **Composed reducer is the sharpest architecture gap.** There is no single pure, deterministic,
-  reorg-aware reducer that applies RootAnchors, batched entries, notice windows, cheap collisions,
-  bonds, auctions, transfer, recovery, height transitions, and reorg replay into one authoritative
-  name state. Today the pieces are split: `engine.ts` skips `RootAnchor`; auction settlement predicates
-  exist separately; live batched enforcement accepts a batch and writes committed entries directly to
-  `@ont/name-state-store`. This is the main reason the project is ready for controlled integration
-  but not a finished ownership-state product.
+- **Reducer→sole-sink cutover is the sharpest architecture gap.** A `reduceBlock` reducer now exists
+  and applies `RootAnchor` additively, minting `accumulator-batched` name-state — but it is not yet the
+  single authoritative sink and does not yet cover the whole lifecycle. Still owed for cutover:
+  `bonded` + `auction` acquisition minting through the reducer (deferred by the N1 test); auction-lot
+  settlement composed from `auction-resolution.ts`; reorg-symmetric replay across all paths; and
+  retiring the live direct writer (`apps/indexer/src/enforce-batched-claims.ts` → `@ont/name-state-store`)
+  so the reducer is the only name-state sink. That last step is DK-gated. This is the main reason the
+  project is ready for controlled integration but not a finished ownership-state product.
 - **Assurance semantics are too coarse.** CLI/web/mobile now distinguish `bitcoin-verified` from
   `resolver-mirror` for the private-signet demo, but that is still not the full ladder a product needs:
   anchor included, batch member, provisional claim, finalized ownership at block X, and current through
