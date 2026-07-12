@@ -145,7 +145,7 @@ minimalism.
 - Fisherman's dilemma / DA checks — Dankrad Feist, <https://dankradfeist.de/ethereum/2019/12/20/data-availability-checks.html>
 - Fraud & Data Availability Proofs — Al-Bassam, Sonnino, Buterin, <https://arxiv.org/pdf/1809.09044>
 - DAS open problems — Paradigm, <https://www.paradigm.xyz/2022/08/das>
-- Braidpool overview — <https://github.com/braidpool/braidpool/blob/main/docs/overview.md>
+- Braidpool (overview + spec in-repo) — <https://github.com/braidpool/braidpool>
 - BitVM2 (bonded slashing on Bitcoin) — <https://www.goat.network/bitvm2-whitepaper>
 - Proof-of-retrievability on Bitcoin — <https://coingeek.com/pay-for-storage-using-proof-of-retrievability-on-bitcoin/>
 - ONT internal: `docs/core/STATUS.md` (DA known-incomplete), `docs/ONT_ONE_PAGER.md` (§attack tour: withholding), decisions `#49` / `#83` / `#84` / `#95`.
